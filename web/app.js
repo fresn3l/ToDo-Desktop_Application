@@ -688,37 +688,10 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 // ============================================
 
 /**
- * Load and display analytics data
- * This function fetches comprehensive analytics from the Python backend
- * and renders them in a visually appealing format with charts and statistics
- */
-async function loadAnalytics() {
-    try {
-        // Fetch analytics data from Python backend
-        // The get_analytics() function calculates all statistics server-side
-        const analytics = await eel.get_analytics()();
-        
-        // Render the analytics in the UI
-        renderAnalytics(analytics);
-    } catch (error) {
-        console.error('Error loading analytics:', error);
-        // Show error message to user
-        const container = document.getElementById('analyticsContainer');
-        container.innerHTML = `
-            <div class="empty-state">
-                <h3>Error Loading Analytics</h3>
-                <p>Unable to load analytics data. Please try again.</p>
-            </div>
-        `;
-    }
-}
-
-/**
- * Render analytics data in the UI
- * This function takes the analytics data structure and creates visual cards
- * for each category of statistics
+ * Main Application Entry Point
  * 
- * @param {Object} analytics - The analytics data object from Python
+ * This file initializes the application and coordinates all modules.
+ * All functionality has been modularized for better maintainability.
  */
 function renderAnalytics(analytics) {
     const container = document.getElementById('analyticsContainer');
@@ -1083,285 +1056,33 @@ function setupAnalytics() {
     }
 }
 
-// ============================================
-// DRAG AND RESIZE FUNCTIONALITY
-// ============================================
+// Import all modules
+import * as state from './js/state.js';
+import * as ui from './js/ui.js';
+import { loadTasks } from './js/tasks.js';
+import { loadGoals } from './js/goals.js';
+import { setupEventListeners } from './js/events.js';
+import { setupTabs } from './js/tabs.js';
 
 /**
- * Initialize drag and resize functionality for analytics cards
- * This function sets up event listeners for dragging cards around
- * and resizing them to custom dimensions
+ * Initialize the application
  */
-function initializeDragAndResize() {
-    // Get all draggable cards
-    const cards = document.querySelectorAll('.draggable-card');
+async function init() {
+    // Show loading state
+    ui.showLoadingState();
     
-    cards.forEach(card => {
-        // Get the drag handle (the element you click to drag)
-        const dragHandle = card.querySelector('.card-drag-handle');
-        
-        if (dragHandle) {
-            // Make the drag handle cursor indicate it's draggable
-            dragHandle.style.cursor = 'move';
-            
-            // Add mousedown event to start dragging
-            dragHandle.addEventListener('mousedown', (e) => {
-                startDragging(e, card);
-            });
-        }
-        
-        // Get the resize handle (the element you drag to resize)
-        const resizeHandle = card.querySelector('.card-resize-handle');
-        
-        if (resizeHandle) {
-            // Make the resize handle cursor indicate it's resizable
-            resizeHandle.style.cursor = 'nwse-resize';
-            
-            // Add mousedown event to start resizing
-            resizeHandle.addEventListener('mousedown', (e) => {
-                startResizing(e, card);
-            });
-        }
-    });
-}
-
-/**
- * Start dragging a card
- * This function is called when the user clicks and holds on a card's drag handle
- * 
- * @param {MouseEvent} e - The mouse event
- * @param {HTMLElement} card - The card element being dragged
- */
-function startDragging(e, card) {
-    // Prevent default behavior
-    e.preventDefault();
+    // Load all data in parallel
+    await Promise.all([loadTasks(), loadGoals()]);
     
-    // Get the card's current position
-    const rect = card.getBoundingClientRect();
-    const container = document.getElementById('analyticsContainer');
-    const containerRect = container.getBoundingClientRect();
+    // Setup UI interactions
+    setupEventListeners();
+    setupTabs();
     
-    // Calculate the offset between mouse position and card position
-    // This ensures the card doesn't jump when you start dragging
-    const offsetX = e.clientX - rect.left;
-    const offsetY = e.clientY - rect.top;
+    // Hide loading state
+    ui.hideLoadingState();
     
-    // Add visual feedback - make card semi-transparent and raise z-index
-    card.style.opacity = '0.8';
-    card.style.zIndex = '1000';
-    card.style.cursor = 'move';
-    
-    /**
-     * Handle mouse movement while dragging
-     * This function updates the card's position as the mouse moves
-     */
-    function handleMouseMove(e) {
-        // Calculate new position relative to container
-        const newX = e.clientX - containerRect.left - offsetX;
-        const newY = e.clientY - containerRect.top - offsetY;
-        
-        // Constrain card within container bounds
-        const maxX = containerRect.width - rect.width;
-        const maxY = containerRect.height - rect.height;
-        
-        // Clamp values to keep card inside container
-        const clampedX = Math.max(0, Math.min(newX, maxX));
-        const clampedY = Math.max(0, Math.min(newY, maxY));
-        
-        // Update card position using absolute positioning
-        card.style.position = 'absolute';
-        card.style.left = clampedX + 'px';
-        card.style.top = clampedY + 'px';
-        card.style.margin = '0'; // Remove margin when using absolute positioning
-    }
-    
-    /**
-     * Handle mouse release - stop dragging
-     * This function is called when the user releases the mouse button
-     */
-    function handleMouseUp() {
-        // Remove event listeners
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        
-        // Restore visual feedback
-        card.style.opacity = '1';
-        card.style.cursor = 'default';
-        
-        // Save the new position to localStorage
-        saveCardPosition(card);
-    }
-    
-    // Add event listeners for mouse movement and release
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-}
-
-/**
- * Start resizing a card
- * This function is called when the user clicks and holds on a card's resize handle
- * 
- * @param {MouseEvent} e - The mouse event
- * @param {HTMLElement} card - The card element being resized
- */
-function startResizing(e, card) {
-    // Prevent default behavior
-    e.preventDefault();
-    e.stopPropagation(); // Prevent triggering drag
-    
-    // Get the card's current dimensions and position
-    const rect = card.getBoundingClientRect();
-    const container = document.getElementById('analyticsContainer');
-    const containerRect = container.getBoundingClientRect();
-    
-    // Store initial dimensions
-    const startWidth = rect.width;
-    const startHeight = rect.height;
-    const startX = e.clientX;
-    const startY = e.clientY;
-    
-    // Set minimum and maximum sizes
-    const minWidth = 300;  // Minimum card width in pixels
-    const minHeight = 200; // Minimum card height in pixels
-    const maxWidth = containerRect.width - 20;  // Maximum width (with padding)
-    const maxHeight = containerRect.height - 20; // Maximum height (with padding)
-    
-    // Add visual feedback
-    card.style.opacity = '0.8';
-    card.style.zIndex = '1000';
-    
-    /**
-     * Handle mouse movement while resizing
-     * This function updates the card's size as the mouse moves
-     */
-    function handleMouseMove(e) {
-        // Calculate how much the mouse has moved
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-        
-        // Calculate new dimensions
-        let newWidth = startWidth + deltaX;
-        let newHeight = startHeight + deltaY;
-        
-        // Constrain to minimum and maximum sizes
-        newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
-        newHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
-        
-        // Update card size
-        card.style.width = newWidth + 'px';
-        card.style.height = 'auto'; // Allow height to adjust naturally
-        card.style.minHeight = newHeight + 'px';
-    }
-    
-    /**
-     * Handle mouse release - stop resizing
-     * This function is called when the user releases the mouse button
-     */
-    function handleMouseUp() {
-        // Remove event listeners
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        
-        // Restore visual feedback
-        card.style.opacity = '1';
-        
-        // Save the new size to localStorage
-        saveCardSize(card);
-    }
-    
-    // Add event listeners for mouse movement and release
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-}
-
-/**
- * Save card position to localStorage
- * This function stores the card's position so it can be restored later
- * 
- * @param {HTMLElement} card - The card element
- */
-function saveCardPosition(card) {
-    // Get the card's unique ID
-    const cardId = card.getAttribute('data-card-id');
-    if (!cardId) return;
-    
-    // Get current position
-    const left = card.style.left;
-    const top = card.style.top;
-    
-    // Load existing saved positions or create new object
-    const savedPositions = JSON.parse(localStorage.getItem('analyticsCardPositions') || '{}');
-    
-    // Update position for this card
-    if (!savedPositions[cardId]) {
-        savedPositions[cardId] = {};
-    }
-    savedPositions[cardId].left = left;
-    savedPositions[cardId].top = top;
-    
-    // Save to localStorage
-    localStorage.setItem('analyticsCardPositions', JSON.stringify(savedPositions));
-}
-
-/**
- * Save card size to localStorage
- * This function stores the card's size so it can be restored later
- * 
- * @param {HTMLElement} card - The card element
- */
-function saveCardSize(card) {
-    // Get the card's unique ID
-    const cardId = card.getAttribute('data-card-id');
-    if (!cardId) return;
-    
-    // Get current size
-    const width = card.style.width;
-    const minHeight = card.style.minHeight;
-    
-    // Load existing saved sizes or create new object
-    const savedSizes = JSON.parse(localStorage.getItem('analyticsCardSizes') || '{}');
-    
-    // Update size for this card
-    if (!savedSizes[cardId]) {
-        savedSizes[cardId] = {};
-    }
-    savedSizes[cardId].width = width;
-    savedSizes[cardId].minHeight = minHeight;
-    
-    // Save to localStorage
-    localStorage.setItem('analyticsCardSizes', JSON.stringify(savedSizes));
-}
-
-/**
- * Load saved card positions and sizes from localStorage
- * This function restores cards to their previously saved positions and sizes
- */
-function loadCardPositions() {
-    // Load saved positions
-    const savedPositions = JSON.parse(localStorage.getItem('analyticsCardPositions') || '{}');
-    
-    // Load saved sizes
-    const savedSizes = JSON.parse(localStorage.getItem('analyticsCardSizes') || '{}');
-    
-    // Apply saved positions and sizes to each card
-    document.querySelectorAll('.draggable-card').forEach(card => {
-        const cardId = card.getAttribute('data-card-id');
-        if (!cardId) return;
-        
-        // Apply saved position if it exists
-        if (savedPositions[cardId]) {
-            card.style.position = 'absolute';
-            card.style.left = savedPositions[cardId].left || '';
-            card.style.top = savedPositions[cardId].top || '';
-            card.style.margin = '0';
-        }
-        
-        // Apply saved size if it exists
-        if (savedSizes[cardId]) {
-            card.style.width = savedSizes[cardId].width || '';
-            card.style.minHeight = savedSizes[cardId].minHeight || '';
-        }
-    });
+    // Add smooth entrance animations
+    ui.animateElements();
 }
 
 // Initialize when page loads
