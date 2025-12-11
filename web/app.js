@@ -786,8 +786,11 @@ function renderAnalytics(analytics) {
     // OVERALL STATISTICS CARD
     // ============================================
     // This card shows high-level completion statistics
+    // Add data-card-id attribute for identification and localStorage
     html += `
-        <div class="analytics-card">
+        <div class="analytics-card draggable-card resizable-card" data-card-id="overall-stats">
+            <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+            <div class="card-resize-handle" title="Drag to resize"></div>
             <div class="analytics-card-header">
                 <h3>📊 Overall Statistics</h3>
             </div>
@@ -824,7 +827,9 @@ function renderAnalytics(analytics) {
     // Shows completion rates broken down by category
     if (Object.keys(analytics.by_category).length > 0) {
         html += `
-            <div class="analytics-card">
+            <div class="analytics-card draggable-card resizable-card" data-card-id="category-breakdown">
+                <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+                <div class="card-resize-handle" title="Drag to resize"></div>
                 <div class="analytics-card-header">
                     <h3>📁 Category Breakdown</h3>
                 </div>
@@ -862,7 +867,9 @@ function renderAnalytics(analytics) {
     // ============================================
     // Shows how tasks are distributed and completed by priority level
     html += `
-        <div class="analytics-card">
+        <div class="analytics-card draggable-card resizable-card" data-card-id="priority-analysis">
+            <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+            <div class="card-resize-handle" title="Drag to resize"></div>
             <div class="analytics-card-header">
                 <h3>⚡ Priority Analysis</h3>
             </div>
@@ -902,7 +909,9 @@ function renderAnalytics(analytics) {
     // Shows progress for each goal and goal-related metrics
     if (analytics.by_goal.total_goals > 0) {
         html += `
-            <div class="analytics-card">
+            <div class="analytics-card draggable-card resizable-card" data-card-id="goal-progress">
+                <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+                <div class="card-resize-handle" title="Drag to resize"></div>
                 <div class="analytics-card-header">
                     <h3>🎯 Goal Progress</h3>
                 </div>
@@ -949,7 +958,9 @@ function renderAnalytics(analytics) {
     // ============================================
     // Shows time-related metrics like overdue tasks, completion times, etc.
     html += `
-        <div class="analytics-card">
+        <div class="analytics-card draggable-card resizable-card" data-card-id="time-analysis">
+            <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+            <div class="card-resize-handle" title="Drag to resize"></div>
             <div class="analytics-card-header">
                 <h3>⏰ Time Analysis</h3>
             </div>
@@ -990,7 +1001,9 @@ function renderAnalytics(analytics) {
     // ============================================
     // Shows insights about productivity patterns
     html += `
-        <div class="analytics-card">
+        <div class="analytics-card draggable-card resizable-card" data-card-id="productivity-insights">
+            <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+            <div class="card-resize-handle" title="Drag to resize"></div>
             <div class="analytics-card-header">
                 <h3>🚀 Productivity Insights</h3>
             </div>
@@ -1056,6 +1069,18 @@ function renderAnalytics(analytics) {
     
     // Insert all HTML into the container
     container.innerHTML = html;
+    
+    // ============================================
+    // LOAD SAVED POSITIONS AND SIZES
+    // ============================================
+    // After rendering, restore saved positions and sizes from localStorage
+    loadCardPositions();
+    
+    // ============================================
+    // INITIALIZE DRAG AND RESIZE FUNCTIONALITY
+    // ============================================
+    // Set up event listeners for dragging and resizing cards
+    initializeDragAndResize();
 }
 
 // ============================================
@@ -1083,6 +1108,306 @@ function setupAnalytics() {
             refreshBtn.disabled = false;
         });
     }
+    
+    // Add event listener for reset layout button
+    const resetBtn = document.getElementById('resetCardLayout');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            // Confirm reset action
+            if (confirm('Reset all card positions and sizes to default? This cannot be undone.')) {
+                // Clear saved positions and sizes from localStorage
+                localStorage.removeItem('analyticsCardPositions');
+                localStorage.removeItem('analyticsCardSizes');
+                
+                // Reload analytics to apply default layout
+                loadAnalytics();
+                
+                // Show feedback
+                showSuccessFeedback('Layout reset to default');
+            }
+        });
+    }
+}
+
+// ============================================
+// DRAG AND RESIZE FUNCTIONALITY
+// ============================================
+
+/**
+ * Initialize drag and resize functionality for analytics cards
+ * This function sets up event listeners for dragging cards around
+ * and resizing them to custom dimensions
+ */
+function initializeDragAndResize() {
+    // Get all draggable cards
+    const cards = document.querySelectorAll('.draggable-card');
+    
+    cards.forEach(card => {
+        // Get the drag handle (the element you click to drag)
+        const dragHandle = card.querySelector('.card-drag-handle');
+        
+        if (dragHandle) {
+            // Make the drag handle cursor indicate it's draggable
+            dragHandle.style.cursor = 'move';
+            
+            // Add mousedown event to start dragging
+            dragHandle.addEventListener('mousedown', (e) => {
+                startDragging(e, card);
+            });
+        }
+        
+        // Get the resize handle (the element you drag to resize)
+        const resizeHandle = card.querySelector('.card-resize-handle');
+        
+        if (resizeHandle) {
+            // Make the resize handle cursor indicate it's resizable
+            resizeHandle.style.cursor = 'nwse-resize';
+            
+            // Add mousedown event to start resizing
+            resizeHandle.addEventListener('mousedown', (e) => {
+                startResizing(e, card);
+            });
+        }
+    });
+}
+
+/**
+ * Start dragging a card
+ * This function is called when the user clicks and holds on a card's drag handle
+ * 
+ * @param {MouseEvent} e - The mouse event
+ * @param {HTMLElement} card - The card element being dragged
+ */
+function startDragging(e, card) {
+    // Prevent default behavior
+    e.preventDefault();
+    
+    // Get the card's current position
+    const rect = card.getBoundingClientRect();
+    const container = document.getElementById('analyticsContainer');
+    const containerRect = container.getBoundingClientRect();
+    
+    // Calculate the offset between mouse position and card position
+    // This ensures the card doesn't jump when you start dragging
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+    
+    // Add visual feedback - make card semi-transparent and raise z-index
+    card.style.opacity = '0.8';
+    card.style.zIndex = '1000';
+    card.style.cursor = 'move';
+    
+    /**
+     * Handle mouse movement while dragging
+     * This function updates the card's position as the mouse moves
+     */
+    function handleMouseMove(e) {
+        // Calculate new position relative to container
+        const newX = e.clientX - containerRect.left - offsetX;
+        const newY = e.clientY - containerRect.top - offsetY;
+        
+        // Constrain card within container bounds
+        const maxX = containerRect.width - rect.width;
+        const maxY = containerRect.height - rect.height;
+        
+        // Clamp values to keep card inside container
+        const clampedX = Math.max(0, Math.min(newX, maxX));
+        const clampedY = Math.max(0, Math.min(newY, maxY));
+        
+        // Update card position using absolute positioning
+        card.style.position = 'absolute';
+        card.style.left = clampedX + 'px';
+        card.style.top = clampedY + 'px';
+        card.style.margin = '0'; // Remove margin when using absolute positioning
+    }
+    
+    /**
+     * Handle mouse release - stop dragging
+     * This function is called when the user releases the mouse button
+     */
+    function handleMouseUp() {
+        // Remove event listeners
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        
+        // Restore visual feedback
+        card.style.opacity = '1';
+        card.style.cursor = 'default';
+        
+        // Save the new position to localStorage
+        saveCardPosition(card);
+    }
+    
+    // Add event listeners for mouse movement and release
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+}
+
+/**
+ * Start resizing a card
+ * This function is called when the user clicks and holds on a card's resize handle
+ * 
+ * @param {MouseEvent} e - The mouse event
+ * @param {HTMLElement} card - The card element being resized
+ */
+function startResizing(e, card) {
+    // Prevent default behavior
+    e.preventDefault();
+    e.stopPropagation(); // Prevent triggering drag
+    
+    // Get the card's current dimensions and position
+    const rect = card.getBoundingClientRect();
+    const container = document.getElementById('analyticsContainer');
+    const containerRect = container.getBoundingClientRect();
+    
+    // Store initial dimensions
+    const startWidth = rect.width;
+    const startHeight = rect.height;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    // Set minimum and maximum sizes
+    const minWidth = 300;  // Minimum card width in pixels
+    const minHeight = 200; // Minimum card height in pixels
+    const maxWidth = containerRect.width - 20;  // Maximum width (with padding)
+    const maxHeight = containerRect.height - 20; // Maximum height (with padding)
+    
+    // Add visual feedback
+    card.style.opacity = '0.8';
+    card.style.zIndex = '1000';
+    
+    /**
+     * Handle mouse movement while resizing
+     * This function updates the card's size as the mouse moves
+     */
+    function handleMouseMove(e) {
+        // Calculate how much the mouse has moved
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        // Calculate new dimensions
+        let newWidth = startWidth + deltaX;
+        let newHeight = startHeight + deltaY;
+        
+        // Constrain to minimum and maximum sizes
+        newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+        newHeight = Math.max(minHeight, Math.min(newHeight, maxHeight));
+        
+        // Update card size
+        card.style.width = newWidth + 'px';
+        card.style.height = 'auto'; // Allow height to adjust naturally
+        card.style.minHeight = newHeight + 'px';
+    }
+    
+    /**
+     * Handle mouse release - stop resizing
+     * This function is called when the user releases the mouse button
+     */
+    function handleMouseUp() {
+        // Remove event listeners
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        
+        // Restore visual feedback
+        card.style.opacity = '1';
+        
+        // Save the new size to localStorage
+        saveCardSize(card);
+    }
+    
+    // Add event listeners for mouse movement and release
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+}
+
+/**
+ * Save card position to localStorage
+ * This function stores the card's position so it can be restored later
+ * 
+ * @param {HTMLElement} card - The card element
+ */
+function saveCardPosition(card) {
+    // Get the card's unique ID
+    const cardId = card.getAttribute('data-card-id');
+    if (!cardId) return;
+    
+    // Get current position
+    const left = card.style.left;
+    const top = card.style.top;
+    
+    // Load existing saved positions or create new object
+    const savedPositions = JSON.parse(localStorage.getItem('analyticsCardPositions') || '{}');
+    
+    // Update position for this card
+    if (!savedPositions[cardId]) {
+        savedPositions[cardId] = {};
+    }
+    savedPositions[cardId].left = left;
+    savedPositions[cardId].top = top;
+    
+    // Save to localStorage
+    localStorage.setItem('analyticsCardPositions', JSON.stringify(savedPositions));
+}
+
+/**
+ * Save card size to localStorage
+ * This function stores the card's size so it can be restored later
+ * 
+ * @param {HTMLElement} card - The card element
+ */
+function saveCardSize(card) {
+    // Get the card's unique ID
+    const cardId = card.getAttribute('data-card-id');
+    if (!cardId) return;
+    
+    // Get current size
+    const width = card.style.width;
+    const minHeight = card.style.minHeight;
+    
+    // Load existing saved sizes or create new object
+    const savedSizes = JSON.parse(localStorage.getItem('analyticsCardSizes') || '{}');
+    
+    // Update size for this card
+    if (!savedSizes[cardId]) {
+        savedSizes[cardId] = {};
+    }
+    savedSizes[cardId].width = width;
+    savedSizes[cardId].minHeight = minHeight;
+    
+    // Save to localStorage
+    localStorage.setItem('analyticsCardSizes', JSON.stringify(savedSizes));
+}
+
+/**
+ * Load saved card positions and sizes from localStorage
+ * This function restores cards to their previously saved positions and sizes
+ */
+function loadCardPositions() {
+    // Load saved positions
+    const savedPositions = JSON.parse(localStorage.getItem('analyticsCardPositions') || '{}');
+    
+    // Load saved sizes
+    const savedSizes = JSON.parse(localStorage.getItem('analyticsCardSizes') || '{}');
+    
+    // Apply saved positions and sizes to each card
+    document.querySelectorAll('.draggable-card').forEach(card => {
+        const cardId = card.getAttribute('data-card-id');
+        if (!cardId) return;
+        
+        // Apply saved position if it exists
+        if (savedPositions[cardId]) {
+            card.style.position = 'absolute';
+            card.style.left = savedPositions[cardId].left || '';
+            card.style.top = savedPositions[cardId].top || '';
+            card.style.margin = '0';
+        }
+        
+        // Apply saved size if it exists
+        if (savedSizes[cardId]) {
+            card.style.width = savedSizes[cardId].width || '';
+            card.style.minHeight = savedSizes[cardId].minHeight || '';
+        }
+    });
 }
 
 // Initialize when page loads

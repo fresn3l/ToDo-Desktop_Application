@@ -16,8 +16,8 @@
 
 :root {
     /* Color Palette */
-    --primary: #6366f1;              /* Primary brand color (indigo) */
-    --primary-dark: #4f46e5;         /* Darker shade of primary */
+    --primary: #e3e9ed;              /* Primary brand color (indigo) */
+    --primary-dark: #fefefe;         /* Darker shade of primary */
     --primary-light: #818cf8;        /* Lighter shade of primary */
     --secondary: #8b5cf6;            /* Secondary brand color (purple) */
     --accent: #ec4899;               /* Accent color (pink) */
@@ -62,7 +62,7 @@
 /* Main body styling - sets up the page background and typography */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #1a1f3a 100%);
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #ffffff 100%);
     min-height: 100vh;
     padding: 20px;
     color: var(--text-primary);
@@ -1220,7 +1220,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    ANALYTICS TAB STYLING
    ============================================ */
 
-/* Analytics header - contains title and refresh button */
+/* Analytics header - contains title and action buttons */
 .analytics-header {
     display: flex;
     justify-content: space-between;
@@ -1236,16 +1236,48 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-weight: 700;
 }
 
+/* Analytics header buttons container */
+.analytics-header-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+/* Secondary button styling for reset button */
+.btn-secondary {
+    padding: 12px 24px;
+    background: rgba(100, 116, 139, 0.2);
+    color: var(--text-primary);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+    background: rgba(100, 116, 139, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+}
+
 /* Analytics container - grid layout for analytics cards */
+/* Changed to relative positioning to support absolute positioned cards */
 .analytics-container {
+    position: relative;
+    min-height: 600px;
+    padding: 40px;
+    /* Fallback grid for initial layout */
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 24px;
-    padding: 40px;
 }
 
 /* Analytics card - container for each statistics section */
+/* Made position relative to support absolute positioning when dragged */
 .analytics-card {
+    position: relative;
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(10px);
     border: 1px solid var(--border-color);
@@ -1253,13 +1285,107 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     padding: 24px;
     transition: var(--transition);
     animation: fadeIn 0.4s ease-out;
+    /* Default size constraints */
+    min-width: 300px;
+    min-height: 200px;
+    /* Allow card to be resized */
+    resize: none;
+    overflow: visible;
+}
+
+/* When card is being dragged or resized, add visual feedback */
+.analytics-card.dragging {
+    opacity: 0.8;
+    z-index: 1000;
+    box-shadow: var(--shadow-xl);
+}
+
+.analytics-card.resizing {
+    opacity: 0.8;
+    z-index: 1000;
 }
 
 .analytics-card:hover {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(99, 102, 241, 0.3);
-    transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   DRAG AND RESIZE HANDLES
+   ============================================ */
+
+/* Drag handle - the element you click and drag to move the card */
+.card-drag-handle {
+    position: absolute;
+    top: 8px;
+    right: 40px;
+    width: 24px;
+    height: 24px;
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: move;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0;
+    transition: var(--transition);
+    z-index: 10;
+    user-select: none;
+}
+
+/* Show drag handle on card hover */
+.analytics-card:hover .card-drag-handle {
+    opacity: 1;
+}
+
+.card-drag-handle:hover {
+    background: rgba(99, 102, 241, 0.3);
+    border-color: rgba(99, 102, 241, 0.5);
+    transform: scale(1.1);
+}
+
+/* Resize handle - the element you drag to resize the card */
+.card-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-bottom-right-radius: var(--radius-lg);
+    cursor: nwse-resize;
+    opacity: 0;
+    transition: var(--transition);
+    z-index: 10;
+}
+
+/* Create diagonal resize indicator */
+.card-resize-handle::before {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 0 8px 8px;
+    border-color: transparent transparent var(--primary) transparent;
+}
+
+/* Show resize handle on card hover */
+.analytics-card:hover .card-resize-handle {
+    opacity: 1;
+}
+
+.card-resize-handle:hover {
+    background: rgba(99, 102, 241, 0.3);
+    border-color: rgba(99, 102, 241, 0.5);
 }
 
 /* Analytics card header */
@@ -1720,5 +1846,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     
     .goal-stats-summary {
         grid-template-columns: 1fr;
+    }
+    
+    /* On mobile, disable drag/resize for better touch experience */
+    .card-drag-handle,
+    .card-resize-handle {
+        display: none;
+    }
+    
+    .analytics-card {
+        position: static !important;
+        width: 100% !important;
+        min-height: auto !important;
     }
 }
