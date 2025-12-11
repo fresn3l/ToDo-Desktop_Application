@@ -14,15 +14,42 @@ Benefits of this module:
 import json
 import os
 from typing import List, Dict
+from pathlib import Path
 
 # ============================================
 # DATA FILE PATHS
 # ============================================
-# Centralized file paths - change here if you need different file locations
+# Store data in user's Application Support folder for persistence across rebuilds
+# This ensures data is not lost when rebuilding the app
 
-DATA_FILE = 'tasks.json'
-GOALS_FILE = 'goals.json'
-CATEGORIES_FILE = 'categories.json'
+def get_data_directory():
+    """
+    Get the directory where data files should be stored.
+    Uses Application Support folder for persistent storage across app rebuilds.
+    
+    Returns:
+        Path: Directory path for data files
+    """
+    import sys
+    # Use sys.platform for more reliable platform detection
+    if sys.platform == 'win32':  # Windows
+        data_dir = Path.home() / 'AppData' / 'Local' / 'ToDo'
+    elif sys.platform == 'darwin':  # macOS
+        data_dir = Path.home() / 'Library' / 'Application Support' / 'ToDo'
+    else:  # Linux and others
+        data_dir = Path.home() / '.local' / 'share' / 'ToDo'
+    
+    # Create directory if it doesn't exist
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir
+
+# Get persistent data directory
+DATA_DIR = get_data_directory()
+
+# Data file paths - stored in persistent location
+DATA_FILE = str(DATA_DIR / 'tasks.json')
+GOALS_FILE = str(DATA_DIR / 'goals.json')
+CATEGORIES_FILE = str(DATA_DIR / 'categories.json')
 
 # ============================================
 # TASK DATA OPERATIONS

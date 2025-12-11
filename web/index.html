@@ -42,11 +42,6 @@
                     <option value="Later">Later</option>
                 </select>
                 
-                <!-- Category filter dropdown - filter by category (populated dynamically) -->
-                <select id="filterCategory" class="filter-select">
-                    <option value="">All Categories</option>
-                </select>
-                
                 <!-- Goal filter dropdown - filter tasks by linked goal (populated dynamically) -->
                 <select id="filterGoal" class="filter-select">
                     <option value="">All Goals</option>
@@ -92,26 +87,11 @@
                             <input type="date" id="taskDueDate">
                         </div>
                         
-                        <!-- Category selection with create new option -->
-                        <div class="form-group">
-                            <label for="taskCategory">Category:</label>
-                            <div class="category-select-wrapper">
-                                <!-- Category dropdown - select existing category -->
-                                <select id="taskCategory">
-                                    <option value="">Select or create category...</option>
-                                </select>
-                                <!-- New category input - appears when "+ New" is clicked -->
-                                <input type="text" id="newCategoryInput" placeholder="Or type new category" style="display: none;">
-                                <!-- Button to toggle between select and create new category -->
-                                <button type="button" id="toggleCategoryInput" class="btn-small">+ New</button>
-                            </div>
-                        </div>
-                        
-                        <!-- Goal linking dropdown - link task to a goal -->
+                        <!-- Goal selection - optional -->
                         <div class="form-group">
                             <label for="taskGoal">Goal (optional):</label>
                             <select id="taskGoal">
-                                <option value="">No Goal</option>
+                                <option value="">No Goal (Misc)</option>
                             </select>
                         </div>
                     </div>
@@ -121,7 +101,7 @@
                 </form>
             </div>
 
-            <!-- Tasks display section - shows all tasks organized by category -->
+            <!-- Tasks display section - shows all tasks organized by goal -->
             <div class="tasks-section">
                 <h2>Tasks</h2>
                 <!-- Container where task items are dynamically inserted by JavaScript -->

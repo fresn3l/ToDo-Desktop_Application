@@ -26,7 +26,7 @@ from data_storage import load_tasks, load_goals
 @eel.expose
 def get_analytics():
     """
-    Calculate comprehensive analytics for all tasks, categories, goals, and priorities.
+    Calculate comprehensive analytics for all tasks, goals, and priorities.
     
     This function aggregates data from all tasks and returns detailed statistics
     that can be used for data visualization and insights.
@@ -39,15 +39,6 @@ def get_analytics():
                     "completed": int,
                     "incomplete": int,
                     "completion_percentage": float
-                },
-                "by_category": {
-                    "CategoryName": {
-                        "total": int,
-                        "completed": int,
-                        "incomplete": int,
-                        "completion_percentage": float
-                    },
-                    ...
                 },
                 "by_priority": {
                     "Now": {...},
@@ -68,23 +59,22 @@ def get_analytics():
                     "avg_completion_days": float
                 },
                 "productivity": {
-                    "most_productive_category": str,
+                    "most_productive_goal": str,
                     "most_productive_completion_rate": float,
-                    "category_with_most_tasks": str,
-                    "max_tasks_in_category": int,
-                    "category_distribution": {...}
+                    "goal_with_most_tasks": str,
+                    "max_tasks_in_goal": int,
+                    "goal_distribution": {...}
                 }
             }
     
     Algorithm Overview:
-        1. Load all data (tasks, categories, goals)
+        1. Load all data (tasks, goals)
         2. Calculate overall statistics
-        3. Group and calculate category statistics
-        4. Group and calculate priority statistics
-        5. Group and calculate goal statistics
-        6. Calculate time-based metrics
-        7. Calculate productivity insights
-        8. Return comprehensive analytics dictionary
+        3. Group and calculate priority statistics
+        4. Group and calculate goal statistics
+        5. Calculate time-based metrics
+        6. Calculate productivity insights
+        7. Return comprehensive analytics dictionary
     """
     # ============================================
     # STEP 1: LOAD ALL DATA
@@ -264,40 +254,40 @@ def get_analytics():
     # Calculate various productivity indicators
     # These help identify patterns and areas for improvement
     
-    # Find most productive category (highest completion rate with at least 3 tasks)
+    # Find most productive goal (highest completion rate with at least 3 tasks)
     # This identifies where you're most effective
-    most_productive_category = None
+    most_productive_goal = None
     highest_completion_rate = 0
     
-    for category, stats in category_stats.items():
-        if stats["total"] >= 3 and stats["completion_percentage"] > highest_completion_rate:
-            highest_completion_rate = stats["completion_percentage"]
-            most_productive_category = category
+    for goal_id, goal_data in goal_stats.items():
+        if goal_data["total"] >= 3 and goal_data["completion_percentage"] > highest_completion_rate:
+            highest_completion_rate = goal_data["completion_percentage"]
+            most_productive_goal = goal_data["goal_name"]
     
-    # Find category with most tasks
+    # Find goal with most tasks
     # This shows where you focus most of your effort
-    category_with_most_tasks = None
+    goal_with_most_tasks = None
     max_tasks = 0
-    for category, stats in category_stats.items():
-        if stats["total"] > max_tasks:
-            max_tasks = stats["total"]
-            category_with_most_tasks = category
+    for goal_id, goal_data in goal_stats.items():
+        if goal_data["total"] > max_tasks:
+            max_tasks = goal_data["total"]
+            goal_with_most_tasks = goal_data["goal_name"]
     
-    # Calculate task distribution (percentage of tasks in each category)
-    # This shows how tasks are distributed across categories
-    category_distribution = {}
-    for category, stats in category_stats.items():
+    # Calculate task distribution (percentage of tasks in each goal)
+    # This shows how tasks are distributed across goals
+    goal_distribution = {}
+    for goal_id, goal_data in goal_stats.items():
         if total_tasks > 0:
-            category_distribution[category] = round((stats["total"] / total_tasks * 100), 2)
+            goal_distribution[goal_data["goal_name"]] = round((goal_data["total"] / total_tasks * 100), 2)
         else:
-            category_distribution[category] = 0
+            goal_distribution[goal_data["goal_name"]] = 0
     
     analytics["productivity"] = {
-        "most_productive_category": most_productive_category,
-        "most_productive_completion_rate": round(highest_completion_rate, 2) if most_productive_category else 0,
-        "category_with_most_tasks": category_with_most_tasks,
-        "max_tasks_in_category": max_tasks,
-        "category_distribution": category_distribution
+        "most_productive_goal": most_productive_goal,
+        "most_productive_completion_rate": round(highest_completion_rate, 2) if most_productive_goal else 0,
+        "goal_with_most_tasks": goal_with_most_tasks,
+        "max_tasks_in_goal": max_tasks,
+        "goal_distribution": goal_distribution
     }
     
     # ============================================
