@@ -1,10 +1,8 @@
 let tasks = [];
 let goals = [];
-let categories = [];
 let showCompleted = false;
 let currentFilter = {
     priority: '',
-    category: '',
     goal: '',
     search: ''
 };
@@ -13,7 +11,7 @@ let currentFilter = {
 async function init() {
     // Add loading state
     showLoadingState();
-    await Promise.all([loadTasks(), loadGoals(), loadCategories()]);
+    await Promise.all([loadTasks(), loadGoals()]);
     setupEventListeners();
     setupTabs();
     hideLoadingState();
@@ -78,9 +76,7 @@ async function loadTasks() {
     try {
         tasks = await eel.get_tasks()();
         renderTasks();
-        updateCategoryFilter();
         updateGoalFilter();
-        updateCategorySelect();
         updateGoalSelect();
     } catch (error) {
         console.error('Error loading tasks:', error);
@@ -98,15 +94,6 @@ async function loadGoals() {
     }
 }
 
-async function loadCategories() {
-    try {
-        categories = await eel.get_categories()();
-        updateCategorySelect();
-        updateCategoryFilter();
-    } catch (error) {
-        console.error('Error loading categories:', error);
-    }
-}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -134,18 +121,8 @@ function setupEventListeners() {
     
     // Filters
     document.getElementById('filterPriority').addEventListener('change', handleFilterChange);
-    document.getElementById('filterCategory').addEventListener('change', handleFilterChange);
     document.getElementById('filterGoal').addEventListener('change', handleFilterChange);
     document.getElementById('showCompleted').addEventListener('click', toggleCompleted);
-    
-    // Category management
-    document.getElementById('toggleCategoryInput').addEventListener('click', toggleCategoryInput);
-    document.getElementById('newCategoryInput').addEventListener('blur', handleNewCategory);
-    document.getElementById('newCategoryInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.target.blur();
-        }
-    });
 }
 
 // Tab management
@@ -186,19 +163,7 @@ async function handleAddTask(e) {
     const description = document.getElementById('taskDescription').value.trim();
     const priority = document.getElementById('taskPriority').value;
     const dueDate = document.getElementById('taskDueDate').value;
-    const categorySelect = document.getElementById('taskCategory');
-    const newCategoryInput = document.getElementById('newCategoryInput');
     const goalSelect = document.getElementById('taskGoal');
-    
-    let category = '';
-    if (newCategoryInput.style.display !== 'none' && newCategoryInput.value.trim()) {
-        category = newCategoryInput.value.trim();
-        // Add new category
-        await eel.add_category(category)();
-        await loadCategories();
-    } else {
-        category = categorySelect.value;
-    }
     
     const goalId = goalSelect.value ? parseInt(goalSelect.value) : null;
     
@@ -227,9 +192,8 @@ async function handleAddTask(e) {
     submitButton.disabled = true;
     
     try {
-        await eel.add_task(title, description, priority, dueDate, category, goalId)();
+        await eel.add_task(title, description, priority, dueDate, goalId)();
         document.getElementById('taskForm').reset();
-        newCategoryInput.style.display = 'none';
         // Hide form after successful submission
         const taskFormContainer = document.getElementById('taskFormContainer');
         const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
@@ -335,37 +299,6 @@ function showErrorFeedback(message) {
     }, 3000);
 }
 
-// Category input toggle
-function toggleCategoryInput() {
-    const newCategoryInput = document.getElementById('newCategoryInput');
-    const categorySelect = document.getElementById('taskCategory');
-    
-    if (newCategoryInput.style.display === 'none') {
-        newCategoryInput.style.display = 'block';
-        categorySelect.style.display = 'none';
-        newCategoryInput.focus();
-    } else {
-        newCategoryInput.style.display = 'none';
-        categorySelect.style.display = 'block';
-        newCategoryInput.value = '';
-    }
-}
-
-async function handleNewCategory(e) {
-    const newCategoryInput = document.getElementById('newCategoryInput');
-    const categorySelect = document.getElementById('taskCategory');
-    const category = newCategoryInput.value.trim();
-    
-    if (category) {
-        await eel.add_category(category)();
-        await loadCategories();
-        categorySelect.value = category;
-    }
-    
-    newCategoryInput.style.display = 'none';
-    categorySelect.style.display = 'block';
-    newCategoryInput.value = '';
-}
 
 // Handle search
 function handleSearch(e) {
@@ -376,7 +309,6 @@ function handleSearch(e) {
 // Handle filter changes
 function handleFilterChange() {
     currentFilter.priority = document.getElementById('filterPriority').value;
-    currentFilter.category = document.getElementById('filterCategory').value;
     currentFilter.goal = document.getElementById('filterGoal').value;
     renderTasks();
 }
@@ -424,7 +356,6 @@ async function editTask(taskId) {
     document.getElementById('taskDescription').value = task.description || '';
     document.getElementById('taskPriority').value = task.priority;
     document.getElementById('taskDueDate').value = task.due_date || '';
-    document.getElementById('taskCategory').value = task.category || '';
     document.getElementById('taskGoal').value = task.goal_id || '';
     
     // Switch to tasks tab and scroll to form
@@ -446,19 +377,13 @@ function renderTasks() {
     if (currentFilter.search) {
         filteredTasks = filteredTasks.filter(task => 
             task.title.toLowerCase().includes(currentFilter.search) ||
-            (task.description && task.description.toLowerCase().includes(currentFilter.search)) ||
-            (task.category && task.category.toLowerCase().includes(currentFilter.search))
+            (task.description && task.description.toLowerCase().includes(currentFilter.search))
         );
     }
     
     // Apply priority filter
     if (currentFilter.priority) {
         filteredTasks = filteredTasks.filter(task => task.priority === currentFilter.priority);
-    }
-    
-    // Apply category filter
-    if (currentFilter.category) {
-        filteredTasks = filteredTasks.filter(task => task.category === currentFilter.category);
     }
     
     // Apply goal filter
@@ -472,31 +397,6 @@ function renderTasks() {
         filteredTasks = filteredTasks.filter(task => !task.completed);
     }
     
-    // Sort: incomplete first, then by category, then by priority, then by due date
-    filteredTasks.sort((a, b) => {
-        if (a.completed !== b.completed) {
-            return a.completed ? 1 : -1;
-        }
-        // Sort by category
-        const categoryA = a.category || '';
-        const categoryB = b.category || '';
-        if (categoryA !== categoryB) {
-            return categoryA.localeCompare(categoryB);
-        }
-        // Sort by priority within category
-        const priorityOrder = { Now: 3, Next: 2, Later: 1 };
-        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-            return priorityOrder[b.priority] - priorityOrder[a.priority];
-        }
-        // Sort by due date
-        if (a.due_date && b.due_date) {
-            return new Date(a.due_date) - new Date(b.due_date);
-        }
-        if (a.due_date) return -1;
-        if (b.due_date) return 1;
-        return 0;
-    });
-    
     // Render
     if (filteredTasks.length === 0) {
         container.innerHTML = `
@@ -508,20 +408,20 @@ function renderTasks() {
         return;
     }
     
-    // Group by category
-    const tasksByCategory = {};
+    // Group by goal (tasks without goals go to "Misc")
+    const tasksByGoal = {};
     filteredTasks.forEach(task => {
-        const category = task.category || 'Uncategorized';
-        if (!tasksByCategory[category]) {
-            tasksByCategory[category] = [];
+        const goalId = task.goal_id || 'Misc';
+        if (!tasksByGoal[goalId]) {
+            tasksByGoal[goalId] = [];
         }
-        tasksByCategory[category].push(task);
+        tasksByGoal[goalId].push(task);
     });
     
-    // Sort tasks within each category by priority (Now > Next > Later)
+    // Sort tasks within each goal by priority (Now > Next > Later)
     const priorityOrder = { Now: 3, Next: 2, Later: 1 };
-    Object.keys(tasksByCategory).forEach(category => {
-        tasksByCategory[category].sort((a, b) => {
+    Object.keys(tasksByGoal).forEach(goalId => {
+        tasksByGoal[goalId].sort((a, b) => {
             // Incomplete tasks first
             if (a.completed !== b.completed) {
                 return a.completed ? 1 : -1;
@@ -542,14 +442,21 @@ function renderTasks() {
         });
     });
     
-    // Render by category in rows
+    // Render by goal in rows
     let html = '';
-    const sortedCategories = Object.keys(tasksByCategory).sort();
+    // Sort goals by ID (or "Misc" last)
+    const sortedGoalIds = Object.keys(tasksByGoal).sort((a, b) => {
+        if (a === 'Misc') return 1;
+        if (b === 'Misc') return -1;
+        return parseInt(a) - parseInt(b);
+    });
     
-    sortedCategories.forEach(category => {
-        html += `<div class="category-header">${escapeHtml(category)}</div>`;
+    sortedGoalIds.forEach(goalId => {
+        const goal = goals.find(g => g.id === parseInt(goalId));
+        const goalName = goal ? goal.title : 'Misc';
+        html += `<div class="category-header">${escapeHtml(goalName)}</div>`;
         html += `<div class="category-tasks-row">`;
-        tasksByCategory[category].forEach(task => {
+        tasksByGoal[goalId].forEach(task => {
             html += createTaskHTML(task);
         });
         html += `</div>`;
@@ -596,7 +503,6 @@ function createTaskHTML(task) {
                     ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ''}
                     <div class="task-meta">
                         <span class="task-badge priority-${task.priority}">${task.priority}</span>
-                        ${task.category ? `<span class="task-badge category-badge">${escapeHtml(task.category)}</span>` : ''}
                         ${goal ? `<span class="goal-badge">🎯 ${escapeHtml(goal.title)}</span>` : ''}
                         ${task.due_date ? `<span class="due-date ${isOverdue ? 'overdue' : ''}">📅 ${dueDateFormatted}${isOverdue ? ' (Overdue!)' : ''}</span>` : ''}
                     </div>
@@ -699,43 +605,6 @@ async function deleteGoal(goalId) {
     }
 }
 
-// Update category select dropdown
-async function updateCategorySelect() {
-    const select = document.getElementById('taskCategory');
-    const currentValue = select.value;
-    
-    select.innerHTML = '<option value="">Select or create category...</option>';
-    
-    categories.forEach(category => {
-        const option = document.createElement('option');
-        option.value = category;
-        option.textContent = category;
-        select.appendChild(option);
-    });
-    
-    if (categories.includes(currentValue)) {
-        select.value = currentValue;
-    }
-}
-
-// Update category filter dropdown
-function updateCategoryFilter() {
-    const select = document.getElementById('filterCategory');
-    const currentValue = select.value;
-    
-    select.innerHTML = '<option value="">All Categories</option>';
-    
-    categories.forEach(category => {
-        const option = document.createElement('option');
-        option.value = category;
-        option.textContent = category;
-        select.appendChild(option);
-    });
-    
-    if (categories.includes(currentValue)) {
-        select.value = currentValue;
-    }
-}
 
 // Update goal select dropdown
 function updateGoalSelect() {
@@ -907,30 +776,30 @@ function renderAnalytics(analytics) {
     `;
     
     // ============================================
-    // CATEGORY STATISTICS CARD
+    // GOAL STATISTICS CARD
     // ============================================
-    // Shows completion rates broken down by category
-    if (Object.keys(analytics.by_category).length > 0) {
+    // Shows completion rates broken down by goal
+    if (analytics.by_goal && analytics.by_goal.goals && Object.keys(analytics.by_goal.goals).length > 0) {
         html += `
-            <div class="analytics-card draggable-card resizable-card" data-card-id="category-breakdown">
+            <div class="analytics-card draggable-card resizable-card" data-card-id="goal-breakdown">
                 <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
                 <div class="card-resize-handle" title="Drag to resize"></div>
                 <div class="analytics-card-header">
-                    <h3>📁 Category Breakdown</h3>
+                    <h3>🎯 Goal Breakdown</h3>
                 </div>
                 <div class="analytics-card-content">
         `;
         
-        // Sort categories by completion percentage (highest first)
-        const sortedCategories = Object.entries(analytics.by_category)
+        // Sort goals by completion percentage (highest first)
+        const sortedGoals = Object.entries(analytics.by_goal.goals)
             .sort((a, b) => b[1].completion_percentage - a[1].completion_percentage);
         
-        // Create a row for each category
-        sortedCategories.forEach(([category, stats]) => {
+        // Create a row for each goal
+        sortedGoals.forEach(([goalId, stats]) => {
             html += `
                 <div class="category-stat-row">
                     <div class="category-stat-header">
-                        <span class="category-name">${escapeHtml(category)}</span>
+                        <span class="category-name">${escapeHtml(stats.goal_name)}</span>
                         <span class="category-percentage">${stats.completion_percentage}%</span>
                     </div>
                     <div class="category-stat-details">
@@ -1095,36 +964,36 @@ function renderAnalytics(analytics) {
             <div class="analytics-card-content">
     `;
     
-    // Most productive category
-    if (analytics.productivity.most_productive_category) {
+    // Most productive goal
+    if (analytics.productivity.most_productive_goal) {
         html += `
             <div class="insight-item">
                 <div class="insight-icon">🏆</div>
                 <div class="insight-content">
-                    <div class="insight-title">Most Productive Category</div>
-                    <div class="insight-value">${escapeHtml(analytics.productivity.most_productive_category)}</div>
+                    <div class="insight-title">Most Productive Goal</div>
+                    <div class="insight-value">${escapeHtml(analytics.productivity.most_productive_goal)}</div>
                     <div class="insight-detail">${analytics.productivity.most_productive_completion_rate}% completion rate</div>
                 </div>
             </div>
         `;
     }
     
-    // Category with most tasks
-    if (analytics.productivity.category_with_most_tasks) {
+    // Goal with most tasks
+    if (analytics.productivity.goal_with_most_tasks) {
         html += `
             <div class="insight-item">
                 <div class="insight-icon">📊</div>
                 <div class="insight-content">
-                    <div class="insight-title">Most Active Category</div>
-                    <div class="insight-value">${escapeHtml(analytics.productivity.category_with_most_tasks)}</div>
-                    <div class="insight-detail">${analytics.productivity.max_tasks_in_category} tasks</div>
+                    <div class="insight-title">Most Active Goal</div>
+                    <div class="insight-value">${escapeHtml(analytics.productivity.goal_with_most_tasks)}</div>
+                    <div class="insight-detail">${analytics.productivity.max_tasks_in_goal} tasks</div>
                 </div>
             </div>
         `;
     }
     
-    // Category distribution
-    if (Object.keys(analytics.productivity.category_distribution).length > 0) {
+    // Goal distribution
+    if (analytics.productivity.goal_distribution && Object.keys(analytics.productivity.goal_distribution).length > 0) {
         html += `
             <div class="insight-item">
                 <div class="insight-icon">📈</div>
@@ -1133,15 +1002,15 @@ function renderAnalytics(analytics) {
                     <div class="distribution-list">
         `;
         
-        // Sort by percentage and show top categories
-        const sortedDist = Object.entries(analytics.productivity.category_distribution)
+        // Sort by percentage and show top goals
+        const sortedDist = Object.entries(analytics.productivity.goal_distribution)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5); // Show top 5
         
-        sortedDist.forEach(([category, percentage]) => {
+        sortedDist.forEach(([goalName, percentage]) => {
             html += `
                 <div class="distribution-item">
-                    <span class="dist-category">${escapeHtml(category)}</span>
+                    <span class="dist-category">${escapeHtml(goalName)}</span>
                     <span class="dist-percentage">${percentage}%</span>
                 </div>
             `;

@@ -15,29 +15,29 @@
 /* These variables define the design system colors, spacing, and effects */
 
 :root {
-    /* Color Palette */
-    --primary: #e3e9ed;              /* Primary brand color (indigo) */
-    --primary-dark: #fefefe;         /* Darker shade of primary */
-    --primary-light: #818cf8;        /* Lighter shade of primary */
-    --secondary: #8b5cf6;            /* Secondary brand color (purple) */
-    --accent: #ec4899;               /* Accent color (pink) */
-    --success: #10b981;              /* Success state color (green) */
-    --warning: #f59e0b;              /* Warning state color (orange) */
-    --danger: #ef4444;               /* Error/danger color (red) */
+    /* Mountain/Colorado Skiing Color Palette */
+    --primary: #3b82f6;              /* Alpine sky blue - primary brand color */
+    --primary-dark: #2563eb;         /* Deeper mountain blue */
+    --primary-light: #93c5fd;        /* Light sky blue */
+    --secondary: #10b981;            /* Evergreen green - secondary brand color */
+    --accent: #f59e0b;               /* Warm fire accent - lodge/cabin */
+    --success: #22c55e;              /* Fresh snow green - success state */
+    --warning: #fbbf24;              /* Golden hour - warning state */
+    --danger: #ef4444;               /* Alpine red - error/danger */
     
-    /* Background Colors */
-    --bg-primary: #0f172a;           /* Main dark background */
-    --bg-secondary: #1e293b;         /* Secondary dark background */
-    --bg-tertiary: #334155;          /* Tertiary dark background */
-    --bg-card: rgba(255, 255, 255, 0.05);  /* Glassmorphism card background */
+    /* Mountain Background Colors */
+    --bg-primary: #1e293b;           /* Deep mountain blue - main dark background */
+    --bg-secondary: #334155;         /* Mountain gray-blue - secondary dark background */
+    --bg-tertiary: #475569;          /* Lighter mountain - tertiary dark background */
+    --bg-card: rgba(59, 130, 246, 0.08);  /* Glassmorphism card with alpine tint */
     
-    /* Text Colors */
-    --text-primary: #f1f5f9;         /* Primary text color (light) */
-    --text-secondary: #cbd5e1;      /* Secondary text color (medium) */
-    --text-muted: #94a3b8;          /* Muted text color (dim) */
+    /* Text Colors - light on dark mountain */
+    --text-primary: #f1f5f9;         /* Fresh snow white - primary text color */
+    --text-secondary: #cbd5e1;      /* Soft gray - secondary text color */
+    --text-muted: #94a3b8;          /* Muted gray - dim text color */
     
-    /* Border & Effects */
-    --border-color: rgba(255, 255, 255, 0.1);  /* Subtle border color */
+    /* Border & Effects - mountain themed */
+    --border-color: rgba(59, 130, 246, 0.2);  /* Alpine blue border */
     
     /* Shadow System */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
@@ -62,7 +62,7 @@
 /* Main body styling - sets up the page background and typography */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #ffffff 100%);
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #1e293b 100%);
     min-height: 100vh;
     padding: 20px;
     color: var(--text-primary);
@@ -71,7 +71,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Animated gradient overlay on body - creates depth effect */
+/* Animated gradient overlay on body - mountain/alpine depth effect */
 body::before {
     content: '';
     position: fixed;
@@ -80,9 +80,9 @@ body::before {
     right: 0;
     bottom: 0;
     background: 
-        radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 20%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.12) 0%, transparent 50%),
+        radial-gradient(circle at 40% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
 }
@@ -279,7 +279,7 @@ header h1 {
     outline: none;
     border-color: var(--primary);
     background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Search input spans full width */
@@ -290,7 +290,7 @@ header h1 {
 /* Toggle button for showing/hiding completed tasks */
 .btn-toggle {
     padding: 12px 20px;
-    background: rgba(99, 102, 241, 0.2);
+    background: rgba(59, 130, 246, 0.2);
     color: var(--text-primary);
     border: 1px solid var(--primary);
     border-radius: var(--radius-md);
@@ -302,9 +302,9 @@ header h1 {
 }
 
 .btn-toggle:hover {
-    background: rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.3);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 /* ============================================
@@ -381,7 +381,7 @@ header h1 {
     outline: none;
     border-color: var(--primary);
     background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
 /* Description textarea fields */
@@ -409,7 +409,7 @@ header h1 {
     outline: none;
     border-color: var(--primary);
     background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
 /* ============================================
@@ -459,7 +459,7 @@ header h1 {
     outline: none;
     border-color: var(--primary);
     background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* ============================================
@@ -479,7 +479,7 @@ header h1 {
     transition: var(--transition);
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 /* Ripple effect on primary button */
@@ -504,7 +504,7 @@ header h1 {
 /* Primary button hover state */
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
 }
 
 .btn-primary:active {
@@ -607,7 +607,7 @@ header h1 {
 /* Task item hover state */
 .task-item:hover {
     background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(99, 102, 241, 0.3);
+    border-color: rgba(59, 130, 246, 0.3);
     transform: translateX(8px);
     box-shadow: var(--shadow-lg);
 }
@@ -705,39 +705,39 @@ header h1 {
     transform: scale(1.05);
 }
 
-/* Priority badge - Now (highest priority) */
+/* Priority badge - Now (highest priority) - Alpine red/urgent */
 .priority-Now {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.25));
     color: #fca5a5;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
-/* Priority badge - Next (medium priority) */
+/* Priority badge - Next (medium priority) - Alpine sky blue */
 .priority-Next {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2));
-    color: #fcd34d;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.25));
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.4);
 }
 
-/* Priority badge - Later (low priority) */
+/* Priority badge - Later (low priority) - Evergreen green */
 .priority-Later {
-    background: linear-gradient(135deg, rgba(100, 116, 139, 0.2), rgba(71, 85, 105, 0.2));
-    color: #cbd5e1;
-    border: 1px solid rgba(100, 116, 139, 0.3);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 /* Category badge */
 .category-badge {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(79, 70, 229, 0.2));
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 /* Goal badge - shows linked goal on task */
 .goal-badge {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.2));
-    color: #c4b5fd;
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.3);
     padding: 2px 6px;
     border-radius: 10px;
     font-size: 9px;
@@ -789,15 +789,15 @@ header h1 {
 
 /* Edit button styling */
 .btn-edit {
-    background: rgba(99, 102, 241, 0.2);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .btn-edit:hover {
-    background: rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.3);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 /* Delete button styling */
@@ -852,9 +852,9 @@ header h1 {
 /* Small button for creating new category */
 .btn-small {
     padding: 10px 16px;
-    background: rgba(99, 102, 241, 0.2);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.3);
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 12px;
@@ -864,7 +864,7 @@ header h1 {
 }
 
 .btn-small:hover {
-    background: rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.3);
     transform: translateY(-2px);
 }
 
@@ -928,7 +928,7 @@ header h1 {
 /* Goal item hover state */
 .goal-item:hover {
     background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(139, 92, 246, 0.3);
+    border-color: rgba(16, 185, 129, 0.3);
     transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
 }
@@ -1105,14 +1105,14 @@ header h1 {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.3);
     border-radius: 10px;
     border: 2px solid transparent;
     background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.5);
+    background: rgba(59, 130, 246, 0.5);
     background-clip: padding-box;
 }
 
@@ -1122,7 +1122,7 @@ header h1 {
 
 /* Custom text selection color */
 ::selection {
-    background: rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.3);
     color: var(--text-primary);
 }
 
@@ -1145,7 +1145,7 @@ header h1 {
     width: 40px;
     height: 40px;
     margin: 0 auto 16px;
-    border: 4px solid rgba(99, 102, 241, 0.2);
+    border: 4px solid rgba(59, 130, 246, 0.2);
     border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -1363,7 +1363,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .analytics-card:hover {
     background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(99, 102, 241, 0.3);
+    border-color: rgba(59, 130, 246, 0.3);
     box-shadow: var(--shadow-lg);
 }
 
@@ -1378,8 +1378,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     right: 40px;
     width: 24px;
     height: 24px;
-    background: rgba(99, 102, 241, 0.2);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.3);
     border-radius: 4px;
     display: flex;
     align-items: center;
@@ -1400,8 +1400,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .card-drag-handle:hover {
-    background: rgba(99, 102, 241, 0.3);
-    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
     transform: scale(1.1);
 }
 
@@ -1412,8 +1412,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     right: 0;
     width: 20px;
     height: 20px;
-    background: rgba(99, 102, 241, 0.2);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.3);
     border-bottom-right-radius: var(--radius-lg);
     cursor: nwse-resize;
     opacity: 0;
@@ -1440,8 +1440,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .card-resize-handle:hover {
-    background: rgba(99, 102, 241, 0.3);
-    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
 }
 
 /* Analytics card header */
