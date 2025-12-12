@@ -559,12 +559,27 @@ async function renderGoals() {
 
 // Create HTML for a goal
 function createGoalHTML(goal, progress) {
+    // Build progress text showing both tasks and habits
+    let progressText = '';
+    if (progress.total === 0) {
+        progressText = 'No items linked';
+    } else {
+        const parts = [];
+        if (progress.tasks_total > 0) {
+            parts.push(`${progress.tasks_completed}/${progress.tasks_total} tasks`);
+        }
+        if (progress.habits_total > 0) {
+            parts.push(`${progress.habits_completed}/${progress.habits_total} habits`);
+        }
+        progressText = parts.join(' • ') + ` (${progress.completed}/${progress.total} total)`;
+    }
+    
     return `
         <div class="goal-item">
             <div class="goal-title">${escapeHtml(goal.title)}</div>
             ${goal.description ? `<div class="goal-description">${escapeHtml(goal.description)}</div>` : ''}
             <div class="goal-progress">
-                <div class="progress-text">${progress.completed} of ${progress.total} tasks completed</div>
+                <div class="progress-text">${progressText}</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: ${progress.percentage}%"></div>
                 </div>
