@@ -47,9 +47,11 @@ def get_data_directory():
 DATA_DIR = get_data_directory()
 
 # Data file paths - stored in persistent location
-DATA_FILE = str(DATA_DIR / 'tasks.json')
+HABITS_FILE = str(DATA_DIR / 'habits.json')
 GOALS_FILE = str(DATA_DIR / 'goals.json')
 CATEGORIES_FILE = str(DATA_DIR / 'categories.json')
+# Keep DATA_FILE for backward compatibility during migration
+DATA_FILE = str(DATA_DIR / 'tasks.json')
 
 # ============================================
 # TASK DATA OPERATIONS
@@ -88,6 +90,35 @@ def save_tasks(tasks: List[Dict]):
     """
     with open(DATA_FILE, 'w') as f:
         json.dump(tasks, f, indent=2)
+
+# ============================================
+# HABIT DATA OPERATIONS
+# ============================================
+
+def load_habits() -> List[Dict]:
+    """
+    Load habits from local JSON file.
+    
+    Returns:
+        List[Dict]: List of habit dictionaries. Returns empty list if file doesn't exist or is invalid.
+    """
+    if os.path.exists(HABITS_FILE):
+        try:
+            with open(HABITS_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return []
+    return []
+
+def save_habits(habits: List[Dict]):
+    """
+    Save habits to local JSON file.
+    
+    Args:
+        habits: List of habit dictionaries to save
+    """
+    with open(HABITS_FILE, 'w') as f:
+        json.dump(habits, f, indent=2)
 
 # ============================================
 # GOAL DATA OPERATIONS

@@ -7,9 +7,8 @@ to JavaScript.
 
 Module Structure:
     - data_storage.py: File I/O operations (not exposed to JavaScript)
-    - todo.py: Task management functions (exposed to JavaScript)
+    - habits.py: Habit management functions (exposed to JavaScript)
     - goals.py: Goal management functions (exposed to JavaScript)
-    - categories.py: Category management functions (exposed to JavaScript)
     - analytics.py: Analytics and statistics functions (exposed to JavaScript)
     - main.py: Application initialization and startup (this file)
 
@@ -29,9 +28,9 @@ import eel
 # These imports are necessary to register all @eel.expose decorators
 # Eel scans imported modules for @eel.expose decorators when eel.init() is called
 
-# Import task management module
-# This makes all task-related functions available to JavaScript
-import todo
+# Import habit management module
+# This makes all habit-related functions available to JavaScript
+import habits
 
 # Import goal management module
 # This makes all goal-related functions available to JavaScript

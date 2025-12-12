@@ -4,7 +4,7 @@ Goals Management Module
 This module handles all goal-related operations:
 - Creating, reading, updating, deleting goals
 - Tracking goal progress
-- Linking/unlinking tasks to goals
+- Linking/unlinking habits to goals
 
 All functions decorated with @eel.expose are callable from JavaScript.
 """
@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 # Import data storage functions
-from data_storage import load_goals, save_goals, load_tasks, save_tasks
+from data_storage import load_goals, save_goals, load_habits, save_habits
 
 # ============================================
 # GOAL CRUD OPERATIONS
@@ -98,7 +98,7 @@ def update_goal(goal_id: int, title: str = None, description: str = None):
 @eel.expose
 def delete_goal(goal_id: int):
     """
-    Delete a goal and unlink all associated tasks.
+    Delete a goal and unlink all associated habits.
     
     Args:
         goal_id: ID of goal to delete
@@ -108,8 +108,8 @@ def delete_goal(goal_id: int):
     
     Side Effects:
         - Removes goal from goals.json
-        - Unlinks all tasks that were linked to this goal
-        - Updates tasks.json with unlinked tasks
+        - Unlinks all habits that were linked to this goal
+        - Updates habits.json with unlinked habits
     """
     goals = load_goals()
     
@@ -117,13 +117,13 @@ def delete_goal(goal_id: int):
     goals = [goal for goal in goals if goal["id"] != goal_id]
     save_goals(goals)
     
-    # Unlink tasks from deleted goal
-    # This prevents orphaned goal_id references in tasks
-    tasks = load_tasks()
-    for task in tasks:
-        if task.get("goal_id") == goal_id:
-            task["goal_id"] = None
-    save_tasks(tasks)
+    # Unlink habits from deleted goal
+    # This prevents orphaned goal_id references in habits
+    habits = load_habits()
+    for habit in habits:
+        if habit.get("goal_id") == goal_id:
+            habit["goal_id"] = None
+    save_habits(habits)
     
     return True
 
@@ -141,26 +141,26 @@ def get_goal_progress(goal_id: int):
     
     Returns:
         Dict: Progress statistics with:
-            - total: Total number of tasks linked to this goal
-            - completed: Number of completed tasks
-            - percentage: Completion percentage (0-100)
+            - total: Total number of habits linked to this goal
+            - completed: Total number of check-ins across all habits
+            - percentage: Average check-ins per habit
     
     Calculation:
-        - Finds all tasks linked to this goal
-        - Counts total and completed tasks
-        - Calculates percentage (completed / total * 100)
+        - Finds all habits linked to this goal
+        - Counts total habits and total check-ins
+        - Calculates average check-ins per habit
     """
-    tasks = load_tasks()
+    habits = load_habits()
     
-    # Filter tasks linked to this goal
-    goal_tasks = [task for task in tasks if task.get("goal_id") == goal_id]
+    # Filter habits linked to this goal
+    goal_habits = [habit for habit in habits if habit.get("goal_id") == goal_id]
     
     # Calculate statistics
-    total = len(goal_tasks)
-    completed = len([task for task in goal_tasks if task.get("completed", False)])
+    total = len(goal_habits)
+    completed = sum(len(habit.get("check_ins", [])) for habit in goal_habits)
     
-    # Calculate percentage (avoid division by zero)
-    percentage = (completed / total * 100) if total > 0 else 0
+    # Calculate average check-ins per habit (avoid division by zero)
+    percentage = (completed / total) if total > 0 else 0
     
     return {
         "total": total,

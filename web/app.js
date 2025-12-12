@@ -1,8 +1,8 @@
-let tasks = [];
+let habits = [];
 let goals = [];
-let showCompleted = false;
 let currentFilter = {
     priority: '',
+    frequency: '',
     goal: '',
     search: ''
 };
@@ -11,7 +11,7 @@ let currentFilter = {
 async function init() {
     // Add loading state
     showLoadingState();
-    await Promise.all([loadTasks(), loadGoals()]);
+    await Promise.all([loadHabits(), loadGoals()]);
     setupEventListeners();
     setupTabs();
     hideLoadingState();
@@ -21,7 +21,7 @@ async function init() {
 
 // Show loading state
 function showLoadingState() {
-    const containers = ['tasksContainer', 'goalsContainer'];
+    const containers = ['habitsContainer', 'goalsContainer'];
     containers.forEach(id => {
         const container = document.getElementById(id);
         if (container) {
@@ -37,7 +37,7 @@ function hideLoadingState() {
 
 // Animate elements on load
 function animateElements() {
-    const elements = document.querySelectorAll('.task-item, .goal-item, .category-header');
+    const elements = document.querySelectorAll('.task-item, .habit-item, .goal-item, .category-header');
     elements.forEach((el, index) => {
         el.style.opacity = '0';
         el.style.transform = 'translateY(20px)';
@@ -72,14 +72,18 @@ function addRippleEffect(button) {
 }
 
 // Load data from Python backend
-async function loadTasks() {
+async function loadHabits() {
     try {
-        tasks = await eel.get_tasks()();
-        renderTasks();
+        habits = await eel.get_habits()();
+        // Load streaks for all habits
+        for (const habit of habits) {
+            habit.streak = await eel.get_habit_streak(habit.id)();
+        }
+        renderHabits();
         updateGoalFilter();
         updateGoalSelect();
     } catch (error) {
-        console.error('Error loading tasks:', error);
+        console.error('Error loading habits:', error);
     }
 }
 
@@ -97,32 +101,50 @@ async function loadGoals() {
 
 // Setup event listeners
 function setupEventListeners() {
-    // Task form submission
-    document.getElementById('taskForm').addEventListener('submit', handleAddTask);
+    // Habit form submission
+    const habitForm = document.getElementById('habitForm');
+    if (habitForm) {
+        habitForm.addEventListener('submit', handleAddHabit);
+    }
     
-    // Toggle task form visibility
-    const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
-    const taskFormContainer = document.getElementById('taskFormContainer');
-    if (toggleTaskFormBtn && taskFormContainer) {
-        toggleTaskFormBtn.addEventListener('click', () => {
-            const isVisible = taskFormContainer.style.display !== 'none';
-            taskFormContainer.style.display = isVisible ? 'none' : 'block';
-            toggleTaskFormBtn.innerHTML = isVisible 
-                ? '<span class="btn-icon">+</span> Add New Task'
+    // Toggle habit form visibility
+    const toggleHabitFormBtn = document.getElementById('toggleHabitForm');
+    const habitFormContainer = document.getElementById('habitFormContainer');
+    if (toggleHabitFormBtn && habitFormContainer) {
+        toggleHabitFormBtn.addEventListener('click', () => {
+            const isVisible = habitFormContainer.style.display !== 'none';
+            habitFormContainer.style.display = isVisible ? 'none' : 'block';
+            toggleHabitFormBtn.innerHTML = isVisible 
+                ? '<span class="btn-icon">+</span> Add New Habit'
                 : '<span class="btn-icon">−</span> Cancel';
         });
     }
     
     // Goal form submission
-    document.getElementById('goalForm').addEventListener('submit', handleAddGoal);
+    const goalForm = document.getElementById('goalForm');
+    if (goalForm) {
+        goalForm.addEventListener('submit', handleAddGoal);
+    }
     
     // Search
-    document.getElementById('searchInput').addEventListener('input', handleSearch);
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
+    }
     
     // Filters
-    document.getElementById('filterPriority').addEventListener('change', handleFilterChange);
-    document.getElementById('filterGoal').addEventListener('change', handleFilterChange);
-    document.getElementById('showCompleted').addEventListener('click', toggleCompleted);
+    const filterPriority = document.getElementById('filterPriority');
+    if (filterPriority) {
+        filterPriority.addEventListener('change', handleFilterChange);
+    }
+    const filterFrequency = document.getElementById('filterFrequency');
+    if (filterFrequency) {
+        filterFrequency.addEventListener('change', handleFilterChange);
+    }
+    const filterGoal = document.getElementById('filterGoal');
+    if (filterGoal) {
+        filterGoal.addEventListener('change', handleFilterChange);
+    }
 }
 
 // Tab management
@@ -140,13 +162,19 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.classList.remove('active');
     });
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    const activeButton = document.querySelector(`[data-tab="${tabName}"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
     
     // Update content
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById(`${tabName}Tab`).classList.add('active');
+    const activeTab = document.getElementById(`${tabName}Tab`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
     
     // If switching to analytics tab, load analytics data
     if (tabName === 'analytics') {
@@ -155,27 +183,26 @@ function switchTab(tabName) {
     }
 }
 
-// Handle adding a new task
-async function handleAddTask(e) {
+// Handle adding a new habit
+async function handleAddHabit(e) {
     e.preventDefault();
     
-    const title = document.getElementById('taskTitle').value.trim();
-    const description = document.getElementById('taskDescription').value.trim();
-    const priority = document.getElementById('taskPriority').value;
-    const dueDate = document.getElementById('taskDueDate').value;
-    const goalSelect = document.getElementById('taskGoal');
+    const title = document.getElementById('habitTitle').value.trim();
+    const description = document.getElementById('habitDescription').value.trim();
+    const priority = document.getElementById('habitPriority').value;
+    const frequency = document.getElementById('habitFrequency').value;
+    const goalSelect = document.getElementById('habitGoal');
     
     const goalId = goalSelect.value ? parseInt(goalSelect.value) : null;
     
     if (!title) {
-        showErrorFeedback('Please enter a task title');
+        showErrorFeedback('Please enter a habit name');
         return;
     }
     
-    // Add loading state to button - find submit button correctly
-    const form = document.getElementById('taskForm');
+    const form = document.getElementById('habitForm');
     if (!form) {
-        console.error('Task form not found');
+        console.error('Habit form not found');
         showErrorFeedback('Form not found. Please refresh the page.');
         return;
     }
@@ -192,25 +219,22 @@ async function handleAddTask(e) {
     submitButton.disabled = true;
     
     try {
-        await eel.add_task(title, description, priority, dueDate, goalId)();
-        document.getElementById('taskForm').reset();
+        await eel.add_habit(title, description, priority, frequency, goalId)();
+        document.getElementById('habitForm').reset();
         // Hide form after successful submission
-        const taskFormContainer = document.getElementById('taskFormContainer');
-        const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
-        if (taskFormContainer) {
-            taskFormContainer.style.display = 'none';
+        const habitFormContainer = document.getElementById('habitFormContainer');
+        const toggleHabitFormBtn = document.getElementById('toggleHabitForm');
+        if (habitFormContainer) {
+            habitFormContainer.style.display = 'none';
         }
-        if (toggleTaskFormBtn) {
-            toggleTaskFormBtn.innerHTML = '<span class="btn-icon">+</span> Add New Task';
+        if (toggleHabitFormBtn) {
+            toggleHabitFormBtn.innerHTML = '<span class="btn-icon">+</span> Add New Habit';
         }
-        // Show success feedback
-        showSuccessFeedback('Task added successfully!');
-        await loadTasks();
+        showSuccessFeedback('Habit added successfully!');
+        await loadHabits();
     } catch (error) {
-        console.error('Error adding task:', error);
-        showErrorFeedback('Failed to add task. Please try again.');
-        // Log detailed error for debugging
-        console.error('Full error details:', error);
+        console.error('Error adding habit:', error);
+        showErrorFeedback('Failed to add habit. Please try again.');
     } finally {
         submitButton.textContent = originalText;
         submitButton.disabled = false;
@@ -303,149 +327,157 @@ function showErrorFeedback(message) {
 // Handle search
 function handleSearch(e) {
     currentFilter.search = e.target.value.toLowerCase();
-    renderTasks();
+    renderHabits();
 }
 
 // Handle filter changes
 function handleFilterChange() {
-    currentFilter.priority = document.getElementById('filterPriority').value;
-    currentFilter.goal = document.getElementById('filterGoal').value;
-    renderTasks();
+    const filterPriority = document.getElementById('filterPriority');
+    const filterFrequency = document.getElementById('filterFrequency');
+    const filterGoal = document.getElementById('filterGoal');
+    
+    if (filterPriority) currentFilter.priority = filterPriority.value;
+    if (filterFrequency) currentFilter.frequency = filterFrequency.value;
+    if (filterGoal) currentFilter.goal = filterGoal.value;
+    
+    renderHabits();
 }
 
-// Toggle showing completed tasks
-function toggleCompleted() {
-    showCompleted = !showCompleted;
-    const btn = document.getElementById('showCompleted');
-    btn.textContent = showCompleted ? 'Hide Completed' : 'Show Completed';
-    renderTasks();
-}
-
-// Toggle task completion
-async function toggleTask(taskId) {
+// Check in habit for today
+async function checkInHabit(habitId) {
     try {
-        await eel.toggle_task(taskId)();
-        await loadTasks();
+        await eel.check_in_habit(habitId)();
+        await loadHabits();
         await loadGoals(); // Update goal progress
+        showSuccessFeedback('Habit checked in!');
     } catch (error) {
-        console.error('Error toggling task:', error);
+        console.error('Error checking in habit:', error);
+        showErrorFeedback('Failed to check in habit. Please try again.');
     }
 }
 
-// Delete task
-async function deleteTask(taskId) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
-    
+// Uncheck habit for today
+async function uncheckHabit(habitId) {
     try {
-        await eel.delete_task(taskId)();
-        await loadTasks();
+        await eel.uncheck_habit(habitId)();
+        await loadHabits();
         await loadGoals(); // Update goal progress
     } catch (error) {
-        console.error('Error deleting task:', error);
-        alert('Failed to delete task. Please try again.');
+        console.error('Error unchecking habit:', error);
     }
 }
 
-// Edit task
-async function editTask(taskId) {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
+// Delete habit
+async function deleteHabit(habitId) {
+    if (!confirm('Are you sure you want to delete this habit?')) return;
     
-    // Populate form with task data
-    document.getElementById('taskTitle').value = task.title;
-    document.getElementById('taskDescription').value = task.description || '';
-    document.getElementById('taskPriority').value = task.priority;
-    document.getElementById('taskDueDate').value = task.due_date || '';
-    document.getElementById('taskGoal').value = task.goal_id || '';
-    
-    // Switch to tasks tab and scroll to form
-    switchTab('tasks');
-    document.querySelector('.task-form').scrollIntoView({ behavior: 'smooth' });
-    
-    // Delete the old task
-    await deleteTask(taskId);
+    try {
+        await eel.delete_habit(habitId)();
+        await loadHabits();
+        await loadGoals(); // Update goal progress
+    } catch (error) {
+        console.error('Error deleting habit:', error);
+        alert('Failed to delete habit. Please try again.');
+    }
 }
 
-// Render tasks organized by category, then priority
-function renderTasks() {
-    const container = document.getElementById('tasksContainer');
+// Edit habit
+async function editHabit(habitId) {
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
     
-    // Filter tasks
-    let filteredTasks = tasks;
+    // Populate form with habit data
+    document.getElementById('habitTitle').value = habit.title;
+    document.getElementById('habitDescription').value = habit.description || '';
+    document.getElementById('habitPriority').value = habit.priority;
+    document.getElementById('habitFrequency').value = habit.frequency || 'daily';
+    document.getElementById('habitGoal').value = habit.goal_id || '';
+    
+    // Switch to habits tab and scroll to form
+    switchTab('habits');
+    const habitForm = document.querySelector('.task-form');
+    if (habitForm) {
+        habitForm.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // Delete the old habit
+    await deleteHabit(habitId);
+}
+
+// Render habits organized by goal, then priority
+function renderHabits() {
+    const container = document.getElementById('habitsContainer');
+    if (!container) return;
+    
+    // Filter habits
+    let filteredHabits = habits;
     
     // Apply search filter
     if (currentFilter.search) {
-        filteredTasks = filteredTasks.filter(task => 
-            task.title.toLowerCase().includes(currentFilter.search) ||
-            (task.description && task.description.toLowerCase().includes(currentFilter.search))
+        filteredHabits = filteredHabits.filter(habit => 
+            habit.title.toLowerCase().includes(currentFilter.search) ||
+            (habit.description && habit.description.toLowerCase().includes(currentFilter.search))
         );
     }
     
     // Apply priority filter
     if (currentFilter.priority) {
-        filteredTasks = filteredTasks.filter(task => task.priority === currentFilter.priority);
+        filteredHabits = filteredHabits.filter(habit => habit.priority === currentFilter.priority);
+    }
+    
+    // Apply frequency filter
+    if (currentFilter.frequency) {
+        filteredHabits = filteredHabits.filter(habit => habit.frequency === currentFilter.frequency);
     }
     
     // Apply goal filter
     if (currentFilter.goal) {
         const goalId = parseInt(currentFilter.goal);
-        filteredTasks = filteredTasks.filter(task => task.goal_id === goalId);
-    }
-    
-    // Filter completed tasks
-    if (!showCompleted) {
-        filteredTasks = filteredTasks.filter(task => !task.completed);
+        filteredHabits = filteredHabits.filter(habit => habit.goal_id === goalId);
     }
     
     // Render
-    if (filteredTasks.length === 0) {
+    if (filteredHabits.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <h3>No tasks found</h3>
-                <p>${tasks.length === 0 ? 'Add your first task above!' : 'Try adjusting your filters.'}</p>
+                <h3>No habits found</h3>
+                <p>${habits.length === 0 ? 'Add your first habit above!' : 'Try adjusting your filters.'}</p>
             </div>
         `;
         return;
     }
     
-    // Group by goal (tasks without goals go to "Misc")
-    const tasksByGoal = {};
-    filteredTasks.forEach(task => {
-        const goalId = task.goal_id || 'Misc';
-        if (!tasksByGoal[goalId]) {
-            tasksByGoal[goalId] = [];
+    // Group by goal (habits without goals go to "Misc")
+    const habitsByGoal = {};
+    filteredHabits.forEach(habit => {
+        const goalId = habit.goal_id || 'Misc';
+        if (!habitsByGoal[goalId]) {
+            habitsByGoal[goalId] = [];
         }
-        tasksByGoal[goalId].push(task);
+        habitsByGoal[goalId].push(habit);
     });
     
-    // Sort tasks within each goal by priority (Now > Next > Later)
+    // Sort habits within each goal by priority (Now > Next > Later)
     const priorityOrder = { Now: 3, Next: 2, Later: 1 };
-    Object.keys(tasksByGoal).forEach(goalId => {
-        tasksByGoal[goalId].sort((a, b) => {
-            // Incomplete tasks first
-            if (a.completed !== b.completed) {
-                return a.completed ? 1 : -1;
-            }
+    Object.keys(habitsByGoal).forEach(goalId => {
+        habitsByGoal[goalId].sort((a, b) => {
             // Then by priority
             const priorityA = priorityOrder[a.priority] || 0;
             const priorityB = priorityOrder[b.priority] || 0;
             if (priorityA !== priorityB) {
                 return priorityB - priorityA; // Higher priority first
             }
-            // Then by due date
-            if (a.due_date && b.due_date) {
-                return new Date(a.due_date) - new Date(b.due_date);
-            }
-            if (a.due_date) return -1;
-            if (b.due_date) return 1;
-            return 0;
+            // Then by streak (higher streak first)
+            const streakA = a.streak || 0;
+            const streakB = b.streak || 0;
+            return streakB - streakA;
         });
     });
     
     // Render by goal in rows
     let html = '';
     // Sort goals by ID (or "Misc" last)
-    const sortedGoalIds = Object.keys(tasksByGoal).sort((a, b) => {
+    const sortedGoalIds = Object.keys(habitsByGoal).sort((a, b) => {
         if (a === 'Misc') return 1;
         if (b === 'Misc') return -1;
         return parseInt(a) - parseInt(b);
@@ -456,8 +488,8 @@ function renderTasks() {
         const goalName = goal ? goal.title : 'Misc';
         html += `<div class="category-header">${escapeHtml(goalName)}</div>`;
         html += `<div class="category-tasks-row">`;
-        tasksByGoal[goalId].forEach(task => {
-            html += createTaskHTML(task);
+        habitsByGoal[goalId].forEach(habit => {
+            html += createHabitHTML(habit);
         });
         html += `</div>`;
     });
@@ -465,21 +497,29 @@ function renderTasks() {
     container.innerHTML = html;
     
     // Add event listeners
-    filteredTasks.forEach(task => {
-        const checkbox = document.getElementById(`checkbox-${task.id}`);
-        const deleteBtn = document.getElementById(`delete-${task.id}`);
-        const editBtn = document.getElementById(`edit-${task.id}`);
+    filteredHabits.forEach(habit => {
+        const checkInBtn = document.getElementById(`checkin-${habit.id}`);
+        const deleteBtn = document.getElementById(`delete-${habit.id}`);
+        const editBtn = document.getElementById(`edit-${habit.id}`);
         
-        if (checkbox) {
-            checkbox.addEventListener('change', () => toggleTask(task.id));
-            addRippleEffect(checkbox.parentElement);
+        if (checkInBtn) {
+            checkInBtn.addEventListener('click', () => {
+                const today = new Date().toISOString().split('T')[0];
+                const isCheckedIn = habit.check_ins && habit.check_ins.includes(today);
+                if (isCheckedIn) {
+                    uncheckHabit(habit.id);
+                } else {
+                    checkInHabit(habit.id);
+                }
+            });
+            addRippleEffect(checkInBtn);
         }
         if (deleteBtn) {
-            deleteBtn.addEventListener('click', () => deleteTask(task.id));
+            deleteBtn.addEventListener('click', () => deleteHabit(habit.id));
             addRippleEffect(deleteBtn);
         }
         if (editBtn) {
-            editBtn.addEventListener('click', () => editTask(task.id));
+            editBtn.addEventListener('click', () => editHabit(habit.id));
             addRippleEffect(editBtn);
         }
     });
@@ -488,27 +528,53 @@ function renderTasks() {
     setTimeout(() => animateElements(), 100);
 }
 
-// Create HTML for a task
-function createTaskHTML(task) {
-    const isOverdue = task.due_date && !task.completed && new Date(task.due_date) < new Date();
-    const dueDateFormatted = task.due_date ? new Date(task.due_date).toLocaleDateString() : '';
-    const goal = goals.find(g => g.id === task.goal_id);
+// Create HTML for a habit
+function createHabitHTML(habit) {
+    const today = new Date().toISOString().split('T')[0];
+    const isCheckedIn = habit.check_ins && habit.check_ins.includes(today);
+    const checkIns = habit.check_ins || [];
+    const streak = habit.streak || 0;
+    const goal = goals.find(g => g.id === habit.goal_id);
+    const totalCheckIns = checkIns.length;
+    
+    // Calculate last 7 days check-in status
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        last7Days.push({
+            date: dateStr,
+            checked: checkIns.includes(dateStr)
+        });
+    }
     
     return `
-        <div class="task-item ${task.completed ? 'completed' : ''}">
+        <div class="task-item habit-item">
             <div class="task-header">
-                <input type="checkbox" id="checkbox-${task.id}" class="task-checkbox" ${task.completed ? 'checked' : ''}>
+                <button id="checkin-${habit.id}" class="habit-checkin-btn ${isCheckedIn ? 'checked' : ''}" title="${isCheckedIn ? 'Uncheck for today' : 'Check in for today'}">
+                    ${isCheckedIn ? '✓' : '○'}
+                </button>
                 <div class="task-content">
-                    <div class="task-title">${escapeHtml(task.title)}</div>
-                    ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ''}
+                    <div class="task-title">${escapeHtml(habit.title)}</div>
+                    ${habit.description ? `<div class="task-description">${escapeHtml(habit.description)}</div>` : ''}
                     <div class="task-meta">
-                        <span class="task-badge priority-${task.priority}">${task.priority}</span>
+                        <span class="task-badge priority-${habit.priority.toLowerCase()}">${habit.priority}</span>
+                        <span class="task-badge frequency-badge">${habit.frequency || 'daily'}</span>
+                        <span class="streak-badge">🔥 ${streak} day streak</span>
                         ${goal ? `<span class="goal-badge">🎯 ${escapeHtml(goal.title)}</span>` : ''}
-                        ${task.due_date ? `<span class="due-date ${isOverdue ? 'overdue' : ''}">📅 ${dueDateFormatted}${isOverdue ? ' (Overdue!)' : ''}</span>` : ''}
+                        <span class="checkin-count">${totalCheckIns} check-ins</span>
+                    </div>
+                    <div class="habit-week-view">
+                        ${last7Days.map(day => `
+                            <span class="day-indicator ${day.checked ? 'checked' : ''}" title="${day.date}">
+                                ${day.checked ? '✓' : '○'}
+                            </span>
+                        `).join('')}
                     </div>
                     <div class="task-actions">
-                        <button class="btn-edit" id="edit-${task.id}">Edit</button>
-                        <button class="btn-delete" id="delete-${task.id}">Delete</button>
+                        <button class="btn-edit" id="edit-${habit.id}">Edit</button>
+                        <button class="btn-delete" id="delete-${habit.id}">Delete</button>
                     </div>
                 </div>
             </div>
@@ -564,7 +630,7 @@ function createGoalHTML(goal, progress) {
             <div class="goal-title">${escapeHtml(goal.title)}</div>
             ${goal.description ? `<div class="goal-description">${escapeHtml(goal.description)}</div>` : ''}
             <div class="goal-progress">
-                <div class="progress-text">${progress.completed} of ${progress.total} tasks completed</div>
+                    <div class="progress-text">${progress.completed} of ${progress.total} habits tracked</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: ${progress.percentage}%"></div>
                 </div>
@@ -593,12 +659,12 @@ async function editGoal(goalId) {
 
 // Delete goal
 async function deleteGoal(goalId) {
-    if (!confirm('Are you sure you want to delete this goal? Tasks linked to this goal will be unlinked.')) return;
+    if (!confirm('Are you sure you want to delete this goal? Habits linked to this goal will be unlinked.')) return;
     
     try {
         await eel.delete_goal(goalId)();
         await loadGoals();
-        await loadTasks();
+        await loadHabits();
     } catch (error) {
         console.error('Error deleting goal:', error);
         alert('Failed to delete goal. Please try again.');
@@ -608,10 +674,12 @@ async function deleteGoal(goalId) {
 
 // Update goal select dropdown
 function updateGoalSelect() {
-    const select = document.getElementById('taskGoal');
+    const select = document.getElementById('habitGoal');
+    if (!select) return;
+    
     const currentValue = select.value;
     
-    select.innerHTML = '<option value="">No Goal</option>';
+    select.innerHTML = '<option value="">No Goal (Misc)</option>';
     
     goals.forEach(goal => {
         const option = document.createElement('option');
@@ -723,12 +791,12 @@ async function loadAnalytics() {
 function renderAnalytics(analytics) {
     const container = document.getElementById('analyticsContainer');
     
-    // If no tasks exist, show empty state
+    // If no habits exist, show empty state
     if (!analytics || analytics.overall.total === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <h3>No Data Available</h3>
-                <p>Create some tasks to see analytics!</p>
+                <p>Create some habits to see analytics!</p>
             </div>
         `;
         return;
@@ -752,15 +820,15 @@ function renderAnalytics(analytics) {
                 <div class="stat-grid">
                     <div class="stat-item">
                         <div class="stat-value">${analytics.overall.total}</div>
-                        <div class="stat-label">Total Tasks</div>
+                        <div class="stat-label">Total Habits</div>
                     </div>
-                    <div class="stat-item stat-success">
+                        <div class="stat-item stat-success">
                         <div class="stat-value">${analytics.overall.completed}</div>
-                        <div class="stat-label">Completed</div>
+                        <div class="stat-label">Total Check-ins</div>
                     </div>
                     <div class="stat-item stat-warning">
                         <div class="stat-value">${analytics.overall.incomplete}</div>
-                        <div class="stat-label">Incomplete</div>
+                        <div class="stat-label">Active Habits</div>
                     </div>
                     <div class="stat-item stat-primary">
                         <div class="stat-value">${analytics.overall.completion_percentage}%</div>
@@ -840,7 +908,7 @@ function renderAnalytics(analytics) {
                 <div class="priority-stat-row ${priorityClass}">
                     <div class="priority-stat-header">
                         <span class="priority-name">${priority}</span>
-                        <span class="priority-count">${stats.total} tasks</span>
+                        <span class="priority-count">${stats.total} habits</span>
                     </div>
                     <div class="priority-stat-details">
                         <span>✅ ${stats.completed} completed</span>
@@ -876,11 +944,11 @@ function renderAnalytics(analytics) {
                             <span class="summary-value">${analytics.by_goal.total_goals}</span>
                         </div>
                         <div class="goal-stat-summary-item">
-                            <span class="summary-label">Tasks with Goals:</span>
+                            <span class="summary-label">Habits with Goals:</span>
                             <span class="summary-value">${analytics.by_goal.tasks_with_goals}</span>
                         </div>
                         <div class="goal-stat-summary-item">
-                            <span class="summary-label">Tasks without Goals:</span>
+                            <span class="summary-label">Habits without Goals:</span>
                             <span class="summary-value">${analytics.by_goal.tasks_without_goals}</span>
                         </div>
                     </div>
@@ -895,7 +963,7 @@ function renderAnalytics(analytics) {
                         <span class="goal-percentage">${goalStat.completion_percentage}%</span>
                     </div>
                     <div class="goal-stat-details">
-                        <span>${goalStat.completed} of ${goalStat.total} tasks completed</span>
+                        <span>${goalStat.completed} of ${goalStat.total} habits tracked</span>
                     </div>
                     <div class="progress-bar-small">
                         <div class="progress-fill-small" style="width: ${goalStat.completion_percentage}%"></div>
@@ -923,27 +991,27 @@ function renderAnalytics(analytics) {
                     <div class="time-stat-item ${analytics.time_stats.overdue_count > 0 ? 'stat-danger' : ''}">
                         <div class="time-stat-icon">🚨</div>
                         <div class="time-stat-value">${analytics.time_stats.overdue_count}</div>
-                        <div class="time-stat-label">Overdue Tasks</div>
+                        <div class="time-stat-label">Missed Today</div>
                     </div>
                     <div class="time-stat-item ${analytics.time_stats.due_soon_count > 0 ? 'stat-warning' : ''}">
                         <div class="time-stat-icon">⏳</div>
                         <div class="time-stat-value">${analytics.time_stats.due_soon_count}</div>
-                        <div class="time-stat-label">Due Soon (7 days)</div>
+                        <div class="time-stat-label">Active This Week</div>
                     </div>
                     <div class="time-stat-item stat-success">
                         <div class="time-stat-icon">✅</div>
                         <div class="time-stat-value">${analytics.time_stats.completed_today}</div>
-                        <div class="time-stat-label">Completed Today</div>
+                        <div class="time-stat-label">Checked In Today</div>
                     </div>
                     <div class="time-stat-item stat-primary">
                         <div class="time-stat-icon">➕</div>
                         <div class="time-stat-value">${analytics.time_stats.created_today}</div>
-                        <div class="time-stat-label">Created Today</div>
+                        <div class="time-stat-label">Habits Created Today</div>
                     </div>
                     <div class="time-stat-item">
                         <div class="time-stat-icon">📅</div>
                         <div class="time-stat-value">${analytics.time_stats.avg_completion_days}</div>
-                        <div class="time-stat-label">Avg Days to Complete</div>
+                        <div class="time-stat-label">Avg Check-ins per Habit</div>
                     </div>
                 </div>
             </div>
@@ -986,7 +1054,7 @@ function renderAnalytics(analytics) {
                 <div class="insight-content">
                     <div class="insight-title">Most Active Goal</div>
                     <div class="insight-value">${escapeHtml(analytics.productivity.goal_with_most_tasks)}</div>
-                    <div class="insight-detail">${analytics.productivity.max_tasks_in_goal} tasks</div>
+                    <div class="insight-detail">${analytics.productivity.max_tasks_in_goal} habits</div>
                 </div>
             </div>
         `;
@@ -998,7 +1066,7 @@ function renderAnalytics(analytics) {
             <div class="insight-item">
                 <div class="insight-icon">📈</div>
                 <div class="insight-content">
-                    <div class="insight-title">Task Distribution</div>
+                    <div class="insight-title">Habit Distribution</div>
                     <div class="distribution-list">
         `;
         

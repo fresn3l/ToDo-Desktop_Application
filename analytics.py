@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import List, Dict
 
 # Import data storage functions
-from data_storage import load_tasks, load_goals
+from data_storage import load_habits, load_goals
 
 # ============================================
 # ANALYTICS FUNCTIONS
@@ -26,18 +26,18 @@ from data_storage import load_tasks, load_goals
 @eel.expose
 def get_analytics():
     """
-    Calculate comprehensive analytics for all tasks, goals, and priorities.
+    Calculate comprehensive analytics for all habits, goals, and priorities.
     
-    This function aggregates data from all tasks and returns detailed statistics
-    that can be used for data visualization and insights.
+    This function aggregates data from all habits and returns detailed statistics
+    including streaks, check-ins, and consistency metrics.
     
     Returns:
         dict: Comprehensive analytics dictionary with the following structure:
             {
                 "overall": {
                     "total": int,
-                    "completed": int,
-                    "incomplete": int,
+                    "completed": int (total check-ins),
+                    "incomplete": int (active habits),
                     "completion_percentage": float
                 },
                 "by_priority": {
@@ -52,11 +52,11 @@ def get_analytics():
                     "total_goals": int
                 },
                 "time_stats": {
-                    "overdue_count": int,
-                    "due_soon_count": int,
-                    "completed_today": int,
+                    "overdue_count": int (missed today),
+                    "due_soon_count": int (active this week),
+                    "completed_today": int (checked in today),
                     "created_today": int,
-                    "avg_completion_days": float
+                    "avg_completion_days": float (avg check-ins per habit)
                 },
                 "productivity": {
                     "most_productive_goal": str,
@@ -68,7 +68,7 @@ def get_analytics():
             }
     
     Algorithm Overview:
-        1. Load all data (tasks, goals)
+        1. Load all data (habits, goals)
         2. Calculate overall statistics
         3. Group and calculate priority statistics
         4. Group and calculate goal statistics
@@ -80,7 +80,7 @@ def get_analytics():
     # STEP 1: LOAD ALL DATA
     # ============================================
     # Load all data from storage files
-    tasks = load_tasks()
+    habits = load_habits()
     goals = load_goals()
     
     # Initialize the analytics dictionary structure
@@ -96,44 +96,44 @@ def get_analytics():
     # ============================================
     # STEP 2: OVERALL STATISTICS
     # ============================================
-    # Calculate high-level statistics across all tasks
-    # These give a quick overview of task completion
+    # Calculate high-level statistics across all habits
+    # These give a quick overview of habit tracking
     
-    total_tasks = len(tasks)
-    completed_tasks = len([t for t in tasks if t.get("completed", False)])
-    incomplete_tasks = total_tasks - completed_tasks
+    total_habits = len(habits)
+    # Total check-ins across all habits
+    total_check_ins = sum(len(h.get("check_ins", [])) for h in habits)
+    active_habits = total_habits  # All habits are active
     
-    # Calculate overall completion percentage
-    # Avoid division by zero if no tasks exist
-    completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    # Calculate average check-ins per habit
+    avg_check_ins = (total_check_ins / total_habits) if total_habits > 0 else 0
     
     analytics["overall"] = {
-        "total": total_tasks,
-        "completed": completed_tasks,
-        "incomplete": incomplete_tasks,
-        "completion_percentage": round(completion_percentage, 2)
+        "total": total_habits,
+        "completed": total_check_ins,  # Total check-ins
+        "incomplete": active_habits,  # Active habits
+        "completion_percentage": round(avg_check_ins, 2)  # Avg check-ins per habit
     }
     
     # ============================================
     # STEP 3: PRIORITY-BASED STATISTICS
     # ============================================
-    # Group tasks by priority level (Now, Next, Later) and calculate stats
-    # This shows how well you're handling high-priority tasks
+    # Group habits by priority level (Now, Next, Later) and calculate stats
+    # This shows how well you're tracking high-priority habits
     
     priority_stats = {}
-    priority_levels = ["Now", "Next", "Later"]
+    priority_levels = ["Today", "Now", "Next", "Later", "Someday"]
     
     for priority in priority_levels:
-        # Filter tasks by this priority level
-        priority_tasks = [t for t in tasks if t.get("priority") == priority]
-        pri_total = len(priority_tasks)
-        pri_completed = len([t for t in priority_tasks if t.get("completed", False)])
-        pri_incomplete = pri_total - pri_completed
-        pri_percentage = (pri_completed / pri_total * 100) if pri_total > 0 else 0
+        # Filter habits by this priority level
+        priority_habits = [h for h in habits if h.get("priority") == priority]
+        pri_total = len(priority_habits)
+        pri_check_ins = sum(len(h.get("check_ins", [])) for h in priority_habits)
+        pri_incomplete = pri_total  # All habits are active
+        pri_percentage = (pri_check_ins / pri_total) if pri_total > 0 else 0  # Avg check-ins per habit
         
         priority_stats[priority] = {
             "total": pri_total,
-            "completed": pri_completed,
+            "completed": pri_check_ins,
             "incomplete": pri_incomplete,
             "completion_percentage": round(pri_percentage, 2)
         }
@@ -143,109 +143,93 @@ def get_analytics():
     # ============================================
     # STEP 4: GOAL-BASED STATISTICS
     # ============================================
-    # Calculate statistics for each goal and tasks linked to goals
+    # Calculate statistics for each goal and habits linked to goals
     # This tracks progress toward your goals
     
     goal_stats = {}
-    tasks_with_goals = 0
-    tasks_without_goals = 0
+    habits_with_goals = 0
+    habits_without_goals = 0
     
     # Process each goal
     for goal in goals:
         goal_id = goal["id"]
-        # Find all tasks linked to this goal
-        goal_tasks = [t for t in tasks if t.get("goal_id") == goal_id]
-        goal_total = len(goal_tasks)
-        goal_completed = len([t for t in goal_tasks if t.get("completed", False)])
-        goal_incomplete = goal_total - goal_completed
-        goal_percentage = (goal_completed / goal_total * 100) if goal_total > 0 else 0
+        # Find all habits linked to this goal
+        goal_habits = [h for h in habits if h.get("goal_id") == goal_id]
+        goal_total = len(goal_habits)
+        goal_check_ins = sum(len(h.get("check_ins", [])) for h in goal_habits)
+        goal_incomplete = goal_total  # All habits are active
+        goal_percentage = (goal_check_ins / goal_total) if goal_total > 0 else 0  # Avg check-ins per habit
         
         goal_stats[goal_id] = {
             "goal_name": goal.get("title", "Unknown"),
             "total": goal_total,
-            "completed": goal_completed,
+            "completed": goal_check_ins,
             "incomplete": goal_incomplete,
             "completion_percentage": round(goal_percentage, 2)
         }
         
-        tasks_with_goals += goal_total
+        habits_with_goals += goal_total
     
-    # Count tasks without goals
-    tasks_without_goals = len([t for t in tasks if not t.get("goal_id")])
+    # Count habits without goals
+    habits_without_goals = len([h for h in habits if not h.get("goal_id")])
     
     analytics["by_goal"] = {
         "goals": goal_stats,
-        "tasks_with_goals": tasks_with_goals,
-        "tasks_without_goals": tasks_without_goals,
+        "tasks_with_goals": habits_with_goals,  # Keep key name for JS compatibility
+        "tasks_without_goals": habits_without_goals,  # Keep key name for JS compatibility
         "total_goals": len(goals)
     }
     
     # ============================================
     # STEP 5: TIME-BASED STATISTICS
     # ============================================
-    # Analyze tasks based on creation dates, completion dates, and due dates
-    # This provides insights into time management and productivity patterns
+    # Analyze habits based on check-ins and creation dates
+    # This provides insights into consistency and activity patterns
     
+    from datetime import date, timedelta
     now = datetime.now()
-    overdue_count = 0
-    due_soon_count = 0  # Due within 7 days
-    completed_today = 0
-    created_today = 0
-    avg_completion_time_days = []
+    today_str = date.today().isoformat()
+    week_ago = (date.today() - timedelta(days=7)).isoformat()
     
-    # Process each task for time-based metrics
-    for task in tasks:
-        # Check if task is overdue (has due date, not completed, past due date)
-        if task.get("due_date") and not task.get("completed", False):
-            try:
-                due_date = datetime.fromisoformat(task["due_date"])
-                if due_date < now:
-                    overdue_count += 1
-                # Check if due within 7 days
-                days_until_due = (due_date - now).days
-                if 0 <= days_until_due <= 7:
-                    due_soon_count += 1
-            except (ValueError, TypeError):
-                pass  # Skip invalid date formats
+    missed_today = 0  # Habits not checked in today
+    active_this_week = 0  # Habits checked in within last 7 days
+    checked_in_today = 0
+    created_today = 0
+    total_check_ins_all = 0
+    
+    # Process each habit for time-based metrics
+    for habit in habits:
+        check_ins = habit.get("check_ins", [])
+        total_check_ins_all += len(check_ins)
         
-        # Check if task was completed today
-        if task.get("completed_at"):
-            try:
-                completed_at = datetime.fromisoformat(task["completed_at"])
-                if completed_at.date() == now.date():
-                    completed_today += 1
-                
-                # Calculate time to completion if we have both created_at and completed_at
-                if task.get("created_at"):
-                    try:
-                        created_at = datetime.fromisoformat(task["created_at"])
-                        time_to_complete = (completed_at - created_at).days
-                        if time_to_complete >= 0:  # Only count positive values
-                            avg_completion_time_days.append(time_to_complete)
-                    except (ValueError, TypeError):
-                        pass
-            except (ValueError, TypeError):
-                pass
+        # Check if habit was checked in today
+        if today_str in check_ins:
+            checked_in_today += 1
+        else:
+            missed_today += 1
         
-        # Check if task was created today
-        if task.get("created_at"):
+        # Check if habit was active this week (checked in within last 7 days)
+        if any(ci >= week_ago for ci in check_ins):
+            active_this_week += 1
+        
+        # Check if habit was created today
+        if habit.get("created_at"):
             try:
-                created_at = datetime.fromisoformat(task["created_at"])
+                created_at = datetime.fromisoformat(habit["created_at"])
                 if created_at.date() == now.date():
                     created_today += 1
             except (ValueError, TypeError):
                 pass
     
-    # Calculate average completion time
-    # Sum all completion times and divide by count
-    avg_completion_days = sum(avg_completion_time_days) / len(avg_completion_time_days) if avg_completion_time_days else 0
+    # Calculate average check-ins per habit
+    avg_check_ins_per_habit = (total_check_ins_all / len(habits)) if habits else 0
     
     analytics["time_stats"] = {
-        "overdue_count": overdue_count,
-        "due_soon_count": due_soon_count,
-        "completed_today": completed_today,
+        "overdue_count": missed_today,  # Keep key name for JS compatibility
+        "due_soon_count": active_this_week,  # Keep key name for JS compatibility
+        "completed_today": checked_in_today,  # Keep key name for JS compatibility
         "created_today": created_today,
-        "avg_completion_days": round(avg_completion_days, 1)
+        "avg_completion_days": round(avg_check_ins_per_habit, 1)  # Keep key name for JS compatibility
     }
     
     # ============================================
@@ -254,8 +238,8 @@ def get_analytics():
     # Calculate various productivity indicators
     # These help identify patterns and areas for improvement
     
-    # Find most productive goal (highest completion rate with at least 3 tasks)
-    # This identifies where you're most effective
+    # Find most productive goal (highest check-in rate with at least 3 habits)
+    # This identifies where you're most consistent
     most_productive_goal = None
     highest_completion_rate = 0
     
@@ -264,7 +248,7 @@ def get_analytics():
             highest_completion_rate = goal_data["completion_percentage"]
             most_productive_goal = goal_data["goal_name"]
     
-    # Find goal with most tasks
+    # Find goal with most habits
     # This shows where you focus most of your effort
     goal_with_most_tasks = None
     max_tasks = 0
@@ -273,12 +257,12 @@ def get_analytics():
             max_tasks = goal_data["total"]
             goal_with_most_tasks = goal_data["goal_name"]
     
-    # Calculate task distribution (percentage of tasks in each goal)
-    # This shows how tasks are distributed across goals
+    # Calculate habit distribution (percentage of habits in each goal)
+    # This shows how habits are distributed across goals
     goal_distribution = {}
     for goal_id, goal_data in goal_stats.items():
-        if total_tasks > 0:
-            goal_distribution[goal_data["goal_name"]] = round((goal_data["total"] / total_tasks * 100), 2)
+        if total_habits > 0:
+            goal_distribution[goal_data["goal_name"]] = round((goal_data["total"] / total_habits * 100), 2)
         else:
             goal_distribution[goal_data["goal_name"]] = 0
     

@@ -4,7 +4,7 @@
     <!-- Document metadata and configuration -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ToDo</title>
+    <title>Habit Tracker</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,25 +14,25 @@
         <!-- Header section - contains app title and tab navigation -->
         <header>
             <!-- App title/logo -->
-            <h1>✓ ToDo</h1>
+            <h1>🔄 Habit Tracker</h1>
             
-            <!-- Tab navigation buttons - switch between Tasks and Goals views -->
+            <!-- Tab navigation buttons - switch between Habits and Goals views -->
             <div class="tabs">
-                <button class="tab-button active" data-tab="tasks">Tasks</button>
+                <button class="tab-button active" data-tab="habits">Habits</button>
                 <button class="tab-button" data-tab="goals">Goals</button>
                 <button class="tab-button" data-tab="analytics">Analytics</button>
             </div>
         </header>
 
         <!-- ============================================ -->
-        <!-- TASKS TAB - Main task management interface -->
+        <!-- HABITS TAB - Main habit management interface -->
         <!-- ============================================ -->
-        <div id="tasksTab" class="tab-content active">
+        <div id="habitsTab" class="tab-content active">
             
             <!-- Filter and search controls bar -->
             <div class="header-controls">
-                <!-- Search input - filters tasks by text search -->
-                <input type="text" id="searchInput" placeholder="Search tasks..." class="search-input">
+                <!-- Search input - filters habits by text search -->
+                <input type="text" id="searchInput" placeholder="Search habits..." class="search-input">
                 
                 <!-- Priority filter dropdown - filter by Now/Next/Later -->
                 <select id="filterPriority" class="filter-select">
@@ -42,71 +42,80 @@
                     <option value="Later">Later</option>
                 </select>
                 
-                <!-- Goal filter dropdown - filter tasks by linked goal (populated dynamically) -->
+                <!-- Frequency filter dropdown -->
+                <select id="filterFrequency" class="filter-select">
+                    <option value="">All Frequencies</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="custom">Custom</option>
+                </select>
+                
+                <!-- Goal filter dropdown - filter habits by linked goal (populated dynamically) -->
                 <select id="filterGoal" class="filter-select">
                     <option value="">All Goals</option>
                 </select>
-                
-                <!-- Toggle button - show/hide completed tasks -->
-                <button id="showCompleted" class="btn-toggle">Show Completed</button>
             </div>
 
-            <!-- Button to show/hide task form -->
+            <!-- Button to show/hide habit form -->
             <div class="add-task-button-container">
-                <button id="toggleTaskForm" class="btn-primary btn-add-task">
+                <button id="toggleHabitForm" class="btn-primary btn-add-task">
                     <span class="btn-icon">+</span>
-                    Add New Task
+                    Add New Habit
                 </button>
             </div>
 
-            <!-- Task creation form section - hidden by default -->
-            <div class="task-form" id="taskFormContainer" style="display: none;">
-                <h2>Add New Task</h2>
-                <form id="taskForm">
-                    <!-- Task title input - required field -->
-                    <input type="text" id="taskTitle" placeholder="Task title..." required>
+            <!-- Habit creation form section - hidden by default -->
+            <div class="task-form" id="habitFormContainer" style="display: none;">
+                <h2>Add New Habit</h2>
+                <form id="habitForm">
+                    <!-- Habit title input - required field -->
+                    <input type="text" id="habitTitle" placeholder="Habit name..." required>
                     
-                    <!-- Task description textarea - optional details -->
-                    <textarea id="taskDescription" placeholder="Description (optional)"></textarea>
+                    <!-- Habit description textarea - optional details -->
+                    <textarea id="habitDescription" placeholder="Description (optional)"></textarea>
                     
                     <!-- Form row - contains multiple form fields side by side -->
                     <div class="form-row">
                         <!-- Priority selection dropdown -->
                         <div class="form-group">
-                            <label for="taskPriority">Priority:</label>
-                            <select id="taskPriority">
+                            <label for="habitPriority">Priority:</label>
+                            <select id="habitPriority">
                                 <option value="Now">Now</option>
                                 <option value="Next" selected>Next</option>
                                 <option value="Later">Later</option>
                             </select>
                         </div>
                         
-                        <!-- Due date picker -->
+                        <!-- Frequency selection dropdown -->
                         <div class="form-group">
-                            <label for="taskDueDate">Due Date:</label>
-                            <input type="date" id="taskDueDate">
+                            <label for="habitFrequency">Frequency:</label>
+                            <select id="habitFrequency">
+                                <option value="daily" selected>Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="custom">Custom</option>
+                            </select>
                         </div>
                         
                         <!-- Goal selection - optional -->
                         <div class="form-group">
-                            <label for="taskGoal">Goal (optional):</label>
-                            <select id="taskGoal">
+                            <label for="habitGoal">Goal (optional):</label>
+                            <select id="habitGoal">
                                 <option value="">No Goal (Misc)</option>
                             </select>
                         </div>
                     </div>
                     
-                    <!-- Submit button - creates the new task -->
-                    <button type="submit" class="btn-primary">Add Task</button>
+                    <!-- Submit button - creates the new habit -->
+                    <button type="submit" class="btn-primary">Add Habit</button>
                 </form>
             </div>
 
-            <!-- Tasks display section - shows all tasks organized by goal -->
+            <!-- Habits display section - shows all habits organized by goal -->
             <div class="tasks-section">
-                <h2>Tasks</h2>
-                <!-- Container where task items are dynamically inserted by JavaScript -->
-                <div id="tasksContainer" class="tasks-container">
-                    <!-- Tasks will be dynamically inserted here -->
+                <h2>Habits</h2>
+                <!-- Container where habit items are dynamically inserted by JavaScript -->
+                <div id="habitsContainer" class="tasks-container">
+                    <!-- Habits will be dynamically inserted here -->
                 </div>
             </div>
         </div>
