@@ -117,13 +117,23 @@ def delete_goal(goal_id: int):
     goals = [goal for goal in goals if goal["id"] != goal_id]
     save_goals(goals)
     
-    # Unlink habits from deleted goal
+    # Unlink habits from deleted goal (from Habit Tracker app)
     # This prevents orphaned goal_id references in habits
+    from data_storage import load_habits, save_habits, load_tasks, save_tasks
+    
     habits = load_habits()
     for habit in habits:
         if habit.get("goal_id") == goal_id:
             habit["goal_id"] = None
     save_habits(habits)
+    
+    # Unlink tasks from deleted goal (from ToDo app)
+    # This prevents orphaned goal_id references in tasks
+    tasks = load_tasks()
+    for task in tasks:
+        if task.get("goal_id") == goal_id:
+            task["goal_id"] = None
+    save_tasks(tasks)
     
     return True
 
@@ -135,36 +145,58 @@ def delete_goal(goal_id: int):
 def get_goal_progress(goal_id: int):
     """
     Get progress statistics for a specific goal.
+    Tracks both habits (from Habit Tracker) and tasks (from ToDo app).
     
     Args:
         goal_id: ID of goal to get progress for
     
     Returns:
         Dict: Progress statistics with:
-            - total: Total number of habits linked to this goal
-            - completed: Total number of check-ins across all habits
-            - percentage: Average check-ins per habit
+            - total: Total number of habits + tasks linked to this goal
+            - completed: Number of completed habits + completed tasks
+            - habits_total: Total habits linked to this goal
+            - habits_completed: Habits with at least one check-in
+            - tasks_total: Total tasks linked to this goal
+            - tasks_completed: Completed tasks
+            - percentage: Overall completion percentage (0-100)
     
     Calculation:
-        - Finds all habits linked to this goal
-        - Counts total habits and total check-ins
-        - Calculates average check-ins per habit
+        - Finds all habits and tasks linked to this goal
+        - Counts total and completed items from both sources
+        - Calculates overall percentage
     """
+    from data_storage import load_habits, load_tasks
+    
     habits = load_habits()
+    tasks = load_tasks()
     
     # Filter habits linked to this goal
     goal_habits = [habit for habit in habits if habit.get("goal_id") == goal_id]
+    habits_total = len(goal_habits)
+    # For habits, "completed" means having at least one check-in
+    habits_completed = len([habit for habit in goal_habits 
+                           if habit.get("check_ins") and len(habit.get("check_ins", [])) > 0])
     
-    # Calculate statistics
-    total = len(goal_habits)
-    completed = sum(len(habit.get("check_ins", [])) for habit in goal_habits)
+    # Filter tasks linked to this goal
+    goal_tasks = [task for task in tasks if task.get("goal_id") == goal_id]
+    tasks_total = len(goal_tasks)
+    # For tasks, "completed" means the completed field is True
+    tasks_completed = len([task for task in goal_tasks if task.get("completed", False)])
     
-    # Calculate average check-ins per habit (avoid division by zero)
-    percentage = (completed / total) if total > 0 else 0
+    # Calculate overall statistics
+    total = habits_total + tasks_total
+    completed = habits_completed + tasks_completed
+    
+    # Calculate percentage (avoid division by zero)
+    percentage = (completed / total * 100) if total > 0 else 0
     
     return {
         "total": total,
         "completed": completed,
+        "habits_total": habits_total,
+        "habits_completed": habits_completed,
+        "tasks_total": tasks_total,
+        "tasks_completed": tasks_completed,
         "percentage": round(percentage, 2)
     }
 

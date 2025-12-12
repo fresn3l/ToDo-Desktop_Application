@@ -48,8 +48,10 @@ def get_data_directory():
 DATA_DIR = get_data_directory()
 
 # Data file paths - stored in persistent location
+# Shared between ToDo app and Habit Tracker app
 HABITS_FILE = str(DATA_DIR / 'habits.json')
-GOALS_FILE = str(DATA_DIR / 'goals.json')
+TASKS_FILE = str(DATA_DIR / 'tasks.json')  # For ToDo app
+GOALS_FILE = str(DATA_DIR / 'goals.json')  # Shared between both apps
 # Categories removed - using goals instead for organization
 
 # ============================================
@@ -109,6 +111,35 @@ def save_goals(goals: List[Dict]):
     """
     with open(GOALS_FILE, 'w') as f:
         json.dump(goals, f, indent=2)
+
+# ============================================
+# TASK DATA OPERATIONS (for ToDo app compatibility)
+# ============================================
+
+def load_tasks() -> List[Dict]:
+    """
+    Load tasks from local JSON file (for ToDo app compatibility).
+    
+    Returns:
+        List[Dict]: List of task dictionaries. Returns empty list if file doesn't exist or is invalid.
+    """
+    if os.path.exists(TASKS_FILE):
+        try:
+            with open(TASKS_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return []
+    return []
+
+def save_tasks(tasks: List[Dict]):
+    """
+    Save tasks to local JSON file (for ToDo app compatibility).
+    
+    Args:
+        tasks: List of task dictionaries to save
+    """
+    with open(TASKS_FILE, 'w') as f:
+        json.dump(tasks, f, indent=2)
 
 # Categories removed - using goals instead for organization
 
