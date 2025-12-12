@@ -14,6 +14,8 @@ Benefits of this module:
 
 import json
 import os
+import fcntl  # File locking for Unix/macOS
+import sys
 from typing import List, Dict
 from pathlib import Path
 
@@ -75,13 +77,31 @@ def load_habits() -> List[Dict]:
 
 def save_habits(habits: List[Dict]):
     """
-    Save habits to local JSON file.
+    Save habits to local JSON file with file locking to prevent conflicts.
     
     Args:
         habits: List of habit dictionaries to save
     """
-    with open(HABITS_FILE, 'w') as f:
-        json.dump(habits, f, indent=2)
+    # Use atomic write: write to temp file first, then rename
+    # This prevents corruption if the app crashes during write
+    temp_file = HABITS_FILE + '.tmp'
+    
+    try:
+        # Write to temporary file
+        with open(temp_file, 'w') as f:
+            if sys.platform != 'win32':
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock
+            json.dump(habits, f, indent=2)
+            if sys.platform != 'win32':
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Release lock
+        
+        # Atomic rename (atomic on Unix/macOS, should work on Windows too)
+        os.replace(temp_file, HABITS_FILE)
+    except Exception as e:
+        # Clean up temp file on error
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        raise
 
 # ============================================
 # GOAL DATA OPERATIONS
@@ -89,7 +109,8 @@ def save_habits(habits: List[Dict]):
 
 def load_goals() -> List[Dict]:
     """
-    Load goals from local JSON file.
+    Load goals from local JSON file with file locking.
+    This file is shared between ToDo app and Habit Tracker app.
     
     Returns:
         List[Dict]: List of goal dictionaries. Returns empty list if file doesn't exist or is invalid.
@@ -97,20 +118,44 @@ def load_goals() -> List[Dict]:
     if os.path.exists(GOALS_FILE):
         try:
             with open(GOALS_FILE, 'r') as f:
-                return json.load(f)
+                if sys.platform != 'win32':
+                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock for reading
+                data = json.load(f)
+                if sys.platform != 'win32':
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Release lock
+                return data
         except (json.JSONDecodeError, IOError):
             return []
     return []
 
 def save_goals(goals: List[Dict]):
     """
-    Save goals to local JSON file.
+    Save goals to local JSON file with file locking to prevent conflicts.
+    This is shared between ToDo app and Habit Tracker app.
     
     Args:
         goals: List of goal dictionaries to save
     """
-    with open(GOALS_FILE, 'w') as f:
-        json.dump(goals, f, indent=2)
+    # Use atomic write: write to temp file first, then rename
+    # This prevents corruption if the app crashes during write
+    temp_file = GOALS_FILE + '.tmp'
+    
+    try:
+        # Write to temporary file with file locking
+        with open(temp_file, 'w') as f:
+            if sys.platform != 'win32':
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock
+            json.dump(goals, f, indent=2)
+            if sys.platform != 'win32':
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Release lock
+        
+        # Atomic rename (atomic on Unix/macOS, should work on Windows too)
+        os.replace(temp_file, GOALS_FILE)
+    except Exception as e:
+        # Clean up temp file on error
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        raise
 
 # ============================================
 # TASK DATA OPERATIONS (for ToDo app compatibility)
@@ -133,13 +178,31 @@ def load_tasks() -> List[Dict]:
 
 def save_tasks(tasks: List[Dict]):
     """
-    Save tasks to local JSON file (for ToDo app compatibility).
+    Save tasks to local JSON file with file locking (for ToDo app compatibility).
     
     Args:
         tasks: List of task dictionaries to save
     """
-    with open(TASKS_FILE, 'w') as f:
-        json.dump(tasks, f, indent=2)
+    # Use atomic write: write to temp file first, then rename
+    # This prevents corruption if the app crashes during write
+    temp_file = TASKS_FILE + '.tmp'
+    
+    try:
+        # Write to temporary file
+        with open(temp_file, 'w') as f:
+            if sys.platform != 'win32':
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock
+            json.dump(tasks, f, indent=2)
+            if sys.platform != 'win32':
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Release lock
+        
+        # Atomic rename (atomic on Unix/macOS, should work on Windows too)
+        os.replace(temp_file, TASKS_FILE)
+    except Exception as e:
+        # Clean up temp file on error
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        raise
 
 # Categories removed - using goals instead for organization
 

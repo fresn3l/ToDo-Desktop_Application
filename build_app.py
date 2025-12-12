@@ -89,7 +89,7 @@ def build_app():
     # Note: --onedir is better for Mac than --onefile (faster startup, easier debugging)
     args = [
         'main.py',                          # Main script to package
-        '--name=ToDo',      # App name (will be ToDo.app)
+        '--name=HabitTracker',      # App name (will be HabitTracker.app)
         '--windowed',                       # No console window (GUI only)
         '--onedir',                         # Create directory with dependencies (better for Mac)
         '--add-data=web:web',               # Include web folder (format: source:destination)
@@ -100,19 +100,19 @@ def build_app():
         '--hidden-import=analytics',
         '--hidden-import=data_storage',
         '--collect-all=eel',                # Collect all Eel data files
-        '--osx-bundle-identifier=com.todo.app',  # Mac bundle identifier
+        '--osx-bundle-identifier=com.habittracker.app',  # Mac bundle identifier (unique from ToDo app)
         '--noconfirm',                      # Overwrite output without asking
     ] + icon_arg  # Add icon if it exists
     
     try:
         PyInstaller.__main__.run(args)
         
-        # Find the built app (could be in dist/ToDo.app or dist/ToDo/ToDo.app)
+        # Find the built app (could be in dist/HabitTracker.app or dist/HabitTracker/HabitTracker.app)
         app_path = None
-        if os.path.exists('dist/ToDo.app'):
-            app_path = 'dist/ToDo.app'
-        elif os.path.exists('dist/ToDo/ToDo.app'):
-            app_path = 'dist/ToDo/ToDo.app'
+        if os.path.exists('dist/HabitTracker.app'):
+            app_path = 'dist/HabitTracker.app'
+        elif os.path.exists('dist/HabitTracker/HabitTracker.app'):
+            app_path = 'dist/HabitTracker/HabitTracker.app'
         
         if not app_path:
             print("\n⚠️  Warning: Could not find built app in expected location")
@@ -126,7 +126,7 @@ def build_app():
             print(f"   {os.path.abspath(app_path)}")
         
         # Automatically copy to Applications folder
-        applications_path = '/Applications/ToDo.app'
+        applications_path = '/Applications/HabitTracker.app'
         print(f"\n📋 Copying to Applications folder...")
         
         try:
