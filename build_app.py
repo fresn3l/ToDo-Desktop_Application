@@ -76,14 +76,57 @@ def build_app():
     print("🔨 Building Mac application...")
     print("   This may take a few minutes...")
     
-    # Check if icon exists
+    # Regenerate icon from PNG to ensure it matches this branch's icon
     icon_path = 'app_icon.icns'
     icon_arg = []
-    if os.path.exists(icon_path):
+    if os.path.exists('app_icon.png'):
+        print("   Regenerating icon from PNG...")
+        try:
+            # Remove old icon if it exists
+            if os.path.exists(icon_path):
+                os.remove(icon_path)
+            if os.path.exists('app_icon.iconset'):
+                shutil.rmtree('app_icon.iconset')
+            
+            # Create iconset directory
+            os.makedirs('app_icon.iconset', exist_ok=True)
+            
+            # Generate all required icon sizes
+            import subprocess
+            sizes = [16, 32, 128, 256, 512]
+            for size in sizes:
+                subprocess.run(['sips', '-z', str(size), str(size), 'app_icon.png', 
+                              f'--out', f'app_icon.iconset/icon_{size}x{size}.png'], 
+                             check=False, capture_output=True)
+                subprocess.run(['sips', '-z', str(size*2), str(size*2), 'app_icon.png', 
+                              f'--out', f'app_icon.iconset/icon_{size}x{size}@2x.png'], 
+                             check=False, capture_output=True)
+            
+            # Convert iconset to icns
+            subprocess.run(['iconutil', '-c', 'icns', 'app_icon.iconset', '-o', icon_path], 
+                         check=False, capture_output=True)
+            
+            # Clean up iconset
+            if os.path.exists('app_icon.iconset'):
+                shutil.rmtree('app_icon.iconset')
+            
+            if os.path.exists(icon_path):
+                icon_arg = [f'--icon={icon_path}']
+                print(f"   ✅ Icon regenerated: {icon_path}")
+            else:
+                print("   ⚠️  Icon generation failed - app will use default icon")
+        except Exception as e:
+            print(f"   ⚠️  Error regenerating icon: {e}")
+            if os.path.exists(icon_path):
+                icon_arg = [f'--icon={icon_path}']
+                print(f"   Using existing icon: {icon_path}")
+            else:
+                print("   ⚠️  No icon found - app will use default icon")
+    elif os.path.exists(icon_path):
         icon_arg = [f'--icon={icon_path}']
-        print(f"   Using icon: {icon_path}")
+        print(f"   Using existing icon: {icon_path}")
     else:
-        print("   ⚠️  No icon found (app_icon.icns) - app will use default icon")
+        print("   ⚠️  No icon found (app_icon.png or app_icon.icns) - app will use default icon")
     
     # PyInstaller arguments
     # Note: --onedir is better for Mac than --onefile (faster startup, easier debugging)
