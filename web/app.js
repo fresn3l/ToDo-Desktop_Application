@@ -324,11 +324,24 @@ function toggleCompleted() {
 // Toggle task completion
 async function toggleTask(taskId) {
     try {
-        await eel.toggle_task(taskId)();
+        if (!taskId || isNaN(taskId)) {
+            console.error('Invalid task ID:', taskId);
+            return;
+        }
+        
+        const result = await eel.toggle_task(taskId)();
+        
+        if (!result) {
+            console.error('Task not found or toggle failed for ID:', taskId);
+            showErrorFeedback('Failed to toggle task. Please try again.');
+            return;
+        }
+        
         await loadTasks();
         await loadGoals(); // Update goal progress
     } catch (error) {
         console.error('Error toggling task:', error);
+        showErrorFeedback('Failed to toggle task. Please try again.');
     }
 }
 
@@ -464,22 +477,64 @@ function renderTasks() {
     
     container.innerHTML = html;
     
-    // Add event listeners
+    // Use event delegation for better reliability
+    // Remove old listeners if they exist (using named functions for removal)
+    if (container._taskChangeHandler) {
+        container.removeEventListener('change', container._taskChangeHandler);
+    }
+    if (container._taskClickHandler) {
+        container.removeEventListener('click', container._taskClickHandler);
+    }
+    
+    // Create named handler functions for event delegation
+    container._taskChangeHandler = async (e) => {
+        if (e.target && e.target.classList.contains('task-checkbox')) {
+            const taskId = parseInt(e.target.id.replace('checkbox-', ''));
+            if (taskId && !isNaN(taskId)) {
+                await toggleTask(taskId);
+            }
+        }
+    };
+    
+    container._taskClickHandler = async (e) => {
+        if (e.target && e.target.id) {
+            const id = e.target.id;
+            
+            // Handle delete button
+            if (id.startsWith('delete-')) {
+                const taskId = parseInt(id.replace('delete-', ''));
+                if (taskId && !isNaN(taskId)) {
+                    await deleteTask(taskId);
+                }
+            }
+            
+            // Handle edit button
+            if (id.startsWith('edit-')) {
+                const taskId = parseInt(id.replace('edit-', ''));
+                if (taskId && !isNaN(taskId)) {
+                    editTask(taskId);
+                }
+            }
+        }
+    };
+    
+    // Attach event listeners
+    container.addEventListener('change', container._taskChangeHandler);
+    container.addEventListener('click', container._taskClickHandler);
+    
+    // Add ripple effects to buttons (for visual feedback)
     filteredTasks.forEach(task => {
         const checkbox = document.getElementById(`checkbox-${task.id}`);
         const deleteBtn = document.getElementById(`delete-${task.id}`);
         const editBtn = document.getElementById(`edit-${task.id}`);
         
         if (checkbox) {
-            checkbox.addEventListener('change', () => toggleTask(task.id));
             addRippleEffect(checkbox.parentElement);
         }
         if (deleteBtn) {
-            deleteBtn.addEventListener('click', () => deleteTask(task.id));
             addRippleEffect(deleteBtn);
         }
         if (editBtn) {
-            editBtn.addEventListener('click', () => editTask(task.id));
             addRippleEffect(editBtn);
         }
     });
