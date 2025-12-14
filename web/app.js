@@ -276,89 +276,197 @@ async function loadGoals() {
 }
 
 
-// Setup event listeners
+/* ============================================
+   EVENT LISTENER SETUP
+   ============================================ */
+
+/**
+ * Set up all event listeners for user interactions
+ * 
+ * This function attaches event handlers to:
+ * - Form submissions (task and goal creation)
+ * - UI toggles (task form visibility)
+ * - Search input (real-time filtering)
+ * - Filter dropdowns (priority and goal filtering)
+ * - Completed tasks toggle button
+ * 
+ * Called once during app initialization.
+ * All event listeners are attached to static elements that exist on page load.
+ */
 function setupEventListeners() {
-    // Task form submission
-    document.getElementById('taskForm').addEventListener('submit', handleAddTask);
+    // Task form submission - handles new task creation
+    const taskForm = document.getElementById('taskForm');
+    if (taskForm) {
+        taskForm.addEventListener('submit', handleAddTask);
+    }
     
-    // Toggle task form visibility
+    // Toggle task form visibility - show/hide the task creation form
     const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
     const taskFormContainer = document.getElementById('taskFormContainer');
     if (toggleTaskFormBtn && taskFormContainer) {
         toggleTaskFormBtn.addEventListener('click', () => {
             const isVisible = taskFormContainer.style.display !== 'none';
+            // Toggle visibility
             taskFormContainer.style.display = isVisible ? 'none' : 'block';
+            // Update button text and icon
             toggleTaskFormBtn.innerHTML = isVisible 
                 ? '<span class="btn-icon">+</span> Add New Task'
                 : '<span class="btn-icon">−</span> Cancel';
         });
     }
     
-    // Goal form submission
-    document.getElementById('goalForm').addEventListener('submit', handleAddGoal);
+    // Goal form submission - handles new goal creation
+    const goalForm = document.getElementById('goalForm');
+    if (goalForm) {
+        goalForm.addEventListener('submit', handleAddGoal);
+    }
     
-    // Search
-    document.getElementById('searchInput').addEventListener('input', handleSearch);
+    // Search input - real-time text search as user types
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
+    }
     
-    // Filters
-    document.getElementById('filterPriority').addEventListener('change', handleFilterChange);
-    document.getElementById('filterGoal').addEventListener('change', handleFilterChange);
-    document.getElementById('showCompleted').addEventListener('click', toggleCompleted);
+    // Filter dropdowns - filter tasks by priority or goal
+    const filterPriority = document.getElementById('filterPriority');
+    if (filterPriority) {
+        filterPriority.addEventListener('change', handleFilterChange);
+    }
+    
+    const filterGoal = document.getElementById('filterGoal');
+    if (filterGoal) {
+        filterGoal.addEventListener('change', handleFilterChange);
+    }
+    
+    // Show/hide completed tasks toggle button
+    const showCompletedBtn = document.getElementById('showCompleted');
+    if (showCompletedBtn) {
+        showCompletedBtn.addEventListener('click', toggleCompleted);
+    }
 }
 
-// Tab management
+/* ============================================
+   TAB NAVIGATION SYSTEM
+   ============================================ */
+
+/**
+ * Initialize tab navigation system
+ * 
+ * Sets up click handlers for all tab buttons.
+ * When a tab button is clicked, it calls switchTab() to change the active tab.
+ * 
+ * Tab buttons are identified by the data-tab attribute:
+ * - data-tab="tasks" -> Tasks tab
+ * - data-tab="goals" -> Goals tab
+ * - data-tab="analytics" -> Analytics tab
+ * - data-tab="journal" -> Journal tab
+ */
 function setupTabs() {
     document.querySelectorAll('.tab-button').forEach(button => {
         button.addEventListener('click', () => {
             const tabName = button.getAttribute('data-tab');
-            switchTab(tabName);
+            if (tabName) {
+                switchTab(tabName);
+            }
         });
     });
 }
 
+/**
+ * Switch to a different tab
+ * 
+ * This function handles tab switching by:
+ * 1. Updating tab button active states (visual indication)
+ * 2. Showing/hiding tab content panels
+ * 3. Loading tab-specific data if needed (analytics, journal)
+ * 
+ * @param {string} tabName - Name of the tab to switch to ('tasks', 'goals', 'analytics', 'journal')
+ * 
+ * Special handling:
+ * - Analytics tab: Loads analytics data and sets up drag/resize functionality
+ * - Journal tab: Loads past journal entries from last 30 days
+ */
 function switchTab(tabName) {
-    // Update buttons
+    // Update tab button active states
+    // Remove 'active' class from all buttons
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.classList.remove('active');
     });
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    // Add 'active' class to clicked button
+    const activeButton = document.querySelector(`[data-tab="${tabName}"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
     
-    // Update content
+    // Update tab content visibility
+    // Hide all tab content panels
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById(`${tabName}Tab`).classList.add('active');
-    
-    // If switching to analytics tab, load analytics data
-    if (tabName === 'analytics') {
-        loadAnalytics();
-        setupAnalytics();
+    // Show selected tab content
+    const activeTab = document.getElementById(`${tabName}Tab`);
+    if (activeTab) {
+        activeTab.classList.add('active');
     }
     
-    // If switching to journal tab, load past entries
-    if (tabName === 'journal') {
+    // Load tab-specific data if needed
+    if (tabName === 'analytics') {
+        // Analytics tab requires data loading and drag/resize setup
+        loadAnalytics();
+        setupAnalytics();
+    } else if (tabName === 'journal') {
+        // Journal tab loads past entries when opened
         loadPastEntries();
     }
 }
 
-// Handle adding a new task
+/* ============================================
+   TASK MANAGEMENT FUNCTIONS
+   ============================================ */
+
+/**
+ * Handle adding a new task to the system
+ * 
+ * This function processes the task creation form submission:
+ * 1. Validates input (title is required)
+ * 2. Extracts form values (title, description, priority, due date, goal)
+ * 3. Shows loading state on submit button
+ * 4. Calls Python backend to save the task
+ * 5. Resets form and hides it on success
+ * 6. Reloads tasks to show the new task
+ * 7. Provides user feedback (success/error messages)
+ * 
+ * Form fields:
+ * - taskTitle: Required task title
+ * - taskDescription: Optional task description
+ * - taskPriority: Priority level ('Now', 'Next', 'Later')
+ * - taskDueDate: Optional due date (ISO format)
+ * - taskGoal: Optional goal ID to link task to a goal
+ * 
+ * @param {Event} e - Form submission event
+ * @async
+ */
 async function handleAddTask(e) {
+    // Prevent default form submission (page reload)
     e.preventDefault();
     
+    // Extract form values
     const title = document.getElementById('taskTitle').value.trim();
     const description = document.getElementById('taskDescription').value.trim();
     const priority = document.getElementById('taskPriority').value;
     const dueDate = document.getElementById('taskDueDate').value;
     const goalSelect = document.getElementById('taskGoal');
     
+    // Parse goal ID (convert string to integer, or null if no goal selected)
     const goalId = goalSelect.value ? parseInt(goalSelect.value) : null;
     
+    // Validate required fields
     if (!title) {
         showErrorFeedback('Please enter a task title');
         return;
     }
     
-    // Add loading state to button - find submit button correctly
+    // Find form and submit button for loading state
     const form = document.getElementById('taskForm');
     if (!form) {
         console.error('Task form not found');
@@ -373,13 +481,18 @@ async function handleAddTask(e) {
         return;
     }
     
+    // Show loading state on button
     const originalText = submitButton.textContent;
     submitButton.textContent = 'Adding...';
     submitButton.disabled = true;
     
     try {
+        // Call Python backend to create the task
         await eel.add_task(title, description, priority, dueDate, goalId)();
+        
+        // Reset form to clear all fields
         document.getElementById('taskForm').reset();
+        
         // Hide form after successful submission
         const taskFormContainer = document.getElementById('taskFormContainer');
         const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
@@ -389,15 +502,20 @@ async function handleAddTask(e) {
         if (toggleTaskFormBtn) {
             toggleTaskFormBtn.innerHTML = '<span class="btn-icon">+</span> Add New Task';
         }
-        // Show success feedback
+        
+        // Show success message
         showSuccessFeedback('Task added successfully!');
+        
+        // Reload tasks to display the new task
         await loadTasks();
     } catch (error) {
+        // Handle errors gracefully
         console.error('Error adding task:', error);
         showErrorFeedback('Failed to add task. Please try again.');
         // Log detailed error for debugging
         console.error('Full error details:', error);
     } finally {
+        // Always restore button state, even if there was an error
         submitButton.textContent = originalText;
         submitButton.disabled = false;
     }
