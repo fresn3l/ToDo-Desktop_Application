@@ -569,59 +569,174 @@ async function handleAddGoal(e) {
     }
 }
 
-// Show success feedback
+/* ============================================
+   USER FEEDBACK FUNCTIONS
+   ============================================ */
+
+/**
+ * Display a success notification to the user
+ * 
+ * Creates a temporary notification that appears at the top of the screen,
+ * fades in, displays for 3 seconds, then fades out and removes itself.
+ * 
+ * Visual feedback:
+ * - Green background (success color)
+ * - Slides down from top
+ * - Auto-dismisses after 3 seconds
+ * 
+ * @param {string} message - Success message to display
+ * 
+ * Animation timeline:
+ * - 10ms: Add 'show' class for fade-in animation
+ * - 3000ms: Remove 'show' class for fade-out
+ * - 3300ms: Remove element from DOM
+ */
 function showSuccessFeedback(message) {
+    // Create feedback element
     const feedback = document.createElement('div');
     feedback.className = 'feedback feedback-success';
     feedback.textContent = message;
+    
+    // Add to page
     document.body.appendChild(feedback);
     
+    // Trigger fade-in animation
     setTimeout(() => {
         feedback.classList.add('show');
     }, 10);
     
+    // Auto-dismiss after 3 seconds
     setTimeout(() => {
         feedback.classList.remove('show');
+        // Remove from DOM after fade-out animation completes
         setTimeout(() => feedback.remove(), 300);
     }, 3000);
 }
 
-// Show error feedback
+/**
+ * Display an error notification to the user
+ * 
+ * Creates a temporary notification that appears at the top of the screen,
+ * fades in, displays for 3 seconds, then fades out and removes itself.
+ * 
+ * Visual feedback:
+ * - Red background (error color)
+ * - Slides down from top
+ * - Auto-dismisses after 3 seconds
+ * 
+ * @param {string} message - Error message to display
+ * 
+ * Animation timeline:
+ * - 10ms: Add 'show' class for fade-in animation
+ * - 3000ms: Remove 'show' class for fade-out
+ * - 3300ms: Remove element from DOM
+ */
 function showErrorFeedback(message) {
+    // Create feedback element
     const feedback = document.createElement('div');
     feedback.className = 'feedback feedback-error';
     feedback.textContent = message;
+    
+    // Add to page
     document.body.appendChild(feedback);
     
+    // Trigger fade-in animation
     setTimeout(() => {
         feedback.classList.add('show');
     }, 10);
     
+    // Auto-dismiss after 3 seconds
     setTimeout(() => {
         feedback.classList.remove('show');
+        // Remove from DOM after fade-out animation completes
         setTimeout(() => feedback.remove(), 300);
     }, 3000);
 }
 
+/* ============================================
+   FILTERING AND SEARCH FUNCTIONS
+   ============================================ */
 
-// Handle search
+/**
+ * Handle search input changes
+ * 
+ * Updates the search filter as the user types and re-renders tasks.
+ * Search is case-insensitive and matches against task titles and descriptions.
+ * 
+ * @param {Event} e - Input event from search field
+ * 
+ * Flow:
+ * 1. Get search text from input field
+ * 2. Convert to lowercase for case-insensitive matching
+ * 3. Update global currentFilter.search
+ * 4. Re-render tasks with new filter applied
+ */
 function handleSearch(e) {
+    // Update search filter (case-insensitive)
     currentFilter.search = e.target.value.toLowerCase();
+    
+    // Re-render tasks with new search filter
     renderTasks();
 }
 
-// Handle filter changes
+/**
+ * Handle filter dropdown changes
+ * 
+ * Updates priority and goal filters when user selects from dropdowns.
+ * Re-renders tasks to show only matching items.
+ * 
+ * Filters applied:
+ * - Priority: Filter by 'Now', 'Next', 'Later', or all
+ * - Goal: Filter by specific goal ID, or all goals
+ * 
+ * Flow:
+ * 1. Get selected values from filter dropdowns
+ * 2. Update global currentFilter object
+ * 3. Re-render tasks with new filters applied
+ */
 function handleFilterChange() {
-    currentFilter.priority = document.getElementById('filterPriority').value;
-    currentFilter.goal = document.getElementById('filterGoal').value;
+    // Update priority filter
+    const prioritySelect = document.getElementById('filterPriority');
+    if (prioritySelect) {
+        currentFilter.priority = prioritySelect.value;
+    }
+    
+    // Update goal filter
+    const goalSelect = document.getElementById('filterGoal');
+    if (goalSelect) {
+        currentFilter.goal = goalSelect.value;
+    }
+    
+    // Re-render tasks with new filters
     renderTasks();
 }
 
-// Toggle showing completed tasks
+/**
+ * Toggle visibility of completed tasks
+ * 
+ * Switches between showing and hiding completed tasks in the task list.
+ * Updates button text to reflect current state.
+ * 
+ * States:
+ * - showCompleted = false: Hide completed tasks (default)
+ * - showCompleted = true: Show completed tasks
+ * 
+ * Flow:
+ * 1. Toggle the showCompleted boolean flag
+ * 2. Update button text to reflect new state
+ * 3. Re-render tasks (filtering will apply based on new state)
+ */
 function toggleCompleted() {
+    // Toggle the flag
     showCompleted = !showCompleted;
+    
+    // Update button text to reflect current state
     const btn = document.getElementById('showCompleted');
-    btn.textContent = showCompleted ? 'Hide Completed' : 'Show Completed';
+    if (btn) {
+        btn.textContent = showCompleted ? 'Hide Completed' : 'Show Completed';
+    }
+    
+    // Re-render tasks (filtering logic will apply the visibility setting)
     renderTasks();
 }
 
