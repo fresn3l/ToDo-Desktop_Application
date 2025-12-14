@@ -1,10 +1,36 @@
 """
 Todo/Task Management Module
 
-This module handles all task-related operations:
-- Creating, reading, updating, deleting tasks
+This module handles all task-related CRUD (Create, Read, Update, Delete) operations
+for the ToDo application. It provides the backend API for task management that
+is called from the JavaScript frontend via the Eel framework.
+
+Module Responsibilities:
+- Creating new tasks with validation
+- Reading/retrieving tasks from storage
+- Updating existing tasks (title, description, priority, due date, goal)
+- Deleting tasks
+- Toggling task completion status
 - Searching and filtering tasks
-- Task completion management
+
+Data Structure:
+Each task is a dictionary with the following keys:
+- id: Integer - Unique identifier for the task
+- title: String - Task title (required)
+- description: String - Task description (optional)
+- priority: String - Priority level: "Now", "Next", or "Later"
+- due_date: String - Due date in ISO format (optional)
+- goal_id: Integer - ID of linked goal (optional, None for "Misc")
+- completed: Boolean - Whether task is completed
+- created_at: String - Creation timestamp in ISO format
+- completed_at: String - Completion timestamp in ISO format (None if not completed)
+
+Storage:
+Tasks are persisted to JSON files via the data_storage module.
+The storage location is platform-specific:
+- macOS: ~/Library/Application Support/ToDo/tasks.json
+- Windows: ~/AppData/Local/ToDo/tasks.json
+- Linux: ~/.local/share/ToDo/tasks.json
 
 All functions decorated with @eel.expose are callable from JavaScript.
 """
@@ -14,6 +40,8 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 # Import data storage functions
+# These handle the low-level file I/O operations with proper error handling
+# and file locking to prevent data corruption
 from data_storage import (
     load_tasks, save_tasks
 )
@@ -23,55 +51,112 @@ from data_storage import (
 # ============================================
 
 @eel.expose
-def get_tasks():
+def get_tasks() -> List[Dict]:
     """
     Get all tasks from storage.
     
+    This is a simple read operation that retrieves all tasks from the JSON file.
+    Used by the frontend to display the task list and for filtering/searching.
+    
     Returns:
-        List[Dict]: All tasks in the system
+        List[Dict]: List of all task dictionaries. Returns empty list if no tasks exist
+                    or if there's an error reading the file.
+    
+    Example return value:
+        [
+            {
+                "id": 1,
+                "title": "Complete project",
+                "description": "Finish the ToDo app",
+                "priority": "Now",
+                "due_date": "2024-12-31",
+                "goal_id": 1,
+                "completed": False,
+                "created_at": "2024-12-01T10:00:00",
+                "completed_at": None
+            },
+            ...
+        ]
+    
+    Error Handling:
+        - If file doesn't exist, returns empty list
+        - If file is corrupted, data_storage.load_tasks() handles it gracefully
     """
     return load_tasks()
 
 @eel.expose
 def add_task(title: str, description: str = "", priority: str = "Next", 
-             due_date: str = "", goal_id: Optional[int] = None):
+             due_date: str = "", goal_id: Optional[int] = None) -> Dict:
     """
     Add a new task to the system.
     
+    This function creates a new task with the provided information and saves it
+    to persistent storage. The task is assigned a unique ID based on the current
+    number of tasks (simple auto-increment).
+    
     Args:
-        title: Task title (required)
-        description: Task description (optional)
-        priority: Priority level - "Now", "Next", or "Later" (default: "Next")
-        due_date: Due date in ISO format (optional)
-        goal_id: ID of linked goal (required)
+        title: Task title (required) - The main task description
+        description: Task description (optional) - Additional details about the task
+        priority: Priority level (default: "Next")
+            - "Now": High priority, do immediately
+            - "Next": Medium priority, do soon (default)
+            - "Later": Low priority, do when possible
+        due_date: Due date in ISO format (optional) - Format: "YYYY-MM-DD"
+        goal_id: ID of linked goal (optional) - Links task to a specific goal.
+                If None, task is categorized as "Misc"
     
     Returns:
-        Dict: The newly created task dictionary
+        Dict: The newly created task dictionary with all fields populated
     
     Side Effects:
-        - Saves task to tasks.json
+        - Loads existing tasks from storage
+        - Appends new task to the list
+        - Saves updated task list to tasks.json
+        - Creates timestamp for created_at field
+    
+    ID Generation:
+        Uses simple auto-increment: new_id = len(tasks) + 1
+        Note: This can create duplicate IDs if tasks are deleted, but is sufficient
+        for this application. For production, consider using UUIDs.
+    
+    Example:
+        >>> add_task("Buy groceries", "Milk, eggs, bread", "Now", "2024-12-15", 1)
+        {
+            "id": 5,
+            "title": "Buy groceries",
+            "description": "Milk, eggs, bread",
+            "priority": "Now",
+            "due_date": "2024-12-15",
+            "goal_id": 1,
+            "completed": False,
+            "created_at": "2024-12-10T14:30:00.123456",
+            "completed_at": None
+        }
     """
+    # Load existing tasks from storage
     tasks = load_tasks()
     
     # Create new task dictionary with all properties
+    # This is the canonical task structure used throughout the application
     new_task = {
-        "id": len(tasks) + 1,
+        "id": len(tasks) + 1,  # Simple auto-increment ID
         "title": title,
         "description": description,
         "priority": priority,  # Now, Next, Later
         "due_date": due_date,
-        "completed": False,
-        "created_at": datetime.now().isoformat(),
-        "completed_at": None
+        "completed": False,  # New tasks start as incomplete
+        "created_at": datetime.now().isoformat(),  # ISO format timestamp
+        "completed_at": None  # Will be set when task is completed
     }
     
-    # Add goal_id (required)
+    # Add goal_id if provided (optional field)
+    # Tasks without a goal are categorized as "Misc" in the UI
     if goal_id is not None:
         new_task["goal_id"] = goal_id
     
-    # Add task to list and save
+    # Add task to list and save to persistent storage
     tasks.append(new_task)
-    save_tasks(tasks)
+    save_tasks(tasks)  # Persists to JSON file with file locking
     
     return new_task
 
