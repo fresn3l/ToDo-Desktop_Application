@@ -306,6 +306,23 @@ function setupEventListeners() {
     if (toggleTaskFormBtn && taskFormContainer) {
         toggleTaskFormBtn.addEventListener('click', () => {
             const isVisible = taskFormContainer.style.display !== 'none';
+            
+            if (isVisible) {
+                // Hiding form - reset to add mode and clear any edit state
+                window.editingTaskId = undefined;
+                document.getElementById('taskForm').reset();
+                
+                // Reset form title and button text
+                const formTitle = taskFormContainer.querySelector('h2');
+                const submitButton = document.querySelector('#taskForm button[type="submit"]');
+                if (formTitle) {
+                    formTitle.textContent = 'Add New Task';
+                }
+                if (submitButton) {
+                    submitButton.textContent = 'Add Task';
+                }
+            }
+            
             // Toggle visibility
             taskFormContainer.style.display = isVisible ? 'none' : 'block';
             // Update button text and icon
@@ -481,20 +498,49 @@ async function handleAddTask(e) {
         return;
     }
     
+    // Check if we're in edit mode (editing an existing task)
+    const isEditMode = window.editingTaskId !== undefined && window.editingTaskId !== null;
+    const taskId = isEditMode ? window.editingTaskId : null;
+    
     // Show loading state on button
     const originalText = submitButton.textContent;
-    submitButton.textContent = 'Adding...';
+    submitButton.textContent = isEditMode ? 'Updating...' : 'Adding...';
     submitButton.disabled = true;
     
     try {
-        // Call Python backend to create the task
-        await eel.add_task(title, description, priority, dueDate, goalId)();
+        if (isEditMode) {
+            // Update existing task
+            const result = await eel.update_task(taskId, title, description, priority, dueDate, goalId)();
+            
+            if (!result) {
+                throw new Error('Task update failed - task not found');
+            }
+            
+            // Clear edit mode
+            window.editingTaskId = undefined;
+            
+            // Show success message
+            showSuccessFeedback('Task updated successfully!');
+        } else {
+            // Create new task
+            await eel.add_task(title, description, priority, dueDate, goalId)();
+            
+            // Show success message
+            showSuccessFeedback('Task added successfully!');
+        }
         
         // Reset form to clear all fields
         document.getElementById('taskForm').reset();
         
+        // Reset form title and button text to add mode
+        const formContainer = document.getElementById('taskFormContainer');
+        const formTitle = formContainer ? formContainer.querySelector('h2') : null;
+        if (formTitle) {
+            formTitle.textContent = 'Add New Task';
+        }
+        submitButton.textContent = 'Add Task';
+        
         // Hide form after successful submission
-        const taskFormContainer = document.getElementById('taskFormContainer');
         const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
         if (taskFormContainer) {
             taskFormContainer.style.display = 'none';
@@ -503,15 +549,14 @@ async function handleAddTask(e) {
             toggleTaskFormBtn.innerHTML = '<span class="btn-icon">+</span> Add New Task';
         }
         
-        // Show success message
-        showSuccessFeedback('Task added successfully!');
-        
-        // Reload tasks to display the new task
+        // Reload tasks to display the updated/new task
         await loadTasks();
+        // Also reload goals to update progress if task was linked to a goal
+        await loadGoals();
     } catch (error) {
         // Handle errors gracefully
-        console.error('Error adding task:', error);
-        showErrorFeedback('Failed to add task. Please try again.');
+        console.error(`Error ${isEditMode ? 'updating' : 'adding'} task:`, error);
+        showErrorFeedback(`Failed to ${isEditMode ? 'update' : 'add'} task. Please try again.`);
         // Log detailed error for debugging
         console.error('Full error details:', error);
     } finally {
@@ -778,24 +823,82 @@ async function deleteTask(taskId) {
     }
 }
 
-// Edit task
-async function editTask(taskId) {
+/* ============================================
+   TASK EDITING FUNCTION
+   ============================================ */
+
+/**
+ * Edit an existing task by populating the form with its data
+ * 
+ * This function enables editing mode for a task:
+ * 1. Finds the task by ID
+ * 2. Populates the task form with the task's current data
+ * 3. Sets the form to "edit mode" (changes title and button text)
+ * 4. Stores the task ID being edited in a global variable
+ * 5. Shows the form and scrolls to it
+ * 
+ * When the form is submitted in edit mode, handleAddTask() will detect
+ * the edit mode and call update_task() instead of add_task().
+ * 
+ * @param {number} taskId - ID of the task to edit
+ */
+function editTask(taskId) {
+    // Find the task in the current tasks array
     const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
+    if (!task) {
+        console.error('Task not found for editing:', taskId);
+        showErrorFeedback('Task not found. Please refresh the page.');
+        return;
+    }
     
-    // Populate form with task data
+    // Store the task ID being edited (used by handleAddTask to detect edit mode)
+    window.editingTaskId = taskId;
+    
+    // Populate form with task's current data
     document.getElementById('taskTitle').value = task.title;
     document.getElementById('taskDescription').value = task.description || '';
     document.getElementById('taskPriority').value = task.priority;
     document.getElementById('taskDueDate').value = task.due_date || '';
-    document.getElementById('taskGoal').value = task.goal_id || '';
     
-    // Switch to tasks tab and scroll to form
+    // Set goal selection (handle both integer and null values)
+    const goalSelect = document.getElementById('taskGoal');
+    if (goalSelect) {
+        goalSelect.value = task.goal_id || '';
+    }
+    
+    // Update form title and button text to indicate edit mode
+    const formContainer = document.getElementById('taskFormContainer');
+    const formTitle = formContainer ? formContainer.querySelector('h2') : null;
+    if (formTitle) {
+        formTitle.textContent = 'Edit Task';
+    }
+    
+    const submitButton = document.querySelector('#taskForm button[type="submit"]');
+    if (submitButton) {
+        submitButton.textContent = 'Update Task';
+    }
+    
+    // Show the form (if hidden)
+    if (formContainer) {
+        formContainer.style.display = 'block';
+    }
+    
+    // Update toggle button text
+    const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
+    if (toggleTaskFormBtn) {
+        toggleTaskFormBtn.innerHTML = '<span class="btn-icon">−</span> Cancel';
+    }
+    
+    // Switch to tasks tab (in case user is on another tab)
     switchTab('tasks');
-    document.querySelector('.task-form').scrollIntoView({ behavior: 'smooth' });
     
-    // Delete the old task
-    await deleteTask(taskId);
+    // Scroll to form for better UX
+    setTimeout(() => {
+        const taskForm = document.querySelector('.task-form');
+        if (taskForm) {
+            taskForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, 100);
 }
 
 // Render tasks organized by category, then priority
