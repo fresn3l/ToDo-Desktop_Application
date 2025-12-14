@@ -16,11 +16,12 @@
             <!-- App title/logo -->
             <h1>✓ ToDo</h1>
             
-            <!-- Tab navigation buttons - switch between Tasks and Goals views -->
+            <!-- Tab navigation buttons - switch between Tasks, Goals, Analytics, and Journal views -->
             <div class="tabs">
                 <button class="tab-button active" data-tab="tasks">Tasks</button>
                 <button class="tab-button" data-tab="goals">Goals</button>
                 <button class="tab-button" data-tab="analytics">Analytics</button>
+                <button class="tab-button" data-tab="journal">Journal</button>
             </div>
         </header>
 
@@ -158,6 +159,53 @@
             <!-- Analytics container - all analytics cards will be inserted here -->
             <div id="analyticsContainer" class="analytics-container">
                 <!-- Analytics will be dynamically inserted here by JavaScript -->
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- JOURNAL TAB - Journal entry with timer -->
+        <!-- ============================================ -->
+        <div id="journalTab" class="tab-content">
+            
+            <!-- Journal header -->
+            <div class="journal-header">
+                <h2>Journal</h2>
+            </div>
+
+            <!-- New entry section with timer -->
+            <div class="journal-entry-section">
+                <div class="journal-timer-container">
+                    <div class="timer-display" id="timerDisplay">10:00</div>
+                    <div class="timer-controls">
+                        <button id="startTimer" class="btn-primary">Start Entry</button>
+                        <button id="pauseTimer" class="btn-secondary" style="display: none;">Pause</button>
+                        <button id="continueTimer" class="btn-secondary" style="display: none;">Continue</button>
+                    </div>
+                    <div class="timer-status" id="timerStatus">Ready to start</div>
+                </div>
+
+                <!-- Journal entry textarea -->
+                <div class="journal-text-container">
+                    <textarea 
+                        id="journalEntry" 
+                        placeholder="Start writing your journal entry... (Timer will start when you begin typing)"
+                        rows="15"
+                    ></textarea>
+                </div>
+
+                <!-- Save entry button -->
+                <div class="journal-actions">
+                    <button id="saveEntry" class="btn-primary" disabled>Save Entry</button>
+                    <button id="clearEntry" class="btn-secondary">Clear</button>
+                </div>
+            </div>
+
+            <!-- Past entries section -->
+            <div class="journal-entries-section">
+                <h3>Past Entries (Last 30 Days)</h3>
+                <div id="journalEntriesContainer" class="journal-entries-container">
+                    <!-- Past entries will be dynamically inserted here -->
+                </div>
             </div>
         </div>
     </div>

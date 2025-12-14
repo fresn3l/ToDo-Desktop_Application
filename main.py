@@ -43,6 +43,10 @@ import goals
 # This makes all analytics functions available to JavaScript
 import analytics
 
+# Import journal module
+# This makes all journal-related functions available to JavaScript
+import journal
+
 # Note: We don't import data_storage.py directly because:
 # - It doesn't have @eel.expose functions
 # - It's only used internally by other modules

@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import List, Dict
 
 # Import data storage functions
-from data_storage import load_tasks, load_goals
+from data_storage import load_tasks, load_goals, load_habits
 
 # ============================================
 # ANALYTICS FUNCTIONS
@@ -143,8 +143,11 @@ def get_analytics():
     # ============================================
     # STEP 4: GOAL-BASED STATISTICS
     # ============================================
-    # Calculate statistics for each goal and tasks linked to goals
-    # This tracks progress toward your goals
+    # Calculate statistics for each goal including both tasks and habits
+    # This tracks progress toward your goals across both apps
+    
+    # Load habits from Habit Tracker app
+    habits = load_habits()
     
     goal_stats = {}
     tasks_with_goals = 0
@@ -153,10 +156,20 @@ def get_analytics():
     # Process each goal
     for goal in goals:
         goal_id = goal["id"]
-        # Find all tasks linked to this goal
+        # Find all tasks linked to this goal (from ToDo app)
         goal_tasks = [t for t in tasks if t.get("goal_id") == goal_id]
-        goal_total = len(goal_tasks)
-        goal_completed = len([t for t in goal_tasks if t.get("completed", False)])
+        tasks_total = len(goal_tasks)
+        tasks_completed = len([t for t in goal_tasks if t.get("completed", False)])
+        
+        # Find all habits linked to this goal (from Habit Tracker app)
+        goal_habits = [h for h in habits if h.get("goal_id") == goal_id]
+        habits_total = len(goal_habits)
+        habits_completed = len([h for h in goal_habits 
+                               if h.get("check_ins") and len(h.get("check_ins", [])) > 0])
+        
+        # Combined statistics
+        goal_total = tasks_total + habits_total
+        goal_completed = tasks_completed + habits_completed
         goal_incomplete = goal_total - goal_completed
         goal_percentage = (goal_completed / goal_total * 100) if goal_total > 0 else 0
         
@@ -164,11 +177,15 @@ def get_analytics():
             "goal_name": goal.get("title", "Unknown"),
             "total": goal_total,
             "completed": goal_completed,
+            "tasks_total": tasks_total,
+            "tasks_completed": tasks_completed,
+            "habits_total": habits_total,
+            "habits_completed": habits_completed,
             "incomplete": goal_incomplete,
             "completion_percentage": round(goal_percentage, 2)
         }
         
-        tasks_with_goals += goal_total
+        tasks_with_goals += tasks_total
     
     # Count tasks without goals
     tasks_without_goals = len([t for t in tasks if not t.get("goal_id")])

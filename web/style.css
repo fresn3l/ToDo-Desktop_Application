@@ -630,12 +630,12 @@ header h1 {
     gap: 8px;
 }
 
-/* Task completion checkbox - smaller */
+/* Task completion checkbox - large / made double the size*/
 .task-checkbox {
-    width: 16px;
-    height: 16px;
+    width: 32px;
+    height: 32px;
     cursor: pointer;
-    margin-top: 2px;
+    margin-top: 8px;
     accent-color: var(--primary);
     transition: var(--transition);
     flex-shrink: 0;
@@ -1914,5 +1914,268 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         position: static !important;
         width: 100% !important;
         min-height: auto !important;
+    }
+}
+
+/* ============================================
+   JOURNAL TAB STYLES
+   ============================================ */
+
+/* Journal header - title section */
+.journal-header {
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.journal-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Journal entry section - contains timer and textarea */
+.journal-entry-section {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Timer container - displays countdown and controls */
+.journal-timer-container {
+    background: rgba(59, 130, 246, 0.1);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    text-align: center;
+}
+
+/* Timer display - large countdown display */
+.timer-display {
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 16px;
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+    letter-spacing: 4px;
+}
+
+/* Timer controls - buttons for start/pause/continue */
+.timer-controls {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+/* Timer status text */
+.timer-status {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Journal text container - wraps the textarea */
+.journal-text-container {
+    width: 100%;
+}
+
+/* Journal entry textarea - main writing area */
+#journalEntry {
+    width: 100%;
+    min-height: 400px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 16px;
+    line-height: 1.8;
+    font-family: inherit;
+    resize: vertical;
+    transition: var(--transition);
+}
+
+#journalEntry:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+#journalEntry::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Journal actions - save and clear buttons */
+.journal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* Past entries section */
+.journal-entries-section {
+    padding: 32px;
+    border-top: 1px solid var(--border-color);
+}
+
+.journal-entries-section h3 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+}
+
+/* Journal entries container - holds all past entries */
+.journal-entries-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Custom scrollbar for entries container */
+.journal-entries-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.journal-entries-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.journal-entries-container::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+}
+
+.journal-entries-container::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Journal entry item - individual past entry card */
+.journal-entry-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    transition: var(--transition);
+}
+
+.journal-entry-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Journal entry header - date, duration, badges */
+.journal-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.journal-entry-date {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.journal-entry-duration {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Journal badge - indicates continued entries */
+.journal-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.journal-badge.continued {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--accent);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* Journal entry content - the actual text */
+.journal-entry-content {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Disabled button state */
+#saveEntry:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#saveEntry:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* ============================================
+   JOURNAL RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+    .journal-entry-section {
+        padding: 20px;
+    }
+    
+    .timer-display {
+        font-size: 48px;
+        letter-spacing: 2px;
+    }
+    
+    .timer-controls {
+        flex-direction: column;
+    }
+    
+    .timer-controls button {
+        width: 100%;
+    }
+    
+    #journalEntry {
+        min-height: 300px;
+        font-size: 15px;
+    }
+    
+    .journal-actions {
+        flex-direction: column;
+    }
+    
+    .journal-actions button {
+        width: 100%;
+    }
+    
+    .journal-entries-section {
+        padding: 20px;
+    }
+    
+    .journal-entry-header {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
