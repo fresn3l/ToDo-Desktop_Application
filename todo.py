@@ -84,7 +84,12 @@ def _check_and_mark_overdue_tasks(tasks: List[Dict]) -> List[Dict]:
         
         try:
             # Parse due_date (format: "YYYY-MM-DD")
-            due_date = datetime.strptime(task["due_date"], "%Y-%m-%d")
+            # Convert to datetime at end of day (23:59:59) to ensure full day has passed
+            due_date_str = task["due_date"]
+            due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
+            # Set to end of day to ensure 24 hours have passed
+            due_date = due_date.replace(hour=23, minute=59, second=59)
+            
             # Calculate time difference
             time_diff = now - due_date
             
