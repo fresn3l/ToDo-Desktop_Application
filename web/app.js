@@ -782,6 +782,31 @@ function handleSearch(e) {
 }
 
 /**
+ * Handle sort dropdown changes
+ * 
+ * Updates the current sort mode and re-renders tasks with the new sorting.
+ * 
+ * Sort modes:
+ * - 'category': Group by goal/category (default)
+ * - 'due-date': Sort by due date (earliest first)
+ * - 'due-today': Show only tasks due today
+ * - 'due-week': Show only tasks due this week (next 7 days)
+ * - 'priority': Sort by priority (Now > Next > Later)
+ * 
+ * Flow:
+ * 1. Get selected sort mode from dropdown
+ * 2. Update global currentSort variable
+ * 3. Re-render tasks with new sorting applied
+ */
+function handleSortChange() {
+    const sortSelect = document.getElementById('sortTasks');
+    if (sortSelect) {
+        currentSort = sortSelect.value;
+        renderTasks();
+    }
+}
+
+/**
  * Handle filter dropdown changes
  * 
  * Updates priority and goal filters when user selects from dropdowns.
