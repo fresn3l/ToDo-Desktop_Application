@@ -48,8 +48,14 @@ let showCompleted = false;
 let currentFilter = {
     priority: '',  // Filter by priority: 'Now', 'Next', 'Later', or '' for all
     goal: '',      // Filter by goal ID or '' for all goals
-    search: ''     // Search text to filter task titles/descriptions
+    search: ''      // Search text to filter task titles/descriptions
 };
+
+/**
+ * Current sort mode for tasks
+ * Options: 'category', 'due-date', 'due-today', 'due-week', 'priority'
+ */
+let currentSort = 'category';
 
 /* ============================================
    APPLICATION INITIALIZATION
@@ -353,6 +359,12 @@ function setupEventListeners() {
     const filterGoal = document.getElementById('filterGoal');
     if (filterGoal) {
         filterGoal.addEventListener('change', handleFilterChange);
+    }
+    
+    // Sort dropdown - change how tasks are sorted/displayed
+    const sortTasks = document.getElementById('sortTasks');
+    if (sortTasks) {
+        sortTasks.addEventListener('change', handleSortChange);
     }
     
     // Show/hide completed tasks toggle button
@@ -987,31 +999,175 @@ function renderTasks() {
     // These tasks are hidden from the to-do tab but still exist for analytics
     filteredTasks = filteredTasks.filter(task => !task.not_completed);
     
+    // Apply sort-specific filters
+    if (currentSort === 'due-today') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        filteredTasks = filteredTasks.filter(task => {
+            if (!task.due_date) return false;
+            const dueDate = new Date(task.due_date);
+            dueDate.setHours(0, 0, 0, 0);
+            return dueDate >= today && dueDate < tomorrow;
+        });
+    } else if (currentSort === 'due-week') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const weekFromNow = new Date(today);
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+        
+        filteredTasks = filteredTasks.filter(task => {
+            if (!task.due_date) return false;
+            const dueDate = new Date(task.due_date);
+            dueDate.setHours(0, 0, 0, 0);
+            return dueDate >= today && dueDate <= weekFromNow;
+        });
+    }
+    
     // Render
     if (filteredTasks.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <h3>No tasks found</h3>
-                <p>${tasks.length === 0 ? 'Add your first task above!' : 'Try adjusting your filters.'}</p>
+                <p>${tasks.length === 0 ? 'Add your first task above!' : 'Try adjusting your filters or sort options.'}</p>
             </div>
         `;
         return;
     }
     
-    // Group by goal (tasks without goals go to "Misc")
-    const tasksByGoal = {};
-    filteredTasks.forEach(task => {
-        const goalId = task.goal_id || 'Misc';
-        if (!tasksByGoal[goalId]) {
-            tasksByGoal[goalId] = [];
-        }
-        tasksByGoal[goalId].push(task);
-    });
+    // Apply sorting based on current sort mode
+    let html = '';
     
-    // Sort tasks within each goal by priority (Now > Next > Later)
-    const priorityOrder = { Now: 3, Next: 2, Later: 1 };
-    Object.keys(tasksByGoal).forEach(goalId => {
-        tasksByGoal[goalId].sort((a, b) => {
+    if (currentSort === 'category') {
+        // Group by goal (tasks without goals go to "Misc")
+        const tasksByGoal = {};
+        filteredTasks.forEach(task => {
+            const goalId = task.goal_id || 'Misc';
+            if (!tasksByGoal[goalId]) {
+                tasksByGoal[goalId] = [];
+            }
+            tasksByGoal[goalId].push(task);
+        });
+        
+        // Sort tasks within each goal by priority (Now > Next > Later)
+        const priorityOrder = { Now: 3, Next: 2, Later: 1 };
+        Object.keys(tasksByGoal).forEach(goalId => {
+            tasksByGoal[goalId].sort((a, b) => {
+                // Incomplete tasks first
+                if (a.completed !== b.completed) {
+                    return a.completed ? 1 : -1;
+                }
+                // Then by priority
+                const priorityA = priorityOrder[a.priority] || 0;
+                const priorityB = priorityOrder[b.priority] || 0;
+                if (priorityA !== priorityB) {
+                    return priorityB - priorityA; // Higher priority first
+                }
+                // Then by due date
+                if (a.due_date && b.due_date) {
+                    return new Date(a.due_date) - new Date(b.due_date);
+                }
+                if (a.due_date) return -1;
+                if (b.due_date) return 1;
+                return 0;
+            });
+        });
+        
+        // Render by goal in rows
+        // Sort goals by ID (or "Misc" last)
+        const sortedGoalIds = Object.keys(tasksByGoal).sort((a, b) => {
+            if (a === 'Misc') return 1;
+            if (b === 'Misc') return -1;
+            return parseInt(a) - parseInt(b);
+        });
+        
+        sortedGoalIds.forEach(goalId => {
+            const goal = goals.find(g => g.id === parseInt(goalId));
+            const goalName = goal ? goal.title : 'Misc';
+            html += `<div class="category-header">${escapeHtml(goalName)}</div>`;
+            html += `<div class="category-tasks-row">`;
+            tasksByGoal[goalId].forEach(task => {
+                html += createTaskHTML(task);
+            });
+            html += `</div>`;
+        });
+    } else if (currentSort === 'due-date' || currentSort === 'due-today' || currentSort === 'due-week') {
+        // Sort by due date (earliest first)
+        const sortedTasks = [...filteredTasks].sort((a, b) => {
+            // Incomplete tasks first
+            if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1;
+            }
+            // Then by due date
+            if (a.due_date && b.due_date) {
+                return new Date(a.due_date) - new Date(b.due_date);
+            }
+            if (a.due_date) return -1;
+            if (b.due_date) return 1;
+            // Then by priority
+            const priorityOrder = { Now: 3, Next: 2, Later: 1 };
+            const priorityA = priorityOrder[a.priority] || 0;
+            const priorityB = priorityOrder[b.priority] || 0;
+            return priorityB - priorityA;
+        });
+        
+        // Group by due date for better organization
+        const tasksByDate = {};
+        sortedTasks.forEach(task => {
+            let dateKey = 'No Due Date';
+            if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const weekFromNow = new Date(today);
+                weekFromNow.setDate(weekFromNow.getDate() + 7);
+                
+                dueDate.setHours(0, 0, 0, 0);
+                
+                if (dueDate < today) {
+                    dateKey = 'Overdue';
+                } else if (dueDate >= today && dueDate < tomorrow) {
+                    dateKey = 'Due Today';
+                } else if (dueDate >= tomorrow && dueDate <= weekFromNow) {
+                    dateKey = 'Due This Week';
+                } else {
+                    dateKey = dueDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                }
+            }
+            
+            if (!tasksByDate[dateKey]) {
+                tasksByDate[dateKey] = [];
+            }
+            tasksByDate[dateKey].push(task);
+        });
+        
+        // Render by date groups
+        const dateOrder = ['Overdue', 'Due Today', 'Due This Week', 'No Due Date'];
+        const sortedDateKeys = Object.keys(tasksByDate).sort((a, b) => {
+            const aIndex = dateOrder.indexOf(a);
+            const bIndex = dateOrder.indexOf(b);
+            if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            return a.localeCompare(b);
+        });
+        
+        sortedDateKeys.forEach(dateKey => {
+            html += `<div class="category-header">${escapeHtml(dateKey)}</div>`;
+            html += `<div class="category-tasks-row">`;
+            tasksByDate[dateKey].forEach(task => {
+                html += createTaskHTML(task);
+            });
+            html += `</div>`;
+        });
+    } else if (currentSort === 'priority') {
+        // Sort by priority (Now > Next > Later)
+        const priorityOrder = { Now: 3, Next: 2, Later: 1 };
+        const sortedTasks = [...filteredTasks].sort((a, b) => {
             // Incomplete tasks first
             if (a.completed !== b.completed) {
                 return a.completed ? 1 : -1;
@@ -1030,27 +1186,30 @@ function renderTasks() {
             if (b.due_date) return 1;
             return 0;
         });
-    });
-    
-    // Render by goal in rows
-    let html = '';
-    // Sort goals by ID (or "Misc" last)
-    const sortedGoalIds = Object.keys(tasksByGoal).sort((a, b) => {
-        if (a === 'Misc') return 1;
-        if (b === 'Misc') return -1;
-        return parseInt(a) - parseInt(b);
-    });
-    
-    sortedGoalIds.forEach(goalId => {
-        const goal = goals.find(g => g.id === parseInt(goalId));
-        const goalName = goal ? goal.title : 'Misc';
-        html += `<div class="category-header">${escapeHtml(goalName)}</div>`;
-        html += `<div class="category-tasks-row">`;
-        tasksByGoal[goalId].forEach(task => {
-            html += createTaskHTML(task);
+        
+        // Group by priority
+        const tasksByPriority = {};
+        sortedTasks.forEach(task => {
+            const priority = task.priority || 'Later';
+            if (!tasksByPriority[priority]) {
+                tasksByPriority[priority] = [];
+            }
+            tasksByPriority[priority].push(task);
         });
-        html += `</div>`;
-    });
+        
+        // Render by priority
+        const priorityOrderKeys = ['Now', 'Next', 'Later'];
+        priorityOrderKeys.forEach(priority => {
+            if (tasksByPriority[priority] && tasksByPriority[priority].length > 0) {
+                html += `<div class="category-header">${escapeHtml(priority)} Priority</div>`;
+                html += `<div class="category-tasks-row">`;
+                tasksByPriority[priority].forEach(task => {
+                    html += createTaskHTML(task);
+                });
+                html += `</div>`;
+            }
+        });
+    }
     
     container.innerHTML = html;
     
