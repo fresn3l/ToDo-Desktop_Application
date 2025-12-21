@@ -16,12 +16,13 @@
             <!-- App title/logo -->
             <h1>✓ ToDo</h1>
             
-            <!-- Tab navigation buttons - switch between Tasks, Goals, Analytics, and Journal views -->
+            <!-- Tab navigation buttons - switch between Tasks, Goals, Analytics, Journal, and Settings views -->
             <div class="tabs">
                 <button class="tab-button active" data-tab="tasks">Tasks</button>
                 <button class="tab-button" data-tab="goals">Goals</button>
                 <button class="tab-button" data-tab="analytics">Analytics</button>
                 <button class="tab-button" data-tab="journal">Journal</button>
+                <button class="tab-button" data-tab="settings">Settings</button>
             </div>
         </header>
 
@@ -230,6 +231,93 @@
                     <!-- Past entries will be dynamically inserted here -->
                 </div>
             </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- SETTINGS TAB - App configuration and notifications -->
+        <!-- ============================================ -->
+        <div id="settingsTab" class="tab-content">
+            
+            <!-- Notification Settings Section -->
+            <div class="settings-section">
+                <h2>Email Notifications</h2>
+                <p class="settings-description">
+                    Get email reminders on your iPhone for tasks due within 24 hours.
+                    Notifications are sent to your email address, which will appear on your iPhone.
+                </p>
+                
+                <form id="notificationSettingsForm">
+                    <!-- Enable/Disable Notifications -->
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="notificationsEnabled">
+                            Enable email notifications
+                        </label>
+                    </div>
+                    
+                    <!-- Recipient Email -->
+                    <div class="form-group">
+                        <label for="notificationEmail">Your Email Address (for iPhone notifications):</label>
+                        <input type="email" id="notificationEmail" placeholder="your.email@example.com">
+                        <small>This is where notifications will be sent (will appear on your iPhone)</small>
+                    </div>
+                    
+                    <!-- SMTP Server -->
+                    <div class="form-group">
+                        <label for="smtpServer">SMTP Server:</label>
+                        <select id="smtpServer">
+                            <option value="smtp.gmail.com">Gmail (smtp.gmail.com)</option>
+                            <option value="smtp.mail.me.com">iCloud (smtp.mail.me.com)</option>
+                            <option value="smtp-mail.outlook.com">Outlook (smtp-mail.outlook.com)</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Custom SMTP Server -->
+                    <div class="form-group" id="customSmtpGroup" style="display: none;">
+                        <label for="customSmtpServer">Custom SMTP Server:</label>
+                        <input type="text" id="customSmtpServer" placeholder="smtp.example.com">
+                    </div>
+                    
+                    <!-- SMTP Port -->
+                    <div class="form-group">
+                        <label for="smtpPort">SMTP Port:</label>
+                        <input type="number" id="smtpPort" value="587" min="1" max="65535">
+                        <small>Usually 587 for TLS or 465 for SSL</small>
+                    </div>
+                    
+                    <!-- Email Username -->
+                    <div class="form-group">
+                        <label for="emailUsername">Email Username:</label>
+                        <input type="text" id="emailUsername" placeholder="your.email@example.com">
+                        <small>Your full email address for authentication</small>
+                    </div>
+                    
+                    <!-- Email Password/App Password -->
+                    <div class="form-group">
+                        <label for="emailPassword">Email Password / App Password:</label>
+                        <input type="password" id="emailPassword" placeholder="Enter password or app password">
+                        <small>
+                            For Gmail: Use an App Password (not your regular password).
+                            <a href="https://support.google.com/accounts/answer/185833" target="_blank">Learn how to create one</a>
+                        </small>
+                    </div>
+                    
+                    <!-- Check Interval -->
+                    <div class="form-group">
+                        <label for="checkInterval">Check for due tasks every (hours):</label>
+                        <input type="number" id="checkInterval" value="1" min="1" max="24">
+                        <small>How often to check for tasks due within 24 hours</small>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="form-actions">
+                        <button type="button" id="testNotificationBtn" class="btn-secondary">Send Test Notification</button>
+                        <button type="submit" class="btn-primary">Save Settings</button>
+                    </div>
+                </form>
+            </div>
+            
         </div>
     </div>
 

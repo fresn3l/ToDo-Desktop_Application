@@ -92,6 +92,9 @@ async function init() {
     // Initialize journal timer and entry functionality
     setupJournal();
     
+    // Initialize notification settings
+    setupNotificationSettings();
+    
     // Hide loading indicators now that data is loaded
     hideLoadingState();
     
@@ -446,6 +449,9 @@ function switchTab(tabName) {
     } else if (tabName === 'journal') {
         // Journal tab loads past entries when opened
         loadPastEntries();
+    } else if (tabName === 'settings') {
+        // Settings tab loads current notification settings
+        loadNotificationSettings();
     }
 }
 
@@ -2503,8 +2509,182 @@ async function loadPastEntries() {
     }
 }
 
+/* ============================================
+   NOTIFICATION SETTINGS FUNCTIONS
+   ============================================ */
+
+/**
+ * Load and display current notification settings
+ */
+async function loadNotificationSettings() {
+    try {
+        const settings = await eel.get_notification_settings()();
+        
+        // Populate form fields
+        document.getElementById('notificationsEnabled').checked = settings.enabled || false;
+        document.getElementById('notificationEmail').value = settings.email || '';
+        document.getElementById('smtpPort').value = settings.smtp_port || 587;
+        document.getElementById('emailUsername').value = settings.email_username || '';
+        document.getElementById('emailPassword').value = settings.email_password || '';
+        document.getElementById('checkInterval').value = settings.check_interval_hours || 1;
+        
+        // Set SMTP server
+        const smtpSelect = document.getElementById('smtpServer');
+        const customSmtpGroup = document.getElementById('customSmtpGroup');
+        const customSmtpInput = document.getElementById('customSmtpServer');
+        
+        if (settings.smtp_server) {
+            // Check if it's a preset option
+            const presetOptions = ['smtp.gmail.com', 'smtp.mail.me.com', 'smtp-mail.outlook.com'];
+            if (presetOptions.includes(settings.smtp_server)) {
+                smtpSelect.value = settings.smtp_server;
+                customSmtpGroup.style.display = 'none';
+            } else {
+                smtpSelect.value = 'custom';
+                customSmtpGroup.style.display = 'block';
+                customSmtpInput.value = settings.smtp_server;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading notification settings:', error);
+    }
+}
+
+/**
+ * Setup notification settings form event listeners
+ */
+function setupNotificationSettings() {
+    const form = document.getElementById('notificationSettingsForm');
+    const smtpSelect = document.getElementById('smtpServer');
+    const customSmtpGroup = document.getElementById('customSmtpGroup');
+    const testBtn = document.getElementById('testNotificationBtn');
+    
+    // Handle SMTP server selection
+    if (smtpSelect) {
+        smtpSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                customSmtpGroup.style.display = 'block';
+            } else {
+                customSmtpGroup.style.display = 'none';
+            }
+        });
+    }
+    
+    // Handle form submission
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await saveNotificationSettings();
+        });
+    }
+    
+    // Handle test notification button
+    if (testBtn) {
+        testBtn.addEventListener('click', async () => {
+            await testNotification();
+        });
+    }
+}
+
+/**
+ * Save notification settings
+ */
+async function saveNotificationSettings() {
+    try {
+        const enabled = document.getElementById('notificationsEnabled').checked;
+        const email = document.getElementById('notificationEmail').value.trim();
+        const smtpSelect = document.getElementById('smtpServer');
+        const customSmtpInput = document.getElementById('customSmtpServer');
+        const smtpPort = parseInt(document.getElementById('smtpPort').value);
+        const emailUsername = document.getElementById('emailUsername').value.trim();
+        const emailPassword = document.getElementById('emailPassword').value;
+        const checkInterval = parseInt(document.getElementById('checkInterval').value);
+        
+        // Get SMTP server
+        let smtpServer = smtpSelect.value;
+        if (smtpServer === 'custom') {
+            smtpServer = customSmtpInput.value.trim();
+        }
+        
+        // Validate required fields if enabled
+        if (enabled) {
+            if (!email) {
+                showErrorFeedback('Please enter your email address');
+                return;
+            }
+            if (!smtpServer) {
+                showErrorFeedback('Please enter SMTP server');
+                return;
+            }
+            if (!emailUsername) {
+                showErrorFeedback('Please enter email username');
+                return;
+            }
+            if (!emailPassword) {
+                showErrorFeedback('Please enter email password');
+                return;
+            }
+        }
+        
+        // Save settings
+        await eel.update_notification_settings(
+            enabled,
+            email,
+            smtpServer,
+            smtpPort,
+            emailUsername,
+            emailPassword,
+            checkInterval
+        )();
+        
+        showSuccessFeedback('Notification settings saved successfully!');
+    } catch (error) {
+        console.error('Error saving notification settings:', error);
+        showErrorFeedback('Failed to save settings. Please try again.');
+    }
+}
+
+/**
+ * Send a test notification
+ */
+async function testNotification() {
+    try {
+        const email = document.getElementById('notificationEmail').value.trim();
+        if (!email) {
+            showErrorFeedback('Please enter your email address first');
+            return;
+        }
+        
+        const testBtn = document.getElementById('testNotificationBtn');
+        const originalText = testBtn.textContent;
+        testBtn.textContent = 'Sending...';
+        testBtn.disabled = true;
+        
+        const result = await eel.test_notification(email)();
+        
+        if (result.success) {
+            showSuccessFeedback(result.message);
+        } else {
+            showErrorFeedback(result.message);
+        }
+        
+        testBtn.textContent = originalText;
+        testBtn.disabled = false;
+    } catch (error) {
+        console.error('Error sending test notification:', error);
+        showErrorFeedback('Failed to send test notification. Please check your settings.');
+    }
+}
+
 // Initialize when page loads
 init();
+
+// Setup notification settings when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupNotificationSettings);
+} else {
+    setupNotificationSettings();
+}
 
 // Setup journal when DOM is ready
 if (document.readyState === 'loading') {
