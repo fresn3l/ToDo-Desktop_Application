@@ -36,7 +36,7 @@ All functions decorated with @eel.expose are callable from JavaScript.
 """
 
 import eel
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 # Import data storage functions
@@ -50,13 +50,71 @@ from data_storage import (
 # TASK CRUD OPERATIONS
 # ============================================
 
+def _check_and_mark_overdue_tasks(tasks: List[Dict]) -> List[Dict]:
+    """
+    Check tasks for overdue status and mark them as not_completed if overdue by >24 hours.
+    
+    This function:
+    1. Checks each incomplete task with a due_date
+    2. If the due_date is more than 24 hours in the past, marks it as not_completed
+    3. Sets not_completed_at timestamp
+    4. Saves the updated tasks
+    
+    Args:
+        tasks: List of task dictionaries
+    
+    Returns:
+        List[Dict]: Updated tasks list (same reference, modified in place)
+    
+    Side Effects:
+        - Modifies tasks in place
+        - Saves tasks to storage if any changes were made
+    """
+    now = datetime.now()
+    updated = False
+    
+    for task in tasks:
+        # Skip if task is already completed or already marked as not_completed
+        if task.get("completed", False) or task.get("not_completed", False):
+            continue
+        
+        # Skip if task has no due_date
+        if not task.get("due_date"):
+            continue
+        
+        try:
+            # Parse due_date (format: "YYYY-MM-DD")
+            due_date = datetime.strptime(task["due_date"], "%Y-%m-%d")
+            # Calculate time difference
+            time_diff = now - due_date
+            
+            # If overdue by more than 24 hours, mark as not_completed
+            if time_diff > timedelta(hours=24):
+                task["not_completed"] = True
+                task["not_completed_at"] = now.isoformat()
+                updated = True
+        except (ValueError, KeyError) as e:
+            # Skip tasks with invalid due_date format
+            continue
+    
+    # Save if any tasks were updated
+    if updated:
+        save_tasks(tasks)
+    
+    return tasks
+
 @eel.expose
 def get_tasks() -> List[Dict]:
     """
     Get all tasks from storage.
     
-    This is a simple read operation that retrieves all tasks from the JSON file.
-    Used by the frontend to display the task list and for filtering/searching.
+    This function:
+    1. Loads tasks from storage
+    2. Checks for overdue tasks (overdue by >24 hours) and marks them as not_completed
+    3. Returns the updated task list
+    
+    Tasks that are overdue by more than 24 hours are automatically marked as
+    "not_completed" for analytics purposes and will not appear in the task list.
     
     Returns:
         List[Dict]: List of all task dictionaries. Returns empty list if no tasks exist
@@ -72,8 +130,10 @@ def get_tasks() -> List[Dict]:
                 "due_date": "2024-12-31",
                 "goal_id": 1,
                 "completed": False,
+                "not_completed": False,  # True if overdue by >24 hours
                 "created_at": "2024-12-01T10:00:00",
-                "completed_at": None
+                "completed_at": None,
+                "not_completed_at": None  # Timestamp when marked as not_completed
             },
             ...
         ]
@@ -82,7 +142,10 @@ def get_tasks() -> List[Dict]:
         - If file doesn't exist, returns empty list
         - If file is corrupted, data_storage.load_tasks() handles it gracefully
     """
-    return load_tasks()
+    tasks = load_tasks()
+    # Check and mark overdue tasks
+    tasks = _check_and_mark_overdue_tasks(tasks)
+    return tasks
 
 @eel.expose
 def add_task(title: str, description: str = "", priority: str = "Next", 

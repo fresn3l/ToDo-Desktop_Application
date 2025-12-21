@@ -983,6 +983,10 @@ function renderTasks() {
         filteredTasks = filteredTasks.filter(task => !task.completed);
     }
     
+    // Filter out tasks marked as not_completed (overdue by >24 hours)
+    // These tasks are hidden from the to-do tab but still exist for analytics
+    filteredTasks = filteredTasks.filter(task => !task.not_completed);
+    
     // Render
     if (filteredTasks.length === 0) {
         container.innerHTML = `
