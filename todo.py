@@ -86,7 +86,7 @@ def get_tasks() -> List[Dict]:
 
 @eel.expose
 def add_task(title: str, description: str = "", priority: str = "Next", 
-             due_date: str = "", goal_id: Optional[int] = None) -> Dict:
+             due_date: str = "", goal_id: Optional[int] = None, time_spent: Optional[float] = None) -> Dict:
     """
     Add a new task to the system.
     
@@ -104,6 +104,7 @@ def add_task(title: str, description: str = "", priority: str = "Next",
         due_date: Due date in ISO format (optional) - Format: "YYYY-MM-DD"
         goal_id: ID of linked goal (optional) - Links task to a specific goal.
                 If None, task is categorized as "Misc"
+        time_spent: Time spent in hours (optional) - Used for time-based goal tracking
     
     Returns:
         Dict: The newly created task dictionary with all fields populated
@@ -154,6 +155,11 @@ def add_task(title: str, description: str = "", priority: str = "Next",
     if goal_id is not None:
         new_task["goal_id"] = goal_id
     
+    # Add time_spent if provided (optional field)
+    # Used for tracking time spent on tasks linked to time-based goals
+    if time_spent is not None and time_spent > 0:
+        new_task["time_spent"] = float(time_spent)
+    
     # Add task to list and save to persistent storage
     tasks.append(new_task)
     save_tasks(tasks)  # Persists to JSON file with file locking
@@ -163,7 +169,7 @@ def add_task(title: str, description: str = "", priority: str = "Next",
 @eel.expose
 def update_task(task_id: int, title: str = None, description: str = None,
                 priority: str = None, due_date: str = None,
-                goal_id: int = None) -> Optional[Dict]:
+                goal_id: int = None, time_spent: Optional[float] = None) -> Optional[Dict]:
     """
     Update an existing task with new values.
     
@@ -220,6 +226,12 @@ def update_task(task_id: int, title: str = None, description: str = None,
             if goal_id is not None:
                 # Note: goal_id can be explicitly set to None to unlink from goal
                 task["goal_id"] = goal_id
+            if time_spent is not None:
+                # Update time_spent (can be set to 0 or None to clear)
+                if time_spent > 0:
+                    task["time_spent"] = float(time_spent)
+                else:
+                    task.pop("time_spent", None)  # Remove if 0 or negative
             
             # Save updated tasks to persistent storage
             save_tasks(tasks)

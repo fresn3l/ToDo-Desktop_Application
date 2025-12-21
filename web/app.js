@@ -473,9 +473,19 @@ async function handleAddTask(e) {
     const priority = document.getElementById('taskPriority').value;
     const dueDate = document.getElementById('taskDueDate').value;
     const goalSelect = document.getElementById('taskGoal');
+    const timeSpentInput = document.getElementById('taskTimeSpent');
     
     // Parse goal ID (convert string to integer, or null if no goal selected)
     const goalId = goalSelect.value ? parseInt(goalSelect.value) : null;
+    
+    // Parse time spent (convert to float, or null if not provided)
+    const timeSpent = timeSpentInput && timeSpentInput.value ? parseFloat(timeSpentInput.value) : null;
+    
+    // Validate time spent if provided
+    if (timeSpent !== null && (isNaN(timeSpent) || timeSpent < 0)) {
+        showErrorFeedback('Time spent must be a non-negative number');
+        return;
+    }
     
     // Validate required fields
     if (!title) {
@@ -510,7 +520,7 @@ async function handleAddTask(e) {
     try {
         if (isEditMode) {
             // Update existing task
-            const result = await eel.update_task(taskId, title, description, priority, dueDate, goalId)();
+            const result = await eel.update_task(taskId, title, description, priority, dueDate, goalId, timeSpent)();
             
             if (!result) {
                 throw new Error('Task update failed - task not found');
@@ -523,7 +533,7 @@ async function handleAddTask(e) {
             showSuccessFeedback('Task updated successfully!');
         } else {
             // Create new task
-            await eel.add_task(title, description, priority, dueDate, goalId)();
+            await eel.add_task(title, description, priority, dueDate, goalId, timeSpent)();
             
             // Show success message
             showSuccessFeedback('Task added successfully!');
@@ -572,9 +582,17 @@ async function handleAddGoal(e) {
     
     const title = document.getElementById('goalTitle').value.trim();
     const description = document.getElementById('goalDescription').value.trim();
+    const timeGoalInput = document.getElementById('goalTimeGoal');
+    const timeGoal = timeGoalInput && timeGoalInput.value ? parseFloat(timeGoalInput.value) : null;
     
     if (!title) {
         showErrorFeedback('Please enter a goal title');
+        return;
+    }
+    
+    // Validate time goal if provided
+    if (timeGoal !== null && (isNaN(timeGoal) || timeGoal <= 0)) {
+        showErrorFeedback('Time goal must be a positive number');
         return;
     }
     
@@ -599,9 +617,36 @@ async function handleAddGoal(e) {
     submitButton.disabled = true;
     
     try {
-        await eel.add_goal(title, description)();
+        // Check if we're in edit mode
+        const isEditMode = window.editingGoalId !== undefined && window.editingGoalId !== null;
+        const goalId = isEditMode ? window.editingGoalId : null;
+        
+        if (isEditMode) {
+            // Update existing goal
+            const result = await eel.update_goal(goalId, title, description, timeGoal)();
+            if (!result) {
+                throw new Error('Goal update failed - goal not found');
+            }
+            window.editingGoalId = undefined;
+            showSuccessFeedback('Goal updated successfully!');
+        } else {
+            // Create new goal
+            await eel.add_goal(title, description, timeGoal)();
+            showSuccessFeedback('Goal added successfully!');
+        }
+        
         document.getElementById('goalForm').reset();
-        showSuccessFeedback('Goal added successfully!');
+        
+        // Reset form title and button text
+        const formTitle = document.querySelector('.goals-form h2');
+        const submitButton = document.querySelector('#goalForm button[type="submit"]');
+        if (formTitle) {
+            formTitle.textContent = 'Add New Goal';
+        }
+        if (submitButton) {
+            submitButton.textContent = 'Add Goal';
+        }
+        
         await loadGoals();
     } catch (error) {
         console.error('Error adding goal:', error);
@@ -864,6 +909,12 @@ function editTask(taskId) {
     const goalSelect = document.getElementById('taskGoal');
     if (goalSelect) {
         goalSelect.value = task.goal_id || '';
+    }
+    
+    // Set time spent if available
+    const timeSpentInput = document.getElementById('taskTimeSpent');
+    if (timeSpentInput) {
+        timeSpentInput.value = task.time_spent || '';
     }
     
     // Update form title and button text to indicate edit mode
@@ -1151,6 +1202,25 @@ function createGoalHTML(goal, progress) {
         progressText = parts.join(' • ') + ` (${progress.completed}/${progress.total} total)`;
     }
     
+    // Build time progress section if time_goal is set
+    let timeProgressHTML = '';
+    if (progress.time_goal && progress.time_goal > 0) {
+        const timePercentage = progress.time_percentage || 0;
+        const timeSpent = progress.time_spent || 0;
+        timeProgressHTML = `
+            <div class="goal-time-progress">
+                <div class="time-progress-header">
+                    <span class="time-progress-label">Time Progress:</span>
+                    <span class="time-progress-stats">${timeSpent.toFixed(1)}h / ${progress.time_goal.toFixed(1)}h</span>
+                </div>
+                <div class="progress-bar time-progress-bar">
+                    <div class="progress-fill time-progress-fill" style="width: ${Math.min(timePercentage, 100)}%"></div>
+                </div>
+                <div class="time-progress-percentage">${Math.round(timePercentage)}% of time goal</div>
+            </div>
+        `;
+    }
+    
     return `
         <div class="goal-item">
             <div class="goal-title">${escapeHtml(goal.title)}</div>
@@ -1162,6 +1232,7 @@ function createGoalHTML(goal, progress) {
                 </div>
                 <div class="progress-text">${Math.round(progress.percentage)}% complete</div>
             </div>
+            ${timeProgressHTML}
             <div class="goal-actions">
                 <button class="btn-edit" id="edit-goal-${goal.id}">Edit</button>
                 <button class="btn-delete" id="delete-goal-${goal.id}">Delete</button>
@@ -1175,12 +1246,30 @@ async function editGoal(goalId) {
     const goal = goals.find(g => g.id === goalId);
     if (!goal) return;
     
+    // Store the goal ID being edited
+    window.editingGoalId = goalId;
+    
+    // Populate form with goal's current data
     document.getElementById('goalTitle').value = goal.title;
     document.getElementById('goalDescription').value = goal.description || '';
     
-    document.querySelector('.goals-form').scrollIntoView({ behavior: 'smooth' });
+    // Set time goal if available
+    const timeGoalInput = document.getElementById('goalTimeGoal');
+    if (timeGoalInput) {
+        timeGoalInput.value = goal.time_goal || '';
+    }
     
-    await deleteGoal(goalId);
+    // Update form title and button text
+    const formTitle = document.querySelector('.goals-form h2');
+    const submitButton = document.querySelector('#goalForm button[type="submit"]');
+    if (formTitle) {
+        formTitle.textContent = 'Edit Goal';
+    }
+    if (submitButton) {
+        submitButton.textContent = 'Update Goal';
+    }
+    
+    document.querySelector('.goals-form').scrollIntoView({ behavior: 'smooth' });
 }
 
 // Delete goal

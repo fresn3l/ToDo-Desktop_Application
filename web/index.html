@@ -97,6 +97,13 @@
                         </div>
                     </div>
                     
+                    <!-- Time spent input - optional, for time-based goal tracking -->
+                    <div class="form-group">
+                        <label for="taskTimeSpent">Time Spent (hours, optional):</label>
+                        <input type="number" id="taskTimeSpent" placeholder="e.g., 2.5" min="0" step="0.1">
+                        <small>Enter hours spent on this task (used for time-based goal tracking)</small>
+                    </div>
+                    
                     <!-- Submit button - creates the new task -->
                     <button type="submit" class="btn-primary">Add Task</button>
                 </form>
@@ -126,6 +133,13 @@
                     
                     <!-- Goal description textarea - optional details -->
                     <textarea id="goalDescription" placeholder="Description (optional)"></textarea>
+                    
+                    <!-- Time goal input - optional time-based goal tracking -->
+                    <div class="form-group">
+                        <label for="goalTimeGoal">Time Goal (hours, optional):</label>
+                        <input type="number" id="goalTimeGoal" placeholder="e.g., 200" min="0" step="0.1">
+                        <small>Set a time goal to track hours spent (e.g., "200 hours learning python")</small>
+                    </div>
                     
                     <!-- Submit button - creates the new goal -->
                     <button type="submit" class="btn-primary">Add Goal</button>

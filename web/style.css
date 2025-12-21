@@ -1003,6 +1003,76 @@ header h1 {
 }
 
 /* ============================================
+   TIME PROGRESS TRACKING
+   ============================================ */
+
+/* Time progress section - shows time spent vs time goal */
+.goal-time-progress {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Time progress header - shows "Time Progress: Xh / Yh" */
+.time-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.time-progress-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.time-progress-stats {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+/* Time progress bar - distinct styling from regular progress bar */
+.time-progress-bar {
+    margin-top: 12px;
+    height: 12px;
+    background: rgba(16, 185, 129, 0.1);  /* Subtle green tint for time tracking */
+}
+
+.time-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--secondary), #34d399, var(--secondary));
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Shimmer animation for time progress */
+.time-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+/* Time progress percentage text */
+.time-progress-percentage {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* ============================================
    CATEGORY HEADERS
    ============================================ */
 

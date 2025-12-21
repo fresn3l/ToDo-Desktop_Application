@@ -178,7 +178,7 @@ def load_tasks() -> List[Dict]:
 def save_tasks(tasks: List[Dict]):
     """Save tasks to local JSON file"""
     with open(DATA_FILE, 'w') as f:
-        json.dump(tasks, f, indent=2)
+        json.dump(tasks f, indent=2)
 ```
 
 **Breaking this down:**
