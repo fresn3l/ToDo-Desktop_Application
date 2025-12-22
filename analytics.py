@@ -98,6 +98,7 @@ def get_analytics():
     # ============================================
     # Calculate high-level statistics across all tasks
     # These give a quick overview of task completion
+    # Note: not_completed tasks (overdue by >24 hours) are counted separately
     
     total_tasks = len(tasks)
     completed_tasks = len([t for t in tasks if t.get("completed", False)])
@@ -107,10 +108,22 @@ def get_analytics():
     # Avoid division by zero if no tasks exist
     completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
     
+    # Calculate overall statistics including not_completed tasks
+    total_tasks = len(tasks)
+    completed_tasks = len([t for t in tasks if t.get("completed", False)])
+    incomplete_tasks = len([t for t in tasks if not t.get("completed", False) and not t.get("not_completed", False)])
+    not_completed_tasks = len([t for t in tasks if t.get("not_completed", False)])
+    
+    # Calculate overall completion percentage
+    # Note: not_completed tasks are excluded from completion percentage calculation
+    # They are tracked separately for analytics purposes
+    completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    
     analytics["overall"] = {
         "total": total_tasks,
         "completed": completed_tasks,
         "incomplete": incomplete_tasks,
+        "not_completed": not_completed_tasks,  # Tasks overdue by >24 hours
         "completion_percentage": round(completion_percentage, 2)
     }
     
@@ -124,8 +137,8 @@ def get_analytics():
     priority_levels = ["Now", "Next", "Later"]
     
     for priority in priority_levels:
-        # Filter tasks by this priority level
-        priority_tasks = [t for t in tasks if t.get("priority") == priority]
+        # Filter tasks by this priority level (exclude not_completed tasks from display)
+        priority_tasks = [t for t in tasks if t.get("priority") == priority and not t.get("not_completed", False)]
         pri_total = len(priority_tasks)
         pri_completed = len([t for t in priority_tasks if t.get("completed", False)])
         pri_incomplete = pri_total - pri_completed
@@ -213,7 +226,8 @@ def get_analytics():
     # Process each task for time-based metrics
     for task in tasks:
         # Check if task is overdue (has due date, not completed, past due date)
-        if task.get("due_date") and not task.get("completed", False):
+        # Count overdue tasks (exclude not_completed tasks as they're already handled)
+        if task.get("due_date") and not task.get("completed", False) and not task.get("not_completed", False):
             try:
                 due_date = datetime.fromisoformat(task["due_date"])
                 if due_date < now:

@@ -36,7 +36,7 @@ All functions decorated with @eel.expose are callable from JavaScript.
 """
 
 import eel
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
 # Import data storage functions
@@ -50,13 +50,76 @@ from data_storage import (
 # TASK CRUD OPERATIONS
 # ============================================
 
+def _check_and_mark_overdue_tasks(tasks: List[Dict]) -> List[Dict]:
+    """
+    Check tasks for overdue status and mark them as not_completed if overdue by >24 hours.
+    
+    This function:
+    1. Checks each incomplete task with a due_date
+    2. If the due_date is more than 24 hours in the past, marks it as not_completed
+    3. Sets not_completed_at timestamp
+    4. Saves the updated tasks
+    
+    Args:
+        tasks: List of task dictionaries
+    
+    Returns:
+        List[Dict]: Updated tasks list (same reference, modified in place)
+    
+    Side Effects:
+        - Modifies tasks in place
+        - Saves tasks to storage if any changes were made
+    """
+    now = datetime.now()
+    updated = False
+    
+    for task in tasks:
+        # Skip if task is already completed or already marked as not_completed
+        if task.get("completed", False) or task.get("not_completed", False):
+            continue
+        
+        # Skip if task has no due_date
+        if not task.get("due_date"):
+            continue
+        
+        try:
+            # Parse due_date (format: "YYYY-MM-DD")
+            # Convert to datetime at end of day (23:59:59) to ensure full day has passed
+            due_date_str = task["due_date"]
+            due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
+            # Set to end of day to ensure 24 hours have passed
+            due_date = due_date.replace(hour=23, minute=59, second=59)
+            
+            # Calculate time difference
+            time_diff = now - due_date
+            
+            # If overdue by more than 24 hours, mark as not_completed
+            if time_diff > timedelta(hours=24):
+                task["not_completed"] = True
+                task["not_completed_at"] = now.isoformat()
+                updated = True
+        except (ValueError, KeyError) as e:
+            # Skip tasks with invalid due_date format
+            continue
+    
+    # Save if any tasks were updated
+    if updated:
+        save_tasks(tasks)
+    
+    return tasks
+
 @eel.expose
 def get_tasks() -> List[Dict]:
     """
     Get all tasks from storage.
     
-    This is a simple read operation that retrieves all tasks from the JSON file.
-    Used by the frontend to display the task list and for filtering/searching.
+    This function:
+    1. Loads tasks from storage
+    2. Checks for overdue tasks (overdue by >24 hours) and marks them as not_completed
+    3. Returns the updated task list
+    
+    Tasks that are overdue by more than 24 hours are automatically marked as
+    "not_completed" for analytics purposes and will not appear in the task list.
     
     Returns:
         List[Dict]: List of all task dictionaries. Returns empty list if no tasks exist
@@ -72,8 +135,10 @@ def get_tasks() -> List[Dict]:
                 "due_date": "2024-12-31",
                 "goal_id": 1,
                 "completed": False,
+                "not_completed": False,  # True if overdue by >24 hours
                 "created_at": "2024-12-01T10:00:00",
-                "completed_at": None
+                "completed_at": None,
+                "not_completed_at": None  # Timestamp when marked as not_completed
             },
             ...
         ]
@@ -82,11 +147,14 @@ def get_tasks() -> List[Dict]:
         - If file doesn't exist, returns empty list
         - If file is corrupted, data_storage.load_tasks() handles it gracefully
     """
-    return load_tasks()
+    tasks = load_tasks()
+    # Check and mark overdue tasks
+    tasks = _check_and_mark_overdue_tasks(tasks)
+    return tasks
 
 @eel.expose
 def add_task(title: str, description: str = "", priority: str = "Next", 
-             due_date: str = "", goal_id: Optional[int] = None) -> Dict:
+             due_date: str = "", goal_id: Optional[int] = None, time_spent: Optional[float] = None) -> Dict:
     """
     Add a new task to the system.
     
@@ -104,6 +172,7 @@ def add_task(title: str, description: str = "", priority: str = "Next",
         due_date: Due date in ISO format (optional) - Format: "YYYY-MM-DD"
         goal_id: ID of linked goal (optional) - Links task to a specific goal.
                 If None, task is categorized as "Misc"
+        time_spent: Time spent in hours (optional) - Used for time-based goal tracking
     
     Returns:
         Dict: The newly created task dictionary with all fields populated
@@ -154,6 +223,11 @@ def add_task(title: str, description: str = "", priority: str = "Next",
     if goal_id is not None:
         new_task["goal_id"] = goal_id
     
+    # Add time_spent if provided (optional field)
+    # Used for tracking time spent on tasks linked to time-based goals
+    if time_spent is not None and time_spent > 0:
+        new_task["time_spent"] = float(time_spent)
+    
     # Add task to list and save to persistent storage
     tasks.append(new_task)
     save_tasks(tasks)  # Persists to JSON file with file locking
@@ -163,7 +237,7 @@ def add_task(title: str, description: str = "", priority: str = "Next",
 @eel.expose
 def update_task(task_id: int, title: str = None, description: str = None,
                 priority: str = None, due_date: str = None,
-                goal_id: int = None) -> Optional[Dict]:
+                goal_id: int = None, time_spent: Optional[float] = None) -> Optional[Dict]:
     """
     Update an existing task with new values.
     
@@ -220,6 +294,12 @@ def update_task(task_id: int, title: str = None, description: str = None,
             if goal_id is not None:
                 # Note: goal_id can be explicitly set to None to unlink from goal
                 task["goal_id"] = goal_id
+            if time_spent is not None:
+                # Update time_spent (can be set to 0 or None to clear)
+                if time_spent > 0:
+                    task["time_spent"] = float(time_spent)
+                else:
+                    task.pop("time_spent", None)  # Remove if 0 or negative
             
             # Save updated tasks to persistent storage
             save_tasks(tasks)

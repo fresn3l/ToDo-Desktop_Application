@@ -48,8 +48,14 @@ let showCompleted = false;
 let currentFilter = {
     priority: '',  // Filter by priority: 'Now', 'Next', 'Later', or '' for all
     goal: '',      // Filter by goal ID or '' for all goals
-    search: ''     // Search text to filter task titles/descriptions
+    search: ''      // Search text to filter task titles/descriptions
 };
+
+/**
+ * Current sort mode for tasks
+ * Options: 'category', 'due-date', 'due-today', 'due-week', 'priority'
+ */
+let currentSort = 'category';
 
 /* ============================================
    APPLICATION INITIALIZATION
@@ -85,6 +91,9 @@ async function init() {
     
     // Initialize journal timer and entry functionality
     setupJournal();
+    
+    // Initialize notification settings
+    setupNotificationSettings();
     
     // Hide loading indicators now that data is loaded
     hideLoadingState();
@@ -355,6 +364,12 @@ function setupEventListeners() {
         filterGoal.addEventListener('change', handleFilterChange);
     }
     
+    // Sort dropdown - change how tasks are sorted/displayed
+    const sortTasks = document.getElementById('sortTasks');
+    if (sortTasks) {
+        sortTasks.addEventListener('change', handleSortChange);
+    }
+    
     // Show/hide completed tasks toggle button
     const showCompletedBtn = document.getElementById('showCompleted');
     if (showCompletedBtn) {
@@ -434,6 +449,9 @@ function switchTab(tabName) {
     } else if (tabName === 'journal') {
         // Journal tab loads past entries when opened
         loadPastEntries();
+    } else if (tabName === 'settings') {
+        // Settings tab loads current notification settings
+        loadNotificationSettings();
     }
 }
 
@@ -473,9 +491,19 @@ async function handleAddTask(e) {
     const priority = document.getElementById('taskPriority').value;
     const dueDate = document.getElementById('taskDueDate').value;
     const goalSelect = document.getElementById('taskGoal');
+    const timeSpentInput = document.getElementById('taskTimeSpent');
     
     // Parse goal ID (convert string to integer, or null if no goal selected)
     const goalId = goalSelect.value ? parseInt(goalSelect.value) : null;
+    
+    // Parse time spent (convert to float, or null if not provided)
+    const timeSpent = timeSpentInput && timeSpentInput.value ? parseFloat(timeSpentInput.value) : null;
+    
+    // Validate time spent if provided
+    if (timeSpent !== null && (isNaN(timeSpent) || timeSpent < 0)) {
+        showErrorFeedback('Time spent must be a non-negative number');
+        return;
+    }
     
     // Validate required fields
     if (!title) {
@@ -510,7 +538,7 @@ async function handleAddTask(e) {
     try {
         if (isEditMode) {
             // Update existing task
-            const result = await eel.update_task(taskId, title, description, priority, dueDate, goalId)();
+            const result = await eel.update_task(taskId, title, description, priority, dueDate, goalId, timeSpent)();
             
             if (!result) {
                 throw new Error('Task update failed - task not found');
@@ -523,7 +551,7 @@ async function handleAddTask(e) {
             showSuccessFeedback('Task updated successfully!');
         } else {
             // Create new task
-            await eel.add_task(title, description, priority, dueDate, goalId)();
+            await eel.add_task(title, description, priority, dueDate, goalId, timeSpent)();
             
             // Show success message
             showSuccessFeedback('Task added successfully!');
@@ -572,9 +600,17 @@ async function handleAddGoal(e) {
     
     const title = document.getElementById('goalTitle').value.trim();
     const description = document.getElementById('goalDescription').value.trim();
+    const timeGoalInput = document.getElementById('goalTimeGoal');
+    const timeGoal = timeGoalInput && timeGoalInput.value ? parseFloat(timeGoalInput.value) : null;
     
     if (!title) {
         showErrorFeedback('Please enter a goal title');
+        return;
+    }
+    
+    // Validate time goal if provided
+    if (timeGoal !== null && (isNaN(timeGoal) || timeGoal <= 0)) {
+        showErrorFeedback('Time goal must be a positive number');
         return;
     }
     
@@ -599,9 +635,36 @@ async function handleAddGoal(e) {
     submitButton.disabled = true;
     
     try {
-        await eel.add_goal(title, description)();
+        // Check if we're in edit mode
+        const isEditMode = window.editingGoalId !== undefined && window.editingGoalId !== null;
+        const goalId = isEditMode ? window.editingGoalId : null;
+        
+        if (isEditMode) {
+            // Update existing goal
+            const result = await eel.update_goal(goalId, title, description, timeGoal)();
+            if (!result) {
+                throw new Error('Goal update failed - goal not found');
+            }
+            window.editingGoalId = undefined;
+            showSuccessFeedback('Goal updated successfully!');
+        } else {
+            // Create new goal
+            await eel.add_goal(title, description, timeGoal)();
+            showSuccessFeedback('Goal added successfully!');
+        }
+        
         document.getElementById('goalForm').reset();
-        showSuccessFeedback('Goal added successfully!');
+        
+        // Reset form title and button text
+        const formTitle = document.querySelector('.goals-form h2');
+        const submitButton = document.querySelector('#goalForm button[type="submit"]');
+        if (formTitle) {
+            formTitle.textContent = 'Add New Goal';
+        }
+        if (submitButton) {
+            submitButton.textContent = 'Add Goal';
+        }
+        
         await loadGoals();
     } catch (error) {
         console.error('Error adding goal:', error);
@@ -722,6 +785,31 @@ function handleSearch(e) {
     
     // Re-render tasks with new search filter
     renderTasks();
+}
+
+/**
+ * Handle sort dropdown changes
+ * 
+ * Updates the current sort mode and re-renders tasks with the new sorting.
+ * 
+ * Sort modes:
+ * - 'category': Group by goal/category (default)
+ * - 'due-date': Sort by due date (earliest first)
+ * - 'due-today': Show only tasks due today
+ * - 'due-week': Show only tasks due this week (next 7 days)
+ * - 'priority': Sort by priority (Now > Next > Later)
+ * 
+ * Flow:
+ * 1. Get selected sort mode from dropdown
+ * 2. Update global currentSort variable
+ * 3. Re-render tasks with new sorting applied
+ */
+function handleSortChange() {
+    const sortSelect = document.getElementById('sortTasks');
+    if (sortSelect) {
+        currentSort = sortSelect.value;
+        renderTasks();
+    }
 }
 
 /**
@@ -866,6 +954,12 @@ function editTask(taskId) {
         goalSelect.value = task.goal_id || '';
     }
     
+    // Set time spent if available
+    const timeSpentInput = document.getElementById('taskTimeSpent');
+    if (timeSpentInput) {
+        timeSpentInput.value = task.time_spent || '';
+    }
+    
     // Update form title and button text to indicate edit mode
     const formContainer = document.getElementById('taskFormContainer');
     const formTitle = formContainer ? formContainer.querySelector('h2') : null;
@@ -932,31 +1026,179 @@ function renderTasks() {
         filteredTasks = filteredTasks.filter(task => !task.completed);
     }
     
+    // Filter out tasks marked as not_completed (overdue by >24 hours)
+    // These tasks are hidden from the to-do tab but still exist for analytics
+    filteredTasks = filteredTasks.filter(task => !task.not_completed);
+    
+    // Apply sort-specific filters
+    if (currentSort === 'due-today') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        
+        filteredTasks = filteredTasks.filter(task => {
+            if (!task.due_date) return false;
+            const dueDate = new Date(task.due_date);
+            dueDate.setHours(0, 0, 0, 0);
+            return dueDate >= today && dueDate < tomorrow;
+        });
+    } else if (currentSort === 'due-week') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const weekFromNow = new Date(today);
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+        
+        filteredTasks = filteredTasks.filter(task => {
+            if (!task.due_date) return false;
+            const dueDate = new Date(task.due_date);
+            dueDate.setHours(0, 0, 0, 0);
+            return dueDate >= today && dueDate <= weekFromNow;
+        });
+    }
+    
     // Render
     if (filteredTasks.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <h3>No tasks found</h3>
-                <p>${tasks.length === 0 ? 'Add your first task above!' : 'Try adjusting your filters.'}</p>
+                <p>${tasks.length === 0 ? 'Add your first task above!' : 'Try adjusting your filters or sort options.'}</p>
             </div>
         `;
         return;
     }
     
-    // Group by goal (tasks without goals go to "Misc")
-    const tasksByGoal = {};
-    filteredTasks.forEach(task => {
-        const goalId = task.goal_id || 'Misc';
-        if (!tasksByGoal[goalId]) {
-            tasksByGoal[goalId] = [];
-        }
-        tasksByGoal[goalId].push(task);
-    });
+    // Apply sorting based on current sort mode
+    let html = '';
     
-    // Sort tasks within each goal by priority (Now > Next > Later)
-    const priorityOrder = { Now: 3, Next: 2, Later: 1 };
-    Object.keys(tasksByGoal).forEach(goalId => {
-        tasksByGoal[goalId].sort((a, b) => {
+    if (currentSort === 'category') {
+        // Group by goal (tasks without goals go to "Misc")
+        const tasksByGoal = {};
+        filteredTasks.forEach(task => {
+            const goalId = task.goal_id || 'Misc';
+            if (!tasksByGoal[goalId]) {
+                tasksByGoal[goalId] = [];
+            }
+            tasksByGoal[goalId].push(task);
+        });
+        
+        // Sort tasks within each goal by priority (Now > Next > Later)
+        const priorityOrder = { Now: 3, Next: 2, Later: 1 };
+        Object.keys(tasksByGoal).forEach(goalId => {
+            tasksByGoal[goalId].sort((a, b) => {
+                // Incomplete tasks first
+                if (a.completed !== b.completed) {
+                    return a.completed ? 1 : -1;
+                }
+                // Then by priority
+                const priorityA = priorityOrder[a.priority] || 0;
+                const priorityB = priorityOrder[b.priority] || 0;
+                if (priorityA !== priorityB) {
+                    return priorityB - priorityA; // Higher priority first
+                }
+                // Then by due date
+                if (a.due_date && b.due_date) {
+                    return new Date(a.due_date) - new Date(b.due_date);
+                }
+                if (a.due_date) return -1;
+                if (b.due_date) return 1;
+                return 0;
+            });
+        });
+        
+        // Render by goal in rows
+        // Sort goals by ID (or "Misc" last)
+        const sortedGoalIds = Object.keys(tasksByGoal).sort((a, b) => {
+            if (a === 'Misc') return 1;
+            if (b === 'Misc') return -1;
+            return parseInt(a) - parseInt(b);
+        });
+        
+        sortedGoalIds.forEach(goalId => {
+            const goal = goals.find(g => g.id === parseInt(goalId));
+            const goalName = goal ? goal.title : 'Misc';
+            html += `<div class="category-header">${escapeHtml(goalName)}</div>`;
+            html += `<div class="category-tasks-row">`;
+            tasksByGoal[goalId].forEach(task => {
+                html += createTaskHTML(task);
+            });
+            html += `</div>`;
+        });
+    } else if (currentSort === 'due-date' || currentSort === 'due-today' || currentSort === 'due-week') {
+        // Sort by due date (earliest first)
+        const sortedTasks = [...filteredTasks].sort((a, b) => {
+            // Incomplete tasks first
+            if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1;
+            }
+            // Then by due date
+            if (a.due_date && b.due_date) {
+                return new Date(a.due_date) - new Date(b.due_date);
+            }
+            if (a.due_date) return -1;
+            if (b.due_date) return 1;
+            // Then by priority
+            const priorityOrder = { Now: 3, Next: 2, Later: 1 };
+            const priorityA = priorityOrder[a.priority] || 0;
+            const priorityB = priorityOrder[b.priority] || 0;
+            return priorityB - priorityA;
+        });
+        
+        // Group by due date for better organization
+        const tasksByDate = {};
+        sortedTasks.forEach(task => {
+            let dateKey = 'No Due Date';
+            if (task.due_date) {
+                const dueDate = new Date(task.due_date);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const weekFromNow = new Date(today);
+                weekFromNow.setDate(weekFromNow.getDate() + 7);
+                
+                dueDate.setHours(0, 0, 0, 0);
+                
+                if (dueDate < today) {
+                    dateKey = 'Overdue';
+                } else if (dueDate >= today && dueDate < tomorrow) {
+                    dateKey = 'Due Today';
+                } else if (dueDate >= tomorrow && dueDate <= weekFromNow) {
+                    dateKey = 'Due This Week';
+                } else {
+                    dateKey = dueDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                }
+            }
+            
+            if (!tasksByDate[dateKey]) {
+                tasksByDate[dateKey] = [];
+            }
+            tasksByDate[dateKey].push(task);
+        });
+        
+        // Render by date groups
+        const dateOrder = ['Overdue', 'Due Today', 'Due This Week', 'No Due Date'];
+        const sortedDateKeys = Object.keys(tasksByDate).sort((a, b) => {
+            const aIndex = dateOrder.indexOf(a);
+            const bIndex = dateOrder.indexOf(b);
+            if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            return a.localeCompare(b);
+        });
+        
+        sortedDateKeys.forEach(dateKey => {
+            html += `<div class="category-header">${escapeHtml(dateKey)}</div>`;
+            html += `<div class="category-tasks-row">`;
+            tasksByDate[dateKey].forEach(task => {
+                html += createTaskHTML(task);
+            });
+            html += `</div>`;
+        });
+    } else if (currentSort === 'priority') {
+        // Sort by priority (Now > Next > Later)
+        const priorityOrder = { Now: 3, Next: 2, Later: 1 };
+        const sortedTasks = [...filteredTasks].sort((a, b) => {
             // Incomplete tasks first
             if (a.completed !== b.completed) {
                 return a.completed ? 1 : -1;
@@ -975,27 +1217,30 @@ function renderTasks() {
             if (b.due_date) return 1;
             return 0;
         });
-    });
-    
-    // Render by goal in rows
-    let html = '';
-    // Sort goals by ID (or "Misc" last)
-    const sortedGoalIds = Object.keys(tasksByGoal).sort((a, b) => {
-        if (a === 'Misc') return 1;
-        if (b === 'Misc') return -1;
-        return parseInt(a) - parseInt(b);
-    });
-    
-    sortedGoalIds.forEach(goalId => {
-        const goal = goals.find(g => g.id === parseInt(goalId));
-        const goalName = goal ? goal.title : 'Misc';
-        html += `<div class="category-header">${escapeHtml(goalName)}</div>`;
-        html += `<div class="category-tasks-row">`;
-        tasksByGoal[goalId].forEach(task => {
-            html += createTaskHTML(task);
+        
+        // Group by priority
+        const tasksByPriority = {};
+        sortedTasks.forEach(task => {
+            const priority = task.priority || 'Later';
+            if (!tasksByPriority[priority]) {
+                tasksByPriority[priority] = [];
+            }
+            tasksByPriority[priority].push(task);
         });
-        html += `</div>`;
-    });
+        
+        // Render by priority
+        const priorityOrderKeys = ['Now', 'Next', 'Later'];
+        priorityOrderKeys.forEach(priority => {
+            if (tasksByPriority[priority] && tasksByPriority[priority].length > 0) {
+                html += `<div class="category-header">${escapeHtml(priority)} Priority</div>`;
+                html += `<div class="category-tasks-row">`;
+                tasksByPriority[priority].forEach(task => {
+                    html += createTaskHTML(task);
+                });
+                html += `</div>`;
+            }
+        });
+    }
     
     container.innerHTML = html;
     
@@ -1151,6 +1396,25 @@ function createGoalHTML(goal, progress) {
         progressText = parts.join(' • ') + ` (${progress.completed}/${progress.total} total)`;
     }
     
+    // Build time progress section if time_goal is set
+    let timeProgressHTML = '';
+    if (progress.time_goal && progress.time_goal > 0) {
+        const timePercentage = progress.time_percentage || 0;
+        const timeSpent = progress.time_spent || 0;
+        timeProgressHTML = `
+            <div class="goal-time-progress">
+                <div class="time-progress-header">
+                    <span class="time-progress-label">Time Progress:</span>
+                    <span class="time-progress-stats">${timeSpent.toFixed(1)}h / ${progress.time_goal.toFixed(1)}h</span>
+                </div>
+                <div class="progress-bar time-progress-bar">
+                    <div class="progress-fill time-progress-fill" style="width: ${Math.min(timePercentage, 100)}%"></div>
+                </div>
+                <div class="time-progress-percentage">${Math.round(timePercentage)}% of time goal</div>
+            </div>
+        `;
+    }
+    
     return `
         <div class="goal-item">
             <div class="goal-title">${escapeHtml(goal.title)}</div>
@@ -1162,6 +1426,7 @@ function createGoalHTML(goal, progress) {
                 </div>
                 <div class="progress-text">${Math.round(progress.percentage)}% complete</div>
             </div>
+            ${timeProgressHTML}
             <div class="goal-actions">
                 <button class="btn-edit" id="edit-goal-${goal.id}">Edit</button>
                 <button class="btn-delete" id="delete-goal-${goal.id}">Delete</button>
@@ -1175,12 +1440,30 @@ async function editGoal(goalId) {
     const goal = goals.find(g => g.id === goalId);
     if (!goal) return;
     
+    // Store the goal ID being edited
+    window.editingGoalId = goalId;
+    
+    // Populate form with goal's current data
     document.getElementById('goalTitle').value = goal.title;
     document.getElementById('goalDescription').value = goal.description || '';
     
-    document.querySelector('.goals-form').scrollIntoView({ behavior: 'smooth' });
+    // Set time goal if available
+    const timeGoalInput = document.getElementById('goalTimeGoal');
+    if (timeGoalInput) {
+        timeGoalInput.value = goal.time_goal || '';
+    }
     
-    await deleteGoal(goalId);
+    // Update form title and button text
+    const formTitle = document.querySelector('.goals-form h2');
+    const submitButton = document.querySelector('#goalForm button[type="submit"]');
+    if (formTitle) {
+        formTitle.textContent = 'Edit Goal';
+    }
+    if (submitButton) {
+        submitButton.textContent = 'Update Goal';
+    }
+    
+    document.querySelector('.goals-form').scrollIntoView({ behavior: 'smooth' });
 }
 
 // Delete goal
@@ -1947,8 +2230,182 @@ async function loadPastEntries() {
     }
 }
 
+/* ============================================
+   NOTIFICATION SETTINGS FUNCTIONS
+   ============================================ */
+
+/**
+ * Load and display current notification settings
+ */
+async function loadNotificationSettings() {
+    try {
+        const settings = await eel.get_notification_settings()();
+        
+        // Populate form fields
+        document.getElementById('notificationsEnabled').checked = settings.enabled || false;
+        document.getElementById('notificationEmail').value = settings.email || '';
+        document.getElementById('smtpPort').value = settings.smtp_port || 587;
+        document.getElementById('emailUsername').value = settings.email_username || '';
+        document.getElementById('emailPassword').value = settings.email_password || '';
+        document.getElementById('checkInterval').value = settings.check_interval_hours || 1;
+        
+        // Set SMTP server
+        const smtpSelect = document.getElementById('smtpServer');
+        const customSmtpGroup = document.getElementById('customSmtpGroup');
+        const customSmtpInput = document.getElementById('customSmtpServer');
+        
+        if (settings.smtp_server) {
+            // Check if it's a preset option
+            const presetOptions = ['smtp.gmail.com', 'smtp.mail.me.com', 'smtp-mail.outlook.com'];
+            if (presetOptions.includes(settings.smtp_server)) {
+                smtpSelect.value = settings.smtp_server;
+                customSmtpGroup.style.display = 'none';
+            } else {
+                smtpSelect.value = 'custom';
+                customSmtpGroup.style.display = 'block';
+                customSmtpInput.value = settings.smtp_server;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading notification settings:', error);
+    }
+}
+
+/**
+ * Setup notification settings form event listeners
+ */
+function setupNotificationSettings() {
+    const form = document.getElementById('notificationSettingsForm');
+    const smtpSelect = document.getElementById('smtpServer');
+    const customSmtpGroup = document.getElementById('customSmtpGroup');
+    const testBtn = document.getElementById('testNotificationBtn');
+    
+    // Handle SMTP server selection
+    if (smtpSelect) {
+        smtpSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'custom') {
+                customSmtpGroup.style.display = 'block';
+            } else {
+                customSmtpGroup.style.display = 'none';
+            }
+        });
+    }
+    
+    // Handle form submission
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await saveNotificationSettings();
+        });
+    }
+    
+    // Handle test notification button
+    if (testBtn) {
+        testBtn.addEventListener('click', async () => {
+            await testNotification();
+        });
+    }
+}
+
+/**
+ * Save notification settings
+ */
+async function saveNotificationSettings() {
+    try {
+        const enabled = document.getElementById('notificationsEnabled').checked;
+        const email = document.getElementById('notificationEmail').value.trim();
+        const smtpSelect = document.getElementById('smtpServer');
+        const customSmtpInput = document.getElementById('customSmtpServer');
+        const smtpPort = parseInt(document.getElementById('smtpPort').value);
+        const emailUsername = document.getElementById('emailUsername').value.trim();
+        const emailPassword = document.getElementById('emailPassword').value;
+        const checkInterval = parseInt(document.getElementById('checkInterval').value);
+        
+        // Get SMTP server
+        let smtpServer = smtpSelect.value;
+        if (smtpServer === 'custom') {
+            smtpServer = customSmtpInput.value.trim();
+        }
+        
+        // Validate required fields if enabled
+        if (enabled) {
+            if (!email) {
+                showErrorFeedback('Please enter your email address');
+                return;
+            }
+            if (!smtpServer) {
+                showErrorFeedback('Please enter SMTP server');
+                return;
+            }
+            if (!emailUsername) {
+                showErrorFeedback('Please enter email username');
+                return;
+            }
+            if (!emailPassword) {
+                showErrorFeedback('Please enter email password');
+                return;
+            }
+        }
+        
+        // Save settings
+        await eel.update_notification_settings(
+            enabled,
+            email,
+            smtpServer,
+            smtpPort,
+            emailUsername,
+            emailPassword,
+            checkInterval
+        )();
+        
+        showSuccessFeedback('Notification settings saved successfully!');
+    } catch (error) {
+        console.error('Error saving notification settings:', error);
+        showErrorFeedback('Failed to save settings. Please try again.');
+    }
+}
+
+/**
+ * Send a test notification
+ */
+async function testNotification() {
+    try {
+        const email = document.getElementById('notificationEmail').value.trim();
+        if (!email) {
+            showErrorFeedback('Please enter your email address first');
+            return;
+        }
+        
+        const testBtn = document.getElementById('testNotificationBtn');
+        const originalText = testBtn.textContent;
+        testBtn.textContent = 'Sending...';
+        testBtn.disabled = true;
+        
+        const result = await eel.test_notification(email)();
+        
+        if (result.success) {
+            showSuccessFeedback(result.message);
+        } else {
+            showErrorFeedback(result.message);
+        }
+        
+        testBtn.textContent = originalText;
+        testBtn.disabled = false;
+    } catch (error) {
+        console.error('Error sending test notification:', error);
+        showErrorFeedback('Failed to send test notification. Please check your settings.');
+    }
+}
+
 // Initialize when page loads
 init();
+
+// Setup notification settings when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupNotificationSettings);
+} else {
+    setupNotificationSettings();
+}
 
 // Setup journal when DOM is ready
 if (document.readyState === 'loading') {

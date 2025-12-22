@@ -22,6 +22,8 @@ Why This Structure?
 """
 
 import eel
+import threading
+import time
 
 # ============================================
 # IMPORT ALL MODULES WITH @eel.expose FUNCTIONS
@@ -47,6 +49,10 @@ import analytics
 # This makes all journal-related functions available to JavaScript
 import journal
 
+# Import notifications module
+# This makes all notification-related functions available to JavaScript
+import notifications
+
 # Note: We don't import data_storage.py directly because:
 # - It doesn't have @eel.expose functions
 # - It's only used internally by other modules
@@ -66,7 +72,37 @@ eel.init('web')
 # ============================================
 # This block only runs when the file is executed directly (not when imported)
 
+def notification_scheduler():
+    """
+    Background thread that periodically checks for tasks due soon and sends notifications.
+    Runs every hour (or as configured in settings).
+    """
+    import notifications
+    
+    while True:
+        try:
+            # Check and send notifications
+            notifications.check_and_send_notifications()
+        except Exception as e:
+            print(f"Error in notification scheduler: {e}")
+        
+        # Sleep for 1 hour (3600 seconds)
+        # The actual interval is checked in the notification settings
+        time.sleep(3600)
+
 if __name__ == '__main__':
+    # Start the notification scheduler in a background thread
+    # This will check for tasks due soon and send email notifications
+    scheduler_thread = threading.Thread(target=notification_scheduler, daemon=True)
+    scheduler_thread.start()
+    
+    # Also check immediately on startup
+    try:
+        import notifications
+        notifications.check_and_send_notifications()
+    except Exception as e:
+        print(f"Error checking notifications on startup: {e}")
+    
     # Start the Eel application
     # This opens a desktop window and loads the HTML interface
     
