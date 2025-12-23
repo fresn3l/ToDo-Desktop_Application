@@ -1873,18 +1873,19 @@ function renderAnalytics(analytics) {
     // PRODUCTIVITY METRICS CARD
     // ============================================
     // Shows insights about productivity patterns
-    html += `
-        <div class="analytics-card draggable-card resizable-card" data-card-id="productivity-insights">
-            <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
-            <div class="card-resize-handle" title="Drag to resize"></div>
-            <div class="analytics-card-header">
-                <h3>🚀 Productivity Insights</h3>
-            </div>
-            <div class="analytics-card-content">
-    `;
-    
-    // Most productive goal
-    if (analytics.productivity && analytics.productivity.most_productive_goal) {
+    if (analytics.productivity) {
+        html += `
+            <div class="analytics-card draggable-card resizable-card" data-card-id="productivity-insights">
+                <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+                <div class="card-resize-handle" title="Drag to resize"></div>
+                <div class="analytics-card-header">
+                    <h3>🚀 Productivity Insights</h3>
+                </div>
+                <div class="analytics-card-content">
+        `;
+        
+        // Most productive goal
+        if (analytics.productivity.most_productive_goal) {
         html += `
             <div class="insight-item">
                 <div class="insight-icon">🏆</div>
@@ -1937,10 +1938,11 @@ function renderAnalytics(analytics) {
             `;
         });
         
-        html += `</div></div></div>`;
+            html += `</div></div></div>`;
+        }
+        
+        html += `</div></div>`;
     }
-    
-    html += `</div></div>`;
     
     // Insert all HTML into the container
     container.innerHTML = html;
