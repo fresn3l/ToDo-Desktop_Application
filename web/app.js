@@ -1827,44 +1827,46 @@ function renderAnalytics(analytics) {
     // TIME-BASED STATISTICS CARD
     // ============================================
     // Shows time-related metrics like overdue tasks, completion times, etc.
-    html += `
-        <div class="analytics-card draggable-card resizable-card" data-card-id="time-analysis">
-            <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
-            <div class="card-resize-handle" title="Drag to resize"></div>
-            <div class="analytics-card-header">
-                <h3>⏰ Time Analysis</h3>
-            </div>
-            <div class="analytics-card-content">
-                <div class="time-stats-grid">
-                    <div class="time-stat-item ${analytics.time_stats.overdue_count > 0 ? 'stat-danger' : ''}">
-                        <div class="time-stat-icon">🚨</div>
-                        <div class="time-stat-value">${analytics.time_stats.overdue_count}</div>
-                        <div class="time-stat-label">Overdue Tasks</div>
-                    </div>
-                    <div class="time-stat-item ${analytics.time_stats.due_soon_count > 0 ? 'stat-warning' : ''}">
-                        <div class="time-stat-icon">⏳</div>
-                        <div class="time-stat-value">${analytics.time_stats.due_soon_count}</div>
-                        <div class="time-stat-label">Due Soon (7 days)</div>
-                    </div>
-                    <div class="time-stat-item stat-success">
-                        <div class="time-stat-icon">✅</div>
-                        <div class="time-stat-value">${analytics.time_stats.completed_today}</div>
-                        <div class="time-stat-label">Completed Today</div>
-                    </div>
-                    <div class="time-stat-item stat-primary">
-                        <div class="time-stat-icon">➕</div>
-                        <div class="time-stat-value">${analytics.time_stats.created_today}</div>
-                        <div class="time-stat-label">Created Today</div>
-                    </div>
-                    <div class="time-stat-item">
-                        <div class="time-stat-icon">📅</div>
-                        <div class="time-stat-value">${analytics.time_stats.avg_completion_days}</div>
-                        <div class="time-stat-label">Avg Days to Complete</div>
+    if (analytics.time_stats) {
+        html += `
+            <div class="analytics-card draggable-card resizable-card" data-card-id="time-analysis">
+                <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+                <div class="card-resize-handle" title="Drag to resize"></div>
+                <div class="analytics-card-header">
+                    <h3>⏰ Time Analysis</h3>
+                </div>
+                <div class="analytics-card-content">
+                    <div class="time-stats-grid">
+                        <div class="time-stat-item ${(analytics.time_stats.overdue_count || 0) > 0 ? 'stat-danger' : ''}">
+                            <div class="time-stat-icon">🚨</div>
+                            <div class="time-stat-value">${analytics.time_stats.overdue_count || 0}</div>
+                            <div class="time-stat-label">Overdue Tasks</div>
+                        </div>
+                        <div class="time-stat-item ${(analytics.time_stats.due_soon_count || 0) > 0 ? 'stat-warning' : ''}">
+                            <div class="time-stat-icon">⏳</div>
+                            <div class="time-stat-value">${analytics.time_stats.due_soon_count || 0}</div>
+                            <div class="time-stat-label">Due Soon (7 days)</div>
+                        </div>
+                        <div class="time-stat-item stat-success">
+                            <div class="time-stat-icon">✅</div>
+                            <div class="time-stat-value">${analytics.time_stats.completed_today || 0}</div>
+                            <div class="time-stat-label">Completed Today</div>
+                        </div>
+                        <div class="time-stat-item stat-primary">
+                            <div class="time-stat-icon">➕</div>
+                            <div class="time-stat-value">${analytics.time_stats.created_today || 0}</div>
+                            <div class="time-stat-label">Created Today</div>
+                        </div>
+                        <div class="time-stat-item">
+                            <div class="time-stat-icon">📅</div>
+                            <div class="time-stat-value">${(analytics.time_stats.avg_completion_days || 0).toFixed(1)}</div>
+                            <div class="time-stat-label">Avg Days to Complete</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
         `;
+    }
     }
     
     // ============================================
