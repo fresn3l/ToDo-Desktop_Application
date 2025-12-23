@@ -878,7 +878,7 @@ async function toggleTask(taskId) {
     try {
         if (!taskId || isNaN(taskId)) {
             console.error('Invalid task ID:', taskId);
-            return;
+            return false;
         }
         
         const result = await eel.toggle_task(taskId)();
@@ -886,14 +886,16 @@ async function toggleTask(taskId) {
         if (!result) {
             console.error('Task not found or toggle failed for ID:', taskId);
             showErrorFeedback('Failed to toggle task. Please try again.');
-            return;
+            return false;
         }
         
-        await loadTasks();
-        await loadGoals(); // Update goal progress
+        // Reload tasks and goals to reflect the change
+        await Promise.all([loadTasks(), loadGoals()]);
+        return true;
     } catch (error) {
         console.error('Error toggling task:', error);
         showErrorFeedback('Failed to toggle task. Please try again.');
+        return false;
     }
 }
 
@@ -1256,9 +1258,33 @@ function renderTasks() {
     // Create named handler functions for event delegation
     container._taskChangeHandler = async (e) => {
         if (e.target && e.target.classList.contains('task-checkbox')) {
+            e.stopPropagation(); // Prevent event from bubbling
+            e.preventDefault(); // Prevent default checkbox behavior
+            
             const taskId = parseInt(e.target.id.replace('checkbox-', ''));
             if (taskId && !isNaN(taskId)) {
-                await toggleTask(taskId);
+                // Store the intended state (opposite of current, since we're toggling)
+                const intendedState = e.target.checked;
+                
+                // Disable checkbox during async operation to prevent multiple clicks
+                e.target.disabled = true;
+                
+                try {
+                    const success = await toggleTask(taskId);
+                    
+                    if (!success) {
+                        // Revert checkbox state on failure
+                        e.target.checked = !intendedState;
+                    }
+                    // If success, the checkbox state will be updated by renderTasks()
+                } catch (error) {
+                    // Revert checkbox state on error
+                    e.target.checked = !intendedState;
+                    console.error('Error toggling task:', error);
+                } finally {
+                    // Re-enable checkbox after operation completes
+                    e.target.disabled = false;
+                }
             }
         }
     };
@@ -1600,8 +1626,13 @@ async function loadAnalytics() {
 function renderAnalytics(analytics) {
     const container = document.getElementById('analyticsContainer');
     
-    // If no tasks exist, show empty state
-    if (!analytics || analytics.overall.total === 0) {
+    if (!container) {
+        console.error('Analytics container not found');
+        return;
+    }
+    
+    // If no analytics data or no tasks exist, show empty state
+    if (!analytics || !analytics.overall || analytics.overall.total === 0) {
         container.innerHTML = `
             <div class="empty-state">
                 <h3>No Data Available</h3>
@@ -1636,11 +1667,17 @@ function renderAnalytics(analytics) {
                         <div class="stat-label">Completed</div>
                     </div>
                     <div class="stat-item stat-warning">
-                        <div class="stat-value">${analytics.overall.incomplete}</div>
+                        <div class="stat-value">${analytics.overall.incomplete || 0}</div>
                         <div class="stat-label">Incomplete</div>
                     </div>
+                    ${analytics.overall.not_completed !== undefined ? `
+                    <div class="stat-item stat-danger">
+                        <div class="stat-value">${analytics.overall.not_completed || 0}</div>
+                        <div class="stat-label">Not Completed (Overdue)</div>
+                    </div>
+                    ` : ''}
                     <div class="stat-item stat-primary">
-                        <div class="stat-value">${analytics.overall.completion_percentage}%</div>
+                        <div class="stat-value">${(analytics.overall.completion_percentage || 0).toFixed(1)}%</div>
                         <div class="stat-label">Completion Rate</div>
                     </div>
                 </div>
@@ -1656,7 +1693,9 @@ function renderAnalytics(analytics) {
     // GOAL STATISTICS CARD
     // ============================================
     // Shows completion rates broken down by goal
-    if (analytics.by_goal && analytics.by_goal.goals && Object.keys(analytics.by_goal.goals).length > 0) {
+    if (analytics.by_goal && analytics.by_goal.goals && 
+        typeof analytics.by_goal.goals === 'object' && 
+        Object.keys(analytics.by_goal.goals).length > 0) {
         html += `
             <div class="analytics-card draggable-card resizable-card" data-card-id="goal-breakdown">
                 <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
@@ -1710,7 +1749,7 @@ function renderAnalytics(analytics) {
     // Display stats for each priority level (Now, Next, Later)
     const priorities = ['Now', 'Next', 'Later'];
     priorities.forEach(priority => {
-        const stats = analytics.by_priority[priority];
+        const stats = analytics.by_priority && analytics.by_priority[priority];
         if (stats) {
             const priorityClass = priority === 'Now' ? 'priority-now' : priority === 'Next' ? 'priority-next' : 'priority-later';
             html += `
@@ -1825,7 +1864,8 @@ function renderAnalytics(analytics) {
                 </div>
             </div>
         </div>
-    `;
+        `;
+    }
     
     // ============================================
     // PRODUCTIVITY METRICS CARD
@@ -1842,35 +1882,37 @@ function renderAnalytics(analytics) {
     `;
     
     // Most productive goal
-    if (analytics.productivity.most_productive_goal) {
+    if (analytics.productivity && analytics.productivity.most_productive_goal) {
         html += `
             <div class="insight-item">
                 <div class="insight-icon">🏆</div>
                 <div class="insight-content">
                     <div class="insight-title">Most Productive Goal</div>
                     <div class="insight-value">${escapeHtml(analytics.productivity.most_productive_goal)}</div>
-                    <div class="insight-detail">${analytics.productivity.most_productive_completion_rate}% completion rate</div>
+                    <div class="insight-detail">${(analytics.productivity.most_productive_completion_rate || 0).toFixed(1)}% completion rate</div>
                 </div>
             </div>
         `;
     }
     
     // Goal with most tasks
-    if (analytics.productivity.goal_with_most_tasks) {
+    if (analytics.productivity && analytics.productivity.goal_with_most_tasks) {
         html += `
             <div class="insight-item">
                 <div class="insight-icon">📊</div>
                 <div class="insight-content">
                     <div class="insight-title">Most Active Goal</div>
                     <div class="insight-value">${escapeHtml(analytics.productivity.goal_with_most_tasks)}</div>
-                    <div class="insight-detail">${analytics.productivity.max_tasks_in_goal} tasks</div>
+                    <div class="insight-detail">${analytics.productivity.max_tasks_in_goal || 0} tasks</div>
                 </div>
             </div>
         `;
     }
     
     // Goal distribution
-    if (analytics.productivity.goal_distribution && Object.keys(analytics.productivity.goal_distribution).length > 0) {
+    if (analytics.productivity && analytics.productivity.goal_distribution && 
+        typeof analytics.productivity.goal_distribution === 'object' &&
+        Object.keys(analytics.productivity.goal_distribution).length > 0) {
         html += `
             <div class="insight-item">
                 <div class="insight-icon">📈</div>
@@ -2416,33 +2458,41 @@ async function loadNotificationSettings() {
     try {
         const settings = await eel.get_notification_settings()();
         
-        // Populate form fields
-        document.getElementById('notificationsEnabled').checked = settings.enabled || false;
-        document.getElementById('notificationEmail').value = settings.email || '';
-        document.getElementById('smtpPort').value = settings.smtp_port || 587;
-        document.getElementById('emailUsername').value = settings.email_username || '';
-        document.getElementById('emailPassword').value = settings.email_password || '';
-        document.getElementById('checkInterval').value = settings.check_interval_hours || 1;
+        // Populate form fields with null checks
+        const enabledCheckbox = document.getElementById('notificationsEnabled');
+        const emailInput = document.getElementById('notificationEmail');
+        const smtpPortInput = document.getElementById('smtpPort');
+        const emailUsernameInput = document.getElementById('emailUsername');
+        const emailPasswordInput = document.getElementById('emailPassword');
+        const checkIntervalInput = document.getElementById('checkInterval');
+        
+        if (enabledCheckbox) enabledCheckbox.checked = settings.enabled || false;
+        if (emailInput) emailInput.value = settings.email || '';
+        if (smtpPortInput) smtpPortInput.value = settings.smtp_port || 587;
+        if (emailUsernameInput) emailUsernameInput.value = settings.email_username || '';
+        if (emailPasswordInput) emailPasswordInput.value = settings.email_password || '';
+        if (checkIntervalInput) checkIntervalInput.value = settings.check_interval_hours || 1;
         
         // Set SMTP server
         const smtpSelect = document.getElementById('smtpServer');
         const customSmtpGroup = document.getElementById('customSmtpGroup');
         const customSmtpInput = document.getElementById('customSmtpServer');
         
-        if (settings.smtp_server) {
+        if (smtpSelect && settings.smtp_server) {
             // Check if it's a preset option
             const presetOptions = ['smtp.gmail.com', 'smtp.mail.me.com', 'smtp-mail.outlook.com'];
             if (presetOptions.includes(settings.smtp_server)) {
                 smtpSelect.value = settings.smtp_server;
-                customSmtpGroup.style.display = 'none';
+                if (customSmtpGroup) customSmtpGroup.style.display = 'none';
             } else {
                 smtpSelect.value = 'custom';
-                customSmtpGroup.style.display = 'block';
-                customSmtpInput.value = settings.smtp_server;
+                if (customSmtpGroup) customSmtpGroup.style.display = 'block';
+                if (customSmtpInput) customSmtpInput.value = settings.smtp_server;
             }
         }
     } catch (error) {
         console.error('Error loading notification settings:', error);
+        // Don't show error to user if settings tab isn't open
     }
 }
 
@@ -2487,18 +2537,36 @@ function setupNotificationSettings() {
  */
 async function saveNotificationSettings() {
     try {
-        const enabled = document.getElementById('notificationsEnabled').checked;
-        const email = document.getElementById('notificationEmail').value.trim();
+        const enabledCheckbox = document.getElementById('notificationsEnabled');
+        const emailInput = document.getElementById('notificationEmail');
         const smtpSelect = document.getElementById('smtpServer');
         const customSmtpInput = document.getElementById('customSmtpServer');
-        const smtpPort = parseInt(document.getElementById('smtpPort').value);
-        const emailUsername = document.getElementById('emailUsername').value.trim();
-        const emailPassword = document.getElementById('emailPassword').value;
-        const checkInterval = parseInt(document.getElementById('checkInterval').value);
+        const smtpPortInput = document.getElementById('smtpPort');
+        const emailUsernameInput = document.getElementById('emailUsername');
+        const emailPasswordInput = document.getElementById('emailPassword');
+        const checkIntervalInput = document.getElementById('checkInterval');
+        
+        // Check if all required elements exist
+        if (!enabledCheckbox || !emailInput || !smtpSelect || !smtpPortInput || 
+            !emailUsernameInput || !emailPasswordInput || !checkIntervalInput) {
+            showErrorFeedback('Settings form not found. Please refresh the page.');
+            return;
+        }
+        
+        const enabled = enabledCheckbox.checked;
+        const email = emailInput.value.trim();
+        const smtpPort = parseInt(smtpPortInput.value) || 587;
+        const emailUsername = emailUsernameInput.value.trim();
+        const emailPassword = emailPasswordInput.value;
+        const checkInterval = parseInt(checkIntervalInput.value) || 1;
         
         // Get SMTP server
         let smtpServer = smtpSelect.value;
         if (smtpServer === 'custom') {
+            if (!customSmtpInput) {
+                showErrorFeedback('Custom SMTP server input not found.');
+                return;
+            }
             smtpServer = customSmtpInput.value.trim();
         }
         
@@ -2545,23 +2613,30 @@ async function saveNotificationSettings() {
  */
 async function testNotification() {
     try {
-        const email = document.getElementById('notificationEmail').value.trim();
+        const emailInput = document.getElementById('notificationEmail');
+        const testBtn = document.getElementById('testNotificationBtn');
+        
+        if (!emailInput || !testBtn) {
+            showErrorFeedback('Notification form elements not found. Please refresh the page.');
+            return;
+        }
+        
+        const email = emailInput.value.trim();
         if (!email) {
             showErrorFeedback('Please enter your email address first');
             return;
         }
         
-        const testBtn = document.getElementById('testNotificationBtn');
         const originalText = testBtn.textContent;
         testBtn.textContent = 'Sending...';
         testBtn.disabled = true;
         
         const result = await eel.test_notification(email)();
         
-        if (result.success) {
-            showSuccessFeedback(result.message);
+        if (result && result.success) {
+            showSuccessFeedback(result.message || 'Test notification sent successfully!');
         } else {
-            showErrorFeedback(result.message);
+            showErrorFeedback(result?.message || 'Failed to send test notification. Please check your settings.');
         }
         
         testBtn.textContent = originalText;
@@ -2569,6 +2644,11 @@ async function testNotification() {
     } catch (error) {
         console.error('Error sending test notification:', error);
         showErrorFeedback('Failed to send test notification. Please check your settings.');
+        const testBtn = document.getElementById('testNotificationBtn');
+        if (testBtn) {
+            testBtn.disabled = false;
+            testBtn.textContent = 'Send Test Notification';
+        }
     }
 }
 
