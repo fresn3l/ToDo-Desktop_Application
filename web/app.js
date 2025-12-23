@@ -1563,10 +1563,39 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 // ============================================
 
 /**
- * Main Application Entry Point
+ * Load analytics data from backend and render it
  * 
- * This file initializes the application and coordinates all modules.
- * All functionality has been modularized for better maintainability.
+ * This function:
+ * 1. Calls the Python backend to get analytics data
+ * 2. Renders the analytics using renderAnalytics()
+ * 3. Handles errors gracefully
+ * 
+ * @async
+ */
+async function loadAnalytics() {
+    try {
+        const analytics = await eel.get_analytics()();
+        renderAnalytics(analytics);
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+        const container = document.getElementById('analyticsContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>Error loading analytics</h3>
+                    <p>Please try again later.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+/**
+ * Render analytics data in the analytics container
+ * 
+ * This function creates all the analytics cards with drag/resize functionality.
+ * 
+ * @param {Object} analytics - Analytics data object from backend
  */
 function renderAnalytics(analytics) {
     const container = document.getElementById('analyticsContainer');
@@ -1885,6 +1914,181 @@ function renderAnalytics(analytics) {
     initializeDragAndResize();
 }
 
+/**
+ * Load saved card positions and sizes from localStorage
+ */
+function loadCardPositions() {
+    try {
+        const savedPositions = localStorage.getItem('analyticsCardPositions');
+        const savedSizes = localStorage.getItem('analyticsCardSizes');
+        
+        if (savedPositions) {
+            const positions = JSON.parse(savedPositions);
+            Object.entries(positions).forEach(([cardId, pos]) => {
+                const card = document.querySelector(`[data-card-id="${cardId}"]`);
+                if (card) {
+                    card.style.position = 'absolute';
+                    card.style.left = pos.x + 'px';
+                    card.style.top = pos.y + 'px';
+                }
+            });
+        }
+        
+        if (savedSizes) {
+            const sizes = JSON.parse(savedSizes);
+            Object.entries(sizes).forEach(([cardId, size]) => {
+                const card = document.querySelector(`[data-card-id="${cardId}"]`);
+                if (card) {
+                    card.style.width = size.width + 'px';
+                    card.style.height = size.height + 'px';
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading card positions:', error);
+    }
+}
+
+/**
+ * Initialize drag and resize functionality for analytics cards
+ */
+function initializeDragAndResize() {
+    const cards = document.querySelectorAll('.draggable-card');
+    
+    cards.forEach(card => {
+        const dragHandle = card.querySelector('.card-drag-handle');
+        const resizeHandle = card.querySelector('.card-resize-handle');
+        
+        // Show handles on hover
+        card.addEventListener('mouseenter', () => {
+            if (dragHandle) dragHandle.style.opacity = '1';
+            if (resizeHandle) resizeHandle.style.opacity = '1';
+        });
+        
+        card.addEventListener('mouseleave', () => {
+            if (dragHandle) dragHandle.style.opacity = '0';
+            if (resizeHandle) resizeHandle.style.opacity = '0';
+        });
+        
+        // Drag functionality
+        if (dragHandle) {
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+            
+            dragHandle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                card.classList.add('dragging');
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const rect = card.getBoundingClientRect();
+                initialX = rect.left;
+                initialY = rect.top;
+                
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                
+                card.style.position = 'absolute';
+                card.style.left = (initialX + deltaX) + 'px';
+                card.style.top = (initialY + deltaY) + 'px';
+                card.style.zIndex = '1000';
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    card.classList.remove('dragging');
+                    card.style.zIndex = '';
+                    saveCardPosition(card);
+                }
+            });
+        }
+        
+        // Resize functionality
+        if (resizeHandle) {
+            let isResizing = false;
+            let startX, startY, startWidth, startHeight;
+            
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                card.classList.add('resizing');
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const rect = card.getBoundingClientRect();
+                startWidth = rect.width;
+                startHeight = rect.height;
+                
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                
+                const newWidth = Math.max(300, startWidth + deltaX);
+                const newHeight = Math.max(200, startHeight + deltaY);
+                
+                card.style.width = newWidth + 'px';
+                card.style.height = newHeight + 'px';
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isResizing) {
+                    isResizing = false;
+                    card.classList.remove('resizing');
+                    saveCardSize(card);
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Save card position to localStorage
+ */
+function saveCardPosition(card) {
+    try {
+        const cardId = card.getAttribute('data-card-id');
+        if (!cardId) return;
+        
+        const rect = card.getBoundingClientRect();
+        const positions = JSON.parse(localStorage.getItem('analyticsCardPositions') || '{}');
+        positions[cardId] = { x: rect.left, y: rect.top };
+        localStorage.setItem('analyticsCardPositions', JSON.stringify(positions));
+    } catch (error) {
+        console.error('Error saving card position:', error);
+    }
+}
+
+/**
+ * Save card size to localStorage
+ */
+function saveCardSize(card) {
+    try {
+        const cardId = card.getAttribute('data-card-id');
+        if (!cardId) return;
+        
+        const sizes = JSON.parse(localStorage.getItem('analyticsCardSizes') || '{}');
+        sizes[cardId] = { 
+            width: parseInt(card.style.width) || card.offsetWidth,
+            height: parseInt(card.style.height) || card.offsetHeight
+        };
+        localStorage.setItem('analyticsCardSizes', JSON.stringify(sizes));
+    } catch (error) {
+        console.error('Error saving card size:', error);
+    }
+}
+
 // ============================================
 // ANALYTICS EVENT LISTENERS
 // ============================================
@@ -1929,35 +2133,6 @@ function setupAnalytics() {
             }
         });
     }
-}
-
-// Import all modules
-import * as state from './js/state.js';
-import * as ui from './js/ui.js';
-import { loadTasks } from './js/tasks.js';
-import { loadGoals } from './js/goals.js';
-import { setupEventListeners } from './js/events.js';
-import { setupTabs } from './js/tabs.js';
-
-/**
- * Initialize the application
- */
-async function init() {
-    // Show loading state
-    ui.showLoadingState();
-    
-    // Load all data in parallel
-    await Promise.all([loadTasks(), loadGoals()]);
-    
-    // Setup UI interactions
-    setupEventListeners();
-    setupTabs();
-    
-    // Hide loading state
-    ui.hideLoadingState();
-    
-    // Add smooth entrance animations
-    ui.animateElements();
 }
 
 // ============================================
