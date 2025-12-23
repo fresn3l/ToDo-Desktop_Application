@@ -1867,7 +1867,6 @@ function renderAnalytics(analytics) {
             </div>
         `;
     }
-    }
     
     // ============================================
     // PRODUCTIVITY METRICS CARD
