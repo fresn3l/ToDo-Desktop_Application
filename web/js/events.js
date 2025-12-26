@@ -1,14 +1,19 @@
 /**
  * Events Module
  * 
- * Sets up all event listeners for the application.
+ * Sets up all event listeners for user interactions
  */
 
-import { handleAddTask, handleSearch, handleFilterChange, toggleCompleted } from './tasks.js';
+import { handleAddTask, handleSearch, handleSortChange, handleFilterChange, toggleCompleted, updateGoalSelect, updateGoalFilter } from './tasks.js';
 import { handleAddGoal } from './goals.js';
+import * as state from './state.js';
+
+// ============================================
+// EVENT LISTENER SETUP
+// ============================================
 
 /**
- * Setup all event listeners
+ * Set up all event listeners for user interactions
  */
 export function setupEventListeners() {
     // Task form submission
@@ -23,6 +28,21 @@ export function setupEventListeners() {
     if (toggleTaskFormBtn && taskFormContainer) {
         toggleTaskFormBtn.addEventListener('click', () => {
             const isVisible = taskFormContainer.style.display !== 'none';
+            
+            if (isVisible) {
+                state.clearEditingTaskId();
+                document.getElementById('taskForm').reset();
+                
+                const formTitle = taskFormContainer.querySelector('h2');
+                const submitButton = document.querySelector('#taskForm button[type="submit"]');
+                if (formTitle) {
+                    formTitle.textContent = 'Add New Task';
+                }
+                if (submitButton) {
+                    submitButton.textContent = 'Add Task';
+                }
+            }
+            
             taskFormContainer.style.display = isVisible ? 'none' : 'block';
             toggleTaskFormBtn.innerHTML = isVisible 
                 ? '<span class="btn-icon">+</span> Add New Task'
@@ -36,13 +56,13 @@ export function setupEventListeners() {
         goalForm.addEventListener('submit', handleAddGoal);
     }
     
-    // Search
+    // Search input
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', handleSearch);
     }
     
-    // Filters
+    // Filter dropdowns
     const filterPriority = document.getElementById('filterPriority');
     if (filterPriority) {
         filterPriority.addEventListener('change', handleFilterChange);
@@ -53,37 +73,15 @@ export function setupEventListeners() {
         filterGoal.addEventListener('change', handleFilterChange);
     }
     
-    const showCompleted = document.getElementById('showCompleted');
-    if (showCompleted) {
-        showCompleted.addEventListener('click', toggleCompleted);
+    // Sort dropdown
+    const sortTasks = document.getElementById('sortTasks');
+    if (sortTasks) {
+        sortTasks.addEventListener('change', handleSortChange);
     }
     
-    // Keyboard shortcuts
-    setupKeyboardShortcuts();
+    // Show/hide completed tasks toggle button
+    const showCompletedBtn = document.getElementById('showCompleted');
+    if (showCompletedBtn) {
+        showCompletedBtn.addEventListener('click', toggleCompleted);
+    }
 }
-
-/**
- * Setup keyboard shortcuts
- */
-function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        // Ctrl/Cmd + K to focus search
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.focus();
-            }
-        }
-        
-        // Escape to clear search
-        if (e.key === 'Escape') {
-            const searchInput = document.getElementById('searchInput');
-            if (document.activeElement === searchInput && searchInput) {
-                searchInput.value = '';
-                handleSearch({ target: searchInput });
-            }
-        }
-    });
-}
-

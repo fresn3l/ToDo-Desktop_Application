@@ -44,6 +44,16 @@ let currentFilter = {
  */
 let currentSort = 'category';
 
+/**
+ * Currently editing task ID (if any)
+ */
+let editingTaskId = null;
+
+/**
+ * Currently editing goal ID (if any)
+ */
+let editingGoalId = null;
+
 // ============================================
 // STATE GETTERS
 // ============================================
@@ -92,6 +102,30 @@ export function setCurrentSort(sort) {
     currentSort = sort;
 }
 
+export function getEditingTaskId() {
+    return editingTaskId;
+}
+
+export function setEditingTaskId(id) {
+    editingTaskId = id;
+}
+
+export function clearEditingTaskId() {
+    editingTaskId = null;
+}
+
+export function getEditingGoalId() {
+    return editingGoalId;
+}
+
+export function setEditingGoalId(id) {
+    editingGoalId = id;
+}
+
+export function clearEditingGoalId() {
+    editingGoalId = null;
+}
+
 // ============================================
 // STATE RESET
 // ============================================
@@ -106,4 +140,6 @@ export function resetState() {
         search: ''
     };
     currentSort = 'category';
+    editingTaskId = null;
+    editingGoalId = null;
 }

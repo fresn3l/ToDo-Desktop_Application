@@ -34,9 +34,6 @@ import { setupNotificationSettings } from './js/notifications.js';
  */
 async function init() {
     try {
-        // Wait a bit to ensure DOM is fully ready
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         // Setup event listeners first
         setupEventListeners();
         
@@ -59,69 +56,29 @@ async function init() {
         updateGoalSelect();
         updateGoalFilter();
         
-        // Ensure tasks and goals are rendered
-        renderTasks();
-        await renderGoals();
-        
         // Switch to tasks tab by default
-        await switchTab('tasks');
+        switchTab('tasks');
         
         // Animate elements on load
-        setTimeout(() => {
-            if (ui && ui.animateElements) {
-                ui.animateElements();
-            }
-        }, 100);
+        setTimeout(() => ui.animateElements(), 100);
         
     } catch (error) {
         console.error('Error initializing application:', error);
-        if (utils && utils.showErrorFeedback) {
-            utils.showErrorFeedback('Failed to initialize application. Please refresh the page.');
-        } else {
-            alert('Failed to initialize application. Please check the console for errors.');
-        }
+        utils.showErrorFeedback('Failed to initialize application. Please refresh the page.');
     }
-}
-
-// Wait for eel to be available before initializing
-function waitForEel() {
-    return new Promise((resolve) => {
-        if (typeof eel !== 'undefined' && eel.init) {
-            resolve();
-        } else {
-            let attempts = 0;
-            const checkEel = setInterval(() => {
-                attempts++;
-                if (typeof eel !== 'undefined' && eel.init) {
-                    clearInterval(checkEel);
-                    resolve();
-                } else if (attempts > 50) {
-                    console.warn('Eel not available after 5 seconds, proceeding anyway');
-                    clearInterval(checkEel);
-                    resolve();
-                }
-            }, 100);
-        }
-    });
 }
 
 // Initialize when DOM is ready
-async function startApp() {
-    await waitForEel();
-    
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        // Small delay to ensure all modules are loaded
-        setTimeout(init, 50);
-    }
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
 }
 
-startApp();
-
-// Export functions that need to be called from other modules
-// Using window to avoid circular dependencies between modules
+// Make switchTab available globally for tasks.js
 window.switchTab = switchTab;
+
+// Make loadGoals and loadTasks available globally to avoid circular dependencies
 window.loadGoals = loadGoals;
 window.loadTasks = loadTasks;
 window.updateGoalSelect = updateGoalSelect;
