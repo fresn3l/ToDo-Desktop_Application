@@ -114,6 +114,26 @@
                         <small>Enter hours spent on this task (used for time-based goal tracking)</small>
                     </div>
                     
+                    <!-- Recurrence settings - optional, for repeating tasks -->
+                    <div class="form-group">
+                        <label for="taskRecurrence">Repeat (optional):</label>
+                        <select id="taskRecurrence">
+                            <option value="">No Repeat</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                        <small>Create a recurring task that repeats automatically</small>
+                    </div>
+                    
+                    <!-- Recurrence end date - optional, when to stop repeating -->
+                    <div class="form-group" id="recurrenceEndDateGroup" style="display: none;">
+                        <label for="taskRecurrenceEndDate">Stop Repeating On (optional):</label>
+                        <input type="date" id="taskRecurrenceEndDate">
+                        <small>Leave empty to repeat indefinitely</small>
+                    </div>
+                    
                     <!-- Submit button - creates the new task -->
                     <button type="submit" class="btn-primary">Add Task</button>
                 </form>

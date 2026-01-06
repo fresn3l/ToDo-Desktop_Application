@@ -1,15 +1,8 @@
 """
 Analytics Module
 
-This module calculates comprehensive analytics and statistics:
-- Overall completion statistics
-- Category-based analytics
-- Priority-based analytics
-- Goal-based analytics
-- Time-based analytics
-- Productivity metrics
-
-All functions decorated with @eel.expose are callable from JavaScript.
+Calculates comprehensive statistics including completion rates, priority breakdowns,
+goal progress, time tracking, and productivity metrics.
 """
 
 import eel

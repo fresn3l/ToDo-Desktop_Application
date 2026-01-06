@@ -33,6 +33,12 @@ export function setupEventListeners() {
                 state.clearEditingTaskId();
                 document.getElementById('taskForm').reset();
                 
+                // Hide recurrence end date group when form is reset
+                const recurrenceEndDateGroup = document.getElementById('recurrenceEndDateGroup');
+                if (recurrenceEndDateGroup) {
+                    recurrenceEndDateGroup.style.display = 'none';
+                }
+                
                 const formTitle = taskFormContainer.querySelector('h2');
                 const submitButton = document.querySelector('#taskForm button[type="submit"]');
                 if (formTitle) {
@@ -83,5 +89,18 @@ export function setupEventListeners() {
     const showCompletedBtn = document.getElementById('showCompleted');
     if (showCompletedBtn) {
         showCompletedBtn.addEventListener('click', toggleCompleted);
+    }
+    
+    // Recurrence dropdown - show/hide recurrence end date field
+    const recurrenceSelect = document.getElementById('taskRecurrence');
+    const recurrenceEndDateGroup = document.getElementById('recurrenceEndDateGroup');
+    if (recurrenceSelect && recurrenceEndDateGroup) {
+        recurrenceSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                recurrenceEndDateGroup.style.display = 'block';
+            } else {
+                recurrenceEndDateGroup.style.display = 'none';
+            }
+        });
     }
 }

@@ -1,38 +1,8 @@
 """
-Todo/Task Management Module
+Task Management Module
 
-This module handles all task-related CRUD (Create, Read, Update, Delete) operations
-for the ToDo application. It provides the backend API for task management that
-is called from the JavaScript frontend via the Eel framework.
-
-Module Responsibilities:
-- Creating new tasks with validation
-- Reading/retrieving tasks from storage
-- Updating existing tasks (title, description, priority, due date, goal)
-- Deleting tasks
-- Toggling task completion status
-- Searching and filtering tasks
-
-Data Structure:
-Each task is a dictionary with the following keys:
-- id: Integer - Unique identifier for the task
-- title: String - Task title (required)
-- description: String - Task description (optional)
-- priority: String - Priority level: "Now", "Next", or "Later"
-- due_date: String - Due date in ISO format (optional)
-- goal_id: Integer - ID of linked goal (optional, None for "Misc")
-- completed: Boolean - Whether task is completed
-- created_at: String - Creation timestamp in ISO format
-- completed_at: String - Completion timestamp in ISO format (None if not completed)
-
-Storage:
-Tasks are persisted to JSON files via the data_storage module.
-The storage location is platform-specific:
-- macOS: ~/Library/Application Support/ToDo/tasks.json
-- Windows: ~/AppData/Local/ToDo/tasks.json
-- Linux: ~/.local/share/ToDo/tasks.json
-
-All functions decorated with @eel.expose are callable from JavaScript.
+Handles all task-related CRUD operations including recurring tasks, overdue detection,
+and automatic instance generation. Provides backend API for task management via Eel framework.
 """
 
 import eel
@@ -52,23 +22,14 @@ from data_storage import (
 
 def _check_and_mark_overdue_tasks(tasks: List[Dict]) -> List[Dict]:
     """
-    Check tasks for overdue status and mark them as not_completed if overdue by >24 hours.
-    
-    This function:
-    1. Checks each incomplete task with a due_date
-    2. If the due_date is more than 24 hours in the past, marks it as not_completed
-    3. Sets not_completed_at timestamp
-    4. Saves the updated tasks
+    Mark tasks as not_completed if overdue by more than 24 hours.
+    For recurring tasks, creates next instance even if current one wasn't completed.
     
     Args:
         tasks: List of task dictionaries
     
     Returns:
-        List[Dict]: Updated tasks list (same reference, modified in place)
-    
-    Side Effects:
-        - Modifies tasks in place
-        - Saves tasks to storage if any changes were made
+        Updated tasks list
     """
     now = datetime.now()
     updated = False
@@ -82,6 +43,10 @@ def _check_and_mark_overdue_tasks(tasks: List[Dict]) -> List[Dict]:
         if not task.get("due_date"):
             continue
         
+        # For recurring tasks, check if it's overdue (past due date by >24 hours)
+        # Recurring tasks that aren't completed by end of day should be marked as not_completed
+        is_recurring = bool(task.get("recurrence"))
+        
         try:
             # Parse due_date (format: "YYYY-MM-DD")
             # Convert to datetime at end of day (23:59:59) to ensure full day has passed
@@ -94,10 +59,28 @@ def _check_and_mark_overdue_tasks(tasks: List[Dict]) -> List[Dict]:
             time_diff = now - due_date
             
             # If overdue by more than 24 hours, mark as not_completed
+            # For recurring tasks, this happens at end of day if not completed
             if time_diff > timedelta(hours=24):
                 task["not_completed"] = True
                 task["not_completed_at"] = now.isoformat()
                 updated = True
+                
+                # For recurring tasks, create the next instance even if this one wasn't completed
+                if is_recurring:
+                    # Find the template
+                    template = task
+                    if not task.get("is_recurring_template", False):
+                        parent_id = task.get("parent_task_id")
+                        if parent_id:
+                            for t in tasks:
+                                if t["id"] == parent_id and t.get("is_recurring_template", False):
+                                    template = t
+                                    break
+                    
+                    # Create next instance
+                    if template.get("is_recurring_template", False):
+                        template["due_date"] = task.get("due_date", template.get("due_date", ""))
+                        _create_next_recurring_instance(template, tasks)
         except (ValueError, KeyError) as e:
             # Skip tasks with invalid due_date format
             continue
@@ -113,94 +96,38 @@ def get_tasks() -> List[Dict]:
     """
     Get all tasks from storage.
     
-    This function:
-    1. Loads tasks from storage
-    2. Checks for overdue tasks (overdue by >24 hours) and marks them as not_completed
-    3. Returns the updated task list
-    
-    Tasks that are overdue by more than 24 hours are automatically marked as
-    "not_completed" for analytics purposes and will not appear in the task list.
+    Automatically creates missing recurring task instances and marks overdue tasks
+    as not_completed for analytics purposes.
     
     Returns:
-        List[Dict]: List of all task dictionaries. Returns empty list if no tasks exist
-                    or if there's an error reading the file.
-    
-    Example return value:
-        [
-            {
-                "id": 1,
-                "title": "Complete project",
-                "description": "Finish the ToDo app",
-                "priority": "Now",
-                "due_date": "2024-12-31",
-                "goal_id": 1,
-                "completed": False,
-                "not_completed": False,  # True if overdue by >24 hours
-                "created_at": "2024-12-01T10:00:00",
-                "completed_at": None,
-                "not_completed_at": None  # Timestamp when marked as not_completed
-            },
-            ...
-        ]
-    
-    Error Handling:
-        - If file doesn't exist, returns empty list
-        - If file is corrupted, data_storage.load_tasks() handles it gracefully
+        List of all task dictionaries
     """
     tasks = load_tasks()
+    # Check and create missing recurring instances
+    tasks = _check_and_create_recurring_instances(tasks)
     # Check and mark overdue tasks
     tasks = _check_and_mark_overdue_tasks(tasks)
     return tasks
 
 @eel.expose
 def add_task(title: str, description: str = "", priority: str = "Next", 
-             due_date: str = "", goal_id: Optional[int] = None, time_spent: Optional[float] = None) -> Dict:
+             due_date: str = "", goal_id: Optional[int] = None, time_spent: Optional[float] = None,
+             recurrence: Optional[str] = None, recurrence_end_date: Optional[str] = None) -> Dict:
     """
     Add a new task to the system.
     
-    This function creates a new task with the provided information and saves it
-    to persistent storage. The task is assigned a unique ID based on the current
-    number of tasks (simple auto-increment).
-    
     Args:
-        title: Task title (required) - The main task description
-        description: Task description (optional) - Additional details about the task
-        priority: Priority level (default: "Next")
-            - "Now": High priority, do immediately
-            - "Next": Medium priority, do soon (default)
-            - "Later": Low priority, do when possible
-        due_date: Due date in ISO format (optional) - Format: "YYYY-MM-DD"
-        goal_id: ID of linked goal (optional) - Links task to a specific goal.
-                If None, task is categorized as "Misc"
-        time_spent: Time spent in hours (optional) - Used for time-based goal tracking
+        title: Task title (required)
+        description: Task description (optional)
+        priority: Priority level - "Now", "Next", or "Later" (default: "Next")
+        due_date: Due date in ISO format "YYYY-MM-DD" (optional)
+        goal_id: ID of linked goal (optional)
+        time_spent: Time spent in hours for time-based goal tracking (optional)
+        recurrence: Recurrence type - "daily", "weekly", "monthly", "yearly" (optional)
+        recurrence_end_date: End date for recurrence in "YYYY-MM-DD" format (optional)
     
     Returns:
-        Dict: The newly created task dictionary with all fields populated
-    
-    Side Effects:
-        - Loads existing tasks from storage
-        - Appends new task to the list
-        - Saves updated task list to tasks.json
-        - Creates timestamp for created_at field
-    
-    ID Generation:
-        Uses simple auto-increment: new_id = len(tasks) + 1
-        Note: This can create duplicate IDs if tasks are deleted, but is sufficient
-        for this application. For production, consider using UUIDs.
-    
-    Example:
-        >>> add_task("Buy groceries", "Milk, eggs, bread", "Now", "2024-12-15", 1)
-        {
-            "id": 5,
-            "title": "Buy groceries",
-            "description": "Milk, eggs, bread",
-            "priority": "Now",
-            "due_date": "2024-12-15",
-            "goal_id": 1,
-            "completed": False,
-            "created_at": "2024-12-10T14:30:00.123456",
-            "completed_at": None
-        }
+        The newly created task dictionary
     """
     # Load existing tasks from storage
     tasks = load_tasks()
@@ -228,53 +155,46 @@ def add_task(title: str, description: str = "", priority: str = "Next",
     if time_spent is not None and time_spent > 0:
         new_task["time_spent"] = float(time_spent)
     
+    # Add recurrence fields if provided
+    # recurrence: 'daily', 'weekly', 'monthly', 'yearly', or None
+    if recurrence:
+        new_task["recurrence"] = recurrence
+        new_task["is_recurring_template"] = True
+        new_task["parent_task_id"] = None  # Template tasks have no parent
+        if recurrence_end_date:
+            new_task["recurrence_end_date"] = recurrence_end_date
+    
     # Add task to list and save to persistent storage
     tasks.append(new_task)
     save_tasks(tasks)  # Persists to JSON file with file locking
+    
+    # If this is a recurring task, create the first instance
+    if recurrence and due_date:
+        _create_next_recurring_instance(new_task, tasks)
     
     return new_task
 
 @eel.expose
 def update_task(task_id: int, title: str = None, description: str = None,
                 priority: str = None, due_date: str = None,
-                goal_id: int = None, time_spent: Optional[float] = None) -> Optional[Dict]:
+                goal_id: int = None, time_spent: Optional[float] = None,
+                recurrence: Optional[str] = None, recurrence_end_date: Optional[str] = None) -> Optional[Dict]:
     """
-    Update an existing task with new values.
-    
-    This function allows partial updates - only the fields provided (not None)
-    will be updated. This is useful for editing tasks where you might only
-    want to change one field (e.g., just the title or just the priority).
+    Update an existing task with new values. Supports partial updates.
     
     Args:
-        task_id: ID of task to update (required)
-        title: New title (optional) - Only updates if not None
-        description: New description (optional) - Only updates if not None
-        priority: New priority (optional) - Only updates if not None
-        due_date: New due date in ISO format (optional) - Only updates if not None
-        goal_id: New goal ID (optional) - Only updates if not None.
-                Pass None explicitly to unlink from goal
+        task_id: ID of task to update
+        title: New title (optional)
+        description: New description (optional)
+        priority: New priority (optional)
+        due_date: New due date in ISO format "YYYY-MM-DD" (optional)
+        goal_id: New goal ID (optional, pass None to unlink)
+        time_spent: New time spent in hours (optional)
+        recurrence: Recurrence type (optional)
+        recurrence_end_date: Recurrence end date (optional)
     
     Returns:
-        Optional[Dict]: Updated task dictionary if found, None if task doesn't exist
-    
-    Side Effects:
-        - Loads tasks from storage
-        - Updates matching task in memory
-        - Saves updated task list to tasks.json
-    
-    Update Strategy:
-        Uses partial update pattern - only fields that are not None are updated.
-        This allows flexible updates without requiring all fields.
-    
-    Example:
-        # Update only the title
-        >>> update_task(1, title="New title")
-        
-        # Update multiple fields
-        >>> update_task(1, title="New title", priority="Now", goal_id=2)
-        
-        # Unlink from goal (set goal_id to None)
-        >>> update_task(1, goal_id=None)
+        Updated task dictionary if found, None otherwise
     """
     tasks = load_tasks()
     
@@ -301,6 +221,27 @@ def update_task(task_id: int, title: str = None, description: str = None,
                 else:
                     task.pop("time_spent", None)  # Remove if 0 or negative
             
+            # Update recurrence fields if provided
+            if recurrence is not None:
+                if recurrence:
+                    task["recurrence"] = recurrence
+                    task["is_recurring_template"] = True
+                    task["parent_task_id"] = None
+                    if recurrence_end_date:
+                        task["recurrence_end_date"] = recurrence_end_date
+                else:
+                    # Remove recurrence if set to empty/None
+                    task.pop("recurrence", None)
+                    task.pop("is_recurring_template", None)
+                    task.pop("parent_task_id", None)
+                    task.pop("recurrence_end_date", None)
+            elif recurrence_end_date is not None:
+                # Update end date only
+                if recurrence_end_date:
+                    task["recurrence_end_date"] = recurrence_end_date
+                else:
+                    task.pop("recurrence_end_date", None)
+            
             # Save updated tasks to persistent storage
             save_tasks(tasks)
             return task
@@ -311,37 +252,13 @@ def update_task(task_id: int, title: str = None, description: str = None,
 @eel.expose
 def toggle_task(task_id: int) -> Optional[Dict]:
     """
-    Toggle task completion status (complete ↔ incomplete).
-    
-    This function switches a task between completed and incomplete states.
-    When completing a task, it records the completion timestamp.
-    When uncompleting a task, it clears the completion timestamp.
+    Toggle task completion status. For recurring tasks, creates next instance when completed.
     
     Args:
-        task_id: ID of task to toggle (required)
+        task_id: ID of task to toggle
     
     Returns:
-        Optional[Dict]: Updated task dictionary if found, None if task doesn't exist
-    
-    Side Effects:
-        - Loads tasks from storage
-        - Toggles task.completed boolean
-        - Sets completed_at timestamp when completing
-        - Clears completed_at timestamp when uncompleting
-        - Saves updated task list to tasks.json
-    
-    Behavior:
-        - If task is incomplete → marks as completed, sets completed_at timestamp
-        - If task is completed → marks as incomplete, clears completed_at timestamp
-    
-    Example:
-        # Complete a task
-        >>> toggle_task(1)
-        {"id": 1, "completed": True, "completed_at": "2024-12-10T15:30:00", ...}
-        
-        # Uncomplete the same task
-        >>> toggle_task(1)
-        {"id": 1, "completed": False, "completed_at": None, ...}
+        Updated task dictionary if found, None otherwise
     """
     tasks = load_tasks()
     
@@ -355,6 +272,24 @@ def toggle_task(task_id: int) -> Optional[Dict]:
             if task["completed"]:
                 # Task is now completed - record when it was completed
                 task["completed_at"] = datetime.now().isoformat()
+                
+                # If this is a recurring task, create the next instance
+                if task.get("recurrence"):
+                    # Find the template (could be this task if it's a template, or find parent)
+                    template = task
+                    if not task.get("is_recurring_template", False):
+                        parent_id = task.get("parent_task_id")
+                        if parent_id:
+                            for t in tasks:
+                                if t["id"] == parent_id and t.get("is_recurring_template", False):
+                                    template = t
+                                    break
+                    
+                    # Create next instance
+                    if template.get("is_recurring_template", False):
+                        # Update template's due_date to this task's due_date for next calculation
+                        template["due_date"] = task.get("due_date", template.get("due_date", ""))
+                        _create_next_recurring_instance(template, tasks)
             else:
                 # Task is now incomplete - clear completion timestamp
                 task["completed_at"] = None
@@ -371,31 +306,11 @@ def delete_task(task_id: int) -> bool:
     """
     Delete a task from the system permanently.
     
-    This function removes a task from storage. The deletion is permanent
-    and cannot be undone. The task ID is not reused (to maintain referential
-    integrity with any external references).
-    
     Args:
-        task_id: ID of task to delete (required)
+        task_id: ID of task to delete
     
     Returns:
-        bool: True if task was successfully deleted, False if task not found
-    
-    Side Effects:
-        - Loads tasks from storage
-        - Removes task with matching ID from the list
-        - Saves updated task list to tasks.json (only if task was found)
-    
-    Deletion Strategy:
-        Uses list comprehension to filter out the task with matching ID.
-        Compares list length before and after to determine if deletion occurred.
-    
-    Example:
-        >>> delete_task(1)
-        True  # Task deleted successfully
-        
-        >>> delete_task(999)
-        False  # Task not found
+        True if task was deleted, False if not found
     """
     tasks = load_tasks()
     
@@ -420,20 +335,7 @@ def delete_task(task_id: int) -> bool:
 
 @eel.expose
 def search_tasks(query: str):
-    """
-    Search tasks by title or description.
-    
-    Args:
-        query: Search query string (case-insensitive)
-    
-    Returns:
-        List[Dict]: Tasks matching the search query
-    
-    Search Logic:
-        - Searches in task title
-        - Searches in task description
-        - Case-insensitive matching
-    """
+    """Search tasks by title or description (case-insensitive)."""
     tasks = load_tasks()
     query_lower = query.lower()
     
@@ -449,22 +351,7 @@ def search_tasks(query: str):
 @eel.expose
 def filter_tasks(priority: str = None, 
                 completed: bool = None, due_date: str = None, goal_id: int = None):
-    """
-    Filter tasks by various criteria.
-    
-    Args:
-        priority: Filter by priority level (optional)
-        completed: Filter by completion status (optional)
-        due_date: Filter by due date (optional)
-        goal_id: Filter by linked goal ID (optional)
-    
-    Returns:
-        List[Dict]: Tasks matching all provided filters
-    
-    Filter Logic:
-        - All filters are ANDed together (must match all)
-        - None values mean "don't filter by this criteria"
-    """
+    """Filter tasks by priority, completion status, due date, or goal ID."""
     tasks = load_tasks()
     filtered = tasks
     
@@ -479,4 +366,194 @@ def filter_tasks(priority: str = None,
         filtered = [task for task in filtered if task.get("goal_id") == goal_id]
     
     return filtered
+
+# ============================================
+# RECURRING TASKS
+# ============================================
+
+def _create_next_recurring_instance(template_task: Dict, tasks: List[Dict]) -> Optional[Dict]:
+    """
+    Create the next instance of a recurring task.
+    
+    Args:
+        template_task: The recurring task template
+        tasks: List of all tasks (modified in place)
+    
+    Returns:
+        Newly created task instance, or None if recurrence has ended
+    """
+    recurrence = template_task.get("recurrence")
+    if not recurrence:
+        return None
+    
+    # Check if recurrence has ended
+    recurrence_end_date = template_task.get("recurrence_end_date")
+    if recurrence_end_date:
+        try:
+            end_date = datetime.strptime(recurrence_end_date, "%Y-%m-%d")
+            if datetime.now().date() > end_date.date():
+                return None  # Recurrence has ended
+        except ValueError:
+            pass  # Invalid date format, continue anyway
+    
+    # Get the last instance's due_date or use template's due_date
+    last_due_date = template_task.get("due_date")
+    if not last_due_date:
+        return None  # Can't create instance without a due date
+    
+    try:
+        last_date = datetime.strptime(last_due_date, "%Y-%m-%d")
+    except ValueError:
+        return None  # Invalid date format
+    
+    # Calculate next due date based on recurrence type
+    if recurrence == "daily":
+        next_date = last_date + timedelta(days=1)
+    elif recurrence == "weekly":
+        next_date = last_date + timedelta(weeks=1)
+    elif recurrence == "monthly":
+        # Add one month (approximate - uses 30 days)
+        next_date = last_date + timedelta(days=30)
+    elif recurrence == "yearly":
+        next_date = last_date + timedelta(days=365)
+    else:
+        return None  # Unknown recurrence type
+    
+    # Check if next date exceeds recurrence_end_date
+    if recurrence_end_date:
+        try:
+            end_date = datetime.strptime(recurrence_end_date, "%Y-%m-%d")
+            if next_date.date() > end_date.date():
+                return None  # Would exceed end date
+        except ValueError:
+            pass
+    
+    # Create new task instance
+    new_instance = {
+        "id": len(tasks) + 1,
+        "title": template_task["title"],
+        "description": template_task.get("description", ""),
+        "priority": template_task.get("priority", "Next"),
+        "due_date": next_date.strftime("%Y-%m-%d"),
+        "completed": False,
+        "created_at": datetime.now().isoformat(),
+        "completed_at": None,
+        "recurrence": recurrence,
+        "is_recurring_template": False,
+        "parent_task_id": template_task["id"] if template_task.get("is_recurring_template") else template_task.get("parent_task_id")
+    }
+    
+    # Copy optional fields
+    if "goal_id" in template_task:
+        new_instance["goal_id"] = template_task["goal_id"]
+    if "time_spent" in template_task:
+        new_instance["time_spent"] = template_task["time_spent"]
+    if recurrence_end_date:
+        new_instance["recurrence_end_date"] = recurrence_end_date
+    
+    tasks.append(new_instance)
+    save_tasks(tasks)
+    
+    return new_instance
+
+def _check_and_create_recurring_instances(tasks: List[Dict]) -> List[Dict]:
+    """
+    Check for recurring tasks and create missing instances up to today.
+    
+    Args:
+        tasks: List of all tasks
+    
+    Returns:
+        Updated tasks list
+    """
+    today = datetime.now().date()
+    updated = False
+    
+    # Find all recurring templates
+    templates = [t for t in tasks if t.get("is_recurring_template", False)]
+    
+    for template in templates:
+        recurrence = template.get("recurrence")
+        if not recurrence:
+            continue
+        
+        # Find the most recent instance for this template
+        instances = [
+            t for t in tasks 
+            if t.get("parent_task_id") == template["id"] or 
+               (t.get("is_recurring_template", False) and t["id"] == template["id"])
+        ]
+        
+        # Get the latest due_date from instances
+        latest_due_date = None
+        if instances:
+            due_dates = [t.get("due_date") for t in instances if t.get("due_date")]
+            if due_dates:
+                try:
+                    latest_due_date = max([datetime.strptime(d, "%Y-%m-%d") for d in due_dates])
+                except ValueError:
+                    pass
+        
+        # If no instances, use template's due_date
+        if not latest_due_date and template.get("due_date"):
+            try:
+                latest_due_date = datetime.strptime(template["due_date"], "%Y-%m-%d")
+            except ValueError:
+                continue
+        
+        if not latest_due_date:
+            continue
+        
+        # Create instances up to today (or a few days ahead for daily tasks)
+        while latest_due_date.date() < today:
+            next_instance = _create_next_recurring_instance(template, tasks)
+            if not next_instance:
+                break  # Recurrence ended or error
+            
+            # Update latest_due_date for next iteration
+            try:
+                latest_due_date = datetime.strptime(next_instance["due_date"], "%Y-%m-%d")
+            except ValueError:
+                break
+            updated = True
+    
+    return tasks
+
+@eel.expose
+def create_next_recurring_instance(template_task_id: int) -> Optional[Dict]:
+    """
+    Manually create the next instance of a recurring task.
+    
+    Args:
+        template_task_id: ID of the recurring task template
+    
+    Returns:
+        Newly created task instance, or None if error
+    """
+    tasks = load_tasks()
+    
+    # Find the template (could be the template itself or an instance)
+    template = None
+    for task in tasks:
+        if task["id"] == template_task_id:
+            template = task
+            break
+    
+    if not template:
+        return None
+    
+    # If this is an instance, find the template
+    if not template.get("is_recurring_template", False):
+        parent_id = template.get("parent_task_id")
+        if parent_id:
+            for task in tasks:
+                if task["id"] == parent_id and task.get("is_recurring_template", False):
+                    template = task
+                    break
+    
+    if not template.get("is_recurring_template", False):
+        return None
+    
+    # Create next instance
+    return _create_next_recurring_instance(template, tasks)
 

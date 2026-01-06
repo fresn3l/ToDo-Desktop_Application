@@ -1,15 +1,8 @@
 """
 Journal Module
 
-This module handles journal entry creation, storage, and retrieval.
-Journal entries are stored in a hierarchical folder structure:
-- Main folder: ~/Library/Application Support/ToDo/Journal/
-- Yearly subfolders: YYYY/
-- Monthly subfolders: YYYY/MM/
-- Weekly subfolders: YYYY/MM/Week_XX/
-- Individual entries: YYYY/MM/Week_XX/entry_YYYY-MM-DD_HH-MM-SS.json
-
-All functions decorated with @eel.expose are callable from JavaScript.
+Handles journal entry creation, storage, and retrieval.
+Entries are stored in a hierarchical folder structure by year/month/week.
 """
 
 import eel

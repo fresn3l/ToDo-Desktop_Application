@@ -55,9 +55,13 @@ export async function handleAddTask(e) {
     const dueDate = document.getElementById('taskDueDate').value;
     const goalSelect = document.getElementById('taskGoal');
     const timeSpentInput = document.getElementById('taskTimeSpent');
+    const recurrenceSelect = document.getElementById('taskRecurrence');
+    const recurrenceEndDateInput = document.getElementById('taskRecurrenceEndDate');
     
     const goalId = goalSelect.value ? parseInt(goalSelect.value) : null;
     const timeSpent = timeSpentInput && timeSpentInput.value ? parseFloat(timeSpentInput.value) : null;
+    const recurrence = recurrenceSelect.value || null;
+    const recurrenceEndDate = recurrenceEndDateInput && recurrenceEndDateInput.value ? recurrenceEndDateInput.value : null;
     
     if (timeSpent !== null && (isNaN(timeSpent) || timeSpent < 0)) {
         utils.showErrorFeedback('Time spent must be a non-negative number');
@@ -90,14 +94,14 @@ export async function handleAddTask(e) {
     
     try {
         if (isEditMode) {
-            const result = await eel.update_task(taskId, title, description, priority, dueDate, goalId, timeSpent)();
+            const result = await eel.update_task(taskId, title, description, priority, dueDate, goalId, timeSpent, recurrence, recurrenceEndDate)();
             if (!result) {
                 throw new Error('Task update failed - task not found');
             }
             state.clearEditingTaskId();
             utils.showSuccessFeedback('Task updated successfully!');
         } else {
-            await eel.add_task(title, description, priority, dueDate, goalId, timeSpent)();
+            await eel.add_task(title, description, priority, dueDate, goalId, timeSpent, recurrence, recurrenceEndDate)();
             utils.showSuccessFeedback('Task added successfully!');
         }
         
@@ -205,6 +209,54 @@ export function editTask(taskId) {
         timeSpentInput.value = task.time_spent || '';
     }
     
+    // Populate recurrence fields
+    const recurrenceSelect = document.getElementById('taskRecurrence');
+    const recurrenceEndDateInput = document.getElementById('taskRecurrenceEndDate');
+    const recurrenceEndDateGroup = document.getElementById('recurrenceEndDateGroup');
+    
+    if (recurrenceSelect) {
+        // For editing, check if this is a template or instance
+        // If it's an instance, we need to find the template to get recurrence settings
+        let recurrenceValue = task.recurrence || '';
+        let recurrenceEndDateValue = task.recurrence_end_date || '';
+        
+        // If this is an instance (not a template), find the template
+        if (!task.is_recurring_template && task.parent_task_id) {
+            const tasks = state.getTasks();
+            const template = tasks.find(t => t.id === task.parent_task_id && t.is_recurring_template);
+            if (template) {
+                recurrenceValue = template.recurrence || '';
+                recurrenceEndDateValue = template.recurrence_end_date || '';
+            }
+        }
+        
+        recurrenceSelect.value = recurrenceValue;
+        
+        // Show/hide recurrence end date group based on recurrence selection
+        if (recurrenceSelect.value) {
+            if (recurrenceEndDateGroup) {
+                recurrenceEndDateGroup.style.display = 'block';
+            }
+        } else {
+            if (recurrenceEndDateGroup) {
+                recurrenceEndDateGroup.style.display = 'none';
+            }
+        }
+    }
+    
+    if (recurrenceEndDateInput) {
+        // Get recurrence end date from template if this is an instance
+        let recurrenceEndDateValue = task.recurrence_end_date || '';
+        if (!task.is_recurring_template && task.parent_task_id) {
+            const tasks = state.getTasks();
+            const template = tasks.find(t => t.id === task.parent_task_id && t.is_recurring_template);
+            if (template) {
+                recurrenceEndDateValue = template.recurrence_end_date || '';
+            }
+        }
+        recurrenceEndDateInput.value = recurrenceEndDateValue;
+    }
+    
     const formContainer = document.getElementById('taskFormContainer');
     const formTitle = formContainer ? formContainer.querySelector('h2') : null;
     if (formTitle) {
@@ -247,13 +299,18 @@ export function editTask(taskId) {
  */
 export function renderTasks() {
     const container = document.getElementById('tasksContainer');
-    if (!container) return;
+    if (!container) {
+        console.warn('Tasks container not found');
+        return;
+    }
     
     const tasks = state.getTasks();
     const currentFilter = state.getCurrentFilter();
     const currentSort = state.getCurrentSort();
     const showCompleted = state.getShowCompleted();
     const goals = state.getGoals();
+    
+    console.log('Rendering tasks:', tasks.length, 'total tasks');
     
     let filteredTasks = [...tasks];
     
@@ -281,8 +338,10 @@ export function renderTasks() {
         filteredTasks = filteredTasks.filter(task => !task.completed);
     }
     
-    // Filter out not_completed tasks
+    // Filter out not_completed tasks (tasks that missed deadline by >24 hours)
     filteredTasks = filteredTasks.filter(task => !task.not_completed);
+    
+    console.log('After filtering:', filteredTasks.length, 'tasks to display');
     
     // Apply sort-specific filters
     if (currentSort === 'due-today') {
@@ -572,6 +631,13 @@ function createTaskHTML(task, goals) {
     const isOverdue = task.due_date && !task.completed && new Date(task.due_date) < new Date();
     const dueDateFormatted = task.due_date ? new Date(task.due_date).toLocaleDateString() : '';
     const goal = goals.find(g => g.id === task.goal_id);
+    const isRecurring = task.recurrence && task.recurrence !== '';
+    const recurrenceLabel = isRecurring ? {
+        'daily': '🔄 Daily',
+        'weekly': '🔄 Weekly',
+        'monthly': '🔄 Monthly',
+        'yearly': '🔄 Yearly'
+    }[task.recurrence] || '🔄 Recurring' : '';
     
     return `
         <div class="task-item ${task.completed ? 'completed' : ''}">
@@ -583,6 +649,7 @@ function createTaskHTML(task, goals) {
                     <div class="task-meta">
                         <span class="task-badge priority-${task.priority}">${task.priority}</span>
                         ${goal ? `<span class="goal-badge">🎯 ${utils.escapeHtml(goal.title)}</span>` : ''}
+                        ${isRecurring ? `<span class="recurrence-badge">${recurrenceLabel}</span>` : ''}
                         ${task.due_date ? `<span class="due-date ${isOverdue ? 'overdue' : ''}">📅 ${dueDateFormatted}${isOverdue ? ' (Overdue!)' : ''}</span>` : ''}
                     </div>
                     <div class="task-actions">
@@ -662,6 +729,30 @@ export function updateGoalSelect() {
     const goals = state.getGoals();
     
     select.innerHTML = '<option value="">No Goal</option>';
+    
+    goals.forEach(goal => {
+        const option = document.createElement('option');
+        option.value = goal.id;
+        option.textContent = goal.title;
+        select.appendChild(option);
+    });
+    
+    if (currentValue && goals.find(g => g.id === parseInt(currentValue))) {
+        select.value = currentValue;
+    }
+}
+
+/**
+ * Update goal filter dropdown in filter controls
+ */
+export function updateGoalFilter() {
+    const select = document.getElementById('filterGoal');
+    if (!select) return;
+    
+    const currentValue = select.value;
+    const goals = state.getGoals();
+    
+    select.innerHTML = '<option value="">All Goals</option>';
     
     goals.forEach(goal => {
         const option = document.createElement('option');

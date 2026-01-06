@@ -34,37 +34,49 @@ import { setupNotificationSettings } from './js/notifications.js';
  */
 async function init() {
     try {
-        // Wait a bit to ensure DOM is fully ready
-        await new Promise(resolve => setTimeout(resolve, 100));
+        console.log('Starting initialization...');
         
+        // Wait a bit to ensure DOM is fully ready
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        console.log('Setting up event listeners...');
         // Setup event listeners first
         setupEventListeners();
         
+        console.log('Setting up tabs...');
         // Setup tab navigation
         setupTabs();
         
+        console.log('Setting up journal...');
         // Setup journal
         setupJournal();
         
+        console.log('Setting up notification settings...');
         // Setup notification settings
         setupNotificationSettings();
         
+        console.log('Loading initial data...');
         // Load initial data
         await Promise.all([
             loadTasks(),
             loadGoals()
         ]);
         
+        console.log('Updating goal dropdowns...');
         // Update goal dropdowns after both tasks and goals are loaded
         updateGoalSelect();
         updateGoalFilter();
         
+        console.log('Rendering tasks and goals...');
         // Ensure tasks and goals are rendered
         renderTasks();
         await renderGoals();
         
+        console.log('Switching to tasks tab...');
         // Switch to tasks tab by default
         await switchTab('tasks');
+        
+        console.log('Initialization complete');
         
         // Animate elements on load
         setTimeout(() => {
@@ -75,6 +87,7 @@ async function init() {
         
     } catch (error) {
         console.error('Error initializing application:', error);
+        console.error('Stack trace:', error.stack);
         if (utils && utils.showErrorFeedback) {
             utils.showErrorFeedback('Failed to initialize application. Please refresh the page.');
         } else {

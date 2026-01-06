@@ -1,26 +1,8 @@
 """
 Build Script for Creating Mac Application
 
-This script uses PyInstaller to create a standalone Mac .app bundle.
-
-Usage:
-    python build_app.py
-
-IMPORTANT: Make sure you're in your virtual environment before running!
-    source venv/bin/activate  # or source .venv/bin/activate
-
-The resulting .app will be in the 'dist' folder.
-
-What this script does:
-1. Verifies all dependencies are installed
-2. Cleans previous build artifacts
-3. Runs PyInstaller with optimized settings for Mac
-4. Creates a standalone .app bundle that includes:
-   - Python interpreter
-   - All dependencies (Eel, etc.)
-   - Your application code
-   - Web files (HTML, CSS, JavaScript)
-5. The app can run without Python installed!
+Uses PyInstaller to create a standalone macOS .app bundle.
+The resulting app will be in the 'dist' folder.
 """
 
 import PyInstaller.__main__

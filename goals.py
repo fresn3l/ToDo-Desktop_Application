@@ -1,12 +1,7 @@
 """
 Goals Management Module
 
-This module handles all goal-related operations:
-- Creating, reading, updating, deleting goals
-- Tracking goal progress
-- Linking/unlinking tasks to goals
-
-All functions decorated with @eel.expose are callable from JavaScript.
+Handles goal CRUD operations, progress tracking, and linking tasks/habits to goals.
 """
 
 import eel

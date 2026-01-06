@@ -1,69 +1,8 @@
 """
 Data Storage Module
 
-This module provides a centralized, robust data persistence layer for the ToDo
-application. It handles all file I/O operations for tasks, habits, and goals
-with proper error handling, file locking, and atomic writes.
-
-ARCHITECTURE:
--------------
-This module implements a file-based storage system using JSON files. It provides
-a clean abstraction layer that other modules use for data persistence, making it
-easy to switch storage mechanisms (e.g., to a database) in the future.
-
-KEY FEATURES:
--------------
-1. **Centralized Storage**: Single source of truth for all data file paths
-2. **Cross-App Compatibility**: Shared storage between ToDo app and Habit Tracker app
-3. **Data Persistence**: Files stored in Application Support folder (survives app rebuilds)
-4. **File Locking**: Prevents data corruption when multiple processes access files
-5. **Atomic Writes**: Writes to temp file then renames (prevents partial writes)
-6. **Error Handling**: Graceful handling of missing/corrupted files
-7. **Platform Support**: Works on macOS, Windows, and Linux
-
-STORAGE LOCATIONS:
-------------------
-All data is stored in platform-specific Application Support directories:
-- macOS: ~/Library/Application Support/ToDo/
-- Windows: ~/AppData/Local/ToDo/
-- Linux: ~/.local/share/ToDo/
-
-DATA FILES:
------------
-- tasks.json: All tasks from ToDo app
-- habits.json: All habits from Habit Tracker app
-- goals.json: Shared goals between both apps
-
-FILE LOCKING:
--------------
-Uses fcntl (Unix/macOS) for file locking to prevent race conditions when:
-- Both apps access shared files simultaneously
-- Multiple instances of the same app run concurrently
-- File operations overlap
-
-ATOMIC WRITES:
---------------
-All write operations use atomic writes:
-1. Write to temporary file (.tmp extension)
-2. Acquire exclusive lock during write
-3. Rename temp file to final filename (atomic operation)
-4. Release lock
-
-This ensures data integrity even if the app crashes during a write operation.
-
-ERROR HANDLING:
----------------
-- Missing files: Returns empty list/dict (assumes first run)
-- Corrupted JSON: Returns empty list/dict (logs error, doesn't crash)
-- Permission errors: Logs error, returns empty data
-- Lock timeouts: Handled gracefully (may need retry logic in future)
-
-USAGE:
-------
-Other modules import and use these functions:
-    from data_storage import load_tasks, save_tasks, load_goals, save_goals
-
-This keeps the storage implementation details hidden from business logic.
+Centralized data persistence layer with file locking and atomic writes.
+Provides shared storage between ToDo and Habit Tracker applications.
 """
 
 import json
@@ -145,7 +84,6 @@ DATA_DIR = get_data_directory()
 DATA_FILE = str(DATA_DIR / 'tasks.json')  # For ToDo app
 HABITS_FILE = str(DATA_DIR / 'habits.json')  # For Habit Tracker app
 GOALS_FILE = str(DATA_DIR / 'goals.json')  # Shared between both apps
-CATEGORIES_FILE = str(DATA_DIR / 'categories.json')
 
 # ============================================
 # TASK DATA OPERATIONS
@@ -279,32 +217,4 @@ def load_habits() -> List[Dict]:
             return []
     return []
 
-# ============================================
-# CATEGORY DATA OPERATIONS
-# ============================================
-
-def load_categories() -> List[str]:
-    """
-    Load categories from local JSON file.
-    
-    Returns:
-        List[str]: List of category names. Returns empty list if file doesn't exist or is invalid.
-    """
-    if os.path.exists(CATEGORIES_FILE):
-        try:
-            with open(CATEGORIES_FILE, 'r') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return []
-    return []
-
-def save_categories(categories: List[str]):
-    """
-    Save categories to local JSON file.
-    
-    Args:
-        categories: List of category names to save
-    """
-    with open(CATEGORIES_FILE, 'w') as f:
-        json.dump(categories, f, indent=2)
 

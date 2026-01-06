@@ -1,17 +1,8 @@
 """
 Notifications Module
 
-This module handles sending email notifications for tasks due within 24 hours.
-It provides a free, local solution for iPhone notifications via email.
-
-Features:
-- Checks tasks due within 24 hours
-- Sends email notifications with task details
-- Tracks sent notifications to avoid duplicates
-- Works with any email provider (Gmail, iCloud, etc.)
-- Completely free and local
-
-All functions decorated with @eel.expose are callable from JavaScript.
+Handles email notifications for tasks due within 24 hours.
+Supports custom SMTP configuration and notification scheduling.
 """
 
 import eel
