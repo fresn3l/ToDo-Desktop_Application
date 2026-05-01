@@ -1,65 +1,35 @@
-/* ============================================
-   GLOBAL RESET & BASE STYLES
-   ============================================ */
+/* Journal app — subset of original design system */
 
-/* Universal reset - removes default margins, padding, and sets box-sizing */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* ============================================
-   CSS CUSTOM PROPERTIES (VARIABLES)
-   ============================================ */
-/* These variables define the design system colors, spacing, and effects */
-
 :root {
-    /* Mountain/Colorado Skiing Color Palette */
-    --primary: #3b82f6;              /* Alpine sky blue - primary brand color */
-    --primary-dark: #2563eb;         /* Deeper mountain blue */
-    --primary-light: #93c5fd;        /* Light sky blue */
-    --secondary: #10b981;            /* Evergreen green - secondary brand color */
-    --accent: #f59e0b;               /* Warm fire accent - lodge/cabin */
-    --success: #22c55e;              /* Fresh snow green - success state */
-    --warning: #fbbf24;              /* Golden hour - warning state */
-    --danger: #ef4444;               /* Alpine red - error/danger */
-    
-    /* Mountain Background Colors */
-    --bg-primary: #1e293b;           /* Deep mountain blue - main dark background */
-    --bg-secondary: #334155;         /* Mountain gray-blue - secondary dark background */
-    --bg-tertiary: #475569;          /* Lighter mountain - tertiary dark background */
-    --bg-card: rgba(59, 130, 246, 0.08);  /* Glassmorphism card with alpine tint */
-    
-    /* Text Colors - light on dark mountain */
-    --text-primary: #f1f5f9;         /* Fresh snow white - primary text color */
-    --text-secondary: #cbd5e1;      /* Soft gray - secondary text color */
-    --text-muted: #94a3b8;          /* Muted gray - dim text color */
-    
-    /* Border & Effects - mountain themed */
-    --border-color: rgba(59, 130, 246, 0.2);  /* Alpine blue border */
-    
-    /* Shadow System */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --primary: #3b82f6;
+    --primary-dark: #2563eb;
+    --secondary: #10b981;
+    --accent: #f59e0b;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --bg-primary: #1e293b;
+    --bg-secondary: #334155;
+    --bg-card: rgba(59, 130, 246, 0.08);
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border-color: rgba(59, 130, 246, 0.2);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
-    
-    /* Border Radius System */
-    --radius-sm: 8px;                /* Small radius for buttons, badges */
-    --radius-md: 12px;               /* Medium radius for cards, inputs */
-    --radius-lg: 16px;               /* Large radius for containers */
-    --radius-xl: 24px;               /* Extra large radius for main container */
-    
-    /* Transition System */
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);  /* Smooth easing function */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ============================================
-   BODY & PAGE BACKGROUND
-   ============================================ */
-
-/* Main body styling - sets up the page background and typography */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #1e293b 100%);
@@ -67,11 +37,9 @@ body {
     padding: 20px;
     color: var(--text-primary);
     line-height: 1.6;
-    -webkit-font-smoothing: antialiased;  /* Better font rendering on Mac */
-    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* Animated gradient overlay on body - mountain/alpine depth effect */
 body::before {
     content: '';
     position: fixed;
@@ -79,35 +47,28 @@ body::before {
     left: 0;
     right: 0;
     bottom: 0;
-    background: 
+    background:
         radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.12) 0%, transparent 50%),
-        radial-gradient(circle at 40% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 50%);
+        radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.12) 0%, transparent 50%);
     pointer-events: none;
     z-index: 0;
 }
 
-/* ============================================
-   MAIN CONTAINER
-   ============================================ */
-
-/* Main app container - glassmorphism effect with backdrop blur */
 .container {
     max-width: 1400px;
     margin: 0 auto;
     background: var(--bg-card);
-    backdrop-filter: blur(20px);        /* Glassmorphism blur effect */
-    -webkit-backdrop-filter: blur(20px); /* Safari support */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-xl);
     overflow: hidden;
     position: relative;
     z-index: 1;
-    animation: fadeIn 0.6s ease-out;    /* Entrance animation */
+    animation: fadeIn 0.6s ease-out;
 }
 
-/* Container entrance animation */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -119,20 +80,14 @@ body::before {
     }
 }
 
-/* ============================================
-   HEADER SECTION
-   ============================================ */
-
-/* Header bar - contains app title and tab navigation */
 header {
     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     color: white;
-    padding: 40px 40px 30px;
+    padding: 40px 40px 32px;
     position: relative;
     overflow: hidden;
 }
 
-/* Decorative gradient circle in header background */
 header::before {
     content: '';
     position: absolute;
@@ -142,94 +97,35 @@ header::before {
     height: 300px;
     background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
     border-radius: 50%;
-    pointer-events: none; /* Allow clicks to pass through */
+    pointer-events: none;
     z-index: 0;
 }
 
-/* App title/logo styling */
 header h1 {
-    font-size: clamp(2rem, 5vw, 3rem);  /* Responsive font size */
-    margin-bottom: 24px;
+    font-size: clamp(2rem, 5vw, 3rem);
+    margin-bottom: 8px;
     font-weight: 700;
     letter-spacing: -0.02em;
     position: relative;
     z-index: 1;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-/* ============================================
-   TAB NAVIGATION
-   ============================================ */
-
-/* Tab button container */
-.tabs {
-    display: flex;
-    gap: 12px;
-    margin-top: 24px;
-    position: relative;
-    z-index: 2; /* Ensure tabs are above header::before */
-}
-
-/* Individual tab button */
-.tab-button {
-    padding: 12px 24px;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: var(--radius-md);
-    cursor: pointer;
+.header-subtitle {
     font-size: 15px;
-    font-weight: 600;
-    transition: var(--transition);
+    opacity: 0.9;
     position: relative;
-    overflow: hidden;
-    z-index: 1; /* Ensure buttons are clickable */
-    pointer-events: auto; /* Explicitly enable pointer events */
+    z-index: 1;
 }
 
-/* Shimmer effect on tab button hover */
-.tab-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s;
-}
-
-.tab-button:hover::before {
-    left: 100%;
-}
-
-/* Tab button hover state */
-.tab-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-/* Active tab button styling */
-.tab-button.active {
-    background: white;
-    color: var(--primary);
-    border-color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* ============================================
-   TAB CONTENT
-   ============================================ */
-
-/* Tab content container - hidden by default */
 .tab-content {
-    display: none;
+    display: block;
     animation: slideIn 0.4s ease-out;
 }
 
-/* Tab content slide-in animation */
+.tab-content.active {
+    display: block;
+}
+
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -241,236 +137,6 @@ header h1 {
     }
 }
 
-/* Active tab content - visible */
-.tab-content.active {
-    display: block;
-}
-
-/* ============================================
-   FILTER & SEARCH CONTROLS
-   ============================================ */
-
-/* Filter controls bar - contains search and filter dropdowns */
-.header-controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-    padding: 24px 40px;
-    background: rgba(30, 41, 59, 0.5);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border-color);
-}
-
-/* Search input and filter select styling */
-.search-input, .filter-select {
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    color: var(--text-primary);
-    transition: var(--transition);
-    backdrop-filter: blur(10px);
-}
-
-/* Search input placeholder color */
-.search-input::placeholder {
-    color: var(--text-muted);
-}
-
-/* Focus state for search and filters */
-.search-input:focus, .filter-select:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* Search input spans full width */
-.search-input {
-    grid-column: 1 / -1;
-}
-
-/* Toggle button for showing/hiding completed tasks */
-.btn-toggle {
-    padding: 12px 20px;
-    background: rgba(59, 130, 246, 0.2);
-    color: var(--text-primary);
-    border: 1px solid var(--primary);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    transition: var(--transition);
-    backdrop-filter: blur(10px);
-}
-
-.btn-toggle:hover {
-    background: rgba(59, 130, 246, 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-/* ============================================
-   FORM SECTIONS
-   ============================================ */
-
-/* Task and goal form containers */
-.task-form, .goals-form {
-    padding: 40px;
-    background: rgba(30, 41, 59, 0.3);
-    border-bottom: 1px solid var(--border-color);
-    backdrop-filter: blur(10px);
-    animation: slideDown 0.3s ease-out;
-}
-
-/* Animation for form appearing */
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Form section headings */
-.task-form h2, .goals-form h2 {
-    margin-bottom: 24px;
-    color: var(--text-primary);
-    font-size: 24px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-/* Decorative gradient bar before form headings */
-.task-form h2::before, .goals-form h2::before {
-    content: '';
-    width: 4px;
-    height: 24px;
-    background: linear-gradient(180deg, var(--primary), var(--secondary));
-    border-radius: 2px;
-}
-
-/* Form container styling */
-#taskForm, #goalForm {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-/* Title input fields */
-#taskTitle, #goalTitle {
-    padding: 16px 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid var(--border-color);
-    border-radius: var(--radius-md);
-    font-size: 16px;
-    color: var(--text-primary);
-    transition: var(--transition);
-    backdrop-filter: blur(10px);
-}
-
-/* Title input placeholder */
-#taskTitle::placeholder, #goalTitle::placeholder {
-    color: var(--text-muted);
-}
-
-/* Title input focus state */
-#taskTitle:focus, #goalTitle:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-}
-
-/* Description textarea fields */
-#taskDescription, #goalDescription {
-    padding: 16px 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid var(--border-color);
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    min-height: 100px;
-    resize: vertical;
-    font-family: inherit;
-    color: var(--text-primary);
-    transition: var(--transition);
-    backdrop-filter: blur(10px);
-}
-
-/* Description placeholder */
-#taskDescription::placeholder, #goalDescription::placeholder {
-    color: var(--text-muted);
-}
-
-/* Description focus state */
-#taskDescription:focus, #goalDescription:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-}
-
-/* ============================================
-   FORM LAYOUT
-   ============================================ */
-
-/* Form row - contains multiple form fields side by side */
-.form-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-}
-
-/* Form group - contains label and input */
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-/* Form label styling */
-.form-group label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Form select and date inputs */
-.form-group select,
-.form-group input[type="date"] {
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid var(--border-color);
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    color: var(--text-primary);
-    transition: var(--transition);
-    backdrop-filter: blur(10px);
-    cursor: pointer;
-}
-
-/* Form select and date focus state */
-.form-group select:focus,
-.form-group input[type="date"]:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* ============================================
-   BUTTONS
-   ============================================ */
-
-/* Primary action button (Add Task, Add Goal) */
 .btn-primary {
     padding: 16px 32px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
@@ -486,26 +152,6 @@ header h1 {
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
-/* Ripple effect on primary button */
-.btn-primary::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-.btn-primary:hover::before {
-    width: 300px;
-    height: 300px;
-}
-
-/* Primary button hover state */
 .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
@@ -515,333 +161,32 @@ header h1 {
     transform: translateY(0);
 }
 
-/* ============================================
-   TASKS & GOALS SECTIONS
-   ============================================ */
-
-/* Add task button container - holds the button to show/hide the form */
-.add-task-button-container {
-    padding: 20px 40px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-/* Add task button - styled to be prominent */
-.btn-add-task {
-    width: 100%;
-    max-width: 300px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 16px;
-    padding: 14px 28px;
-}
-
-/* Icon in add task button */
-.btn-icon {
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1;
-}
-
-/* Tasks and goals display sections */
-.tasks-section, .goals-section {
-    padding: 40px;
-}
-
-/* Section headings */
-.tasks-section h2, .goals-section h2 {
-    margin-bottom: 24px;
+.btn-secondary {
+    padding: 12px 32px;
+    background: rgba(100, 116, 139, 0.2);
     color: var(--text-primary);
-    font-size: 24px;
-    font-weight: 700;
-}
-
-/* Tasks container - vertical list of task items */
-.tasks-container {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-/* ============================================
-   TASK ITEMS
-   ============================================ */
-
-/* Category tasks row - displays tasks in a horizontal row */
-.category-tasks-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-/* Individual task card/item - compact size */
-.task-item {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    padding: 8px 12px;
-    transition: var(--transition);
-    position: relative;
-    overflow: hidden;
-    flex: 0 0 auto;
-    min-width: 200px;
-    max-width: 300px;
-}
-
-/* Left border accent on task item hover */
-.task-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 4px;
-    height: 100%;
-    background: linear-gradient(180deg, var(--primary), var(--secondary));
-    opacity: 0;
-    transition: var(--transition);
-}
-
-.task-item:hover::before {
-    opacity: 1;
-}
-
-/* Task item hover state */
-.task-item:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(59, 130, 246, 0.3);
-    transform: translateX(8px);
-    box-shadow: var(--shadow-lg);
-}
-
-/* Completed task styling */
-.task-item.completed {
-    opacity: 0.5;
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.task-item.completed .task-title {
-    text-decoration: line-through;
-    color: var(--text-muted);
-}
-
-/* Task header - contains checkbox and content - compact */
-.task-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-}
-
-/* Task completion checkbox - large / made double the size*/
-.task-checkbox {
-    width: 32px;
-    height: 32px;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    margin-top: 8px;
-    accent-color: var(--primary);
-    transition: var(--transition);
-    flex-shrink: 0;
-}
-
-.task-checkbox:hover {
-    transform: scale(1.1);
-}
-
-/* Task content area */
-.task-content {
-    flex: 1;
-    min-width: 0; /* Allow text to wrap */
-}
-
-/* Task title - smaller font */
-.task-title {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: var(--text-primary);
-    transition: var(--transition);
-    line-height: 1.3;
-}
-
-/* Task description text - smaller, hidden if too long */
-.task-description {
-    color: var(--text-secondary);
-    font-size: 11px;
-    margin-bottom: 6px;
-    line-height: 1.4;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-
-/* Task metadata container - badges, dates, etc. - compact */
-.task-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
-    margin-top: 6px;
-}
-
-/* ============================================
-   BADGES & LABELS
-   ============================================ */
-
-/* Base badge styling - compact */
-.task-badge {
-    padding: 2px 6px;
-    border-radius: 12px;
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
     transition: var(--transition);
 }
 
-.task-badge:hover {
-    transform: scale(1.05);
-}
-
-/* Priority badge - Now (highest priority) - Alpine red/urgent */
-.priority-Now {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.25));
-    color: #fca5a5;
-    border: 1px solid rgba(239, 68, 68, 0.4);
-}
-
-/* Priority badge - Next (medium priority) - Alpine sky blue */
-.priority-Next {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.25));
-    color: #93c5fd;
-    border: 1px solid rgba(59, 130, 246, 0.4);
-}
-
-/* Priority badge - Later (low priority) - Evergreen green */
-.priority-Later {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
-    color: #6ee7b7;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-/* Category badge */
-.category-badge {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
-    color: #93c5fd;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-/* Goal badge - shows linked goal on task */
-.goal-badge {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
-    color: #6ee7b7;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    padding: 2px 6px;
-    border-radius: 10px;
-}
-
-.recurrence-badge {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.2));
-    color: #c4b5fd;
-    border: 1px solid rgba(139, 92, 246, 0.3);
-    padding: 2px 6px;
-    border-radius: 10px;
-    font-size: 12px;
-    font-weight: 600;
-    font-size: 9px;
-    font-weight: 600;
-}
-
-/* Due date display - compact */
-.due-date {
-    color: var(--text-secondary);
-    font-size: 9px;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    padding: 2px 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-}
-
-/* Overdue date styling */
-.due-date.overdue {
-    color: #fca5a5;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-/* ============================================
-   ACTION BUTTONS
-   ============================================ */
-
-/* Task and goal action buttons container */
-.task-actions, .goal-actions {
-    display: flex;
-    gap: 4px;
-    margin-top: 6px;
-}
-
-/* Edit and delete buttons base styling - compact */
-.btn-edit, .btn-delete {
-    padding: 4px 8px;
-    border: none;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: 10px;
-    font-weight: 600;
-    transition: var(--transition);
-    position: relative;
-    overflow: hidden;
-}
-
-/* Edit button styling */
-.btn-edit {
-    background: rgba(59, 130, 246, 0.2);
-    color: #93c5fd;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.btn-edit:hover {
-    background: rgba(59, 130, 246, 0.3);
+.btn-secondary:hover {
+    background: rgba(100, 116, 139, 0.3);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-/* Delete button styling */
-.btn-delete {
-    background: rgba(239, 68, 68, 0.2);
-    color: #fca5a5;
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.btn-delete:hover {
-    background: rgba(239, 68, 68, 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
-
-/* ============================================
-   EMPTY STATES
-   ============================================ */
-
-/* Empty state - shown when no tasks/goals exist */
 .empty-state {
     text-align: center;
-    padding: 80px 20px;
+    padding: 48px 20px;
     color: var(--text-muted);
 }
 
 .empty-state h3 {
-    font-size: 24px;
-    margin-bottom: 12px;
+    font-size: 22px;
+    margin-bottom: 10px;
     color: var(--text-secondary);
 }
 
@@ -849,383 +194,6 @@ header h1 {
     font-size: 16px;
 }
 
-/* ============================================
-   CATEGORY MANAGEMENT
-   ============================================ */
-
-/* Category select wrapper - contains dropdown and new category input */
-.category-select-wrapper {
-    display: flex;
-    gap: 8px;
-    align-items: stretch;
-}
-
-.category-select-wrapper select {
-    flex: 1;
-}
-
-/* Small button for creating new category */
-.btn-small {
-    padding: 10px 16px;
-    background: rgba(59, 130, 246, 0.2);
-    color: #93c5fd;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-    transition: var(--transition);
-}
-
-.btn-small:hover {
-    background: rgba(59, 130, 246, 0.3);
-    transform: translateY(-2px);
-}
-
-/* New category input field */
-#newCategoryInput {
-    flex: 1;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 2px solid var(--border-color);
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    color: var(--text-primary);
-}
-
-#newCategoryInput:focus {
-    outline: none;
-    border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.08);
-}
-
-/* ============================================
-   GOALS SECTION
-   ============================================ */
-
-/* Goals container - grid layout for goal cards */
-.goals-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
-}
-
-/* Individual goal card */
-.goal-item {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    transition: var(--transition);
-    position: relative;
-    overflow: hidden;
-}
-
-/* Top border accent on goal item hover */
-.goal-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
-    opacity: 0;
-    transition: var(--transition);
-}
-
-.goal-item:hover::before {
-    opacity: 1;
-}
-
-/* Goal item hover state */
-.goal-item:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(16, 185, 129, 0.3);
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-}
-
-/* Goal title */
-.goal-title {
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 12px;
-    color: var(--text-primary);
-}
-
-/* Goal description */
-.goal-description {
-    color: var(--text-secondary);
-    font-size: 14px;
-    margin-bottom: 20px;
-    line-height: 1.6;
-}
-
-/* Goal progress section */
-.goal-progress {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border-color);
-}
-
-/* Progress bar container */
-.progress-bar {
-    width: 100%;
-    height: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-top: 12px;
-    position: relative;
-}
-
-/* Progress bar fill - animated gradient */
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 10px;
-    position: relative;
-    overflow: hidden;
-}
-
-/* Shimmer animation on progress bar */
-.progress-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-
-/* Progress text (e.g., "5 of 10 tasks completed") */
-.progress-text {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 8px;
-    font-weight: 600;
-}
-
-/* ============================================
-   TIME PROGRESS TRACKING
-   ============================================ */
-
-/* Time progress section - shows time spent vs time goal */
-.goal-time-progress {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border-color);
-}
-
-/* Time progress header - shows "Time Progress: Xh / Yh" */
-.time-progress-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.time-progress-label {
-    font-size: 12px;
-    color: var(--text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.time-progress-stats {
-    font-size: 14px;
-    color: var(--text-primary);
-    font-weight: 700;
-}
-
-/* Time progress bar - distinct styling from regular progress bar */
-.time-progress-bar {
-    margin-top: 12px;
-    height: 12px;
-    background: rgba(16, 185, 129, 0.1);  /* Subtle green tint for time tracking */
-}
-
-.time-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--secondary), #34d399, var(--secondary));
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 10px;
-    position: relative;
-    overflow: hidden;
-}
-
-/* Shimmer animation for time progress */
-.time-progress-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    animation: shimmer 2s infinite;
-}
-
-/* Time progress percentage text */
-.time-progress-percentage {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 8px;
-    font-weight: 600;
-    text-align: center;
-}
-
-/* ============================================
-   CATEGORY HEADERS
-   ============================================ */
-
-/* Category header - separates tasks by category */
-.category-header {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 24px 0 8px 0;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Decorative bar before category header */
-.category-header::before {
-    content: '';
-    width: 4px;
-    height: 20px;
-    background: linear-gradient(180deg, var(--primary), var(--secondary));
-    border-radius: 2px;
-}
-
-.category-header:first-child {
-    margin-top: 0;
-}
-
-/* ============================================
-   RESPONSIVE DESIGN
-   ============================================ */
-
-/* Tablet and smaller screens */
-@media (max-width: 768px) {
-    body {
-        padding: 10px;
-    }
-    
-    .container {
-        border-radius: var(--radius-lg);
-    }
-    
-    header {
-        padding: 24px 20px 20px;
-    }
-    
-    .header-controls {
-        grid-template-columns: 1fr;
-        padding: 20px;
-    }
-    
-    .task-form, .goals-form, .tasks-section, .goals-section {
-        padding: 24px 20px;
-    }
-    
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .goals-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .task-item {
-        padding: 20px;
-    }
-}
-
-/* Mobile phones */
-@media (max-width: 480px) {
-    header h1 {
-        font-size: 1.75rem;
-    }
-    
-    .tabs {
-        flex-direction: column;
-    }
-    
-    .tab-button {
-        width: 100%;
-    }
-}
-
-/* ============================================
-   SCROLLBAR STYLING
-   ============================================ */
-
-/* Custom scrollbar for webkit browsers */
-::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(59, 130, 246, 0.3);
-    border-radius: 10px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(59, 130, 246, 0.5);
-    background-clip: padding-box;
-}
-
-/* ============================================
-   TEXT SELECTION
-   ============================================ */
-
-/* Custom text selection color */
-::selection {
-    background: rgba(59, 130, 246, 0.3);
-    color: var(--text-primary);
-}
-
-/* ============================================
-   ACCESSIBILITY
-   ============================================ */
-
-/* Focus visible outline for keyboard navigation */
-*:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-}
-
-/* ============================================
-   LOADING STATES
-   ============================================ */
-
-/* Loading spinner animation */
 .loading-spinner {
     width: 40px;
     height: 40px;
@@ -1237,35 +205,16 @@ header h1 {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* ============================================
-   INTERACTIVE EFFECTS
-   ============================================ */
-
-/* Ripple effect for button clicks */
-.ripple {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(0);
-    animation: ripple-animation 0.6s ease-out;
-    pointer-events: none;
-}
-
-@keyframes ripple-animation {
     to {
-        transform: scale(4);
-        opacity: 0;
+        transform: rotate(360deg);
     }
 }
 
-/* ============================================
-   FEEDBACK MESSAGES
-   ============================================ */
+*:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
 
-/* Toast notification container */
 .feedback {
     position: fixed;
     top: 20px;
@@ -1278,7 +227,6 @@ header h1 {
     transform: translateX(400px);
     opacity: 0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    backdrop-filter: blur(10px);
 }
 
 .feedback.show {
@@ -1286,727 +234,24 @@ header h1 {
     opacity: 1;
 }
 
-/* Success feedback message */
 .feedback-success {
     background: rgba(16, 185, 129, 0.2);
     color: #6ee7b7;
     border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-/* Error feedback message */
 .feedback-error {
     background: rgba(239, 68, 68, 0.2);
     color: #fca5a5;
     border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-/* ============================================
-   FORM VALIDATION
-   ============================================ */
-
-/* Button positioning for ripple effect */
 button {
     position: relative;
     overflow: hidden;
 }
 
-/* Invalid input styling */
-input:invalid, textarea:invalid {
-    border-color: rgba(239, 68, 68, 0.3);
-}
-
-/* Valid input styling */
-input:valid:not(:placeholder-shown), textarea:valid:not(:placeholder-shown) {
-    border-color: rgba(16, 185, 129, 0.3);
-}
-
-/* Smooth transitions for all interactive elements */
-a, button, input, select, textarea {
-    transition: var(--transition);
-}
-
-/* ============================================
-   INPUT STYLING
-   ============================================ */
-
-/* Checkbox styling */
-input[type="checkbox"] {
-    cursor: pointer;
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-}
-
-/* Custom select dropdown arrow */
-select {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a5b4fc' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 36px;
-}
-
-/* Date input styling */
-input[type="date"] {
-    position: relative;
-}
-
-/* Date picker icon styling */
-input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) opacity(0.7);
-    cursor: pointer;
-}
-
-/* ============================================
-   ANALYTICS TAB STYLING
-   ============================================ */
-
-/* Analytics header - contains title and action buttons */
-.analytics-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 40px 40px 20px;
-    background: rgba(30, 41, 59, 0.3);
-    border-bottom: 1px solid var(--border-color);
-}
-
-.analytics-header h2 {
-    color: var(--text-primary);
-    font-size: 24px;
-    font-weight: 700;
-}
-
-/* Analytics header buttons container */
-.analytics-header-buttons {
-    display: flex;
-    gap: 12px;
-}
-
-/* Secondary button styling for reset button */
-.btn-secondary {
-    padding: 12px 24px;
-    background: rgba(100, 116, 139, 0.2);
-    color: var(--text-primary);
-    border: 1px solid rgba(100, 116, 139, 0.3);
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-    backdrop-filter: blur(10px);
-}
-
-.btn-secondary:hover {
-    background: rgba(100, 116, 139, 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
-}
-
-/* Analytics container - grid layout for analytics cards */
-/* Changed to relative positioning to support absolute positioned cards */
-.analytics-container {
-    position: relative;
-    min-height: 600px;
-    padding: 40px;
-    /* Fallback grid for initial layout */
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 24px;
-}
-
-/* Analytics card - container for each statistics section */
-/* Made position relative to support absolute positioning when dragged */
-.analytics-card {
-    position: relative;
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    transition: var(--transition);
-    animation: fadeIn 0.4s ease-out;
-    /* Default size constraints */
-    min-width: 300px;
-    min-height: 200px;
-    /* Allow card to be resized */
-    resize: none;
-    overflow: visible;
-}
-
-/* When card is being dragged or resized, add visual feedback */
-.analytics-card.dragging {
-    opacity: 0.8;
-    z-index: 1000;
-    box-shadow: var(--shadow-xl);
-}
-
-.analytics-card.resizing {
-    opacity: 0.8;
-    z-index: 1000;
-}
-
-.analytics-card:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(59, 130, 246, 0.3);
-    box-shadow: var(--shadow-lg);
-}
-
-/* ============================================
-   DRAG AND RESIZE HANDLES
-   ============================================ */
-
-/* Drag handle - the element you click and drag to move the card */
-.card-drag-handle {
-    position: absolute;
-    top: 8px;
-    right: 40px;
-    width: 24px;
-    height: 24px;
-    background: rgba(59, 130, 246, 0.2);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: move;
-    color: var(--primary);
-    font-size: 12px;
-    font-weight: 700;
-    opacity: 0;
-    transition: var(--transition);
-    z-index: 10;
-    user-select: none;
-}
-
-/* Show drag handle on card hover */
-.analytics-card:hover .card-drag-handle {
-    opacity: 1;
-}
-
-.card-drag-handle:hover {
-    background: rgba(59, 130, 246, 0.3);
-    border-color: rgba(59, 130, 246, 0.5);
-    transform: scale(1.1);
-}
-
-/* Resize handle - the element you drag to resize the card */
-.card-resize-handle {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 20px;
-    height: 20px;
-    background: rgba(59, 130, 246, 0.2);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-bottom-right-radius: var(--radius-lg);
-    cursor: nwse-resize;
-    opacity: 0;
-    transition: var(--transition);
-    z-index: 10;
-}
-
-/* Create diagonal resize indicator */
-.card-resize-handle::before {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    right: 4px;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 0 0 8px 8px;
-    border-color: transparent transparent var(--primary) transparent;
-}
-
-/* Show resize handle on card hover */
-.analytics-card:hover .card-resize-handle {
-    opacity: 1;
-}
-
-.card-resize-handle:hover {
-    background: rgba(59, 130, 246, 0.3);
-    border-color: rgba(59, 130, 246, 0.5);
-}
-
-/* Analytics card header */
-.analytics-card-header {
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.analytics-card-header h3 {
-    color: var(--text-primary);
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0;
-}
-
-/* Analytics card content */
-.analytics-card-content {
-    color: var(--text-secondary);
-}
-
-/* ============================================
-   STATISTICS GRID
-   ============================================ */
-
-/* Stat grid - displays multiple statistics in a grid */
-.stat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
-}
-
-/* Individual stat item */
-.stat-item {
-    text-align: center;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-}
-
-.stat-value {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Stat item color variants */
-.stat-item.stat-success .stat-value {
-    color: var(--success);
-}
-
-.stat-item.stat-warning .stat-value {
-    color: var(--warning);
-}
-
-.stat-item.stat-primary .stat-value {
-    color: var(--primary);
-}
-
-.stat-item.stat-danger .stat-value {
-    color: var(--danger);
-}
-
-/* ============================================
-   PROGRESS BARS
-   ============================================ */
-
-/* Large progress bar for overall completion */
-.progress-bar-large {
-    width: 100%;
-    height: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-top: 16px;
-}
-
-.progress-fill-large {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 10px;
-}
-
-/* Small progress bar for category/priority stats */
-.progress-bar-small {
-    width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    overflow: hidden;
-    margin-top: 8px;
-}
-
-.progress-fill-small {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary), var(--secondary));
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 6px;
-}
-
-/* ============================================
-   CATEGORY STATISTICS
-   ============================================ */
-
-/* Category stat row - displays stats for one category */
-.category-stat-row {
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.category-stat-row:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-.category-stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.category-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 14px;
-}
-
-.category-percentage {
-    font-weight: 700;
-    color: var(--primary);
-    font-size: 16px;
-}
-
-.category-stat-details {
-    display: flex;
-    gap: 16px;
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-}
-
-/* ============================================
-   PRIORITY STATISTICS
-   ============================================ */
-
-/* Priority stat row - displays stats for one priority level */
-.priority-stat-row {
-    margin-bottom: 20px;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-}
-
-.priority-stat-row:last-child {
-    margin-bottom: 0;
-}
-
-.priority-stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.priority-name {
-    font-weight: 700;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.priority-count {
-    font-size: 12px;
-    color: var(--text-muted);
-}
-
-.priority-stat-details {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-}
-
-.priority-percentage {
-    margin-left: auto;
-    font-weight: 700;
-    color: var(--primary);
-    font-size: 14px;
-}
-
-/* Priority color variants */
-.priority-stat-row.priority-now .priority-name {
-    color: #fca5a5;
-}
-
-.priority-stat-row.priority-next .priority-name {
-    color: #fcd34d;
-}
-
-.priority-stat-row.priority-later .priority-name {
-    color: #cbd5e1;
-}
-
-/* ============================================
-   GOAL STATISTICS
-   ============================================ */
-
-/* Goal stats summary - overview of goal-related metrics */
-.goal-stats-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.goal-stat-summary-item {
-    text-align: center;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-sm);
-}
-
-.summary-label {
-    display: block;
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-}
-
-.summary-value {
-    display: block;
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-/* Goal stat row - displays stats for one goal */
-.goal-stat-row {
-    margin-bottom: 16px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.goal-stat-row:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-}
-
-.goal-stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.goal-name {
-    font-weight: 600;
-    color: var(--text-primary);
-    font-size: 14px;
-}
-
-.goal-percentage {
-    font-weight: 700;
-    color: var(--secondary);
-    font-size: 16px;
-}
-
-.goal-stat-details {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-}
-
-/* ============================================
-   TIME STATISTICS
-   ============================================ */
-
-/* Time stats grid - displays time-based metrics */
-.time-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
-}
-
-/* Time stat item - individual time metric */
-.time-stat-item {
-    text-align: center;
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-    transition: var(--transition);
-}
-
-.time-stat-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-2px);
-}
-
-.time-stat-icon {
-    font-size: 32px;
-    margin-bottom: 8px;
-}
-
-.time-stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-}
-
-.time-stat-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Time stat color variants */
-.time-stat-item.stat-danger .time-stat-value {
-    color: var(--danger);
-}
-
-.time-stat-item.stat-warning .time-stat-value {
-    color: var(--warning);
-}
-
-.time-stat-item.stat-success .time-stat-value {
-    color: var(--success);
-}
-
-.time-stat-item.stat-primary .time-stat-value {
-    color: var(--primary);
-}
-
-/* ============================================
-   PRODUCTIVITY INSIGHTS
-   ============================================ */
-
-/* Insight item - displays a productivity insight */
-.insight-item {
-    display: flex;
-    gap: 16px;
-    padding: 16px;
-    margin-bottom: 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-}
-
-.insight-item:last-child {
-    margin-bottom: 0;
-}
-
-.insight-icon {
-    font-size: 32px;
-    flex-shrink: 0;
-}
-
-.insight-content {
-    flex: 1;
-}
-
-.insight-title {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-}
-
-.insight-value {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 4px;
-}
-
-.insight-detail {
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-/* Distribution list - shows category distribution */
-.distribution-list {
-    margin-top: 12px;
-}
-
-.distribution-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.distribution-item:last-child {
-    border-bottom: none;
-}
-
-.dist-category {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.dist-percentage {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--primary);
-}
-
-/* ============================================
-   ANALYTICS RESPONSIVE DESIGN
-   ============================================ */
-
-@media (max-width: 768px) {
-    .analytics-container {
-        grid-template-columns: 1fr;
-        padding: 24px 20px;
-    }
-    
-    .analytics-header {
-        flex-direction: column;
-        gap: 16px;
-        align-items: flex-start;
-        padding: 24px 20px 16px;
-    }
-    
-    .stat-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .time-stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    .goal-stats-summary {
-        grid-template-columns: 1fr;
-    }
-    
-    /* On mobile, disable drag/resize for better touch experience */
-    .card-drag-handle,
-    .card-resize-handle {
-        display: none;
-    }
-    
-    .analytics-card {
-        position: static !important;
-        width: 100% !important;
-        min-height: auto !important;
-    }
-}
-
-/* ============================================
-   JOURNAL TAB STYLES
-   ============================================ */
-
-/* Journal header - title section */
+/* Journal */
 .journal-header {
     padding: 24px 32px;
     border-bottom: 1px solid var(--border-color);
@@ -2019,7 +264,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     margin: 0;
 }
 
-/* Journal entry section - contains timer and textarea */
 .journal-entry-section {
     padding: 32px;
     display: flex;
@@ -2027,7 +271,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     gap: 24px;
 }
 
-/* Timer container - displays countdown and controls */
 .journal-timer-container {
     background: rgba(59, 130, 246, 0.1);
     border: 2px solid var(--border-color);
@@ -2036,18 +279,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     text-align: center;
 }
 
-/* Timer display - large countdown display */
 .timer-display {
     font-size: 64px;
     font-weight: 700;
     color: var(--primary);
     font-variant-numeric: tabular-nums;
     margin-bottom: 16px;
-    text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
     letter-spacing: 4px;
 }
 
-/* Timer controls - buttons for start/pause/continue */
 .timer-controls {
     display: flex;
     gap: 12px;
@@ -2055,19 +295,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     margin-bottom: 12px;
 }
 
-/* Timer status text */
 .timer-status {
     font-size: 14px;
     color: var(--text-secondary);
     font-style: italic;
 }
 
-/* Journal text container - wraps the textarea */
 .journal-text-container {
     width: 100%;
 }
 
-/* Journal entry textarea - main writing area */
 #journalEntry {
     width: 100%;
     min-height: 400px;
@@ -2087,7 +324,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     outline: none;
     border-color: var(--primary);
     background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 #journalEntry::placeholder {
@@ -2095,14 +331,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-style: italic;
 }
 
-/* Journal actions - save and clear buttons */
 .journal-actions {
     display: flex;
     gap: 12px;
     justify-content: flex-end;
 }
 
-/* Past entries section */
 .journal-entries-section {
     padding: 32px;
     border-top: 1px solid var(--border-color);
@@ -2111,11 +345,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .journal-entries-section h3 {
     font-size: 22px;
     font-weight: 600;
-    color: var(--text-primary);
     margin-bottom: 24px;
 }
 
-/* Journal entries container - holds all past entries */
 .journal-entries-container {
     display: flex;
     flex-direction: column;
@@ -2125,7 +357,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     padding-right: 8px;
 }
 
-/* Custom scrollbar for entries container */
 .journal-entries-container::-webkit-scrollbar {
     width: 8px;
 }
@@ -2140,11 +371,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     border-radius: 4px;
 }
 
-.journal-entries-container::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-dark);
-}
-
-/* Journal entry item - individual past entry card */
 .journal-entry-item {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border-color);
@@ -2160,7 +386,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     box-shadow: var(--shadow-md);
 }
 
-/* Journal entry header - date, duration, badges */
 .journal-entry-header {
     display: flex;
     align-items: center;
@@ -2178,12 +403,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .journal-entry-duration {
     font-size: 13px;
     color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 4px;
 }
 
-/* Journal badge - indicates continued entries */
 .journal-badge {
     display: inline-block;
     padding: 4px 10px;
@@ -2191,7 +412,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .journal-badge.continued {
@@ -2200,67 +420,48 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
-/* Journal entry content - the actual text */
 .journal-entry-content {
     font-size: 15px;
     line-height: 1.8;
-    color: var(--text-primary);
     white-space: pre-wrap;
     word-wrap: break-word;
 }
 
-/* Disabled button state */
 #saveEntry:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-#saveEntry:disabled:hover {
-    transform: none;
-    box-shadow: none;
-}
-
-/* ============================================
-   JOURNAL RESPONSIVE DESIGN
-   ============================================ */
-
 @media (max-width: 768px) {
     .journal-entry-section {
         padding: 20px;
     }
-    
+
     .timer-display {
         font-size: 48px;
-        letter-spacing: 2px;
     }
-    
+
     .timer-controls {
         flex-direction: column;
     }
-    
+
     .timer-controls button {
         width: 100%;
     }
-    
+
     #journalEntry {
         min-height: 300px;
-        font-size: 15px;
     }
-    
+
     .journal-actions {
         flex-direction: column;
     }
-    
+
     .journal-actions button {
         width: 100%;
     }
-    
+
     .journal-entries-section {
         padding: 20px;
-    }
-    
-    .journal-entry-header {
-        flex-direction: column;
-        align-items: flex-start;
     }
 }

@@ -1,8 +1,8 @@
 # Core application dependencies
 eel==0.16.0              # Desktop app framework (Python <-> JavaScript bridge)
 
-# Required for Eel to work properly
-setuptools                # Provides pkg_resources (required by Eel)
+# Pin range: Eel still imports pkg_resources; very new setuptools may omit it
+setuptools>=69.0,<82
 
 # Build/packaging dependencies (optional - only needed for building .app)
 pyinstaller              # Creates standalone Mac/Windows/Linux executables

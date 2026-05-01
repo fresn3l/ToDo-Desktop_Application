@@ -14,6 +14,8 @@ from typing import List, Dict, Optional
 import fcntl
 import sys
 
+import cluny_sync
+
 # ============================================
 # JOURNAL STORAGE PATHS
 # ============================================
@@ -116,7 +118,9 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
     
     # Atomically replace old file with new one
     os.replace(temp_file, entry_path)
-    
+
+    cluny_sync.sync_journal_entry_safe(entry)
+
     return entry
 
 @eel.expose
