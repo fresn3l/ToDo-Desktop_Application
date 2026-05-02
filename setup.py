@@ -34,7 +34,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["daily_checklist", "journal", "cluny_sync"],
+    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync"],
 }
 
 setup(

@@ -1,0 +1,41 @@
+# Reminder: runs on a UTC schedule. Adjust `cron` so it fires after your daily deadline;
+# see scripts/gh_twilio_reminder.sh (CHECKIN_TIMEZONE defaults to America/Denver).
+#
+# GitHub runs scheduled workflows from the repo default branch only — merge this workflow
+# into default (e.g. main) or set DailyChecklist as default while testing.
+#
+# Required repo Secrets:
+#   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER, TWILIO_TO_NUMBER
+#
+# Optional repo Variables: CHECKIN_TIMEZONE (e.g. America/New_York)
+#
+# Checkout ref must match KOSISTENZ_GITHUB_BRANCH where Kosistenz commits check-ins.
+
+name: Daily checklist SMS reminder
+
+on:
+  schedule:
+    # Daily 05:15 UTC — change this to match when you want the nudge
+    - cron: "15 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    env:
+      CHECKIN_TIMEZONE: ${{ vars.CHECKIN_TIMEZONE }}
+      TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+      TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+      TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+      TWILIO_TO_NUMBER: ${{ secrets.TWILIO_TO_NUMBER }}
+    steps:
+      - name: Checkout branch with check-ins
+        uses: actions/checkout@v4
+        with:
+          ref: DailyChecklist
+
+      - name: Send Twilio reminder if check-in file missing
+        run: bash scripts/gh_twilio_reminder.sh

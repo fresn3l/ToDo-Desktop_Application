@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-DEFAULT_CHECKLIST_ID = "default"
+import checkin_github
 
 
 def _resource_base() -> Path:
@@ -106,12 +106,24 @@ def submit_daily_checklist_response(
             (created_at, checklist_id, flow_version, local_date, body),
         )
         row_id = cur.lastrowid
-    return {
+
+    result = {
         "id": row_id,
         "created_at": created_at,
         "local_date": local_date,
         "checklist_id": checklist_id,
     }
+    checkin_github.safe_try_push_checkin(
+        local_date,
+        {
+            "localDate": local_date,
+            "createdAt": created_at,
+            "checklistId": checklist_id,
+            "submissionId": row_id,
+            "flowVersion": flow_version,
+        },
+    )
+    return result
 
 
 @eel.expose
