@@ -1,14 +1,19 @@
 /**
- * Journal app — initializes journal UI and loads recent entries.
+ * Journal + Daily Checklist app entry point.
  */
 
 import * as utils from './js/utils.js';
+import { setupTabs, switchTab } from './js/tabs.js';
 import { setupJournal, loadPastEntries } from './js/journal.js';
+import { setupDailyChecklist } from './js/daily_checklist.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
+    setupTabs();
     setupJournal();
+    await setupDailyChecklist();
     await loadPastEntries();
+    await switchTab('journal');
 }
 
 function waitForEel() {
@@ -43,7 +48,7 @@ async function startApp() {
 function handleInitError(error) {
     console.error(error);
     if (utils.showErrorFeedback) {
-        utils.showErrorFeedback('Failed to start the journal. Refresh and try again.');
+        utils.showErrorFeedback('Failed to start the app. Refresh and try again.');
     }
 }
 

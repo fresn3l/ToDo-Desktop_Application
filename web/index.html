@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Journal</title>
+    <title>Journal &amp; Daily Checklist</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Journal</h1>
-            <p class="header-subtitle">Entries sync to Cluny when configured</p>
+            <h1>Journal &amp; Checklist</h1>
+            <p class="header-subtitle">Journal entries and daily checklist data stay on this Mac (SQLite path shown below).</p>
+            <nav class="tabs">
+                <button type="button" class="tab-button active" data-tab="journal">Journal</button>
+                <button type="button" class="tab-button" data-tab="checklist">Daily Checklist</button>
+            </nav>
         </header>
 
         <div id="journalTab" class="tab-content active">
@@ -46,6 +50,25 @@
             <div class="journal-entries-section">
                 <h3>Past Entries (Last 30 Days)</h3>
                 <div id="journalEntriesContainer" class="journal-entries-container"></div>
+            </div>
+        </div>
+
+        <div id="checklistTab" class="tab-content">
+            <div class="checklist-section">
+                <div class="checklist-intro">
+                    <h2>Daily Checklist</h2>
+                    <p class="checklist-hint">
+                        Answers are stored locally for Cluny or other tools to read.
+                        <span class="checklist-db-label">Database file:</span>
+                        <code id="checklistDbPath" class="checklist-db-path"></code>
+                    </p>
+                    <button type="button" id="restartChecklist" class="btn-secondary">Start over</button>
+                </div>
+                <div id="checklistWizard" class="checklist-wizard"></div>
+                <div class="checklist-recent">
+                    <h3>Recent submissions</h3>
+                    <div id="checklistRecentList" class="checklist-recent-list"></div>
+                </div>
             </div>
         </div>
     </div>

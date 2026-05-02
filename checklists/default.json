@@ -1,0 +1,27 @@
+{
+  "id": "default",
+  "version": 1,
+  "title": "Daily check-in",
+  "start": "exercise_yn",
+  "nodes": {
+    "exercise_yn": {
+      "type": "yes_no",
+      "question": "Did you exercise today?",
+      "onYes": "workout_type",
+      "onNo": "end"
+    },
+    "workout_type": {
+      "type": "choice",
+      "question": "What type of workout?",
+      "allowOther": true,
+      "otherNext": "end",
+      "options": [
+        { "label": "Legs", "value": "legs", "next": "end" },
+        { "label": "Chest and tris", "value": "chest_tris", "next": "end" },
+        { "label": "Back", "value": "back", "next": "end" },
+        { "label": "Core", "value": "core", "next": "end" },
+        { "label": "Running", "value": "running", "next": "end" }
+      ]
+    }
+  }
+}

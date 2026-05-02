@@ -10,7 +10,16 @@ from setuptools import setup
 APP = ["main.py"]
 DATA_FILES = [
     ("web", ["web/index.html", "web/style.css", "web/app.js"]),
-    ("web/js", ["web/js/journal.js", "web/js/utils.js"]),
+    (
+        "web/js",
+        [
+            "web/js/journal.js",
+            "web/js/utils.js",
+            "web/js/tabs.js",
+            "web/js/daily_checklist.js",
+        ],
+    ),
+    ("checklists", ["checklists/default.json"]),
 ]
 
 OPTIONS = {
@@ -25,7 +34,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["journal", "cluny_sync"],
+    "includes": ["daily_checklist", "journal", "cluny_sync"],
 }
 
 setup(

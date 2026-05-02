@@ -29,6 +29,7 @@ def check_dependencies():
         sys.exit(1)
 
     try:
+        import daily_checklist
         import journal
         import cluny_sync
 
@@ -126,8 +127,10 @@ def build_app():
         "--windowed",
         "--onedir",
         "--add-data=web:web",
+        "--add-data=checklists:checklists",
         "--hidden-import=eel",
         "--hidden-import=setuptools",
+        "--hidden-import=daily_checklist",
         "--hidden-import=journal",
         "--hidden-import=cluny_sync",
         "--collect-all=eel",

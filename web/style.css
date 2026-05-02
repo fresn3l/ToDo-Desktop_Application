@@ -115,10 +115,42 @@ header h1 {
     opacity: 0.9;
     position: relative;
     z-index: 1;
+    margin-bottom: 8px;
+}
+
+.tabs {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 2;
+}
+
+.tab-button {
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.tab-button:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.tab-button.active {
+    background: white;
+    color: var(--primary);
+    border-color: white;
 }
 
 .tab-content {
-    display: block;
+    display: none;
     animation: slideIn 0.4s ease-out;
 }
 
@@ -430,6 +462,168 @@ button {
 #saveEntry:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* Daily Checklist */
+.checklist-section {
+    padding-bottom: 24px;
+}
+
+.checklist-intro {
+    padding: 24px 32px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.checklist-intro h2 {
+    font-size: 26px;
+    margin-bottom: 12px;
+}
+
+.checklist-hint {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.checklist-db-label {
+    display: block;
+    margin-top: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.checklist-db-path {
+    display: block;
+    margin-top: 6px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    word-break: break-all;
+    color: var(--text-primary);
+}
+
+.checklist-wizard {
+    padding: 24px 32px;
+    min-height: 120px;
+}
+
+.checklist-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    max-width: 560px;
+}
+
+.checklist-q {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+}
+
+.checklist-yesno {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.checklist-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.checklist-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.checklist-option:hover {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.checklist-option input {
+    accent-color: var(--primary);
+}
+
+.checklist-other-input {
+    width: 100%;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+.checklist-next {
+    margin-top: 8px;
+}
+
+.checklist-error {
+    color: #fca5a5;
+    padding: 16px;
+}
+
+.checklist-empty {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.checklist-recent {
+    padding: 24px 32px 32px;
+    border-top: 1px solid var(--border-color);
+}
+
+.checklist-recent h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+}
+
+.checklist-recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.checklist-history-item {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+}
+
+.checklist-history-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.checklist-history-json {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 @media (max-width: 768px) {
