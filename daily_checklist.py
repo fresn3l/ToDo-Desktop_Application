@@ -122,6 +122,8 @@ def add_custom_checklist_item(item: Dict[str, Any]) -> Dict[str, Any]:
             "otherNext": "end",
         }
 
+    row["trackDuration"] = bool(item.get("trackDuration"))
+
     items = _load_custom_items_raw()
     items.append(row)
     _save_custom_items(items)

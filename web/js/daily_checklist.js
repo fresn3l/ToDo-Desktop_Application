@@ -38,12 +38,15 @@ export async function setupDailyChecklist() {
                 payload.options = options;
                 payload.allowOther = !!document.getElementById('newItemAllowOther')?.checked;
             }
+            payload.trackDuration = !!document.getElementById('newItemTrackDuration')?.checked;
             await eel.add_custom_checklist_item(payload)();
             document.getElementById('newItemQuestion').value = '';
             const ta = document.getElementById('newItemOptions');
             if (ta) ta.value = '';
             const ao = document.getElementById('newItemAllowOther');
             if (ao) ao.checked = false;
+            const td = document.getElementById('newItemTrackDuration');
+            if (td) td.checked = false;
             utils.showSuccessFeedback('Question added.');
             await refreshCustomItems();
             await renderCustomItemsList();
@@ -101,11 +104,14 @@ async function renderCustomItemsList() {
         if (item.type === 'choice' && Array.isArray(item.options)) {
             detail = item.options.map((o) => o.label || o.value).join(', ');
         }
+        const durNote = item.trackDuration
+            ? '<br><span class="checklist-duration-badge">Asks duration (min)</span>'
+            : '';
         html += `
             <div class="custom-item-row">
                 <div class="custom-item-meta">
                     <strong>${utils.escapeHtml(typeLabel)}</strong><br>
-                    ${utils.escapeHtml(item.question)}${detail ? `<br><span class="checklist-empty">${utils.escapeHtml(detail)}</span>` : ''}
+                    ${utils.escapeHtml(item.question)}${detail ? `<br><span class="checklist-empty">${utils.escapeHtml(detail)}</span>` : ''}${durNote}
                 </div>
                 <button type="button" class="btn-secondary custom-item-remove" data-id="${item.id}">Remove</button>
             </div>
@@ -271,6 +277,79 @@ async function finishMainFlow() {
     await completeFlow();
 }
 
+/**
+ * @param {object} partial - { type: 'yes_no', answer: boolean } | { type: 'choice', value, otherText? }
+ * @param {number | null} durationMinutes - null if user left blank
+ */
+function applyDurationAndAdvance(item, partial, durationMinutes) {
+    if (partial.type === 'yes_no') {
+        const o = { answer: partial.answer };
+        if (durationMinutes !== null) {
+            o.durationMinutes = durationMinutes;
+        }
+        state.answers[item.id] = o;
+    } else {
+        const o =
+            partial.value === 'other'
+                ? { value: 'other', otherText: partial.otherText }
+                : { value: partial.value };
+        if (durationMinutes !== null) {
+            o.durationMinutes = durationMinutes;
+        }
+        state.answers[item.id] = o;
+    }
+    advanceExtra();
+}
+
+/**
+ * Second step after answering when item.trackDuration is true.
+ */
+function showDurationStep(item, partial) {
+    const el = document.getElementById('checklistWizard');
+    if (!el || !state) return;
+
+    const items = state.customItems || [];
+    const i = state.extraIndex;
+    const total = items.length;
+
+    let recap = '';
+    if (partial.type === 'yes_no') {
+        recap = partial.answer ? 'Yes' : 'No';
+    } else if (partial.value === 'other') {
+        recap = `Other (${partial.otherText})`;
+    } else {
+        const opt = item.options.find((o) => o.value === partial.value);
+        recap = opt ? opt.label : String(partial.value);
+    }
+
+    el.innerHTML = `
+        <div class="checklist-card">
+            <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
+            <p class="checklist-extra-tag">Extra question ${i + 1} of ${total} · Duration</p>
+            <p class="duration-recap">Your answer: <strong>${utils.escapeHtml(recap)}</strong></p>
+            <label class="checklist-field-label" for="extraDurMinutes">Duration (minutes)</label>
+            <input type="number" id="extraDurMinutes" class="checklist-text-input duration-input" min="0" step="1" placeholder="Optional">
+            <div class="checklist-duration-actions">
+                <button type="button" class="btn-primary duration-continue">Continue</button>
+            </div>
+        </div>
+    `;
+
+    el.querySelector('.duration-continue').addEventListener('click', () => {
+        const raw = el.querySelector('#extraDurMinutes').value.trim();
+        let dm = null;
+        if (raw !== '') {
+            const n = parseInt(raw, 10);
+            if (Number.isNaN(n) || n < 0) {
+                utils.showErrorFeedback('Enter a valid number of minutes, or leave blank.');
+                return;
+            }
+            dm = n;
+        }
+        applyDurationAndAdvance(item, partial, dm);
+    });
+}
+
 function renderExtraItem() {
     const el = document.getElementById('checklistWizard');
     if (!el || !state) return;
@@ -296,12 +375,20 @@ function renderExtraItem() {
             </div>
         `;
         el.querySelector('.extra-yes').addEventListener('click', () => {
-            state.answers[item.id] = true;
-            advanceExtra();
+            if (item.trackDuration) {
+                showDurationStep(item, { type: 'yes_no', answer: true });
+            } else {
+                state.answers[item.id] = true;
+                advanceExtra();
+            }
         });
         el.querySelector('.extra-no').addEventListener('click', () => {
-            state.answers[item.id] = false;
-            advanceExtra();
+            if (item.trackDuration) {
+                showDurationStep(item, { type: 'yes_no', answer: false });
+            } else {
+                state.answers[item.id] = false;
+                advanceExtra();
+            }
         });
         return;
     }
@@ -358,14 +445,22 @@ function renderExtraItem() {
                     utils.showErrorFeedback('Please add a short description.');
                     return;
                 }
-                state.answers[item.id] = { value: 'other', otherText: text };
-                advanceExtra();
+                if (item.trackDuration) {
+                    showDurationStep(item, { type: 'choice', value: 'other', otherText: text });
+                } else {
+                    state.answers[item.id] = { value: 'other', otherText: text };
+                    advanceExtra();
+                }
                 return;
             }
             const opt = item.options[parseInt(idx, 10)];
             if (!opt) return;
-            state.answers[item.id] = { value: opt.value };
-            advanceExtra();
+            if (item.trackDuration) {
+                showDurationStep(item, { type: 'choice', value: opt.value });
+            } else {
+                state.answers[item.id] = { value: opt.value };
+                advanceExtra();
+            }
         });
     }
 }
