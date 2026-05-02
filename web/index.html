@@ -64,6 +64,32 @@
                     </p>
                     <button type="button" id="restartChecklist" class="btn-secondary">Start over</button>
                 </div>
+
+                <div class="checklist-custom-panel">
+                    <h3>Your extra questions</h3>
+                    <p class="checklist-hint small">
+                        These run after the built-in checklist. Stored on this Mac only.
+                    </p>
+                    <div id="customItemsList" class="custom-items-list"></div>
+                    <div class="checklist-add-form">
+                        <label class="checklist-field-label" for="newItemType">New question type</label>
+                        <select id="newItemType" class="checklist-select">
+                            <option value="yes_no">Yes / No</option>
+                            <option value="choice">Multiple choice</option>
+                        </select>
+                        <label class="checklist-field-label" for="newItemQuestion">Question</label>
+                        <input type="text" id="newItemQuestion" class="checklist-text-input" placeholder="e.g. Did you stretch today?" autocomplete="off">
+                        <div id="choiceOptionsWrap" class="choice-options-wrap" style="display: none;">
+                            <label class="checklist-field-label" for="newItemOptions">Options (one per line)</label>
+                            <textarea id="newItemOptions" class="checklist-textarea" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea>
+                            <label class="checklist-checkbox-label">
+                                <input type="checkbox" id="newItemAllowOther"> Allow &ldquo;Other&rdquo; with text
+                            </label>
+                        </div>
+                        <button type="button" id="addCustomItemBtn" class="btn-primary checklist-add-btn">Add question</button>
+                    </div>
+                </div>
+
                 <div id="checklistWizard" class="checklist-wizard"></div>
                 <div class="checklist-recent">
                     <h3>Recent submissions</h3>

@@ -1,5 +1,5 @@
 /**
- * Daily Checklist — branching flow driven by Python-provided JSON definition.
+ * Daily Checklist — built-in JSON flow plus user-defined extra questions.
  */
 
 import * as utils from './utils.js';
@@ -13,8 +13,49 @@ export async function setupDailyChecklist() {
             startWizard();
         });
     }
+
+    const typeSel = document.getElementById('newItemType');
+    const choiceWrap = document.getElementById('choiceOptionsWrap');
+    const toggleChoiceFields = () => {
+        if (!choiceWrap || !typeSel) return;
+        choiceWrap.style.display = typeSel.value === 'choice' ? 'flex' : 'none';
+    };
+    typeSel?.addEventListener('change', toggleChoiceFields);
+    toggleChoiceFields();
+
+    document.getElementById('addCustomItemBtn')?.addEventListener('click', async () => {
+        const type = document.getElementById('newItemType')?.value || 'yes_no';
+        const question = document.getElementById('newItemQuestion')?.value.trim() || '';
+        if (!question) {
+            utils.showErrorFeedback('Enter a question.');
+            return;
+        }
+        try {
+            const payload = { type, question };
+            if (type === 'choice') {
+                const raw = document.getElementById('newItemOptions')?.value || '';
+                const options = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+                payload.options = options;
+                payload.allowOther = !!document.getElementById('newItemAllowOther')?.checked;
+            }
+            await eel.add_custom_checklist_item(payload)();
+            document.getElementById('newItemQuestion').value = '';
+            const ta = document.getElementById('newItemOptions');
+            if (ta) ta.value = '';
+            const ao = document.getElementById('newItemAllowOther');
+            if (ao) ao.checked = false;
+            utils.showSuccessFeedback('Question added.');
+            await refreshCustomItems();
+            await renderCustomItemsList();
+        } catch (e) {
+            console.error(e);
+            utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Could not add question.');
+        }
+    });
+
     try {
         await loadDefinition();
+        await renderCustomItemsList();
         startWizard();
     } catch (e) {
         console.error(e);
@@ -27,18 +68,76 @@ export async function setupDailyChecklist() {
 
 async function loadDefinition() {
     const def = await eel.get_daily_checklist()();
-    state = { def, currentId: null, answers: {} };
+    const customItems = await eel.get_custom_checklist_items()();
+    state = {
+        def,
+        currentId: null,
+        answers: {},
+        customItems,
+        extraIndex: null,
+    };
+}
+
+async function refreshCustomItems() {
+    if (!state) return;
+    state.customItems = await eel.get_custom_checklist_items()();
+}
+
+async function renderCustomItemsList() {
+    await refreshCustomItems();
+    const container = document.getElementById('customItemsList');
+    if (!container || !state) return;
+
+    const items = state.customItems || [];
+    if (!items.length) {
+        container.innerHTML = '<p class="checklist-empty">No extra questions yet.</p>';
+        return;
+    }
+
+    let html = '';
+    items.forEach((item) => {
+        const typeLabel = item.type === 'yes_no' ? 'Yes / No' : 'Multiple choice';
+        let detail = '';
+        if (item.type === 'choice' && Array.isArray(item.options)) {
+            detail = item.options.map((o) => o.label || o.value).join(', ');
+        }
+        html += `
+            <div class="custom-item-row">
+                <div class="custom-item-meta">
+                    <strong>${utils.escapeHtml(typeLabel)}</strong><br>
+                    ${utils.escapeHtml(item.question)}${detail ? `<br><span class="checklist-empty">${utils.escapeHtml(detail)}</span>` : ''}
+                </div>
+                <button type="button" class="btn-secondary custom-item-remove" data-id="${item.id}">Remove</button>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+    container.querySelectorAll('.custom-item-remove').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            try {
+                await eel.remove_custom_checklist_item(id)();
+                await renderCustomItemsList();
+                utils.showSuccessFeedback('Removed.');
+            } catch (err) {
+                console.error(err);
+                utils.showErrorFeedback('Could not remove.');
+            }
+        });
+    });
 }
 
 function startWizard() {
     if (!state || !state.def) return;
     state.currentId = state.def.start;
     state.answers = {};
+    state.extraIndex = null;
     renderWizard();
 }
 
 export async function onChecklistTabShown() {
     await loadRecentSubmissions();
+    await renderCustomItemsList();
     if (!state || !state.def) {
         try {
             await loadDefinition();
@@ -47,11 +146,15 @@ export async function onChecklistTabShown() {
             return;
         }
     }
+    if (state.extraIndex !== null && state.extraIndex >= 0) {
+        renderExtraItem();
+        return;
+    }
     if (!state.currentId) {
         startWizard();
-    } else {
-        renderWizard();
+        return;
     }
+    renderWizard();
 }
 
 function renderWizard() {
@@ -102,7 +205,7 @@ function renderWizard() {
                     <input type="radio" name="checklistChoice" value="other">
                     <span>Other</span>
                 </label>
-                <input type="text" class="checklist-other-input" id="checklistOtherText" placeholder="Describe your workout..." autocomplete="off">
+                <input type="text" class="checklist-other-input" id="checklistOtherText" placeholder="Describe..." autocomplete="off">
             `;
         }
         el.innerHTML = `
@@ -133,7 +236,7 @@ function renderWizard() {
             if (idx === 'other') {
                 const text = (otherInput && otherInput.value.trim()) || '';
                 if (!text) {
-                    utils.showErrorFeedback('Please describe your workout type.');
+                    utils.showErrorFeedback('Please add a short description.');
                     return;
                 }
                 state.answers[state.currentId] = { value: 'other', otherText: text };
@@ -150,11 +253,132 @@ function renderWizard() {
 
 function goTo(nextId) {
     if (nextId === 'end') {
-        completeFlow();
+        void finishMainFlow();
         return;
     }
     state.currentId = nextId;
     renderWizard();
+}
+
+async function finishMainFlow() {
+    await refreshCustomItems();
+    const items = state.customItems || [];
+    if (items.length > 0) {
+        state.extraIndex = 0;
+        renderExtraItem();
+        return;
+    }
+    await completeFlow();
+}
+
+function renderExtraItem() {
+    const el = document.getElementById('checklistWizard');
+    if (!el || !state) return;
+
+    const items = state.customItems || [];
+    const i = state.extraIndex;
+    if (i === null || i >= items.length) {
+        void completeFlow();
+        return;
+    }
+
+    const item = items[i];
+
+    if (item.type === 'yes_no') {
+        el.innerHTML = `
+            <div class="checklist-card">
+                <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
+                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
+                <div class="checklist-yesno">
+                    <button type="button" class="btn-primary extra-yes">Yes</button>
+                    <button type="button" class="btn-secondary extra-no">No</button>
+                </div>
+            </div>
+        `;
+        el.querySelector('.extra-yes').addEventListener('click', () => {
+            state.answers[item.id] = true;
+            advanceExtra();
+        });
+        el.querySelector('.extra-no').addEventListener('click', () => {
+            state.answers[item.id] = false;
+            advanceExtra();
+        });
+        return;
+    }
+
+    if (item.type === 'choice') {
+        let radios = '';
+        item.options.forEach((opt, j) => {
+            radios += `
+                <label class="checklist-option">
+                    <input type="radio" name="extraChoice" value="${j}">
+                    <span>${utils.escapeHtml(opt.label)}</span>
+                </label>
+            `;
+        });
+        let otherBlock = '';
+        if (item.allowOther) {
+            otherBlock = `
+                <label class="checklist-option">
+                    <input type="radio" name="extraChoice" value="other">
+                    <span>Other</span>
+                </label>
+                <input type="text" class="checklist-other-input" id="extraOtherText" placeholder="Describe..." autocomplete="off">
+            `;
+        }
+        el.innerHTML = `
+            <div class="checklist-card">
+                <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
+                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
+                <div class="checklist-options">${radios}${otherBlock}</div>
+                <button type="button" class="btn-primary extra-next">Continue</button>
+            </div>
+        `;
+        const otherInput = el.querySelector('#extraOtherText');
+        if (otherInput) {
+            el.querySelectorAll('input[name="extraChoice"]').forEach((r) => {
+                r.addEventListener('change', () => {
+                    const show = r.value === 'other' && r.checked;
+                    otherInput.style.display = show ? 'block' : 'none';
+                    if (!show) otherInput.value = '';
+                });
+            });
+            otherInput.style.display = 'none';
+        }
+        el.querySelector('.extra-next').addEventListener('click', () => {
+            const selected = el.querySelector('input[name="extraChoice"]:checked');
+            if (!selected) {
+                utils.showErrorFeedback('Choose an option.');
+                return;
+            }
+            const idx = selected.value;
+            if (idx === 'other') {
+                const text = (otherInput && otherInput.value.trim()) || '';
+                if (!text) {
+                    utils.showErrorFeedback('Please add a short description.');
+                    return;
+                }
+                state.answers[item.id] = { value: 'other', otherText: text };
+                advanceExtra();
+                return;
+            }
+            const opt = item.options[parseInt(idx, 10)];
+            if (!opt) return;
+            state.answers[item.id] = { value: opt.value };
+            advanceExtra();
+        });
+    }
+}
+
+function advanceExtra() {
+    state.extraIndex++;
+    const items = state.customItems || [];
+    if (state.extraIndex >= items.length) {
+        state.extraIndex = null;
+        void completeFlow();
+        return;
+    }
+    renderExtraItem();
 }
 
 async function completeFlow() {

@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import eel
 import json
+import os
+import re
 import sqlite3
 import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
@@ -41,6 +44,101 @@ def get_data_directory() -> Path:
 
 def get_daily_checklist_db_path() -> Path:
     return get_data_directory() / "daily_checklist.sqlite"
+
+
+def get_custom_items_path() -> Path:
+    return get_data_directory() / "checklist_custom_items.json"
+
+
+def _load_custom_items_raw() -> List[Dict[str, Any]]:
+    path = get_custom_items_path()
+    if not path.exists():
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return data
+        return []
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _save_custom_items(items: List[Dict[str, Any]]) -> None:
+    path = get_custom_items_path()
+    tmp = str(path) + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(items, f, indent=2, ensure_ascii=False)
+    os.replace(tmp, path)
+
+
+def _slug_option(label: str, idx: int) -> str:
+    s = re.sub(r"[^a-zA-Z0-9]+", "_", label.strip().lower()).strip("_")
+    return s or f"option_{idx}"
+
+
+@eel.expose
+def get_custom_checklist_items() -> List[Dict[str, Any]]:
+    """User-defined extra questions (yes/no or choice), stored locally."""
+    return _load_custom_items_raw()
+
+
+@eel.expose
+def add_custom_checklist_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Append a validated item. choice.options must be a list of non-empty strings (min 2).
+    """
+    t = (item.get("type") or "").strip()
+    q = (item.get("question") or "").strip()
+    if not q:
+        raise ValueError("Question is required")
+    if t not in ("yes_no", "choice"):
+        raise ValueError("Type must be yes_no or choice")
+
+    cid = "c_" + uuid.uuid4().hex[:12]
+    if t == "yes_no":
+        row: Dict[str, Any] = {"id": cid, "type": "yes_no", "question": q}
+    else:
+        raw_opts = item.get("options") or []
+        if not isinstance(raw_opts, list):
+            raise ValueError("Options must be a list")
+        labels = [str(x).strip() for x in raw_opts if str(x).strip()]
+        if len(labels) < 2:
+            raise ValueError("Add at least two options")
+        options = []
+        seen = set()
+        for i, lab in enumerate(labels):
+            val = _slug_option(lab, i)
+            if val in seen:
+                val = f"{val}_{i}"
+            seen.add(val)
+            options.append({"label": lab, "value": val, "next": "end"})
+        row = {
+            "id": cid,
+            "type": "choice",
+            "question": q,
+            "options": options,
+            "allowOther": bool(item.get("allowOther")),
+            "otherNext": "end",
+        }
+
+    items = _load_custom_items_raw()
+    items.append(row)
+    _save_custom_items(items)
+    return row
+
+
+@eel.expose
+def remove_custom_checklist_item(item_id: str) -> bool:
+    item_id = (item_id or "").strip()
+    if not item_id:
+        return False
+    items = _load_custom_items_raw()
+    new_items = [x for x in items if x.get("id") != item_id]
+    if len(new_items) == len(items):
+        return False
+    _save_custom_items(new_items)
+    return True
 
 
 def _init_db(conn: sqlite3.Connection) -> None:

@@ -506,6 +506,111 @@ button {
     color: var(--text-primary);
 }
 
+.checklist-hint.small {
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.checklist-custom-panel {
+    padding: 20px 32px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.checklist-custom-panel h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+.custom-items-list {
+    margin-bottom: 20px;
+}
+
+.custom-item-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.custom-item-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.custom-item-meta strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.custom-item-remove {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 13px;
+}
+
+.checklist-add-form {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checklist-field-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+}
+
+.checklist-select,
+.checklist-text-input {
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+.checklist-textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.checklist-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.checklist-add-btn {
+    align-self: flex-start;
+    margin-top: 8px;
+}
+
+.choice-options-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .checklist-wizard {
     padding: 24px 32px;
     min-height: 120px;
@@ -524,6 +629,12 @@ button {
     font-weight: 600;
     margin-bottom: 20px;
     color: var(--text-primary);
+}
+
+.checklist-extra-tag {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: -12px 0 16px;
 }
 
 .checklist-yesno {
