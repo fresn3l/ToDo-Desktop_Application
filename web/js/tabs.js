@@ -1,5 +1,5 @@
 /**
- * Tab navigation — Journal and Daily Checklist.
+ * Tab navigation — journal and daily checklist.
  */
 
 import { loadPastEntries } from './journal.js';

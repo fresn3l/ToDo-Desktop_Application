@@ -1,5 +1,5 @@
 """
-Journal + Daily Checklist — Python (Eel) + web UI.
+Kosistenz — Python (Eel) + web UI (journal + daily checklist).
 
 Set CLUNY_SQLITE_PATH or CLUNY_INGEST_URL (see cluny_sync.py) to sync journal entries to Cluny.
 Daily checklist responses live in daily_checklist.sqlite (see daily_checklist.py).

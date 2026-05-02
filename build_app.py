@@ -123,7 +123,7 @@ def build_app():
 
     args = [
         "main.py",
-        "--name=Journal",
+        "--name=Kosistenz",
         "--windowed",
         "--onedir",
         "--add-data=web:web",
@@ -134,7 +134,7 @@ def build_app():
         "--hidden-import=journal",
         "--hidden-import=cluny_sync",
         "--collect-all=eel",
-        "--osx-bundle-identifier=com.journal.app",
+        "--osx-bundle-identifier=com.kosistenz.app",
         "--noconfirm",
     ] + icon_arg
 
@@ -142,10 +142,10 @@ def build_app():
         PyInstaller.__main__.run(args)
 
         app_path = None
-        if os.path.exists("dist/Journal.app"):
-            app_path = "dist/Journal.app"
-        elif os.path.exists("dist/Journal/Journal.app"):
-            app_path = "dist/Journal/Journal.app"
+        if os.path.exists("dist/Kosistenz.app"):
+            app_path = "dist/Kosistenz.app"
+        elif os.path.exists("dist/Kosistenz/Kosistenz.app"):
+            app_path = "dist/Kosistenz/Kosistenz.app"
 
         if not app_path:
             print("\n⚠️  Warning: Could not find built app in expected location")
@@ -157,7 +157,7 @@ def build_app():
         print("📦 Your app is located at:")
         print(f"   {os.path.abspath(app_path)}")
 
-        applications_path = "/Applications/Journal.app"
+        applications_path = "/Applications/Kosistenz.app"
         print(f"\n📋 Copying to Applications folder...")
 
         try:

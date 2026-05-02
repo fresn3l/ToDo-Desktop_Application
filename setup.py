@@ -25,10 +25,10 @@ DATA_FILES = [
 OPTIONS = {
     "argv_emulation": True,
     "plist": {
-        "CFBundleName": "Journal",
-        "CFBundleDisplayName": "Journal",
-        "CFBundleGetInfoString": "Journal",
-        "CFBundleIdentifier": "com.journal.app",
+        "CFBundleName": "Kosistenz",
+        "CFBundleDisplayName": "Kosistenz",
+        "CFBundleGetInfoString": "Kosistenz",
+        "CFBundleIdentifier": "com.kosistenz.app",
         "CFBundleVersion": "1.0.0",
         "CFBundleShortVersionString": "1.0.0",
         "NSHighResolutionCapable": True,

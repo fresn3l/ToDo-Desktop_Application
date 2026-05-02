@@ -1,5 +1,5 @@
 /**
- * Journal + Daily Checklist app entry point.
+ * Kosistenz app entry point (journal + daily checklist).
  */
 
 import * as utils from './js/utils.js';

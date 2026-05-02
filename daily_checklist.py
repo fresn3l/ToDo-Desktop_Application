@@ -1,8 +1,8 @@
 """
-Daily Checklist — branching questionnaire with local SQLite storage.
+Daily Checklist (Kosistenz) — branching questionnaire with local SQLite storage.
 
 Checklist flow JSON: see checklists/default.json
-Database: Application Support/ToDo/daily_checklist.sqlite (macOS)
+Database: Application Support/ToDo/daily_checklist.sqlite (macOS; legacy path preserved for existing data)
 """
 
 from __future__ import annotations
