@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kosistenz</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,9 +29,9 @@
                 <div class="journal-timer-container">
                     <div class="timer-display" id="timerDisplay">10:00</div>
                     <div class="timer-controls">
-                        <button id="startTimer" class="btn-primary">Start Entry</button>
-                        <button id="pauseTimer" class="btn-secondary" style="display: none;">Pause</button>
-                        <button id="continueTimer" class="btn-secondary" style="display: none;">Continue</button>
+                        <button type="button" id="startTimer" class="btn-primary">Start Entry</button>
+                        <button type="button" id="pauseTimer" class="btn-secondary is-hidden">Pause</button>
+                        <button type="button" id="continueTimer" class="btn-secondary is-hidden">Continue</button>
                     </div>
                     <div class="timer-status" id="timerStatus">Ready to start</div>
                 </div>
@@ -42,8 +45,8 @@
                 </div>
 
                 <div class="journal-actions">
-                    <button id="saveEntry" class="btn-primary" disabled>Save Entry</button>
-                    <button id="clearEntry" class="btn-secondary">Clear</button>
+                    <button type="button" id="saveEntry" class="btn-primary" disabled>Save Entry</button>
+                    <button type="button" id="clearEntry" class="btn-secondary">Clear</button>
                 </div>
             </div>
 
@@ -71,26 +74,29 @@
                         These run after the built-in checklist. Stored on this Mac only.
                     </p>
                     <div id="customItemsList" class="custom-items-list"></div>
-                    <div class="checklist-add-form">
-                        <label class="checklist-field-label" for="newItemType">New question type</label>
-                        <select id="newItemType" class="checklist-select">
-                            <option value="yes_no">Yes / No</option>
-                            <option value="choice">Multiple choice</option>
-                        </select>
-                        <label class="checklist-field-label" for="newItemQuestion">Question</label>
-                        <input type="text" id="newItemQuestion" class="checklist-text-input" placeholder="e.g. Did you stretch today?" autocomplete="off">
-                        <div id="choiceOptionsWrap" class="choice-options-wrap" style="display: none;">
-                            <label class="checklist-field-label" for="newItemOptions">Options (one per line)</label>
-                            <textarea id="newItemOptions" class="checklist-textarea" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea>
+                    <details class="checklist-add-details">
+                        <summary>Add a custom question</summary>
+                        <div class="checklist-add-form">
+                            <label class="checklist-field-label" for="newItemType">New question type</label>
+                            <select id="newItemType" class="checklist-select">
+                                <option value="yes_no">Yes / No</option>
+                                <option value="choice">Multiple choice</option>
+                            </select>
+                            <label class="checklist-field-label" for="newItemQuestion">Question</label>
+                            <input type="text" id="newItemQuestion" class="checklist-text-input" placeholder="e.g. Did you stretch today?" autocomplete="off">
+                            <div id="choiceOptionsWrap" class="choice-options-wrap is-hidden">
+                                <label class="checklist-field-label" for="newItemOptions">Options (one per line)</label>
+                                <textarea id="newItemOptions" class="checklist-textarea" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea>
+                                <label class="checklist-checkbox-label">
+                                    <input type="checkbox" id="newItemAllowOther"> Allow &ldquo;Other&rdquo; with text
+                                </label>
+                            </div>
                             <label class="checklist-checkbox-label">
-                                <input type="checkbox" id="newItemAllowOther"> Allow &ldquo;Other&rdquo; with text
+                                <input type="checkbox" id="newItemTrackDuration"> Ask for duration (minutes) after this question
                             </label>
+                            <button type="button" id="addCustomItemBtn" class="btn-primary checklist-add-btn">Add question</button>
                         </div>
-                        <label class="checklist-checkbox-label">
-                            <input type="checkbox" id="newItemTrackDuration"> Ask for duration (minutes) after this question
-                        </label>
-                        <button type="button" id="addCustomItemBtn" class="btn-primary checklist-add-btn">Add question</button>
-                    </div>
+                    </details>
                 </div>
 
                 <div id="checklistWizard" class="checklist-wizard"></div>

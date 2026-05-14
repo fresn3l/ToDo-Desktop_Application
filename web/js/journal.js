@@ -17,6 +17,15 @@ let journalTimerPaused = false;
 let journalStartTime = null;
 let journalDuration = 0;
 
+function setTimerButtonVisibility({ showStart, showPause, showContinue }) {
+    const startBtn = document.getElementById('startTimer');
+    const pauseBtn = document.getElementById('pauseTimer');
+    const continueBtn = document.getElementById('continueTimer');
+    if (startBtn) startBtn.classList.toggle('is-hidden', !showStart);
+    if (pauseBtn) pauseBtn.classList.toggle('is-hidden', !showPause);
+    if (continueBtn) continueBtn.classList.toggle('is-hidden', !showContinue);
+}
+
 // ============================================
 // JOURNAL INITIALIZATION
 // ============================================
@@ -71,15 +80,10 @@ function startJournalTimer() {
     journalStartTime = Date.now();
     journalDuration = 0;
     
-    const startBtn = document.getElementById('startTimer');
-    const pauseBtn = document.getElementById('pauseTimer');
-    const continueBtn = document.getElementById('continueTimer');
     const statusEl = document.getElementById('timerStatus');
     const saveBtn = document.getElementById('saveEntry');
-    
-    if (startBtn) startBtn.style.display = 'none';
-    if (pauseBtn) pauseBtn.style.display = 'inline-block';
-    if (continueBtn) continueBtn.style.display = 'none';
+
+    setTimerButtonVisibility({ showStart: false, showPause: true, showContinue: false });
     if (statusEl) statusEl.textContent = 'Timer running...';
     if (saveBtn) saveBtn.disabled = false;
     
@@ -104,12 +108,9 @@ function pauseJournalTimer() {
     journalTimerRunning = false;
     journalTimerPaused = true;
     
-    const pauseBtn = document.getElementById('pauseTimer');
-    const continueBtn = document.getElementById('continueTimer');
     const statusEl = document.getElementById('timerStatus');
-    
-    if (pauseBtn) pauseBtn.style.display = 'none';
-    if (continueBtn) continueBtn.style.display = 'inline-block';
+
+    setTimerButtonVisibility({ showStart: false, showPause: false, showContinue: true });
     if (statusEl) statusEl.textContent = 'Timer paused';
 }
 
@@ -122,12 +123,9 @@ function continueJournalTimer() {
     journalTimerRunning = true;
     journalTimerPaused = false;
     
-    const pauseBtn = document.getElementById('pauseTimer');
-    const continueBtn = document.getElementById('continueTimer');
     const statusEl = document.getElementById('timerStatus');
-    
-    if (pauseBtn) pauseBtn.style.display = 'inline-block';
-    if (continueBtn) continueBtn.style.display = 'none';
+
+    setTimerButtonVisibility({ showStart: false, showPause: true, showContinue: false });
     if (statusEl) statusEl.textContent = 'Timer running...';
     
     journalTimer = setInterval(() => {
@@ -161,12 +159,9 @@ function timerComplete() {
     clearInterval(journalTimer);
     journalTimerRunning = false;
     
-    const pauseBtn = document.getElementById('pauseTimer');
-    const continueBtn = document.getElementById('continueTimer');
     const statusEl = document.getElementById('timerStatus');
-    
-    if (pauseBtn) pauseBtn.style.display = 'none';
-    if (continueBtn) continueBtn.style.display = 'inline-block';
+
+    setTimerButtonVisibility({ showStart: false, showPause: false, showContinue: true });
     if (statusEl) statusEl.textContent = 'Timer complete! Click "Continue" to keep writing.';
     
     utils.showSuccessFeedback('10 minutes complete! You can continue writing or save your entry.');
@@ -220,15 +215,10 @@ function clearJournalEntry() {
     journalStartTime = null;
     journalDuration = 0;
     
-    const startBtn = document.getElementById('startTimer');
-    const pauseBtn = document.getElementById('pauseTimer');
-    const continueBtn = document.getElementById('continueTimer');
     const statusEl = document.getElementById('timerStatus');
     const saveBtn = document.getElementById('saveEntry');
-    
-    if (startBtn) startBtn.style.display = 'inline-block';
-    if (pauseBtn) pauseBtn.style.display = 'none';
-    if (continueBtn) continueBtn.style.display = 'none';
+
+    setTimerButtonVisibility({ showStart: true, showPause: false, showContinue: false });
     if (statusEl) statusEl.textContent = 'Ready to start';
     if (saveBtn) saveBtn.disabled = true;
     
@@ -243,15 +233,15 @@ export async function loadPastEntries() {
     if (!container) return;
     
     try {
-        container.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div><p>Loading entries...</p></div>';
+        container.innerHTML = '<div class="empty-state empty-state--loading"><div class="loading-spinner"></div><p>Loading entries...</p></div>';
         
         const entries = await eel.get_recent_entries(30)();
         
         if (entries.length === 0) {
             container.innerHTML = `
-                <div class="empty-state">
+                <div class="empty-state empty-state--message empty-state--compact">
                     <h3>No entries yet</h3>
-                    <p>Start writing your first journal entry above!</p>
+                    <p>Start writing your first journal entry above.</p>
                 </div>
             `;
             return;
@@ -259,7 +249,9 @@ export async function loadPastEntries() {
         
         let html = '';
         entries.forEach(entry => {
-            const date = new Date(entry.date || entry.created_at);
+            const rawDate = entry.date || entry.created_at;
+            const date = new Date(rawDate);
+            const iso = typeof rawDate === 'string' ? rawDate : date.toISOString();
             const dateStr = date.toLocaleDateString('en-US', { 
                 year: 'numeric', 
                 month: 'long', 
@@ -276,14 +268,14 @@ export async function loadPastEntries() {
             const continuedBadge = entry.continued ? '<span class="journal-badge continued">Continued</span>' : '';
             
             html += `
-                <div class="journal-entry-item">
+                <article class="journal-entry-item">
                     <div class="journal-entry-header">
-                        <span class="journal-entry-date">${utils.escapeHtml(dateStr)}</span>
-                        ${durationStr ? `<span class="journal-entry-duration">⏱ ${durationStr}</span>` : ''}
+                        <time class="journal-entry-date" datetime="${utils.escapeHtml(iso)}">${utils.escapeHtml(dateStr)}</time>
+                        ${durationStr ? `<span class="journal-entry-duration" aria-label="Time spent writing">${utils.escapeHtml(durationStr)}</span>` : ''}
                         ${continuedBadge}
                     </div>
                     <div class="journal-entry-content">${utils.escapeHtml(entry.content)}</div>
-                </div>
+                </article>
             `;
         });
         
@@ -291,7 +283,7 @@ export async function loadPastEntries() {
     } catch (error) {
         console.error('Error loading past entries:', error);
         container.innerHTML = `
-            <div class="empty-state">
+            <div class="empty-state empty-state--message empty-state--compact">
                 <h3>Error loading entries</h3>
                 <p>Please try again later.</p>
             </div>

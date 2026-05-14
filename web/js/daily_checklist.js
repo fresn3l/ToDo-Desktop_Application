@@ -18,7 +18,7 @@ export async function setupDailyChecklist() {
     const choiceWrap = document.getElementById('choiceOptionsWrap');
     const toggleChoiceFields = () => {
         if (!choiceWrap || !typeSel) return;
-        choiceWrap.style.display = typeSel.value === 'choice' ? 'flex' : 'none';
+        choiceWrap.classList.toggle('is-hidden', typeSel.value !== 'choice');
     };
     typeSel?.addEventListener('change', toggleChoiceFields);
     toggleChoiceFields();
@@ -93,7 +93,12 @@ async function renderCustomItemsList() {
 
     const items = state.customItems || [];
     if (!items.length) {
-        container.innerHTML = '<p class="checklist-empty">No extra questions yet.</p>';
+        container.innerHTML = `
+            <div class="empty-state empty-state--message empty-state--compact">
+                <h3>No extra questions yet</h3>
+                <p>Open &ldquo;Add a custom question&rdquo; below to create one.</p>
+            </div>
+        `;
         return;
     }
 
@@ -504,11 +509,16 @@ async function loadRecentSubmissions() {
         }
     }
     if (!listEl) return;
-    listEl.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div><p>Loading…</p></div>';
+    listEl.innerHTML = '<div class="empty-state empty-state--loading"><div class="loading-spinner"></div><p>Loading…</p></div>';
     try {
         const rows = await eel.list_daily_checklist_submissions(30)();
         if (!rows.length) {
-            listEl.innerHTML = '<p class="checklist-empty">No submissions yet.</p>';
+            listEl.innerHTML = `
+                <div class="empty-state empty-state--message empty-state--compact">
+                    <h3>No submissions yet</h3>
+                    <p>Complete the checklist above to see history here.</p>
+                </div>
+            `;
             return;
         }
         let html = '';
