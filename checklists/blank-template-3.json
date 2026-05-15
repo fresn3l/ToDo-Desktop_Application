@@ -1,0 +1,20 @@
+{
+  "id": "blank-template-3",
+  "version": 1,
+  "title": "Blank template 3 — Yes / No then follow-up",
+  "start": "first_question",
+  "nodes": {
+    "first_question": {
+      "type": "yes_no",
+      "question": "[Template 3] First question — edit in checklists/blank-template-3.json",
+      "onYes": "second_question",
+      "onNo": "end"
+    },
+    "second_question": {
+      "type": "yes_no",
+      "question": "[Template 3] Follow-up when first answer is Yes",
+      "onYes": "end",
+      "onNo": "end"
+    }
+  }
+}

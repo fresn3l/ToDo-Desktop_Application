@@ -5,6 +5,53 @@
 import * as utils from './utils.js';
 
 let state = null;
+let checklistTemplateSelectBound = false;
+
+async function populateChecklistTemplateSelect() {
+    const sel = document.getElementById('checklistTemplateSelect');
+    if (!sel) return;
+    let bundles = [];
+    let active = 'default';
+    try {
+        bundles = await eel.list_bundled_checklists()();
+        active = await eel.get_active_checklist_stem()();
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+    sel.innerHTML = '';
+    bundles.forEach((b) => {
+        const opt = document.createElement('option');
+        opt.value = b.id;
+        opt.textContent = b.title;
+        if (b.id === active) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    sel.value = active;
+    if (!checklistTemplateSelectBound) {
+        checklistTemplateSelectBound = true;
+        sel.addEventListener('change', async () => {
+            try {
+                await eel.set_active_checklist_stem(sel.value)();
+                await loadDefinition();
+                await renderCustomItemsList();
+                startWizard();
+                await loadRecentSubmissions();
+                utils.showSuccessFeedback('Checklist template updated.');
+            } catch (e) {
+                console.error(e);
+                utils.showErrorFeedback(
+                    typeof e === 'string' ? e : e?.message || 'Could not switch template.',
+                );
+                try {
+                    sel.value = await eel.get_active_checklist_stem()();
+                } catch (_) {
+                    /* ignore */
+                }
+            }
+        });
+    }
+}
 
 export async function setupDailyChecklist() {
     const restart = document.getElementById('restartChecklist');
@@ -57,6 +104,7 @@ export async function setupDailyChecklist() {
     });
 
     try {
+        await populateChecklistTemplateSelect();
         await loadDefinition();
         await renderCustomItemsList();
         startWizard();
@@ -147,6 +195,7 @@ function startWizard() {
 }
 
 export async function onChecklistTabShown() {
+    await populateChecklistTemplateSelect();
     await loadRecentSubmissions();
     await renderCustomItemsList();
     if (!state || !state.def) {

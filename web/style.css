@@ -606,6 +606,16 @@ button {
     border-bottom: 1px solid var(--border-subtle);
 }
 
+.checklist-template-row {
+    margin: 0.75rem 0 0.5rem;
+    max-width: 28rem;
+}
+
+.checklist-template-row .checklist-template-select {
+    width: 100%;
+    margin-top: 0.25rem;
+}
+
 .checklist-intro h2 {
     font-size: var(--text-h2);
     font-weight: 700;

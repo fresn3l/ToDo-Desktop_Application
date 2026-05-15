@@ -27,8 +27,52 @@ def _resource_base() -> Path:
     return Path(__file__).resolve().parent
 
 
+_CHECKLIST_STEM_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+
+def _checklists_dir() -> Path:
+    return _resource_base() / "checklists"
+
+
+def get_selected_checklist_stem() -> str:
+    pref = get_data_directory() / "checklist_selected_stem.txt"
+    if pref.exists():
+        try:
+            stem = pref.read_text(encoding="utf-8").strip()
+        except OSError:
+            stem = ""
+        if stem and _CHECKLIST_STEM_PATTERN.fullmatch(stem):
+            candidate = _checklists_dir() / f"{stem}.json"
+            if candidate.exists():
+                return stem
+    return "default"
+
+
+def set_selected_checklist_stem(stem: str) -> None:
+    stem = (stem or "").strip()
+    if not _CHECKLIST_STEM_PATTERN.fullmatch(stem):
+        raise ValueError("Invalid checklist template id")
+    path = _checklists_dir() / f"{stem}.json"
+    if not path.exists():
+        raise ValueError("Checklist template not found")
+    pref = get_data_directory() / "checklist_selected_stem.txt"
+    get_data_directory().mkdir(parents=True, exist_ok=True)
+    pref.write_text(stem, encoding="utf-8")
+
+
 def get_checklist_definition_path() -> Path:
-    return _resource_base() / "checklists" / "default.json"
+    return _checklists_dir() / f"{get_selected_checklist_stem()}.json"
+
+
+def _is_valid_bundle_dict(data: Any) -> bool:
+    if not isinstance(data, dict):
+        return False
+    if not isinstance(data.get("nodes"), dict):
+        return False
+    start = data.get("start")
+    if not start or not isinstance(start, str):
+        return False
+    return True
 
 
 def get_data_directory() -> Path:
@@ -178,6 +222,37 @@ def get_daily_checklist() -> Dict[str, Any]:
         raise FileNotFoundError(f"Missing checklist definition: {path}")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+@eel.expose
+def list_bundled_checklists() -> List[Dict[str, str]]:
+    """JSON files in the bundled checklists/ folder (valid flow definitions only)."""
+    out: List[Dict[str, str]] = []
+    d = _checklists_dir()
+    if not d.is_dir():
+        return out
+    for path in sorted(d.glob("*.json")):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not _is_valid_bundle_dict(data):
+            continue
+        stem = path.stem
+        title = str(data.get("title") or stem).strip() or stem
+        out.append({"id": stem, "title": title})
+    return out
+
+
+@eel.expose
+def get_active_checklist_stem() -> str:
+    return get_selected_checklist_stem()
+
+
+@eel.expose
+def set_active_checklist_stem(stem: str) -> None:
+    set_selected_checklist_stem(stem)
 
 
 @eel.expose

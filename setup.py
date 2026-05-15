@@ -19,7 +19,16 @@ DATA_FILES = [
             "web/js/daily_checklist.js",
         ],
     ),
-    ("checklists", ["checklists/default.json"]),
+    (
+        "checklists",
+        [
+            "checklists/default.json",
+            "checklists/blank-template-1.json",
+            "checklists/blank-template-2.json",
+            "checklists/blank-template-3.json",
+            "checklists/blank-template-4.json",
+        ],
+    ),
 ]
 
 OPTIONS = {

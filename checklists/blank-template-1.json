@@ -1,0 +1,14 @@
+{
+  "id": "blank-template-1",
+  "version": 1,
+  "title": "Blank template 1 — Yes / No only",
+  "start": "replace_me",
+  "nodes": {
+    "replace_me": {
+      "type": "yes_no",
+      "question": "[Template 1] Replace this question text in checklists/blank-template-1.json",
+      "onYes": "end",
+      "onNo": "end"
+    }
+  }
+}
