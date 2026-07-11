@@ -78,8 +78,11 @@ async function setupReminderControls() {
             if (status) {
                 status.textContent = result.error || (result.installed ? 'Reminder saved and installed.' : 'Reminder disabled.');
             }
-            utils.showSuccessFeedback(result.error ? 'Could not install reminder.' : 'Reminder updated.');
-            if (result.error) utils.showErrorFeedback(result.error);
+            if (result.error) {
+                utils.showErrorFeedback(result.error);
+            } else {
+                utils.showSuccessFeedback('Reminder updated.');
+            }
         } catch (e) {
             utils.showErrorFeedback('Reminder setup failed.');
         }
