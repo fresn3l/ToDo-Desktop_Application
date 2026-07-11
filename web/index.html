@@ -122,6 +122,17 @@
                 <h2>Weekly Review</h2>
                 <p class="checklist-hint">Automated summary for the last 7 days.</p>
                 <div id="reviewContent" class="review-content"></div>
+                <div class="export-panel">
+                    <h3>Export data</h3>
+                    <p class="checklist-hint small">Files save to <code id="exportsPath"></code></p>
+                    <div class="export-buttons">
+                        <button type="button" class="btn-secondary" data-export="checklist-json">Checklist JSON</button>
+                        <button type="button" class="btn-secondary" data-export="checklist-csv">Checklist CSV</button>
+                        <button type="button" class="btn-secondary" data-export="journal-json">Journal JSON</button>
+                        <button type="button" class="btn-secondary" data-export="journal-csv">Journal CSV</button>
+                    </div>
+                    <p id="exportStatus" class="checklist-hint small"></p>
+                </div>
             </div>
         </div>
 

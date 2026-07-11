@@ -16,6 +16,37 @@ export async function setupReview() {
             utils.showErrorFeedback('Could not save note.');
         }
     });
+
+    const exportsPath = document.getElementById('exportsPath');
+    if (exportsPath) {
+        try {
+            exportsPath.textContent = await eel.get_exports_directory()();
+        } catch (_) {
+            exportsPath.textContent = 'Application Support/ToDo/exports';
+        }
+    }
+
+    document.querySelectorAll('[data-export]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const kind = btn.getAttribute('data-export');
+            const status = document.getElementById('exportStatus');
+            try {
+                let result;
+                if (kind === 'checklist-json') result = await eel.export_checklist_json()();
+                else if (kind === 'checklist-csv') result = await eel.export_checklist_csv()();
+                else if (kind === 'journal-json') result = await eel.export_journal_json()();
+                else if (kind === 'journal-csv') result = await eel.export_journal_csv()();
+                else return;
+                if (status) {
+                    status.textContent = `Exported ${result.count} record(s) → ${result.path}`;
+                }
+                utils.showSuccessFeedback('Export saved.');
+            } catch (e) {
+                console.error(e);
+                utils.showErrorFeedback('Export failed.');
+            }
+        });
+    });
 }
 
 export async function onReviewTabShown() {

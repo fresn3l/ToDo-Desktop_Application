@@ -1092,6 +1092,24 @@ button {
     margin: var(--space-sm) 0 var(--space-md);
 }
 
+.export-panel {
+    margin-top: var(--space-xl);
+    padding-top: var(--space-lg);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.export-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin: var(--space-md) 0;
+}
+
+.export-panel code {
+    font-size: 0.8rem;
+    word-break: break-all;
+}
+
 /* Timeline */
 .timeline-section-wrap {
     max-width: 720px;

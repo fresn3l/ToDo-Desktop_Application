@@ -11,6 +11,7 @@ import daily_checklist  # noqa: F401 — registers eel endpoints
 import journal
 import insights  # noqa: F401 — weekly review endpoints
 import timeline  # noqa: F401 — unified timeline endpoints
+import export_data  # noqa: F401 — CSV/JSON export endpoints
 
 eel.init("web")
 
