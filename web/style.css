@@ -907,6 +907,23 @@ button {
     margin-top: var(--space-md);
 }
 
+.reminder-time-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
+.reminder-time-row .checklist-text-input {
+    max-width: 4.5rem;
+}
+
+.reminder-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
 .checklist-scale-row {
     display: flex;
     flex-wrap: wrap;

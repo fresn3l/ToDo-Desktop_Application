@@ -53,6 +53,49 @@ async function populateChecklistTemplateSelect() {
     }
 }
 
+async function setupReminderControls() {
+    const status = document.getElementById('reminderStatus');
+    try {
+        const cfg = await eel.get_reminder_config()();
+        document.getElementById('reminderEnabled').checked = !!cfg.enabled;
+        document.getElementById('reminderHour').value = cfg.hour ?? 20;
+        document.getElementById('reminderMinute').value = cfg.minute ?? 0;
+        if (status) {
+            status.textContent = cfg.installed
+                ? `Installed · ${cfg.plist_path}`
+                : 'Not installed';
+        }
+    } catch (e) {
+        console.error(e);
+    }
+
+    document.getElementById('saveReminderBtn')?.addEventListener('click', async () => {
+        const enabled = !!document.getElementById('reminderEnabled')?.checked;
+        const hour = parseInt(document.getElementById('reminderHour')?.value || '20', 10);
+        const minute = parseInt(document.getElementById('reminderMinute')?.value || '0', 10);
+        try {
+            const result = await eel.set_reminder_config(enabled, hour, minute)();
+            if (status) {
+                status.textContent = result.error || (result.installed ? 'Reminder saved and installed.' : 'Reminder disabled.');
+            }
+            utils.showSuccessFeedback(result.error ? 'Could not install reminder.' : 'Reminder updated.');
+            if (result.error) utils.showErrorFeedback(result.error);
+        } catch (e) {
+            utils.showErrorFeedback('Reminder setup failed.');
+        }
+    });
+
+    document.getElementById('testReminderBtn')?.addEventListener('click', async () => {
+        try {
+            const result = await eel.test_local_reminder()();
+            if (result.ok) utils.showSuccessFeedback('Test notification sent.');
+            else utils.showErrorFeedback(result.error || result.stderr || 'Test failed.');
+        } catch (e) {
+            utils.showErrorFeedback('Test failed.');
+        }
+    });
+}
+
 export async function setupDailyChecklist() {
     const restart = document.getElementById('restartChecklist');
     if (restart) {
@@ -69,6 +112,8 @@ export async function setupDailyChecklist() {
     };
     typeSel?.addEventListener('change', toggleChoiceFields);
     toggleChoiceFields();
+
+    await setupReminderControls();
 
     document.getElementById('addCustomItemBtn')?.addEventListener('click', async () => {
         const type = document.getElementById('newItemType')?.value || 'yes_no';

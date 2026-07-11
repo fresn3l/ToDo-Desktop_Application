@@ -78,6 +78,27 @@
                     <button type="button" id="restartChecklist" class="btn-secondary">Start over</button>
                 </div>
 
+                <details class="checklist-add-details reminder-details">
+                    <summary>Local daily reminder (macOS)</summary>
+                    <div class="checklist-add-form">
+                        <p class="checklist-hint small">Free offline notification via launchd — complements SMS.</p>
+                        <label class="checklist-checkbox-label">
+                            <input type="checkbox" id="reminderEnabled"> Enable daily reminder
+                        </label>
+                        <label class="checklist-field-label" for="reminderHour">Time (24h)</label>
+                        <div class="reminder-time-row">
+                            <input type="number" id="reminderHour" class="checklist-text-input" min="0" max="23" value="20">
+                            <span>:</span>
+                            <input type="number" id="reminderMinute" class="checklist-text-input" min="0" max="59" value="0">
+                        </div>
+                        <div class="reminder-actions">
+                            <button type="button" id="saveReminderBtn" class="btn-primary">Save reminder</button>
+                            <button type="button" id="testReminderBtn" class="btn-secondary">Test now</button>
+                        </div>
+                        <p id="reminderStatus" class="checklist-hint small"></p>
+                    </div>
+                </details>
+
                 <div class="checklist-custom-panel">
                     <h3>Your extra questions</h3>
                     <p class="checklist-hint small">
