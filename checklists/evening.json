@@ -1,0 +1,52 @@
+{
+  "id": "evening",
+  "version": 1,
+  "title": "Evening check-in",
+  "start": "day_recap",
+  "nodes": {
+    "day_recap": {
+      "type": "text",
+      "question": "What happened today? Brief recap.",
+      "placeholder": "Highlights, lowlights, surprises…",
+      "next": "mood"
+    },
+    "mood": {
+      "type": "scale",
+      "question": "Overall mood today (1 = low, 10 = great)",
+      "min": 1,
+      "max": 10,
+      "next": "exercise_done"
+    },
+    "exercise_done": {
+      "type": "yes_no",
+      "question": "Did you exercise today?",
+      "onYes": "workout_type",
+      "onNo": "journal_reflect"
+    },
+    "workout_type": {
+      "type": "choice",
+      "question": "What type of workout?",
+      "allowOther": true,
+      "otherNext": "journal_reflect",
+      "options": [
+        { "label": "Legs", "value": "legs", "next": "journal_reflect" },
+        { "label": "Chest and tris", "value": "chest_tris", "next": "journal_reflect" },
+        { "label": "Back", "value": "back", "next": "journal_reflect" },
+        { "label": "Core", "value": "core", "next": "journal_reflect" },
+        { "label": "Running", "value": "running", "next": "journal_reflect" }
+      ]
+    },
+    "journal_reflect": {
+      "type": "text",
+      "question": "Journal prompt: What are you grateful for, or what did you learn today?",
+      "placeholder": "A few sentences…",
+      "next": "tomorrow_prep"
+    },
+    "tomorrow_prep": {
+      "type": "text",
+      "question": "Tomorrow prep: What's the first thing you'll do?",
+      "placeholder": "First action when you start tomorrow…",
+      "next": "end"
+    }
+  }
+}

@@ -849,6 +849,22 @@ button {
     min-height: 100px;
 }
 
+.checklist-scale-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.checklist-scale-btn {
+    min-width: 2.75rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.checklist-flow-text {
+    width: 100%;
+    margin-bottom: var(--space-md);
+}
+
 .checklist-q {
     font-size: 1.05rem;
     font-weight: 600;

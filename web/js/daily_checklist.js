@@ -227,6 +227,82 @@ function renderWizard() {
         return;
     }
 
+    if (node.type === 'text') {
+        const ph = node.placeholder ? utils.escapeHtml(node.placeholder) : '';
+        el.innerHTML = `
+            <div class="checklist-card">
+                <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
+                <textarea class="checklist-textarea checklist-flow-text" rows="4" placeholder="${ph}" id="checklistTextInput"></textarea>
+                <button type="button" class="btn-primary checklist-next">Continue</button>
+            </div>
+        `;
+        el.querySelector('.checklist-next').addEventListener('click', () => {
+            const text = (el.querySelector('#checklistTextInput')?.value || '').trim();
+            if (!text && !node.optional) {
+                utils.showErrorFeedback('Please enter a response.');
+                return;
+            }
+            state.answers[state.currentId] = text;
+            goTo(node.next || 'end');
+        });
+        return;
+    }
+
+    if (node.type === 'scale') {
+        const min = node.min ?? 1;
+        const max = node.max ?? 5;
+        let buttons = '';
+        for (let v = min; v <= max; v++) {
+            buttons += `<button type="button" class="btn-secondary checklist-scale-btn" data-value="${v}">${v}</button>`;
+        }
+        el.innerHTML = `
+            <div class="checklist-card">
+                <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
+                <div class="checklist-scale-row">${buttons}</div>
+            </div>
+        `;
+        el.querySelectorAll('.checklist-scale-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                state.answers[state.currentId] = parseInt(btn.getAttribute('data-value'), 10);
+                goTo(node.next || 'end');
+            });
+        });
+        return;
+    }
+
+    if (node.type === 'number') {
+        const min = node.min ?? 0;
+        const max = node.max ?? 999;
+        const step = node.step ?? 1;
+        el.innerHTML = `
+            <div class="checklist-card">
+                <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
+                <input type="number" class="checklist-text-input" id="checklistNumberInput" min="${min}" max="${max}" step="${step}" placeholder="${node.optional ? 'Optional' : ''}">
+                <button type="button" class="btn-primary checklist-next">Continue</button>
+            </div>
+        `;
+        el.querySelector('.checklist-next').addEventListener('click', () => {
+            const raw = el.querySelector('#checklistNumberInput')?.value.trim() || '';
+            if (!raw) {
+                if (node.optional) {
+                    state.answers[state.currentId] = null;
+                    goTo(node.next || 'end');
+                    return;
+                }
+                utils.showErrorFeedback('Enter a number.');
+                return;
+            }
+            const n = parseFloat(raw);
+            if (Number.isNaN(n) || n < min || n > max) {
+                utils.showErrorFeedback(`Enter a number between ${min} and ${max}.`);
+                return;
+            }
+            state.answers[state.currentId] = n;
+            goTo(node.next || 'end');
+        });
+        return;
+    }
+
     if (node.type === 'yes_no') {
         el.innerHTML = `
             <div class="checklist-card">

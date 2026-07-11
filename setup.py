@@ -27,6 +27,8 @@ DATA_FILES = [
             "checklists/blank-template-2.json",
             "checklists/blank-template-3.json",
             "checklists/blank-template-4.json",
+            "checklists/morning.json",
+            "checklists/evening.json",
         ],
     ),
 ]
