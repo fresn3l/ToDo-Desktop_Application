@@ -108,7 +108,7 @@ function renderReview(data) {
             <div class="review-card">
                 <h3>Exercise</h3>
                 <p class="review-stat">${data.exercise_sessions}</p>
-                <p class="review-detail">sessions logged (yes on exercise questions)</p>
+                <p class="review-detail">${data.exercise_days ?? data.exercise_sessions} days with exercise logged</p>
                 <ul class="review-list">${workouts}</ul>
             </div>
             <div class="review-card">

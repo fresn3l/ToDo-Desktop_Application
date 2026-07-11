@@ -86,7 +86,8 @@ def _journal_entries_in_range(start: date, end: date) -> List[Dict[str, Any]]:
 
 
 def _is_exercise_yes(answers: Dict[str, Any]) -> bool:
-    for key in ("exercise_done", "exercise_yn", "planned_workout"):
+    """Completed exercise only — excludes morning planned_workout intentions."""
+    for key in ("exercise_done", "exercise_yn"):
         if answers.get(key) is True:
             return True
     return False
@@ -162,7 +163,7 @@ def get_weekly_review(days: int = 7) -> Dict[str, Any]:
     custom_items = daily_checklist.get_custom_checklist_items()
 
     days_with_checkin: Set[str] = set()
-    exercise_days = 0
+    days_with_exercise: Set[str] = set()
     workout_counter: Counter = Counter()
     checklist_ids: Counter = Counter()
 
@@ -173,10 +174,11 @@ def get_weekly_review(days: int = 7) -> Dict[str, Any]:
         checklist_ids[sub.get("checklist_id", "unknown")] += 1
         answers = sub.get("answers") or {}
         if _is_exercise_yes(answers):
-            exercise_days += 1
-        for wt in _workout_types(answers):
-            if wt:
-                workout_counter[wt] += 1
+            if ld:
+                days_with_exercise.add(ld)
+            for wt in _workout_types(answers):
+                if wt:
+                    workout_counter[wt] += 1
 
     completion_pct = round(len(days_with_checkin) / days * 100, 1)
     total_writing = sum(int(e.get("duration_seconds") or 0) for e in journal_entries)
@@ -191,7 +193,8 @@ def get_weekly_review(days: int = 7) -> Dict[str, Any]:
         "days_with_checkin": len(days_with_checkin),
         "total_submissions": len(submissions),
         "checklist_breakdown": dict(checklist_ids),
-        "exercise_sessions": exercise_days,
+        "exercise_sessions": len(days_with_exercise),
+        "exercise_days": len(days_with_exercise),
         "workout_types": dict(workout_counter),
         "journal_entry_count": len(journal_entries),
         "journal_writing_seconds": total_writing,
