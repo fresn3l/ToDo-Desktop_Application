@@ -205,6 +205,7 @@ export async function onChecklistTabShown() {
     await populateChecklistTemplateSelect();
     await loadRecentSubmissions();
     await renderCustomItemsList();
+    await showRecoveryIfNeeded();
     if (!state || !state.def) {
         try {
             await loadDefinition();
@@ -599,6 +600,84 @@ function renderExtraItem() {
                 advanceExtra();
             }
         });
+        return;
+    }
+
+    if (item.type === 'text') {
+        el.innerHTML = `
+            <div class="checklist-card">
+                <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
+                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
+                <textarea class="checklist-textarea checklist-flow-text" rows="3" id="extraTextInput"></textarea>
+                <button type="button" class="btn-primary extra-next">Continue</button>
+            </div>
+        `;
+        el.querySelector('.extra-next').addEventListener('click', () => {
+            const text = el.querySelector('#extraTextInput')?.value.trim() || '';
+            if (!text && !item.optional) {
+                utils.showErrorFeedback('Please enter a response.');
+                return;
+            }
+            state.answers[item.id] = text;
+            advanceExtra();
+        });
+        return;
+    }
+
+    if (item.type === 'scale') {
+        const min = item.min ?? 1;
+        const max = item.max ?? 5;
+        let buttons = '';
+        for (let v = min; v <= max; v++) {
+            buttons += `<button type="button" class="btn-secondary checklist-scale-btn" data-value="${v}">${v}</button>`;
+        }
+        el.innerHTML = `
+            <div class="checklist-card">
+                <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
+                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
+                <div class="checklist-scale-row">${buttons}</div>
+            </div>
+        `;
+        el.querySelectorAll('.checklist-scale-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                state.answers[item.id] = parseInt(btn.getAttribute('data-value'), 10);
+                advanceExtra();
+            });
+        });
+        return;
+    }
+
+    if (item.type === 'number') {
+        const min = item.min ?? 0;
+        const max = item.max ?? 999;
+        const step = item.step ?? 1;
+        el.innerHTML = `
+            <div class="checklist-card">
+                <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
+                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
+                <input type="number" class="checklist-text-input" id="extraNumberInput" min="${min}" max="${max}" step="${step}">
+                <button type="button" class="btn-primary extra-next">Continue</button>
+            </div>
+        `;
+        el.querySelector('.extra-next').addEventListener('click', () => {
+            const raw = el.querySelector('#extraNumberInput')?.value.trim() || '';
+            if (!raw) {
+                if (item.optional) {
+                    state.answers[item.id] = null;
+                    advanceExtra();
+                    return;
+                }
+                utils.showErrorFeedback('Enter a number.');
+                return;
+            }
+            const n = parseFloat(raw);
+            if (Number.isNaN(n) || n < min || n > max) {
+                utils.showErrorFeedback(`Enter a number between ${min} and ${max}.`);
+                return;
+            }
+            state.answers[item.id] = n;
+            advanceExtra();
+        });
     }
 }
 
@@ -627,6 +706,44 @@ async function completeFlow() {
         return;
     }
     startWizard();
+}
+
+async function showRecoveryIfNeeded() {
+    const panel = document.getElementById('recoveryPanel');
+    if (!panel) return;
+    try {
+        const data = await eel.get_pending_recovery()();
+        if (!data.pending) {
+            panel.classList.add('is-hidden');
+            panel.innerHTML = '';
+            return;
+        }
+        panel.classList.remove('is-hidden');
+        let options = '';
+        (data.options || []).forEach((opt) => {
+            options += `<button type="button" class="btn-secondary recovery-option" data-value="${utils.escapeHtml(opt.value)}">${utils.escapeHtml(opt.label)}</button>`;
+        });
+        panel.innerHTML = `
+            <div class="recovery-card">
+                <h3>Missed check-in: ${utils.escapeHtml(data.missed_date)}</h3>
+                <p class="checklist-q">${utils.escapeHtml(data.question)}</p>
+                <div class="recovery-options">${options}</div>
+            </div>
+        `;
+        panel.querySelectorAll('.recovery-option').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                try {
+                    await eel.submit_recovery_response(data.missed_date, btn.getAttribute('data-value'))();
+                    utils.showSuccessFeedback('Thanks — logged.');
+                    await showRecoveryIfNeeded();
+                } catch (e) {
+                    utils.showErrorFeedback('Could not save.');
+                }
+            });
+        });
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 async function loadRecentSubmissions() {
