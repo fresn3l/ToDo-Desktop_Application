@@ -18,6 +18,7 @@ DATA_FILES = [
             "web/js/tabs.js",
             "web/js/daily_checklist.js",
             "web/js/review.js",
+            "web/js/timeline.js",
         ],
     ),
     (
@@ -46,7 +47,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights"],
+    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline"],
 }
 
 setup(

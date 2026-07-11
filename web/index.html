@@ -18,6 +18,7 @@
                 <button type="button" class="tab-button active" data-tab="journal">Journal</button>
                 <button type="button" class="tab-button" data-tab="checklist">Daily Checklist</button>
                 <button type="button" class="tab-button" data-tab="review">Weekly Review</button>
+                <button type="button" class="tab-button" data-tab="timeline">Timeline</button>
             </nav>
         </header>
 
@@ -116,6 +117,20 @@
                 <h2>Weekly Review</h2>
                 <p class="checklist-hint">Automated summary for the last 7 days.</p>
                 <div id="reviewContent" class="review-content"></div>
+            </div>
+        </div>
+
+        <div id="timelineTab" class="tab-content">
+            <div class="timeline-section-wrap">
+                <h2>Timeline</h2>
+                <p class="checklist-hint">Everything recorded on one day — checklist answers and journal entries.</p>
+                <div class="timeline-controls">
+                    <label class="checklist-field-label" for="timelineDate">Date</label>
+                    <input type="date" id="timelineDate" class="checklist-text-input timeline-date-input">
+                    <button type="button" id="timelineToday" class="btn-secondary">Today</button>
+                </div>
+                <div id="timelineDateList" class="timeline-date-list"></div>
+                <div id="timelineContent" class="timeline-content"></div>
             </div>
         </div>
     </div>
