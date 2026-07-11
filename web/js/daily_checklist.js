@@ -109,12 +109,21 @@ export async function setupDailyChecklist() {
 
     const typeSel = document.getElementById('newItemType');
     const choiceWrap = document.getElementById('choiceOptionsWrap');
-    const toggleChoiceFields = () => {
-        if (!choiceWrap || !typeSel) return;
-        choiceWrap.classList.toggle('is-hidden', typeSel.value !== 'choice');
+    const trackDurationWrap = document.getElementById('trackDurationWrap');
+    const toggleCustomItemFields = () => {
+        const type = typeSel?.value || 'yes_no';
+        if (choiceWrap) choiceWrap.classList.toggle('is-hidden', type !== 'choice');
+        const allowDuration = type === 'yes_no' || type === 'choice';
+        if (trackDurationWrap) {
+            trackDurationWrap.classList.toggle('is-hidden', !allowDuration);
+        }
+        if (!allowDuration) {
+            const td = document.getElementById('newItemTrackDuration');
+            if (td) td.checked = false;
+        }
     };
-    typeSel?.addEventListener('change', toggleChoiceFields);
-    toggleChoiceFields();
+    typeSel?.addEventListener('change', toggleCustomItemFields);
+    toggleCustomItemFields();
 
     await setupReminderControls();
 
@@ -133,7 +142,9 @@ export async function setupDailyChecklist() {
                 payload.options = options;
                 payload.allowOther = !!document.getElementById('newItemAllowOther')?.checked;
             }
-            payload.trackDuration = !!document.getElementById('newItemTrackDuration')?.checked;
+            if (type === 'yes_no' || type === 'choice') {
+                payload.trackDuration = !!document.getElementById('newItemTrackDuration')?.checked;
+            }
             await eel.add_custom_checklist_item(payload)();
             document.getElementById('newItemQuestion').value = '';
             const ta = document.getElementById('newItemOptions');
