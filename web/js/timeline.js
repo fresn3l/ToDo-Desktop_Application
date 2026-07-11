@@ -15,6 +15,31 @@ export function setupTimeline() {
     picker.value = today;
     picker.max = today;
 
+    document.getElementById('importHealthBtn')?.addEventListener('click', async () => {
+        const path = document.getElementById('healthExportPath')?.value.trim();
+        const status = document.getElementById('healthImportStatus');
+        try {
+            const result = await eel.import_health_export(path)();
+            if (status) status.textContent = `Imported ${result.days_imported} day(s).`;
+            utils.showSuccessFeedback('Health data imported.');
+            await loadTimelineDay(document.getElementById('timelineDate')?.value || today);
+        } catch (e) {
+            utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Import failed.');
+        }
+    });
+
+    document.getElementById('refreshScreenTimeBtn')?.addEventListener('click', async () => {
+        const status = document.getElementById('healthImportStatus');
+        try {
+            const result = await eel.refresh_screen_time_for_recent_days(7)();
+            if (status) status.textContent = result.note || `Updated ${result.updated} day(s).`;
+            utils.showSuccessFeedback('Screen Time refresh attempted.');
+            await loadTimelineDay(document.getElementById('timelineDate')?.value || today);
+        } catch (e) {
+            utils.showErrorFeedback('Screen Time refresh failed.');
+        }
+    });
+
     if (!timelineDateBound) {
         timelineDateBound = true;
         picker.addEventListener('change', () => loadTimelineDay(picker.value));
@@ -68,14 +93,20 @@ async function loadTimelineDay(localDate) {
     el.innerHTML = '<div class="empty-state empty-state--loading"><div class="loading-spinner"></div><p>Loading…</p></div>';
     try {
         const data = await eel.get_timeline_day(localDate)();
-        el.innerHTML = renderTimeline(data);
+        let health = {};
+        try {
+            health = await eel.get_health_snapshot(localDate)();
+        } catch (_) {
+            /* optional */
+        }
+        el.innerHTML = renderTimeline(data, health);
     } catch (e) {
         console.error(e);
         el.innerHTML = '<p class="checklist-error">Could not load timeline.</p>';
     }
 }
 
-function renderTimeline(data) {
+function renderTimeline(data, health) {
     let checkHtml = '';
     if (!data.submissions.length) {
         checkHtml = '<p class="checklist-empty">No checklist submissions this day.</p>';
@@ -119,12 +150,32 @@ function renderTimeline(data) {
 
     const writingMin = Math.round((data.total_writing_seconds || 0) / 60);
 
+    let healthHtml = '';
+    if (health && Object.keys(health).length) {
+        const parts = [];
+        if (health.sleep_hours) parts.push(`Sleep: ${health.sleep_hours}h`);
+        if (health.steps) parts.push(`Steps: ${health.steps}`);
+        if (health.screen_time_hours) parts.push(`Screen time: ${health.screen_time_hours}h`);
+        if (Array.isArray(health.workouts) && health.workouts.length) {
+            parts.push(`Workouts: ${health.workouts.length}`);
+        }
+        if (parts.length) {
+            healthHtml = `
+                <section class="timeline-section">
+                    <h3>Health / Screen Time</h3>
+                    <p class="timeline-health-summary">${utils.escapeHtml(parts.join(' · '))}</p>
+                </section>
+            `;
+        }
+    }
+
     return `
         <div class="timeline-summary">
             <span>${data.submission_count} checklist(s)</span>
             <span>${data.journal_count} journal entry(ies)</span>
             <span>${writingMin} min writing</span>
         </div>
+        ${healthHtml}
         <section class="timeline-section">
             <h3>Checklist</h3>
             ${checkHtml}

@@ -14,6 +14,7 @@ import timeline  # noqa: F401 — unified timeline endpoints
 import export_data  # noqa: F401 — CSV/JSON export endpoints
 import recovery  # noqa: F401 — missed-day recovery prompts
 import reminders  # noqa: F401 — local launchd reminders
+import health_import  # noqa: F401 — Apple Health / Screen Time imports
 
 eel.init("web")
 

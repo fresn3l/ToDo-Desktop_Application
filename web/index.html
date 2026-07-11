@@ -171,6 +171,19 @@
                     <button type="button" id="timelineToday" class="btn-secondary">Today</button>
                 </div>
                 <div id="timelineDateList" class="timeline-date-list"></div>
+                <details class="checklist-add-details timeline-health-details">
+                    <summary>Apple Health / Screen Time import</summary>
+                    <div class="checklist-add-form">
+                        <p class="checklist-hint small">Import from Apple Health &ldquo;Export All Health Data&rdquo; (export.xml).</p>
+                        <label class="checklist-field-label" for="healthExportPath">Path to export.xml</label>
+                        <input type="text" id="healthExportPath" class="checklist-text-input" placeholder="/Users/you/Desktop/export.xml">
+                        <div class="reminder-actions">
+                            <button type="button" id="importHealthBtn" class="btn-primary">Import Health export</button>
+                            <button type="button" id="refreshScreenTimeBtn" class="btn-secondary">Refresh Screen Time</button>
+                        </div>
+                        <p id="healthImportStatus" class="checklist-hint small"></p>
+                    </div>
+                </details>
                 <div id="timelineContent" class="timeline-content"></div>
             </div>
         </div>
