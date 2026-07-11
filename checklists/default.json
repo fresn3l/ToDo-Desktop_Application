@@ -1,27 +1,74 @@
 {
   "id": "default",
-  "version": 1,
-  "title": "Daily check-in",
-  "start": "exercise_yn",
+  "version": 2,
+  "title": "Daily check-in (full)",
+  "start": "sleep_quality",
   "nodes": {
+    "sleep_quality": {
+      "type": "scale",
+      "question": "How was your sleep?",
+      "min": 1,
+      "max": 5,
+      "next": "sleep_hours"
+    },
+    "sleep_hours": {
+      "type": "number",
+      "question": "Hours of sleep (approx.)",
+      "min": 0,
+      "max": 24,
+      "step": 0.5,
+      "optional": true,
+      "next": "meditation"
+    },
+    "meditation": {
+      "type": "yes_no",
+      "question": "Did you meditate or do breathwork today?",
+      "onYes": "exercise_yn",
+      "onNo": "exercise_yn"
+    },
     "exercise_yn": {
       "type": "yes_no",
       "question": "Did you exercise today?",
       "onYes": "workout_type",
-      "onNo": "end"
+      "onNo": "nutrition"
     },
     "workout_type": {
       "type": "choice",
       "question": "What type of workout?",
       "allowOther": true,
-      "otherNext": "end",
+      "otherNext": "nutrition",
       "options": [
-        { "label": "Legs", "value": "legs", "next": "end" },
-        { "label": "Chest and tris", "value": "chest_tris", "next": "end" },
-        { "label": "Back", "value": "back", "next": "end" },
-        { "label": "Core", "value": "core", "next": "end" },
-        { "label": "Running", "value": "running", "next": "end" }
+        { "label": "Legs", "value": "legs", "next": "nutrition" },
+        { "label": "Chest and tris", "value": "chest_tris", "next": "nutrition" },
+        { "label": "Back", "value": "back", "next": "nutrition" },
+        { "label": "Core", "value": "core", "next": "nutrition" },
+        { "label": "Running", "value": "running", "next": "nutrition" }
       ]
+    },
+    "nutrition": {
+      "type": "yes_no",
+      "question": "Did you eat in line with your nutrition goals?",
+      "onYes": "social",
+      "onNo": "social"
+    },
+    "social": {
+      "type": "yes_no",
+      "question": "Did you connect with someone important today?",
+      "onYes": "one_thing",
+      "onNo": "one_thing"
+    },
+    "one_thing": {
+      "type": "yes_no",
+      "question": "Did you do the one thing that mattered most today?",
+      "onYes": "day_note",
+      "onNo": "day_note"
+    },
+    "day_note": {
+      "type": "text",
+      "question": "Anything else worth capturing about today?",
+      "placeholder": "Optional — wins, friction, notes…",
+      "optional": true,
+      "next": "end"
     }
   }
 }

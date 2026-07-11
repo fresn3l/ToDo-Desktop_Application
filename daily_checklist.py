@@ -136,12 +136,32 @@ def add_custom_checklist_item(item: Dict[str, Any]) -> Dict[str, Any]:
     q = (item.get("question") or "").strip()
     if not q:
         raise ValueError("Question is required")
-    if t not in ("yes_no", "choice"):
-        raise ValueError("Type must be yes_no or choice")
+    if t not in ("yes_no", "choice", "text", "scale", "number"):
+        raise ValueError("Type must be yes_no, choice, text, scale, or number")
 
     cid = "c_" + uuid.uuid4().hex[:12]
     if t == "yes_no":
         row: Dict[str, Any] = {"id": cid, "type": "yes_no", "question": q}
+    elif t == "text":
+        row = {"id": cid, "type": "text", "question": q, "optional": bool(item.get("optional"))}
+    elif t == "scale":
+        row = {
+            "id": cid,
+            "type": "scale",
+            "question": q,
+            "min": int(item.get("min") or 1),
+            "max": int(item.get("max") or 5),
+        }
+    elif t == "number":
+        row = {
+            "id": cid,
+            "type": "number",
+            "question": q,
+            "min": float(item.get("min") or 0),
+            "max": float(item.get("max") or 999),
+            "step": float(item.get("step") or 1),
+            "optional": bool(item.get("optional")),
+        }
     else:
         raw_opts = item.get("options") or []
         if not isinstance(raw_opts, list):

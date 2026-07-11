@@ -152,7 +152,14 @@ async function renderCustomItemsList() {
 
     let html = '';
     items.forEach((item) => {
-        const typeLabel = item.type === 'yes_no' ? 'Yes / No' : 'Multiple choice';
+        const typeLabels = {
+            yes_no: 'Yes / No',
+            choice: 'Multiple choice',
+            text: 'Short text',
+            scale: 'Scale',
+            number: 'Number',
+        };
+        const typeLabel = typeLabels[item.type] || item.type;
         let detail = '';
         if (item.type === 'choice' && Array.isArray(item.options)) {
             detail = item.options.map((o) => o.label || o.value).join(', ');
