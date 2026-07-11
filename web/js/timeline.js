@@ -5,6 +5,7 @@
 import * as utils from './utils.js';
 
 let timelineDateBound = false;
+let timelineHealthBound = false;
 
 export function setupTimeline() {
     const picker = document.getElementById('timelineDate');
@@ -15,30 +16,34 @@ export function setupTimeline() {
     picker.value = today;
     picker.max = today;
 
-    document.getElementById('importHealthBtn')?.addEventListener('click', async () => {
-        const path = document.getElementById('healthExportPath')?.value.trim();
-        const status = document.getElementById('healthImportStatus');
-        try {
-            const result = await eel.import_health_export(path)();
-            if (status) status.textContent = `Imported ${result.days_imported} day(s).`;
-            utils.showSuccessFeedback('Health data imported.');
-            await loadTimelineDay(document.getElementById('timelineDate')?.value || today);
-        } catch (e) {
-            utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Import failed.');
-        }
-    });
+    if (!timelineHealthBound) {
+        timelineHealthBound = true;
+        document.getElementById('importHealthBtn')?.addEventListener('click', async () => {
+            const path = document.getElementById('healthExportPath')?.value.trim();
+            const status = document.getElementById('healthImportStatus');
+            try {
+                const result = await eel.import_health_export(path)();
+                if (status) status.textContent = `Imported ${result.days_imported} day(s).`;
+                utils.showSuccessFeedback('Health data imported.');
+                await loadTimelineDay(document.getElementById('timelineDate')?.value || today);
+            } catch (e) {
+                utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Import failed.');
+            }
+        });
 
-    document.getElementById('refreshScreenTimeBtn')?.addEventListener('click', async () => {
-        const status = document.getElementById('healthImportStatus');
-        try {
-            const result = await eel.refresh_screen_time_for_recent_days(7)();
-            if (status) status.textContent = result.note || `Updated ${result.updated} day(s).`;
-            utils.showSuccessFeedback('Screen Time refresh attempted.');
-            await loadTimelineDay(document.getElementById('timelineDate')?.value || today);
-        } catch (e) {
-            utils.showErrorFeedback('Screen Time refresh failed.');
-        }
-    });
+        document.getElementById('refreshScreenTimeBtn')?.addEventListener('click', async () => {
+            const status = document.getElementById('healthImportStatus');
+            try {
+                const result = await eel.refresh_screen_time_for_recent_days(7)();
+                if (status) status.textContent = result.note || `Updated ${result.updated} day(s).`;
+                if (result.ok) utils.showSuccessFeedback('Screen Time refresh attempted.');
+                else utils.showErrorFeedback(result.note || 'Screen Time refresh unavailable.');
+                await loadTimelineDay(document.getElementById('timelineDate')?.value || today);
+            } catch (e) {
+                utils.showErrorFeedback('Screen Time refresh failed.');
+            }
+        });
+    }
 
     if (!timelineDateBound) {
         timelineDateBound = true;
