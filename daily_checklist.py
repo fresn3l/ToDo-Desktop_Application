@@ -307,7 +307,12 @@ def submit_daily_checklist_response(
         "created_at": created_at,
         "local_date": local_date,
         "checklist_id": checklist_id,
+        "flow_version": flow_version,
+        "answers": answers,
     }
+    import cluny_sync
+
+    cluny_sync.sync_checklist_submission_safe(result)
     checkin_github.safe_try_push_checkin(
         local_date,
         {
