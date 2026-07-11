@@ -174,12 +174,13 @@
                 <details class="checklist-add-details timeline-health-details">
                     <summary>Apple Health / Screen Time import</summary>
                     <div class="checklist-add-form">
-                        <p class="checklist-hint small">Import from Apple Health &ldquo;Export All Health Data&rdquo; (export.xml).</p>
+                        <p class="checklist-hint small">Import from Apple Health &ldquo;Export All Health Data&rdquo; (export.xml). Sleep, steps, and workouts are supported.</p>
+                        <p class="checklist-hint small checklist-empty">Screen Time is experimental and disabled on macOS — no reliable third-party API.</p>
                         <label class="checklist-field-label" for="healthExportPath">Path to export.xml</label>
                         <input type="text" id="healthExportPath" class="checklist-text-input" placeholder="/Users/you/Desktop/export.xml">
                         <div class="reminder-actions">
                             <button type="button" id="importHealthBtn" class="btn-primary">Import Health export</button>
-                            <button type="button" id="refreshScreenTimeBtn" class="btn-secondary">Refresh Screen Time</button>
+                            <button type="button" id="refreshScreenTimeBtn" class="btn-secondary" disabled title="Screen Time import is experimental and currently disabled">Screen Time (disabled)</button>
                         </div>
                         <p id="healthImportStatus" class="checklist-hint small"></p>
                     </div>

@@ -160,7 +160,9 @@ function renderTimeline(data, health) {
         const parts = [];
         if (health.sleep_hours) parts.push(`Sleep: ${health.sleep_hours}h`);
         if (health.steps) parts.push(`Steps: ${health.steps}`);
-        if (health.screen_time_hours) parts.push(`Screen time: ${health.screen_time_hours}h`);
+        if (health.screen_time_hours) {
+            parts.push(`Screen time (experimental): ${health.screen_time_hours}h`);
+        }
         if (Array.isArray(health.workouts) && health.workouts.length) {
             parts.push(`Workouts: ${health.workouts.length}`);
         }
