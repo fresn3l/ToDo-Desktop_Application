@@ -6,12 +6,14 @@ import * as utils from './js/utils.js';
 import { setupTabs, switchTab } from './js/tabs.js';
 import { setupJournal, loadPastEntries } from './js/journal.js';
 import { setupDailyChecklist } from './js/daily_checklist.js';
+import { setupReview } from './js/review.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     setupTabs();
     setupJournal();
     await setupDailyChecklist();
+    setupReview();
     await loadPastEntries();
     await switchTab('journal');
 }

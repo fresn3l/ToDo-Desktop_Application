@@ -4,6 +4,7 @@
 
 import { loadPastEntries } from './journal.js';
 import { onChecklistTabShown } from './daily_checklist.js';
+import { onReviewTabShown } from './review.js';
 
 export function setupTabs() {
     const container = document.querySelector('.tabs');
@@ -23,7 +24,7 @@ export async function switchTab(name) {
     document.querySelectorAll('.tab-button').forEach((b) => {
         b.classList.toggle('active', b.getAttribute('data-tab') === name);
     });
-    const idMap = { journal: 'journalTab', checklist: 'checklistTab' };
+    const idMap = { journal: 'journalTab', checklist: 'checklistTab', review: 'reviewTab' };
     const activeId = idMap[name];
     document.querySelectorAll('.tab-content').forEach((c) => {
         c.classList.toggle('active', activeId !== undefined && c.id === activeId);
@@ -33,5 +34,7 @@ export async function switchTab(name) {
         await loadPastEntries();
     } else if (name === 'checklist') {
         await onChecklistTabShown();
+    } else if (name === 'review') {
+        await onReviewTabShown();
     }
 }

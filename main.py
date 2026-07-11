@@ -9,6 +9,7 @@ import eel
 
 import daily_checklist  # noqa: F401 — registers eel endpoints
 import journal
+import insights  # noqa: F401 — weekly review endpoints
 
 eel.init("web")
 

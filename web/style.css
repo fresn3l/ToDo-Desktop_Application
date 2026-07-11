@@ -992,6 +992,71 @@ button {
     font-family: var(--font-mono);
 }
 
+/* Weekly Review */
+.review-section {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--space-section) var(--space-xl) var(--space-xl);
+}
+
+.review-section h2 {
+    font-size: var(--text-h2);
+    margin-bottom: var(--space-sm);
+}
+
+.review-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-md);
+    margin-top: var(--space-lg);
+}
+
+.review-card {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.review-card--wide {
+    grid-column: 1 / -1;
+}
+
+.review-card h3 {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-sm);
+}
+
+.review-stat {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+    margin: 0;
+}
+
+.review-detail {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: var(--space-xs) 0 var(--space-md);
+}
+
+.review-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.review-list li {
+    margin-bottom: 0.35rem;
+}
+
+.review-content .checklist-textarea {
+    width: 100%;
+    margin: var(--space-sm) 0 var(--space-md);
+}
+
 @media (max-width: 768px) {
     .feedback {
         left: var(--space-md);

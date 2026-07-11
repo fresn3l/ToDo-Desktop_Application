@@ -17,6 +17,7 @@
             <nav class="tabs">
                 <button type="button" class="tab-button active" data-tab="journal">Journal</button>
                 <button type="button" class="tab-button" data-tab="checklist">Daily Checklist</button>
+                <button type="button" class="tab-button" data-tab="review">Weekly Review</button>
             </nav>
         </header>
 
@@ -107,6 +108,14 @@
                     <h3>Recent submissions</h3>
                     <div id="checklistRecentList" class="checklist-recent-list"></div>
                 </div>
+            </div>
+        </div>
+
+        <div id="reviewTab" class="tab-content">
+            <div class="review-section">
+                <h2>Weekly Review</h2>
+                <p class="checklist-hint">Automated summary for the last 7 days.</p>
+                <div id="reviewContent" class="review-content"></div>
             </div>
         </div>
     </div>
