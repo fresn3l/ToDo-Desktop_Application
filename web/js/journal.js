@@ -63,6 +63,35 @@ export function setupJournal() {
             }
         });
     }
+    void loadJournalTagPresets();
+}
+
+async function loadJournalTagPresets() {
+    const container = document.getElementById('journalTagPresets');
+    if (!container) return;
+    try {
+        const presets = await eel.get_journal_tag_presets()();
+        container.innerHTML = presets
+            .map(
+                (t) =>
+                    `<label class="journal-tag-preset"><input type="checkbox" name="journalTag" value="${utils.escapeHtml(t)}"> #${utils.escapeHtml(t)}</label>`,
+            )
+            .join('');
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function collectJournalTags() {
+    const checked = Array.from(document.querySelectorAll('input[name="journalTag"]:checked')).map(
+        (el) => el.value,
+    );
+    const custom = document.getElementById('journalCustomTags')?.value || '';
+    const extra = custom
+        .split(',')
+        .map((s) => s.trim().replace(/^#/, ''))
+        .filter(Boolean);
+    return [...checked, ...extra];
 }
 
 // ============================================
@@ -185,7 +214,8 @@ async function saveJournalEntry() {
     
     try {
         const continued = journalTimerSeconds <= 0 && journalTimerPaused;
-        await eel.save_journal_entry(content, journalDuration, continued)();
+        const tags = collectJournalTags();
+        await eel.save_journal_entry(content, journalDuration, continued, tags)();
         
         utils.showSuccessFeedback('Journal entry saved successfully!');
         
@@ -217,6 +247,12 @@ function clearJournalEntry() {
     
     const statusEl = document.getElementById('timerStatus');
     const saveBtn = document.getElementById('saveEntry');
+
+    document.querySelectorAll('input[name="journalTag"]').forEach((cb) => {
+        cb.checked = false;
+    });
+    const customTags = document.getElementById('journalCustomTags');
+    if (customTags) customTags.value = '';
 
     setTimerButtonVisibility({ showStart: true, showPause: false, showContinue: false });
     if (statusEl) statusEl.textContent = 'Ready to start';
@@ -266,6 +302,9 @@ export async function loadPastEntries() {
             const durationStr = duration > 0 ? `${minutes}m ${seconds}s` : '';
             
             const continuedBadge = entry.continued ? '<span class="journal-badge continued">Continued</span>' : '';
+            const tagsHtml = (entry.tags || [])
+                .map((t) => `<span class="journal-tag">#${utils.escapeHtml(t)}</span>`)
+                .join('');
             
             html += `
                 <article class="journal-entry-item">
@@ -274,6 +313,7 @@ export async function loadPastEntries() {
                         ${durationStr ? `<span class="journal-entry-duration" aria-label="Time spent writing">${utils.escapeHtml(durationStr)}</span>` : ''}
                         ${continuedBadge}
                     </div>
+                    ${tagsHtml ? `<div class="journal-entry-tags">${tagsHtml}</div>` : ''}
                     <div class="journal-entry-content">${utils.escapeHtml(entry.content)}</div>
                 </article>
             `;

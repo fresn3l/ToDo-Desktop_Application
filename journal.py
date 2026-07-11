@@ -78,8 +78,35 @@ def get_entry_path(entry_date: datetime = None) -> Path:
 # JOURNAL CRUD OPERATIONS
 # ============================================
 
+JOURNAL_TAG_PRESETS = ["work", "health", "relationships"]
+
+
+def _normalize_tags(tags) -> List[str]:
+    if not tags:
+        return []
+    if isinstance(tags, str):
+        raw = [t.strip().lstrip("#") for t in tags.replace(",", " ").split()]
+    elif isinstance(tags, list):
+        raw = [str(t).strip().lstrip("#") for t in tags]
+    else:
+        return []
+    out = []
+    seen = set()
+    for t in raw:
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        out.append(t)
+    return out
+
+
 @eel.expose
-def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool = False):
+def get_journal_tag_presets() -> List[str]:
+    return list(JOURNAL_TAG_PRESETS)
+
+
+@eel.expose
+def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool = False, tags=None):
     """
     Save a new journal entry.
     
@@ -101,7 +128,8 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
         "date": entry_date.isoformat(),
         "duration_seconds": duration_seconds,
         "continued": continued,
-        "created_at": entry_date.isoformat()
+        "created_at": entry_date.isoformat(),
+        "tags": _normalize_tags(tags),
     }
     
     # Save to file with atomic write and file locking

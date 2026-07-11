@@ -470,6 +470,41 @@ button {
     width: 100%;
 }
 
+.journal-tags-row {
+    margin-bottom: var(--space-md);
+}
+
+.journal-tag-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin: var(--space-xs) 0 var(--space-sm);
+}
+
+.journal-tag-preset {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.journal-tag-preset input {
+    margin-right: 0.25rem;
+}
+
+.journal-entry-tags {
+    margin-bottom: var(--space-sm);
+}
+
+.journal-tag {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    margin-right: 0.35rem;
+    border-radius: var(--radius-sm);
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-primary, #38bdf8);
+}
+
 #journalEntry {
     width: 100%;
     min-height: 380px;
