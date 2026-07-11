@@ -24,6 +24,22 @@ STEPS_TYPE = "HKQuantityTypeIdentifierStepCount"
 WORKOUT_TAG = "Workout"
 
 
+def _workout_duration_minutes(workout: ET.Element) -> float:
+    raw = workout.get("duration")
+    if raw is None or raw == "":
+        return 0.0
+    try:
+        value = float(raw)
+    except (ValueError, TypeError):
+        return 0.0
+    unit = (workout.get("durationUnit") or "s").strip().lower()
+    if unit in ("min", "hr", "h"):
+        if unit == "hr" or unit == "h":
+            return round(value * 60.0, 1)
+        return round(value, 1)
+    return round(value / 60.0, 1)
+
+
 def _snapshots_path() -> Path:
     return daily_checklist.get_data_directory() / "health_snapshots.json"
 
@@ -97,7 +113,7 @@ def _parse_health_export_xml(path: str, days: int = 14) -> Dict[str, Dict[str, A
         by_day[key]["workouts"].append(
             {
                 "type": workout.get("workoutActivityType", "workout"),
-                "duration_min": round(float(workout.get("duration") or 0) / 60.0, 1),
+                "duration_min": _workout_duration_minutes(workout),
             }
         )
 
