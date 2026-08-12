@@ -7,12 +7,16 @@ import * as utils from './utils.js';
 let timelineDateBound = false;
 let timelineHealthBound = false;
 
+function todayLocal() {
+    return utils.localISODate();
+}
+
 export function setupTimeline() {
     const picker = document.getElementById('timelineDate');
     const todayBtn = document.getElementById('timelineToday');
     if (!picker) return;
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocal();
     picker.value = today;
     picker.max = today;
 
@@ -25,7 +29,7 @@ export function setupTimeline() {
                 const result = await eel.import_health_export(path)();
                 if (status) status.textContent = `Imported ${result.days_imported} day(s).`;
                 utils.showSuccessFeedback('Health data imported.');
-                await loadTimelineDay(document.getElementById('timelineDate')?.value || today);
+                await loadTimelineDay(document.getElementById('timelineDate')?.value || todayLocal());
             } catch (e) {
                 utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Import failed.');
             }
@@ -38,7 +42,7 @@ export function setupTimeline() {
                 if (status) status.textContent = result.note || `Updated ${result.updated} day(s).`;
                 if (result.ok) utils.showSuccessFeedback('Screen Time refresh attempted.');
                 else utils.showErrorFeedback(result.note || 'Screen Time refresh unavailable.');
-                await loadTimelineDay(document.getElementById('timelineDate')?.value || today);
+                await loadTimelineDay(document.getElementById('timelineDate')?.value || todayLocal());
             } catch (e) {
                 utils.showErrorFeedback('Screen Time refresh failed.');
             }
@@ -49,8 +53,10 @@ export function setupTimeline() {
         timelineDateBound = true;
         picker.addEventListener('change', () => loadTimelineDay(picker.value));
         todayBtn?.addEventListener('click', () => {
-            picker.value = today;
-            loadTimelineDay(today);
+            const d = todayLocal();
+            picker.value = d;
+            picker.max = d;
+            loadTimelineDay(d);
         });
     }
 }
@@ -58,7 +64,7 @@ export function setupTimeline() {
 export async function onTimelineTabShown() {
     setupTimeline();
     const picker = document.getElementById('timelineDate');
-    await loadTimelineDay(picker?.value || new Date().toISOString().slice(0, 10));
+    await loadTimelineDay(picker?.value || todayLocal());
     await loadTimelineDateList();
 }
 

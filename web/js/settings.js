@@ -9,6 +9,7 @@ import {
     getAppearance,
     persistAppearance,
     resetAppearance,
+    applyAppearance,
 } from './appearance.js';
 
 function bindSegmented(name, current, onPick) {
@@ -60,6 +61,10 @@ function paintSettings(settings) {
 async function update(partial) {
     const next = await persistAppearance(partial);
     paintSettings(next);
+}
+
+function applyLiveFontSize(n) {
+    applyAppearance({ ...getAppearance(), journalFontSize: n });
 }
 
 export function setupSettings() {
@@ -115,7 +120,10 @@ export function setupSettings() {
         const n = parseInt(e.target.value, 10);
         const label = document.getElementById('journalFontSizeValue');
         if (label) label.textContent = `${n}px`;
-        update({ journalFontSize: n });
+        applyLiveFontSize(n);
+    });
+    document.getElementById('journalFontSize')?.addEventListener('change', (e) => {
+        update({ journalFontSize: parseInt(e.target.value, 10) });
     });
 
     document.getElementById('timerMinutes')?.addEventListener('change', (e) => {

@@ -15,6 +15,7 @@ let journalTimer = null;
 let journalTimerSeconds = 600;
 let journalTimerRunning = false;
 let journalTimerPaused = false;
+let journalOvertime = false;
 let journalStartTime = null;
 let journalDuration = 0;
 
@@ -128,28 +129,41 @@ function collectJournalTags() {
  */
 function startJournalTimer() {
     if (journalTimerRunning) return;
-    
+    if (journalTimerPaused || journalOvertime) {
+        continueJournalTimer();
+        return;
+    }
+
     journalTimerRunning = true;
     journalTimerPaused = false;
+    journalOvertime = false;
     journalStartTime = Date.now();
     journalDuration = 0;
-    
+    journalTimerSeconds = timerDurationSeconds();
+
     const statusEl = document.getElementById('timerStatus');
     const saveBtn = document.getElementById('saveEntry');
 
     setTimerButtonVisibility({ showStart: false, showPause: true, showContinue: false });
     if (statusEl) statusEl.textContent = 'Timer running...';
     if (saveBtn) saveBtn.disabled = false;
-    
-    journalTimer = setInterval(() => {
-        journalTimerSeconds--;
-        journalDuration++;
+
+    journalTimer = setInterval(tickJournalTimer, 1000);
+}
+
+function tickJournalTimer() {
+    journalDuration++;
+    if (journalOvertime) {
         updateTimerDisplay();
-        
-        if (journalTimerSeconds <= 0) {
-            timerComplete();
-        }
-    }, 1000);
+        return;
+    }
+    if (journalTimerSeconds > 0) {
+        journalTimerSeconds--;
+    }
+    updateTimerDisplay();
+    if (journalTimerSeconds <= 0) {
+        timerComplete();
+    }
 }
 
 /**
@@ -173,37 +187,38 @@ function pauseJournalTimer() {
  */
 function continueJournalTimer() {
     if (!journalTimerPaused) return;
-    
+
     journalTimerRunning = true;
     journalTimerPaused = false;
-    
+
     const statusEl = document.getElementById('timerStatus');
 
     setTimerButtonVisibility({ showStart: false, showPause: true, showContinue: false });
-    if (statusEl) statusEl.textContent = 'Timer running...';
-    
-    journalTimer = setInterval(() => {
-        journalTimerSeconds--;
-        journalDuration++;
-        updateTimerDisplay();
-        
-        if (journalTimerSeconds <= 0) {
-            timerComplete();
-        }
-    }, 1000);
+    if (statusEl) {
+        statusEl.textContent = journalOvertime ? 'Continuing past the timer…' : 'Timer running...';
+    }
+
+    journalTimer = setInterval(tickJournalTimer, 1000);
 }
 
 /**
  * Update timer display
  */
 function updateTimerDisplay() {
-    const minutes = Math.floor(journalTimerSeconds / 60);
-    const seconds = journalTimerSeconds % 60;
     const display = document.getElementById('timerDisplay');
-    
-    if (display) {
-        display.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    if (!display) return;
+
+    if (journalOvertime) {
+        const extra = Math.max(0, journalDuration - timerDurationSeconds());
+        const minutes = Math.floor(extra / 60);
+        const seconds = extra % 60;
+        display.textContent = `+${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        return;
     }
+
+    const minutes = Math.floor(Math.max(0, journalTimerSeconds) / 60);
+    const seconds = Math.max(0, journalTimerSeconds) % 60;
+    display.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 /**
@@ -212,11 +227,15 @@ function updateTimerDisplay() {
 function timerComplete() {
     clearInterval(journalTimer);
     journalTimerRunning = false;
-    
+    journalTimerPaused = true;
+    journalOvertime = true;
+    journalTimerSeconds = 0;
+
     const statusEl = document.getElementById('timerStatus');
 
     setTimerButtonVisibility({ showStart: false, showPause: false, showContinue: true });
     if (statusEl) statusEl.textContent = 'Timer complete! Click "Continue" to keep writing.';
+    updateTimerDisplay();
     
     const minutes = getAppearance().timerMinutes || 10;
     utils.showSuccessFeedback(`${minutes} minutes complete! You can continue writing or save your entry.`);
@@ -268,6 +287,7 @@ function clearJournalEntry() {
     journalTimerSeconds = timerDurationSeconds();
     journalTimerRunning = false;
     journalTimerPaused = false;
+    journalOvertime = false;
     journalStartTime = null;
     journalDuration = 0;
     

@@ -21,6 +21,39 @@ import daily_checklist
 SLEEP_TYPE = "HKCategoryTypeIdentifierSleepAnalysis"
 STEPS_TYPE = "HKQuantityTypeIdentifierStepCount"
 WORKOUT_TAG = "Workout"
+ASLEEP_MARKERS = (
+    "HKCategoryValueSleepAnalysisAsleep",
+    "HKCategoryValueSleepAnalysisAsleepUnspecified",
+    "HKCategoryValueSleepAnalysisAsleepCore",
+    "HKCategoryValueSleepAnalysisAsleepDeep",
+    "HKCategoryValueSleepAnalysisAsleepREM",
+)
+
+
+def _parse_health_datetime(raw: str) -> datetime | None:
+    """Parse Apple Health export timestamps such as '2024-12-01 23:15:30 -0800'."""
+    if not raw:
+        return None
+    s = raw.strip().replace("Z", "+0000").replace("T", " ")
+    for fmt in ("%Y-%m-%d %H:%M:%S %z", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    try:
+        core = s.split("+")[0].rsplit(" ", 1)[0] if " " in s[19:] else s[:19]
+        return datetime.strptime(core[:19], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def _is_asleep_value(value: str) -> bool:
+    v = value or ""
+    if "Awake" in v or "InBed" in v:
+        return False
+    if v in ASLEEP_MARKERS or v == "Asleep":
+        return True
+    return "Asleep" in v
 
 
 def _workout_duration_minutes(workout: ET.Element) -> float:
@@ -76,23 +109,21 @@ def _parse_health_export_xml(path: str, days: int = 14) -> Dict[str, Dict[str, A
     for rec in root.iter("Record"):
         rtype = rec.get("type", "")
         start = rec.get("startDate") or rec.get("creationDate") or ""
-        try:
-            dt = datetime.fromisoformat(start.replace("Z", "+00:00").split("+")[0])
-        except (ValueError, TypeError):
+        dt = _parse_health_datetime(start)
+        if dt is None:
             continue
         if dt.replace(tzinfo=None) < cutoff.replace(tzinfo=None):
             continue
         key = _day_key(dt)
         by_day.setdefault(key, {"sleep_hours": 0.0, "steps": 0, "workouts": []})
 
-        if rtype == SLEEP_TYPE and rec.get("value") in ("HKCategoryValueSleepAnalysisAsleep", "Asleep"):
+        if rtype == SLEEP_TYPE and _is_asleep_value(rec.get("value") or ""):
             end = rec.get("endDate") or start
-            try:
-                end_dt = datetime.fromisoformat(end.replace("Z", "+00:00").split("+")[0])
-                hours = max(0.0, (end_dt - dt).total_seconds() / 3600.0)
-                by_day[key]["sleep_hours"] = round(by_day[key]["sleep_hours"] + hours, 2)
-            except (ValueError, TypeError):
-                pass
+            end_dt = _parse_health_datetime(end)
+            if end_dt is None:
+                continue
+            hours = max(0.0, (end_dt.replace(tzinfo=None) - dt.replace(tzinfo=None)).total_seconds() / 3600.0)
+            by_day[key]["sleep_hours"] = round(by_day[key]["sleep_hours"] + hours, 2)
         elif rtype == STEPS_TYPE:
             try:
                 by_day[key]["steps"] += int(float(rec.get("value") or 0))
@@ -101,9 +132,8 @@ def _parse_health_export_xml(path: str, days: int = 14) -> Dict[str, Dict[str, A
 
     for workout in root.iter(WORKOUT_TAG):
         start = workout.get("startDate") or ""
-        try:
-            dt = datetime.fromisoformat(start.replace("Z", "+00:00").split("+")[0])
-        except (ValueError, TypeError):
+        dt = _parse_health_datetime(start)
+        if dt is None:
             continue
         if dt.replace(tzinfo=None) < cutoff.replace(tzinfo=None):
             continue

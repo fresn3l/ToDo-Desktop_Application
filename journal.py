@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import fcntl
 import sys
+import uuid
 
 import cluny_sync
 
@@ -70,7 +71,7 @@ def get_entry_path(entry_date: datetime = None) -> Path:
     
     # Create filename with timestamp
     timestamp = entry_date.strftime('%Y-%m-%d_%H-%M-%S')
-    filename = f'entry_{timestamp}.json'
+    filename = f'entry_{timestamp}_{uuid.uuid4().hex[:8]}.json'
     
     return entry_dir / filename
 

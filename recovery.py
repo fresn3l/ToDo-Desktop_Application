@@ -57,13 +57,22 @@ def _dates_with_submissions() -> set[str]:
 
 
 def _first_missed_date(lookback: int = 7) -> Optional[str]:
-    """Most recent past day (not today) without a submission."""
+    """Most recent past day (not today) without a submission.
+
+    Only considers days on or after the first recorded check-in so a new
+    install is not prompted for every day last week.
+    """
     today = date.today()
     dates = _dates_with_submissions()
+    if not dates:
+        return None
+    first = min(dates)
     recovery = _load_recovery()
     for i in range(1, lookback + 1):
         d = today - timedelta(days=i)
         key = d.isoformat()
+        if key < first:
+            continue
         if key not in dates and key not in recovery:
             return key
     return None

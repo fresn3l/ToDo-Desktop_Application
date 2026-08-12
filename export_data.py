@@ -36,14 +36,19 @@ def _flatten_answer(val: Any) -> str:
     if isinstance(val, (int, float, str)):
         return str(val)
     if isinstance(val, dict):
+        duration = val.get("durationMinutes")
         if "answer" in val:
-            return _flatten_answer(val["answer"])
-        if val.get("value") == "other":
-            return f"other:{val.get('otherText', '')}"
-        parts = [str(val.get("value", ""))]
-        if val.get("durationMinutes") is not None:
-            parts.append(f"duration_min={val['durationMinutes']}")
-        return "|".join(p for p in parts if p)
+            base = _flatten_answer(val["answer"])
+        elif val.get("value") == "other":
+            base = f"other:{val.get('otherText', '')}"
+        elif "value" in val:
+            base = str(val.get("value", ""))
+        else:
+            base = ""
+        if duration is not None:
+            extra = f"duration_min={duration}"
+            return f"{base}|{extra}" if base else extra
+        return base or json.dumps(val, ensure_ascii=False)
     return json.dumps(val, ensure_ascii=False)
 
 

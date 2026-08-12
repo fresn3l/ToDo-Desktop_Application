@@ -38,17 +38,20 @@ def _format_answer(key: str, val: Any) -> str:
     if isinstance(val, str):
         return val
     if isinstance(val, dict):
+        duration = val.get("durationMinutes")
         if "answer" in val:
-            return _format_answer(key, val["answer"])
-        if val.get("value") == "other":
-            return f"Other: {val.get('otherText', '')}"
-        if "value" in val:
+            base = _format_answer(key, val["answer"])
+        elif val.get("value") == "other":
+            base = f"Other: {val.get('otherText', '')}"
+        elif "value" in val:
             base = str(val["value"])
-            if val.get("durationMinutes") is not None:
-                return f"{base} ({val['durationMinutes']} min)"
-            return base
-        if val.get("durationMinutes") is not None:
-            return f"{val['durationMinutes']} min"
+        elif duration is not None:
+            return f"{duration} min"
+        else:
+            return str(val)
+        if duration is not None:
+            return f"{base} ({duration} min)"
+        return base
     return str(val)
 
 
