@@ -5,17 +5,23 @@
  */
 
 import * as utils from './utils.js';
+import { getAppearance, onAppearanceChange } from './appearance.js';
 
 // ============================================
 // JOURNAL STATE
 // ============================================
 
 let journalTimer = null;
-let journalTimerSeconds = 600; // 10 minutes in seconds
+let journalTimerSeconds = 600;
 let journalTimerRunning = false;
 let journalTimerPaused = false;
 let journalStartTime = null;
 let journalDuration = 0;
+
+function timerDurationSeconds() {
+    const minutes = getAppearance().timerMinutes || 10;
+    return minutes * 60;
+}
 
 function setTimerButtonVisibility({ showStart, showPause, showContinue }) {
     const startBtn = document.getElementById('startTimer');
@@ -58,12 +64,31 @@ export function setupJournal() {
     }
     if (entryTextarea) {
         entryTextarea.addEventListener('input', () => {
+            updateWordCount();
             if (!journalTimerRunning && !journalTimerPaused && entryTextarea.value.trim().length > 0) {
                 startJournalTimer();
             }
         });
     }
+    journalTimerSeconds = timerDurationSeconds();
+    updateTimerDisplay();
+    updateWordCount();
+    onAppearanceChange((settings) => {
+        if (!journalTimerRunning && !journalTimerPaused) {
+            journalTimerSeconds = (settings.timerMinutes || 10) * 60;
+            updateTimerDisplay();
+        }
+    });
     void loadJournalTagPresets();
+}
+
+function updateWordCount() {
+    const el = document.getElementById('journalWordCount');
+    const textarea = document.getElementById('journalEntry');
+    if (!el || !textarea) return;
+    const text = textarea.value.trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    el.textContent = words === 1 ? '1 word' : `${words} words`;
 }
 
 async function loadJournalTagPresets() {
@@ -193,7 +218,8 @@ function timerComplete() {
     setTimerButtonVisibility({ showStart: false, showPause: false, showContinue: true });
     if (statusEl) statusEl.textContent = 'Timer complete! Click "Continue" to keep writing.';
     
-    utils.showSuccessFeedback('10 minutes complete! You can continue writing or save your entry.');
+    const minutes = getAppearance().timerMinutes || 10;
+    utils.showSuccessFeedback(`${minutes} minutes complete! You can continue writing or save your entry.`);
 }
 
 // ============================================
@@ -239,7 +265,7 @@ function clearJournalEntry() {
     
     clearInterval(journalTimer);
     journalTimer = null;
-    journalTimerSeconds = 600;
+    journalTimerSeconds = timerDurationSeconds();
     journalTimerRunning = false;
     journalTimerPaused = false;
     journalStartTime = null;
@@ -259,6 +285,7 @@ function clearJournalEntry() {
     if (saveBtn) saveBtn.disabled = true;
     
     updateTimerDisplay();
+    updateWordCount();
 }
 
 /**

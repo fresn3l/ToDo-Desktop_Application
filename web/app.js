@@ -3,15 +3,19 @@
  */
 
 import * as utils from './js/utils.js';
+import { initAppearance } from './js/appearance.js';
 import { setupTabs, switchTab } from './js/tabs.js';
 import { setupJournal, loadPastEntries } from './js/journal.js';
 import { setupDailyChecklist } from './js/daily_checklist.js';
 import { setupReview } from './js/review.js';
 import { setupTimeline } from './js/timeline.js';
+import { setupSettings } from './js/settings.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
+    await initAppearance();
     setupTabs();
+    setupSettings();
     setupJournal();
     await setupDailyChecklist();
     setupReview();

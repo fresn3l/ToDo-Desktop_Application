@@ -141,6 +141,7 @@ def build_app():
         "--hidden-import=recovery",
         "--hidden-import=reminders",
         "--hidden-import=health_import",
+        "--hidden-import=appearance",
         "--collect-all=eel",
         "--osx-bundle-identifier=com.kosistenz.app",
         "--noconfirm",

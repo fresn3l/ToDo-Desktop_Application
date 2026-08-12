@@ -7,6 +7,7 @@ Daily checklist responses live in daily_checklist.sqlite (see daily_checklist.py
 
 import eel
 
+import appearance  # noqa: F401 — theme / layout preferences
 import daily_checklist  # noqa: F401 — registers eel endpoints
 import journal
 import insights  # noqa: F401 — weekly review endpoints
@@ -19,4 +20,4 @@ import health_import  # noqa: F401 — Apple Health / Screen Time imports
 eel.init("web")
 
 if __name__ == "__main__":
-    eel.start("index.html", size=(900, 700), port=0, mode="chrome-app")
+    eel.start("index.html", size=(1280, 840), port=0, mode="chrome-app")

@@ -8,6 +8,7 @@ Journal and daily checklist desktop app (Python + Eel). Data stays local on your
 - **Daily Checklist**: Branching yes/no and multiple-choice flows from JSON
 - **Custom questions**: Add your own checklist items (optional duration step)
 - **Templates**: Bundled blank checklist JSON files to copy and edit
+- **Appearance**: Themes, accent color, typeface, density, layout width, and sidebar
 - **Local storage**: SQLite + JSON under Application Support
 
 ## Installation
@@ -71,6 +72,7 @@ Output: `dist/Kosistenz.app` (also copied to `/Applications/Kosistenz.app` when 
 ```
 intelligent_to-do_list/
 ├── main.py                 # Application entry point
+├── appearance.py           # Theme / layout preferences
 ├── journal.py              # Journal entries
 ├── daily_checklist.py      # Checklist flow + SQLite
 ├── cluny_sync.py           # Optional Cluny journal sync
@@ -94,6 +96,7 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 - **Daily checklist DB**: `~/Library/Application Support/ToDo/daily_checklist.sqlite`
 - **Custom checklist items**: `~/Library/Application Support/ToDo/checklist_custom_items.json`
 - **Active checklist template**: `~/Library/Application Support/ToDo/checklist_selected_stem.txt`
+- **Appearance**: `~/Library/Application Support/ToDo/appearance.json`
 
 Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_sync.py`).
 
