@@ -14,6 +14,14 @@ from typing import List, Dict, Optional
 import fcntl
 import sys
 
+from security_utils import (
+    MAX_JOURNAL_LENGTH,
+    clamp_text,
+    open_private_write,
+    restrict_directory_permissions,
+    restrict_file_permissions,
+)
+
 # ============================================
 # JOURNAL STORAGE PATHS
 # ============================================
@@ -35,6 +43,7 @@ def get_journal_directory():
     
     # Create directory if it doesn't exist
     base_dir.mkdir(parents=True, exist_ok=True)
+    restrict_directory_permissions(base_dir)
     return base_dir
 
 def get_entry_path(entry_date: datetime = None) -> Path:
@@ -65,6 +74,7 @@ def get_entry_path(entry_date: datetime = None) -> Path:
     # Create full path
     entry_dir = base_dir / year / month / week_folder
     entry_dir.mkdir(parents=True, exist_ok=True)
+    restrict_directory_permissions(entry_dir)
     
     # Create filename with timestamp
     timestamp = entry_date.strftime('%Y-%m-%d_%H-%M-%S')
@@ -89,6 +99,13 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
     Returns:
         Dict: The saved entry dictionary with metadata
     """
+    content = clamp_text(content, MAX_JOURNAL_LENGTH)
+    try:
+        duration_seconds = max(0, int(duration_seconds or 0))
+    except (TypeError, ValueError):
+        duration_seconds = 0
+    continued = bool(continued)
+
     entry_date = datetime.now()
     entry_path = get_entry_path(entry_date)
     
@@ -104,7 +121,7 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
     
     # Save to file with atomic write and file locking
     temp_file = str(entry_path) + '.tmp'
-    with open(temp_file, 'w', encoding='utf-8') as f:
+    with open_private_write(temp_file) as f:
         # Acquire exclusive lock for writing
         if sys.platform != 'win32':
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
@@ -116,6 +133,7 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
     
     # Atomically replace old file with new one
     os.replace(temp_file, entry_path)
+    restrict_file_permissions(entry_path)
     
     return entry
 
@@ -130,6 +148,11 @@ def get_recent_entries(days: int = 30) -> List[Dict]:
     Returns:
         List[Dict]: List of journal entries, sorted by date (newest first)
     """
+    try:
+        days = max(1, min(int(days), 365))
+    except (TypeError, ValueError):
+        days = 30
+
     base_dir = get_journal_directory()
     entries = []
     cutoff_date = datetime.now() - timedelta(days=days)

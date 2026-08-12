@@ -38,4 +38,4 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Error checking notifications on startup: {e}")
     
-    eel.start('index.html', size=(900, 700), port=0, mode='chrome-app')
+    eel.start('index.html', size=(900, 700), port=0, host='127.0.0.1', mode='chrome-app')

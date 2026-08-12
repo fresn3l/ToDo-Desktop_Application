@@ -9,7 +9,8 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 # Import data storage functions
-from data_storage import load_goals, save_goals, load_tasks, save_tasks, load_habits
+from data_storage import load_goals, save_goals, load_tasks, save_tasks, load_habits, save_habits
+from security_utils import MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH, clamp_text
 
 # ============================================
 # GOAL CRUD OPERATIONS
@@ -42,6 +43,18 @@ def add_goal(title: str, description: str = "", time_goal: Optional[float] = Non
         - Saves goal to goals.json
     """
     goals = load_goals()
+
+    title = clamp_text(title, MAX_TITLE_LENGTH).strip()
+    if not title:
+        raise ValueError("Goal title is required")
+    description = clamp_text(description, MAX_DESCRIPTION_LENGTH)
+    if time_goal is not None:
+        try:
+            time_goal = float(time_goal)
+        except (TypeError, ValueError):
+            raise ValueError("Time goal must be a number")
+        if time_goal < 0:
+            raise ValueError("Time goal cannot be negative")
     
     # Create new goal dictionary
     new_goal = {
@@ -82,10 +95,17 @@ def update_goal(goal_id: int, title: str = None, description: str = None, time_g
         if goal["id"] == goal_id:
             # Update only provided fields
             if title is not None:
+                title = clamp_text(title, MAX_TITLE_LENGTH).strip()
+                if not title:
+                    raise ValueError("Goal title is required")
                 goal["title"] = title
             if description is not None:
-                goal["description"] = description
+                goal["description"] = clamp_text(description, MAX_DESCRIPTION_LENGTH)
             if time_goal is not None:
+                try:
+                    time_goal = float(time_goal)
+                except (TypeError, ValueError):
+                    raise ValueError("Time goal must be a number")
                 # Allow setting to None to clear time goal
                 goal["time_goal"] = time_goal if time_goal > 0 else None
             
@@ -130,7 +150,6 @@ def delete_goal(goal_id: int):
     # This prevents orphaned goal_id references in habits
     habits = load_habits()
     if habits:  # Only process if habits file exists
-        from data_storage import save_habits
         for habit in habits:
             if habit.get("goal_id") == goal_id:
                 habit["goal_id"] = None

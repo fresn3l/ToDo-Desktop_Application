@@ -107,6 +107,9 @@ Data files:
 - `tasks.json`: All tasks
 - `goals.json`: All goals
 - `Journal/`: Journal entries organized by year/month/week
+- `.smtp_credentials`: SMTP password (owner-only, not returned to the UI)
+
+Local data files are created with owner-only permissions. Email passwords are stored separately from settings and are never sent back to the frontend.
 
 ## Technologies
 

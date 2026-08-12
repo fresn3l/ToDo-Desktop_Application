@@ -28,7 +28,13 @@ export async function loadNotificationSettings() {
         if (emailInput) emailInput.value = settings.email || '';
         if (smtpPortInput) smtpPortInput.value = settings.smtp_port || 587;
         if (emailUsernameInput) emailUsernameInput.value = settings.email_username || '';
-        if (emailPasswordInput) emailPasswordInput.value = settings.email_password || '';
+        if (emailPasswordInput) {
+            emailPasswordInput.value = '';
+            emailPasswordInput.placeholder = settings.password_set
+                ? 'Password saved — leave blank to keep'
+                : 'Enter password or app password';
+            emailPasswordInput.dataset.passwordSet = settings.password_set ? 'true' : 'false';
+        }
         if (checkIntervalInput) checkIntervalInput.value = settings.check_interval_hours || 1;
         
         const smtpSelect = document.getElementById('smtpServer');
@@ -109,6 +115,7 @@ async function saveNotificationSettings() {
         const smtpPort = parseInt(smtpPortInput.value) || 587;
         const emailUsername = emailUsernameInput.value.trim();
         const emailPassword = emailPasswordInput.value;
+        const passwordAlreadySet = emailPasswordInput.dataset.passwordSet === 'true';
         const checkInterval = parseInt(checkIntervalInput.value) || 1;
         
         let smtpServer = smtpSelect.value;
@@ -133,7 +140,7 @@ async function saveNotificationSettings() {
                 utils.showErrorFeedback('Please enter email username');
                 return;
             }
-            if (!emailPassword) {
+            if (!emailPassword && !passwordAlreadySet) {
                 utils.showErrorFeedback('Please enter email password');
                 return;
             }
@@ -145,9 +152,15 @@ async function saveNotificationSettings() {
             smtpServer,
             smtpPort,
             emailUsername,
-            emailPassword,
+            emailPassword || null,
             checkInterval
         )();
+
+        if (emailPassword || passwordAlreadySet) {
+            emailPasswordInput.value = '';
+            emailPasswordInput.dataset.passwordSet = 'true';
+            emailPasswordInput.placeholder = 'Password saved — leave blank to keep';
+        }
         
         utils.showSuccessFeedback('Notification settings saved successfully!');
     } catch (error) {

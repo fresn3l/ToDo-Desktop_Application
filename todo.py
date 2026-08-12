@@ -15,6 +15,15 @@ from typing import List, Dict, Optional
 from data_storage import (
     load_tasks, save_tasks
 )
+from security_utils import (
+    MAX_DESCRIPTION_LENGTH,
+    MAX_RECURRING_INSTANCES_PER_CHECK,
+    MAX_TITLE_LENGTH,
+    clamp_text,
+    validate_date_string,
+    validate_priority,
+    validate_recurrence,
+)
 
 # ============================================
 # TASK CRUD OPERATIONS
@@ -131,6 +140,22 @@ def add_task(title: str, description: str = "", priority: str = "Next",
     """
     # Load existing tasks from storage
     tasks = load_tasks()
+
+    title = clamp_text(title, MAX_TITLE_LENGTH).strip()
+    if not title:
+        raise ValueError("Task title is required")
+    description = clamp_text(description, MAX_DESCRIPTION_LENGTH)
+    priority = validate_priority(priority)
+    due_date = validate_date_string(due_date) or ""
+    recurrence = validate_recurrence(recurrence)
+    recurrence_end_date = validate_date_string(recurrence_end_date)
+    if time_spent is not None:
+        try:
+            time_spent = float(time_spent)
+        except (TypeError, ValueError):
+            raise ValueError("Time spent must be a number")
+        if time_spent < 0:
+            raise ValueError("Time spent cannot be negative")
     
     # Create new task dictionary with all properties
     # This is the canonical task structure used throughout the application
@@ -204,31 +229,39 @@ def update_task(task_id: int, title: str = None, description: str = None,
             # Update only provided fields (None means "don't change")
             # This allows partial updates - only change what's provided
             if title is not None:
+                title = clamp_text(title, MAX_TITLE_LENGTH).strip()
+                if not title:
+                    raise ValueError("Task title is required")
                 task["title"] = title
             if description is not None:
-                task["description"] = description
+                task["description"] = clamp_text(description, MAX_DESCRIPTION_LENGTH)
             if priority is not None:
-                task["priority"] = priority
+                task["priority"] = validate_priority(priority)
             if due_date is not None:
-                task["due_date"] = due_date
+                task["due_date"] = validate_date_string(due_date) or ""
             if goal_id is not None:
                 # Note: goal_id can be explicitly set to None to unlink from goal
                 task["goal_id"] = goal_id
             if time_spent is not None:
+                try:
+                    time_spent = float(time_spent)
+                except (TypeError, ValueError):
+                    raise ValueError("Time spent must be a number")
                 # Update time_spent (can be set to 0 or None to clear)
                 if time_spent > 0:
-                    task["time_spent"] = float(time_spent)
+                    task["time_spent"] = time_spent
                 else:
                     task.pop("time_spent", None)  # Remove if 0 or negative
             
             # Update recurrence fields if provided
             if recurrence is not None:
+                recurrence = validate_recurrence(recurrence)
                 if recurrence:
                     task["recurrence"] = recurrence
                     task["is_recurring_template"] = True
                     task["parent_task_id"] = None
                     if recurrence_end_date:
-                        task["recurrence_end_date"] = recurrence_end_date
+                        task["recurrence_end_date"] = validate_date_string(recurrence_end_date)
                 else:
                     # Remove recurrence if set to empty/None
                     task.pop("recurrence", None)
@@ -238,7 +271,7 @@ def update_task(task_id: int, title: str = None, description: str = None,
             elif recurrence_end_date is not None:
                 # Update end date only
                 if recurrence_end_date:
-                    task["recurrence_end_date"] = recurrence_end_date
+                    task["recurrence_end_date"] = validate_date_string(recurrence_end_date)
                 else:
                     task.pop("recurrence_end_date", None)
             
@@ -505,7 +538,8 @@ def _check_and_create_recurring_instances(tasks: List[Dict]) -> List[Dict]:
             continue
         
         # Create instances up to today (or a few days ahead for daily tasks)
-        while latest_due_date.date() < today:
+        created = 0
+        while latest_due_date.date() < today and created < MAX_RECURRING_INSTANCES_PER_CHECK:
             next_instance = _create_next_recurring_instance(template, tasks)
             if not next_instance:
                 break  # Recurrence ended or error
@@ -516,6 +550,7 @@ def _check_and_create_recurring_instances(tasks: List[Dict]) -> List[Dict]:
             except ValueError:
                 break
             updated = True
+            created += 1
     
     return tasks
 

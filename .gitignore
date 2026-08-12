@@ -13,6 +13,9 @@ ENV/
 tasks.json
 goals.json
 categories.json
+notification_settings.json
+.smtp_credentials
+.secret_key
 
 # Build artifacts (PyInstaller)
 build/

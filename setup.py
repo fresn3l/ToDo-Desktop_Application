@@ -28,7 +28,7 @@ OPTIONS = {
         'NSHighResolutionCapable': True,
     },
     'packages': ['eel', 'setuptools'],
-    'includes': ['todo', 'goals', 'analytics', 'data_storage'],
+    'includes': ['todo', 'goals', 'analytics', 'data_storage', 'journal', 'notifications', 'security_utils'],
 }
 
 setup(

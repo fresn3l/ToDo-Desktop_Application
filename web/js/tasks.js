@@ -628,6 +628,8 @@ export function renderTasks() {
  * Create HTML for a task
  */
 function createTaskHTML(task, goals) {
+    const allowedPriorities = ['Now', 'Next', 'Later'];
+    const priority = allowedPriorities.includes(task.priority) ? task.priority : 'Next';
     const isOverdue = task.due_date && !task.completed && new Date(task.due_date) < new Date();
     const dueDateFormatted = task.due_date ? new Date(task.due_date).toLocaleDateString() : '';
     const goal = goals.find(g => g.id === task.goal_id);
@@ -647,7 +649,7 @@ function createTaskHTML(task, goals) {
                     <div class="task-title">${utils.escapeHtml(task.title)}</div>
                     ${task.description ? `<div class="task-description">${utils.escapeHtml(task.description)}</div>` : ''}
                     <div class="task-meta">
-                        <span class="task-badge priority-${task.priority}">${task.priority}</span>
+                        <span class="task-badge priority-${priority}">${utils.escapeHtml(priority)}</span>
                         ${goal ? `<span class="goal-badge">🎯 ${utils.escapeHtml(goal.title)}</span>` : ''}
                         ${isRecurring ? `<span class="recurrence-badge">${recurrenceLabel}</span>` : ''}
                         ${task.due_date ? `<span class="due-date ${isOverdue ? 'overdue' : ''}">📅 ${dueDateFormatted}${isOverdue ? ' (Overdue!)' : ''}</span>` : ''}

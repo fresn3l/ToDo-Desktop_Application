@@ -7,6 +7,7 @@ Supports custom SMTP configuration and notification scheduling.
 
 import eel
 import smtplib
+import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -17,6 +18,20 @@ from pathlib import Path
 
 # Import data storage functions
 from data_storage import load_tasks, get_data_directory
+from security_utils import (
+    clamp_text,
+    delete_smtp_password,
+    load_smtp_password,
+    open_private_write,
+    public_notification_settings,
+    restrict_file_permissions,
+    sanitize_header_value,
+    save_smtp_password,
+    validate_check_interval,
+    validate_email,
+    validate_port,
+    validate_smtp_host,
+)
 
 # ============================================
 # NOTIFICATION SETTINGS STORAGE
@@ -38,8 +53,8 @@ def load_notification_settings() -> Dict:
             - smtp_server: str - SMTP server (e.g., 'smtp.gmail.com')
             - smtp_port: int - SMTP port (usually 587 for TLS)
             - email_username: str - Email username for authentication
-            - email_password: str - Email password (stored, but consider security)
             - check_interval_hours: int - How often to check (default: 1)
+            SMTP password is stored separately and is not included here.
     """
     settings_file = get_settings_file()
     default_settings = {
@@ -52,16 +67,44 @@ def load_notification_settings() -> Dict:
         "check_interval_hours": 1
     }
     
+    had_plaintext_in_file = False
     if os.path.exists(settings_file):
         try:
             with open(settings_file, 'r') as f:
-                settings = json.load(f)
-                # Merge with defaults to ensure all keys exist
-                return {**default_settings, **settings}
+                loaded = json.load(f)
+            had_plaintext_in_file = "email_password" in loaded
+            settings = {**default_settings, **loaded}
         except (json.JSONDecodeError, IOError):
-            return default_settings
-    
-    return default_settings
+            settings = default_settings
+    else:
+        settings = default_settings
+
+    data_dir = get_data_directory()
+    stored_password = load_smtp_password(data_dir)
+
+    # Migrate legacy plaintext passwords out of settings JSON
+    legacy_password = settings.pop("email_password", "") or ""
+    if stored_password:
+        settings["email_password"] = stored_password
+    elif legacy_password:
+        save_smtp_password(legacy_password, data_dir)
+        settings["email_password"] = legacy_password
+    else:
+        settings["email_password"] = ""
+
+    if had_plaintext_in_file:
+        _write_settings_file(settings)
+
+    return settings
+
+def _write_settings_file(settings: Dict):
+    """Persist non-secret notification settings with owner-only permissions."""
+    settings_file = get_settings_file()
+    safe_settings = {k: v for k, v in settings.items() if k != "email_password"}
+    with open_private_write(settings_file) as f:
+        json.dump(safe_settings, f, indent=2)
+    restrict_file_permissions(settings_file)
+
 
 def save_notification_settings(settings: Dict):
     """
@@ -70,9 +113,15 @@ def save_notification_settings(settings: Dict):
     Args:
         settings: Settings dictionary to save
     """
-    settings_file = get_settings_file()
-    with open(settings_file, 'w') as f:
-        json.dump(settings, f, indent=2)
+    data_dir = get_data_directory()
+    if "email_password" in settings:
+        password = settings.get("email_password") or ""
+        if password:
+            save_smtp_password(password, data_dir)
+        else:
+            delete_smtp_password(data_dir)
+
+    _write_settings_file(settings)
 
 # ============================================
 # NOTIFICATION FUNCTIONS
@@ -81,12 +130,10 @@ def save_notification_settings(settings: Dict):
 @eel.expose
 def get_notification_settings() -> Dict:
     """
-    Get current notification settings.
-    
-    Returns:
-        Dict: Current notification settings
+    Get current notification settings for the UI.
+    The SMTP password is never returned to the frontend.
     """
-    return load_notification_settings()
+    return public_notification_settings(load_notification_settings())
 
 @eel.expose
 def update_notification_settings(enabled: bool = None, email: str = None,
@@ -111,22 +158,23 @@ def update_notification_settings(enabled: bool = None, email: str = None,
     settings = load_notification_settings()
     
     if enabled is not None:
-        settings["enabled"] = enabled
+        settings["enabled"] = bool(enabled)
     if email is not None:
-        settings["email"] = email
+        settings["email"] = validate_email(email, required=bool(settings.get("enabled")))
     if smtp_server is not None:
-        settings["smtp_server"] = smtp_server
+        settings["smtp_server"] = validate_smtp_host(smtp_server) if smtp_server else settings["smtp_server"]
     if smtp_port is not None:
-        settings["smtp_port"] = smtp_port
+        settings["smtp_port"] = validate_port(smtp_port)
     if email_username is not None:
-        settings["email_username"] = email_username
-    if email_password is not None:
+        settings["email_username"] = clamp_text(sanitize_header_value(email_username), 254)
+    if email_password:
+        # Only update the stored password when the user actually submitted a new one
         settings["email_password"] = email_password
     if check_interval_hours is not None:
-        settings["check_interval_hours"] = max(1, check_interval_hours)  # Minimum 1 hour
+        settings["check_interval_hours"] = validate_check_interval(check_interval_hours)
     
     save_notification_settings(settings)
-    return settings
+    return public_notification_settings(settings)
 
 def send_email_notification(task: Dict, recipient_email: str, settings: Dict) -> bool:
     """
@@ -143,9 +191,12 @@ def send_email_notification(task: Dict, recipient_email: str, settings: Dict) ->
     try:
         # Create email message
         msg = MIMEMultipart()
-        msg['From'] = settings["email_username"]
-        msg['To'] = recipient_email
-        msg['Subject'] = f"📋 Task Due Soon: {task.get('title', 'Untitled Task')}"
+        sender = sanitize_header_value(settings.get("email_username", ""))
+        recipient = sanitize_header_value(recipient_email)
+        title = sanitize_header_value(task.get("title", "Untitled Task"))
+        msg['From'] = sender
+        msg['To'] = recipient
+        msg['Subject'] = f"Task Due Soon: {title}"
         
         # Format due date
         due_date_str = "No due date"
@@ -154,7 +205,7 @@ def send_email_notification(task: Dict, recipient_email: str, settings: Dict) ->
                 due_date = datetime.strptime(task['due_date'], "%Y-%m-%d")
                 due_date_str = due_date.strftime("%B %d, %Y")
             except ValueError:
-                due_date_str = task['due_date']
+                due_date_str = sanitize_header_value(task['due_date'])
         
         # Calculate hours until due
         hours_until_due = "N/A"
@@ -176,26 +227,37 @@ def send_email_notification(task: Dict, recipient_email: str, settings: Dict) ->
         body = f"""
 Task Reminder
 
-Your task "{task.get('title', 'Untitled Task')}" is due soon!
+Your task "{title}" is due soon!
 
 Details:
-• Title: {task.get('title', 'Untitled Task')}
-• Priority: {task.get('priority', 'Not set')}
+• Title: {title}
+• Priority: {sanitize_header_value(task.get('priority', 'Not set'))}
 • Due Date: {due_date_str}
 • Time Until Due: {hours_until_due}
-• Description: {task.get('description', 'No description')}
+• Description: {clamp_text(task.get('description', 'No description'), 2000)}
 
 Don't forget to complete this task!
 """
         
         msg.attach(MIMEText(body, 'plain'))
         
-        # Connect to SMTP server and send
-        server = smtplib.SMTP(settings["smtp_server"], settings["smtp_port"])
-        server.starttls()  # Enable TLS encryption
-        server.login(settings["email_username"], settings["email_password"])
-        server.send_message(msg)
-        server.quit()
+        host = validate_smtp_host(settings["smtp_server"])
+        port = validate_port(settings["smtp_port"])
+        username = settings["email_username"]
+        password = settings["email_password"]
+        context = ssl.create_default_context()
+
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, timeout=20, context=context) as server:
+                server.login(username, password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=20) as server:
+                server.ehlo()
+                server.starttls(context=context)
+                server.ehlo()
+                server.login(username, password)
+                server.send_message(msg)
         
         return True
     except Exception as e:
@@ -273,8 +335,9 @@ def save_sent_notification(task_id: int):
     sent_notifications = load_sent_notifications()
     sent_notifications[str(task_id)] = datetime.now().isoformat()
     
-    with open(notifications_file, 'w') as f:
+    with open_private_write(notifications_file) as f:
         json.dump(sent_notifications, f, indent=2)
+    restrict_file_permissions(notifications_file)
 
 def should_send_notification(task: Dict, hours_threshold: int = 24) -> bool:
     """
@@ -398,9 +461,11 @@ def test_notification(email: str = None) -> Dict:
     
     if not email:
         email = settings.get("email")
-    
-    if not email:
-        return {"success": False, "message": "No email address provided"}
+
+    try:
+        email = validate_email(email or "", required=True)
+    except ValueError:
+        return {"success": False, "message": "No valid email address provided"}
     
     if not settings.get("email_username") or not settings.get("email_password"):
         return {"success": False, "message": "Email credentials not configured"}

@@ -125,6 +125,8 @@ def build_app():
         '--hidden-import=analytics',
         '--hidden-import=journal',
         '--hidden-import=data_storage',
+        '--hidden-import=notifications',
+        '--hidden-import=security_utils',
         '--collect-all=eel',                # Collect all Eel data files
         '--osx-bundle-identifier=com.todo.app',  # Mac bundle identifier
         '--noconfirm',                      # Overwrite output without asking

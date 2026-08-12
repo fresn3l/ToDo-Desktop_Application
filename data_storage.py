@@ -12,6 +12,12 @@ import sys
 from typing import List, Dict
 from pathlib import Path
 
+from security_utils import (
+    open_private_write,
+    restrict_directory_permissions,
+    restrict_file_permissions,
+)
+
 # ============================================
 # DATA FILE PATHS
 # ============================================
@@ -73,6 +79,7 @@ def get_data_directory() -> Path:
     # parents=True creates all parent directories if needed
     # exist_ok=True prevents error if directory already exists
     data_dir.mkdir(parents=True, exist_ok=True)
+    restrict_directory_permissions(data_dir)
     
     return data_dir
 
@@ -122,8 +129,8 @@ def save_tasks(tasks: List[Dict]):
     temp_file = DATA_FILE + '.tmp'
     
     try:
-        # Write to temporary file
-        with open(temp_file, 'w') as f:
+        # Write to temporary file with owner-only permissions
+        with open_private_write(temp_file) as f:
             if sys.platform != 'win32':
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock
             json.dump(tasks, f, indent=2)
@@ -132,6 +139,7 @@ def save_tasks(tasks: List[Dict]):
         
         # Atomic rename (atomic on Unix/macOS, should work on Windows too)
         os.replace(temp_file, DATA_FILE)
+        restrict_file_permissions(DATA_FILE)
     except Exception as e:
         # Clean up temp file on error
         if os.path.exists(temp_file):
@@ -176,8 +184,8 @@ def save_goals(goals: List[Dict]):
     temp_file = GOALS_FILE + '.tmp'
     
     try:
-        # Write to temporary file with file locking
-        with open(temp_file, 'w') as f:
+        # Write to temporary file with file locking and owner-only permissions
+        with open_private_write(temp_file) as f:
             if sys.platform != 'win32':
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock
             json.dump(goals, f, indent=2)
@@ -186,6 +194,7 @@ def save_goals(goals: List[Dict]):
         
         # Atomic rename (atomic on Unix/macOS, should work on Windows too)
         os.replace(temp_file, GOALS_FILE)
+        restrict_file_permissions(GOALS_FILE)
     except Exception as e:
         # Clean up temp file on error
         if os.path.exists(temp_file):
@@ -216,5 +225,28 @@ def load_habits() -> List[Dict]:
         except (json.JSONDecodeError, IOError):
             return []
     return []
+
+
+def save_habits(habits: List[Dict]):
+    """
+    Save habits to local JSON file with file locking.
+    Used when unlinking habits from a deleted goal.
+    """
+    temp_file = HABITS_FILE + '.tmp'
+
+    try:
+        with open_private_write(temp_file) as f:
+            if sys.platform != 'win32':
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            json.dump(habits, f, indent=2)
+            if sys.platform != 'win32':
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+        os.replace(temp_file, HABITS_FILE)
+        restrict_file_permissions(HABITS_FILE)
+    except Exception:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        raise
 
 

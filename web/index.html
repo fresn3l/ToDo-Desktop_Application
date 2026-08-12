@@ -4,6 +4,7 @@
     <!-- Document metadata and configuration -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*; img-src 'self' data:; form-action 'self'; base-uri 'self'; object-src 'none';">
     <title>ToDo</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -317,7 +318,8 @@
                         <input type="password" id="emailPassword" placeholder="Enter password or app password">
                         <small>
                             For Gmail: Use an App Password (not your regular password).
-                            <a href="https://support.google.com/accounts/answer/185833" target="_blank">Learn how to create one</a>
+                            Saved passwords are stored locally with owner-only permissions and are never sent back to the UI.
+                            <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer">Learn how to create one</a>
                         </small>
                     </div>
                     
