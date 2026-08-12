@@ -98,10 +98,11 @@ intelligent_to-do_list/
 
 ## Data Storage
 
-All data is stored locally in platform-specific Application Support directories:
-- **macOS**: `~/Library/Application Support/ToDo/`
-- **Windows**: `~/AppData/Local/ToDo/`
-- **Linux**: `~/.local/share/ToDo/`
+All data is stored locally in a private directory unique to this app
+(not shared with other applications or repositories):
+- **macOS**: `~/Library/Application Support/ToDoDesktop/`
+- **Windows**: `~/AppData/Local/ToDoDesktop/`
+- **Linux**: `~/.local/share/ToDoDesktop/`
 
 Data files:
 - `tasks.json`: All tasks

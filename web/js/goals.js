@@ -226,10 +226,7 @@ function createGoalHTML(goal, progress) {
         if (progress.tasks_total > 0) {
             parts.push(`${progress.tasks_completed}/${progress.tasks_total} tasks`);
         }
-        if (progress.habits_total > 0) {
-            parts.push(`${progress.habits_completed}/${progress.habits_total} habits`);
-        }
-        progressText = parts.join(' • ') + ` (${progress.completed}/${progress.total} total)`;
+        progressText = parts.join(' • ');
     }
     
     let timeProgressHTML = '';
