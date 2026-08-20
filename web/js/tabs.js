@@ -2,10 +2,10 @@
  * Tab navigation — journal, checklist, review, timeline, settings.
  */
 
-import { loadPastEntries } from './journal.js';
+import { loadPastEntries, exitJournalFocus } from './journal.js';
 import { onChecklistTabShown } from './daily_checklist.js';
 import { onReviewTabShown } from './review.js';
-import { onTimelineTabShown, setupTimeline } from './timeline.js';
+import { onTimelineTabShown } from './timeline.js';
 import { onSettingsTabShown } from './settings.js';
 
 const ID_MAP = {
@@ -51,6 +51,14 @@ export function setupTabs() {
         e.preventDefault();
         switchTab(tab).catch((err) => console.error(err));
     });
+
+    document.addEventListener('kosistenz:open-day', (e) => {
+        const date = e.detail?.date;
+        if (!date) return;
+        const picker = document.getElementById('timelineDate');
+        if (picker) picker.value = date;
+        switchTab('timeline').catch((err) => console.error(err));
+    });
 }
 
 export async function switchTab(name) {
@@ -64,6 +72,10 @@ export async function switchTab(name) {
         c.classList.toggle('active', activeId !== undefined && c.id === activeId);
     });
     setDocumentTitle(name);
+
+    if (name !== 'journal') {
+        exitJournalFocus();
+    }
 
     if (name === 'journal') {
         await loadPastEntries();

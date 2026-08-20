@@ -70,6 +70,7 @@ function applyLiveFontSize(n) {
 export function setupSettings() {
     if (document.body.dataset.settingsReady === '1') {
         paintSettings(getAppearance());
+        void loadAdvancedPaths();
         return;
     }
     document.body.dataset.settingsReady = '1';
@@ -149,8 +150,29 @@ export function setupSettings() {
     });
 
     paintSettings(getAppearance());
+    void loadAdvancedPaths();
 }
 
 export function onSettingsTabShown() {
     paintSettings(getAppearance());
+    void loadAdvancedPaths();
+}
+
+async function loadAdvancedPaths() {
+    const dbEl = document.getElementById('checklistDbPath');
+    if (dbEl && !dbEl.textContent) {
+        try {
+            dbEl.textContent = await eel.get_daily_checklist_db_path_exposed()();
+        } catch (_) {
+            dbEl.textContent = '';
+        }
+    }
+    const exportsPath = document.getElementById('exportsPath');
+    if (exportsPath && !exportsPath.textContent) {
+        try {
+            exportsPath.textContent = await eel.get_exports_directory()();
+        } catch (_) {
+            exportsPath.textContent = 'Application Support/ToDo/exports';
+        }
+    }
 }

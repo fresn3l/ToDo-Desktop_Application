@@ -281,6 +281,158 @@ def get_daily_checklist_db_path_exposed() -> str:
     return str(get_daily_checklist_db_path().resolve())
 
 
+def _humanize_key(key: str) -> str:
+    return str(key or "").replace("_", " ").replace("-", " ").strip().title() or "Item"
+
+
+def _defs_by_id() -> Dict[str, Dict[str, Any]]:
+    out: Dict[str, Dict[str, Any]] = {}
+    d = _checklists_dir()
+    if not d.is_dir():
+        return out
+    for path in d.glob("*.json"):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not _is_valid_bundle_dict(data):
+            continue
+        out[path.stem] = data
+        cid = data.get("id")
+        if cid:
+            out[str(cid)] = data
+    return out
+
+
+def checklist_title(checklist_id: str) -> str:
+    defs = _defs_by_id()
+    data = defs.get(checklist_id) or {}
+    return str(data.get("title") or checklist_id or "Checklist")
+
+
+def _format_answer_value(node: Any, val: Any) -> str:
+    if val is True:
+        base = "Yes"
+    elif val is False:
+        base = "No"
+    elif val is None:
+        base = "—"
+    elif isinstance(val, (int, float)) and not isinstance(val, bool):
+        base = str(val)
+    elif isinstance(val, str):
+        base = val
+    elif isinstance(val, dict):
+        duration = val.get("durationMinutes")
+        if "answer" in val:
+            base = _format_answer_value(node, val["answer"])
+        elif val.get("value") == "other":
+            base = f"Other: {val.get('otherText', '')}"
+        elif "value" in val:
+            raw = val.get("value")
+            base = raw
+            if isinstance(node, dict):
+                for opt in node.get("options") or []:
+                    if opt.get("value") == raw:
+                        base = str(opt.get("label") or raw)
+                        break
+            else:
+                base = str(raw)
+        elif duration is not None:
+            return f"{duration} min"
+        else:
+            base = str(val)
+        if duration is not None:
+            return f"{base} ({duration} min)"
+        return str(base)
+    else:
+        base = str(val)
+
+    if isinstance(node, dict) and node.get("type") == "choice" and not isinstance(val, dict):
+        for opt in node.get("options") or []:
+            if opt.get("value") == val:
+                return str(opt.get("label") or val)
+    return str(base)
+
+
+def _node_for_key(
+    checklist_id: str,
+    key: str,
+    defs: Dict[str, Dict[str, Any]] | None = None,
+    custom_items: List[Dict[str, Any]] | None = None,
+) -> Dict[str, Any]:
+    defs = defs if defs is not None else _defs_by_id()
+    defn = defs.get(checklist_id) or {}
+    node = (defn.get("nodes") or {}).get(key)
+    if isinstance(node, dict):
+        return node
+    items = custom_items if custom_items is not None else _load_custom_items_raw()
+    for item in items:
+        if item.get("id") == key:
+            return item
+    for data in defs.values():
+        node = (data.get("nodes") or {}).get(key)
+        if isinstance(node, dict):
+            return node
+    return {}
+
+
+def format_submission_answers(
+    checklist_id: str,
+    answers: Dict[str, Any],
+    defs: Dict[str, Dict[str, Any]] | None = None,
+    custom_items: List[Dict[str, Any]] | None = None,
+) -> List[Dict[str, str]]:
+    """Turn stored answer keys into question/answer rows for the UI."""
+    formatted: List[Dict[str, str]] = []
+    if not isinstance(answers, dict):
+        return formatted
+    defs = defs if defs is not None else _defs_by_id()
+    custom_items = custom_items if custom_items is not None else _load_custom_items_raw()
+    for key, val in answers.items():
+        node = _node_for_key(checklist_id, key, defs=defs, custom_items=custom_items)
+        label = str(node.get("question") or _humanize_key(key))
+        formatted.append(
+            {
+                "key": str(key),
+                "label": label,
+                "value": _format_answer_value(node, val),
+            }
+        )
+    return formatted
+
+
+def summarize_formatted_answers(formatted: List[Dict[str, str]], limit: int = 3) -> str:
+    parts: List[str] = []
+    for row in formatted[:limit]:
+        val = row.get("value") or ""
+        if len(val) > 42:
+            val = val[:39] + "…"
+        parts.append(f"{row.get('label')}: {val}")
+    extra = len(formatted) - limit
+    if extra > 0:
+        parts.append(f"+{extra} more")
+    return " · ".join(parts)
+
+
+def decorate_submission(
+    row: Dict[str, Any],
+    defs: Dict[str, Dict[str, Any]] | None = None,
+    custom_items: List[Dict[str, Any]] | None = None,
+) -> Dict[str, Any]:
+    answers = row.get("answers") or {}
+    cid = row.get("checklist_id") or ""
+    defs = defs if defs is not None else _defs_by_id()
+    custom_items = custom_items if custom_items is not None else _load_custom_items_raw()
+    formatted = format_submission_answers(cid, answers, defs=defs, custom_items=custom_items)
+    out = dict(row)
+    data = defs.get(cid) or {}
+    out["title"] = str(data.get("title") or cid or "Checklist")
+    out["answers_formatted"] = formatted
+    out["summary"] = summarize_formatted_answers(formatted)
+    return out
+
+
 @eel.expose
 def submit_daily_checklist_response(
     checklist_id: str, flow_version: int, answers: Dict[str, Any]
@@ -340,19 +492,25 @@ def list_daily_checklist_submissions(limit: int = 30) -> List[Dict[str, Any]]:
             (limit,),
         ).fetchall()
     out: List[Dict[str, Any]] = []
+    defs = _defs_by_id()
+    custom_items = _load_custom_items_raw()
     for r in rows:
         try:
             answers = json.loads(r["answers_json"])
         except (json.JSONDecodeError, TypeError):
             answers = {}
         out.append(
-            {
-                "id": r["id"],
-                "created_at": r["created_at"],
-                "checklist_id": r["checklist_id"],
-                "flow_version": r["flow_version"],
-                "local_date": r["local_date"],
-                "answers": answers,
-            }
+            decorate_submission(
+                {
+                    "id": r["id"],
+                    "created_at": r["created_at"],
+                    "checklist_id": r["checklist_id"],
+                    "flow_version": r["flow_version"],
+                    "local_date": r["local_date"],
+                    "answers": answers,
+                },
+                defs=defs,
+                custom_items=custom_items,
+            )
         )
     return out

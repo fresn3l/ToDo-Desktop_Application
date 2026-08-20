@@ -3,6 +3,7 @@
  */
 
 import * as utils from './utils.js';
+import { mountWeekStrip } from './weekstrip.js';
 
 let timelineDateBound = false;
 let timelineHealthBound = false;
@@ -65,43 +66,44 @@ export async function onTimelineTabShown() {
     setupTimeline();
     const picker = document.getElementById('timelineDate');
     await loadTimelineDay(picker?.value || todayLocal());
-    await loadTimelineDateList();
 }
 
-async function loadTimelineDateList() {
-    const el = document.getElementById('timelineDateList');
-    if (!el) return;
-    try {
-        const dates = await eel.list_timeline_dates(30)();
-        if (!dates.length) {
-            el.innerHTML = '<p class="checklist-empty">No activity yet.</p>';
-            return;
-        }
-        el.innerHTML = dates
-            .map(
-                (d) =>
-                    `<button type="button" class="btn-secondary timeline-date-chip" data-date="${utils.escapeHtml(d)}">${utils.escapeHtml(d)}</button>`,
-            )
-            .join(' ');
-        el.querySelectorAll('.timeline-date-chip').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const d = btn.getAttribute('data-date');
-                const picker = document.getElementById('timelineDate');
-                if (picker && d) {
-                    picker.value = d;
-                    loadTimelineDay(d);
-                }
-            });
-        });
-    } catch (e) {
-        console.error(e);
+export async function openTimelineDate(localDate) {
+    setupTimeline();
+    const picker = document.getElementById('timelineDate');
+    if (picker && localDate) {
+        picker.value = localDate;
+        picker.max = todayLocal();
     }
+    await loadTimelineDay(localDate);
 }
 
-async function loadTimelineDay(localDate) {
+async function refreshWeekStrip(selectedDate) {
+    const el = document.getElementById('timelineWeekStrip');
+    await mountWeekStrip(el, {
+        endDate: selectedDate || todayLocal(),
+        selectedDate,
+        onSelect: (date) => {
+            const picker = document.getElementById('timelineDate');
+            if (picker) picker.value = date;
+            loadTimelineDay(date, { refreshStrip: false });
+        },
+    });
+}
+
+async function loadTimelineDay(localDate, { refreshStrip = true } = {}) {
     const el = document.getElementById('timelineContent');
     if (!el || !localDate) return;
     el.innerHTML = '<div class="empty-state empty-state--loading"><div class="loading-spinner"></div><p>Loading…</p></div>';
+    if (refreshStrip) {
+        void refreshWeekStrip(localDate);
+    } else {
+        document.querySelectorAll('#timelineWeekStrip .week-day').forEach((btn) => {
+            const on = btn.getAttribute('data-date') === localDate;
+            btn.classList.toggle('is-selected', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
     try {
         const data = await eel.get_timeline_day(localDate)();
         let health = {};
@@ -124,15 +126,20 @@ function renderTimeline(data, health) {
     } else {
         data.submissions.forEach((sub) => {
             const when = new Date(sub.created_at).toLocaleTimeString();
+            const title = sub.title || sub.checklist_id || 'Checklist';
             let rows = (sub.answers_formatted || [])
                 .map(
                     (a) =>
                         `<tr><td>${utils.escapeHtml(a.label)}</td><td>${utils.escapeHtml(a.value)}</td></tr>`,
                 )
                 .join('');
+            const summary = sub.summary
+                ? `<p class="checklist-history-summary">${utils.escapeHtml(sub.summary)}</p>`
+                : '';
             checkHtml += `
                 <div class="timeline-block">
-                    <div class="timeline-block-meta">${utils.escapeHtml(sub.checklist_id || 'checklist')} · ${utils.escapeHtml(when)}</div>
+                    <div class="timeline-block-meta">${utils.escapeHtml(title)} · ${utils.escapeHtml(when)}</div>
+                    ${summary}
                     <table class="timeline-answers"><tbody>${rows}</tbody></table>
                 </div>
             `;

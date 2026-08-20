@@ -3,6 +3,7 @@
  */
 
 import * as utils from './utils.js';
+import { mountWeekStrip, requestOpenTimelineDate } from './weekstrip.js';
 
 export async function setupReview() {
     document.getElementById('savePatternNote')?.addEventListener('click', async () => {
@@ -38,7 +39,7 @@ export async function setupReview() {
                 else if (kind === 'journal-csv') result = await eel.export_journal_csv()();
                 else return;
                 if (status) {
-                    status.textContent = `Exported ${result.count} record(s) → ${result.path}`;
+                    status.textContent = `Exported ${result.count} record(s).`;
                 }
                 utils.showSuccessFeedback('Export saved.');
             } catch (e) {
@@ -53,6 +54,10 @@ export async function onReviewTabShown() {
     const el = document.getElementById('reviewContent');
     if (!el) return;
     el.innerHTML = '<div class="empty-state empty-state--loading"><div class="loading-spinner"></div><p>Loading review…</p></div>';
+    await mountWeekStrip(document.getElementById('reviewWeekStrip'), {
+        selectedDate: utils.localISODate(),
+        onSelect: (date) => requestOpenTimelineDate(date),
+    });
     try {
         const data = await eel.get_weekly_review(7)();
         el.innerHTML = renderReview(data);

@@ -86,7 +86,10 @@
                                     <h2>Write</h2>
                                     <p class="panel-sub">A timed session, then a new entry each time you save.</p>
                                 </div>
-                                <span class="meta-chip" id="journalWordCount">0 words</span>
+                                <div class="journal-header-actions">
+                                    <span class="meta-chip" id="journalWordCount">0 words</span>
+                                    <button type="button" id="journalFocusBtn" class="btn-ghost" aria-pressed="false">Focus</button>
+                                </div>
                             </div>
 
                             <div class="journal-entry-section">
@@ -114,6 +117,7 @@
                                 </div>
 
                                 <div class="journal-actions">
+                                    <p class="wizard-kbd journal-kbd-hint">⌘Enter save · Esc pause / clear</p>
                                     <button type="button" id="clearEntry" class="btn-ghost">Clear</button>
                                     <button type="button" id="saveEntry" class="btn-primary" disabled>Save entry</button>
                                 </div>
@@ -122,8 +126,16 @@
 
                         <aside class="panel journal-entries-section">
                             <div class="panel-header">
-                                <h2>Recent</h2>
-                                <p class="panel-sub">Last 30 days</p>
+                                <div>
+                                    <h2>Recent</h2>
+                                    <p class="panel-sub">Last 30 days · grouped by day</p>
+                                </div>
+                            </div>
+                            <div class="journal-history-toolbar">
+                                <input type="search" id="journalSearch" class="checklist-text-input" placeholder="Search entries" autocomplete="off">
+                                <select id="journalTagFilter" class="checklist-select" aria-label="Filter by tag">
+                                    <option value="">All tags</option>
+                                </select>
                             </div>
                             <div id="journalEntriesContainer" class="journal-entries-container"></div>
                         </aside>
@@ -152,10 +164,6 @@
                                 <div class="stack">
                                     <label class="checklist-field-label" for="checklistTemplateSelect">Built-in template</label>
                                     <select id="checklistTemplateSelect" class="checklist-select checklist-template-select" title="Bundled checklist JSON in the app"></select>
-                                    <p class="checklist-hint small">
-                                        <span class="checklist-db-label">Database</span>
-                                        <code id="checklistDbPath" class="checklist-db-path"></code>
-                                    </p>
                                 </div>
                             </div>
 
@@ -210,9 +218,10 @@
                         <div class="panel-header">
                             <div>
                                 <h2>Weekly review</h2>
-                                <p class="panel-sub">Automated summary for the last 7 days.</p>
+                                <p class="panel-sub">Last 7 days. Click a day to open it on Timeline.</p>
                             </div>
                         </div>
+                        <div id="reviewWeekStrip" class="week-strip-host"></div>
                         <div id="reviewContent" class="review-content"></div>
                     </div>
                 </section>
@@ -225,12 +234,12 @@
                                 <p class="panel-sub">Checklist answers and journal entries for a single day.</p>
                             </div>
                         </div>
+                        <div id="timelineWeekStrip" class="week-strip-host"></div>
                         <div class="timeline-controls">
                             <label class="checklist-field-label" for="timelineDate">Date</label>
                             <input type="date" id="timelineDate" class="checklist-text-input timeline-date-input">
                             <button type="button" id="timelineToday" class="btn-secondary">Today</button>
                         </div>
-                        <div id="timelineDateList" class="timeline-date-list"></div>
                         <div id="timelineContent" class="timeline-content"></div>
                     </div>
                 </section>
@@ -338,6 +347,16 @@
                                     <input type="checkbox" id="highContrastToggle"> Higher contrast
                                 </label>
                             </div>
+                            <div class="settings-block">
+                                <h3>Shortcuts</h3>
+                                <ul class="shortcut-list">
+                                    <li><kbd>⌘</kbd><kbd>1</kbd>–<kbd>5</kbd> Switch tabs</li>
+                                    <li><kbd>⌘</kbd><kbd>Enter</kbd> Save journal entry</li>
+                                    <li><kbd>Esc</kbd> Pause timer, then clear with confirm</li>
+                                    <li><kbd>Y</kbd> / <kbd>N</kbd> Yes / no checklist steps</li>
+                                    <li><kbd>1</kbd>–<kbd>5</kbd> Scale answers</li>
+                                </ul>
+                            </div>
                         </div>
 
                         <div class="panel">
@@ -369,12 +388,12 @@
                             <div class="panel-header">
                                 <div>
                                     <h2>Data</h2>
-                                    <p class="panel-sub">Export files and optional Health import.</p>
+                                    <p class="panel-sub">Export files stay on this Mac.</p>
                                 </div>
                             </div>
                             <div class="export-panel">
                                 <h3>Export</h3>
-                                <p class="checklist-hint small">Files save to <code id="exportsPath"></code></p>
+                                <p class="checklist-hint small">JSON and CSV copies of your checklist and journal.</p>
                                 <div class="export-buttons">
                                     <button type="button" class="btn-secondary" data-export="checklist-json">Checklist JSON</button>
                                     <button type="button" class="btn-secondary" data-export="checklist-csv">Checklist CSV</button>
@@ -383,9 +402,16 @@
                                 </div>
                                 <p id="exportStatus" class="checklist-hint small"></p>
                             </div>
-                            <details class="checklist-add-details timeline-health-details">
-                                <summary>Apple Health / Screen Time import</summary>
+                            <details class="checklist-add-details settings-advanced">
+                                <summary>Advanced</summary>
                                 <div class="checklist-add-form">
+                                    <label class="checklist-field-label">SQLite database</label>
+                                    <code id="checklistDbPath" class="checklist-db-path"></code>
+                                    <label class="checklist-field-label">Export folder</label>
+                                    <code id="exportsPath" class="checklist-db-path"></code>
+                                    <label class="checklist-field-label">Reminder launchd plist</label>
+                                    <code id="reminderPlistPath" class="checklist-db-path"></code>
+                                    <h3>Apple Health / Screen Time import</h3>
                                     <p class="checklist-hint small">Import from Apple Health “Export All Health Data” (export.xml). Sleep, steps, and workouts are supported.</p>
                                     <p class="checklist-hint small checklist-empty">Screen Time is experimental and disabled on macOS — no reliable third-party API.</p>
                                     <label class="checklist-field-label" for="healthExportPath">Path to export.xml</label>

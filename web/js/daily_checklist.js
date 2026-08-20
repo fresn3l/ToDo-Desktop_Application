@@ -61,10 +61,10 @@ async function setupReminderControls() {
         document.getElementById('reminderHour').value = cfg.hour ?? 20;
         document.getElementById('reminderMinute').value = cfg.minute ?? 0;
         if (status) {
-            status.textContent = cfg.installed
-                ? `Installed · ${cfg.plist_path}`
-                : 'Not installed';
+            status.textContent = cfg.installed ? 'Installed' : 'Not installed';
         }
+        const plistEl = document.getElementById('reminderPlistPath');
+        if (plistEl) plistEl.textContent = cfg.plist_path || '';
     } catch (e) {
         console.error(e);
     }
@@ -126,6 +126,7 @@ export async function setupDailyChecklist() {
     toggleCustomItemFields();
 
     await setupReminderControls();
+    setupChecklistKeys();
 
     document.getElementById('addCustomItemBtn')?.addEventListener('click', async () => {
         const type = document.getElementById('newItemType')?.value || 'yes_no';
@@ -260,6 +261,128 @@ function startWizard() {
     renderWizard();
 }
 
+function isTypingTarget(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+    return !!el.isContentEditable;
+}
+
+function setupChecklistKeys() {
+    if (document.body.dataset.checklistKeys === '1') return;
+    document.body.dataset.checklistKeys = '1';
+    document.addEventListener('keydown', (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const tab = document.getElementById('checklistTab');
+        if (!tab || !tab.classList.contains('active')) return;
+        if (isTypingTarget(e.target)) return;
+        const card = document.querySelector('#checklistWizard [data-kind]');
+        if (!card) return;
+        const kind = card.getAttribute('data-kind');
+        if (kind === 'yes_no' && (e.key === 'y' || e.key === 'Y')) {
+            e.preventDefault();
+            card.querySelector('.checklist-yes, .extra-yes')?.click();
+        } else if (kind === 'yes_no' && (e.key === 'n' || e.key === 'N')) {
+            e.preventDefault();
+            card.querySelector('.checklist-no, .extra-no')?.click();
+        } else if (kind === 'scale' && /^[1-9]$/.test(e.key)) {
+            const btn = card.querySelector(`.checklist-scale-btn[data-value="${e.key}"]`);
+            if (btn) {
+                e.preventDefault();
+                btn.click();
+            }
+        }
+    });
+}
+
+function nodeForAnswerKey(key) {
+    return state?.def?.nodes?.[key] || (state?.customItems || []).find((i) => i.id === key) || {};
+}
+
+function formatPreviewValue(node, val) {
+    if (val === true) return 'Yes';
+    if (val === false) return 'No';
+    if (val == null) return '—';
+    if (typeof val === 'object') {
+        if (Object.prototype.hasOwnProperty.call(val, 'answer')) {
+            const base = formatPreviewValue(node, val.answer);
+            return val.durationMinutes != null ? `${base} (${val.durationMinutes} min)` : base;
+        }
+        if (val.value === 'other') {
+            const base = `Other: ${val.otherText || ''}`;
+            return val.durationMinutes != null ? `${base} (${val.durationMinutes} min)` : base;
+        }
+        if (val.value != null) {
+            const opt = (node.options || []).find((o) => o.value === val.value);
+            const base = opt ? opt.label : String(val.value);
+            return val.durationMinutes != null ? `${base} (${val.durationMinutes} min)` : base;
+        }
+        if (val.durationMinutes != null) return `${val.durationMinutes} min`;
+        return '';
+    }
+    if (node?.type === 'choice') {
+        const opt = (node.options || []).find((o) => o.value === val);
+        if (opt) return opt.label;
+    }
+    return String(val);
+}
+
+function estimatedTotalSteps() {
+    const nodes = state?.def?.nodes || {};
+    let n = 0;
+    Object.values(nodes).forEach((node) => {
+        if (node && ['yes_no', 'choice', 'text', 'scale', 'number'].includes(node.type)) n += 1;
+    });
+    n += (state?.customItems || []).length;
+    return Math.max(n, 1);
+}
+
+function currentStepNumber() {
+    return Object.keys(state?.answers || {}).length + 1;
+}
+
+function paintWizard(cardBody, { kind = '', extraTag = '' } = {}) {
+    const el = document.getElementById('checklistWizard');
+    if (!el) return el;
+    const total = estimatedTotalSteps();
+    const current = Math.min(currentStepNumber(), total);
+    const pct = Math.round((current / total) * 100);
+    const recapItems = Object.entries(state?.answers || {})
+        .map(([key, val]) => {
+            const node = nodeForAnswerKey(key);
+            const label = node.question || String(key).replace(/[_-]+/g, ' ');
+            const value = formatPreviewValue(node, val);
+            return `<li><span class="wizard-recap-q">${utils.escapeHtml(label)}</span><span class="wizard-recap-a">${utils.escapeHtml(value)}</span></li>`;
+        })
+        .join('');
+    const recap = recapItems ? `<ol class="wizard-recap">${recapItems}</ol>` : '';
+    const kbd =
+        kind === 'yes_no'
+            ? '<p class="wizard-kbd">Y / N</p>'
+            : kind === 'scale'
+              ? '<p class="wizard-kbd">1–5</p>'
+              : '';
+    el.innerHTML = `
+        <div class="wizard-shell">
+            <div class="wizard-progress">
+                <div class="wizard-progress-meta">
+                    <span>${current} of ${total}</span>
+                </div>
+                <div class="wizard-progress-track" role="progressbar" aria-valuemin="1" aria-valuemax="${total}" aria-valuenow="${current}">
+                    <div class="wizard-progress-fill" style="width:${pct}%"></div>
+                </div>
+            </div>
+            ${recap}
+            ${extraTag ? `<p class="checklist-extra-tag">${extraTag}</p>` : ''}
+            <div class="checklist-card" data-kind="${utils.escapeHtml(kind)}">
+                ${cardBody}
+            </div>
+            ${kbd}
+        </div>
+    `;
+    return el;
+}
+
 export async function onChecklistTabShown() {
     await populateChecklistTemplateSelect();
     await loadRecentSubmissions();
@@ -296,13 +419,14 @@ function renderWizard() {
 
     if (node.type === 'text') {
         const ph = node.placeholder ? utils.escapeHtml(node.placeholder) : '';
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
                 <textarea class="checklist-textarea checklist-flow-text" rows="4" placeholder="${ph}" id="checklistTextInput"></textarea>
                 <button type="button" class="btn-primary checklist-next">Continue</button>
-            </div>
-        `;
+            `,
+            { kind: 'text' },
+        );
         el.querySelector('.checklist-next').addEventListener('click', () => {
             const text = (el.querySelector('#checklistTextInput')?.value || '').trim();
             if (!text && !node.optional) {
@@ -322,12 +446,13 @@ function renderWizard() {
         for (let v = min; v <= max; v++) {
             buttons += `<button type="button" class="btn-secondary checklist-scale-btn" data-value="${v}">${v}</button>`;
         }
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
                 <div class="checklist-scale-row">${buttons}</div>
-            </div>
-        `;
+            `,
+            { kind: 'scale' },
+        );
         el.querySelectorAll('.checklist-scale-btn').forEach((btn) => {
             btn.addEventListener('click', () => {
                 state.answers[state.currentId] = parseInt(btn.getAttribute('data-value'), 10);
@@ -341,13 +466,14 @@ function renderWizard() {
         const min = node.min ?? 0;
         const max = node.max ?? 999;
         const step = node.step ?? 1;
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
                 <input type="number" class="checklist-text-input" id="checklistNumberInput" min="${min}" max="${max}" step="${step}" placeholder="${node.optional ? 'Optional' : ''}">
                 <button type="button" class="btn-primary checklist-next">Continue</button>
-            </div>
-        `;
+            `,
+            { kind: 'number' },
+        );
         el.querySelector('.checklist-next').addEventListener('click', () => {
             const raw = el.querySelector('#checklistNumberInput')?.value.trim() || '';
             if (!raw) {
@@ -371,15 +497,16 @@ function renderWizard() {
     }
 
     if (node.type === 'yes_no') {
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
                 <div class="checklist-yesno">
                     <button type="button" class="btn-primary checklist-yes">Yes</button>
                     <button type="button" class="btn-secondary checklist-no">No</button>
                 </div>
-            </div>
-        `;
+            `,
+            { kind: 'yes_no' },
+        );
         el.querySelector('.checklist-yes').addEventListener('click', () => {
             state.answers[state.currentId] = true;
             goTo(node.onYes);
@@ -411,13 +538,14 @@ function renderWizard() {
                 <input type="text" class="checklist-other-input" id="checklistOtherText" placeholder="Describe..." autocomplete="off">
             `;
         }
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
                 <div class="checklist-options">${radios}${otherBlock}</div>
                 <button type="button" class="btn-primary checklist-next">Continue</button>
-            </div>
-        `;
+            `,
+            { kind: 'choice' },
+        );
         const otherInput = el.querySelector('#checklistOtherText');
         if (otherInput) {
             el.querySelectorAll('input[name="checklistChoice"]').forEach((r) => {
@@ -519,18 +647,18 @@ function showDurationStep(item, partial) {
         recap = opt ? opt.label : String(partial.value);
     }
 
-    el.innerHTML = `
-        <div class="checklist-card">
+    paintWizard(
+        `
             <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
-            <p class="checklist-extra-tag">Extra question ${i + 1} of ${total} · Duration</p>
             <p class="duration-recap">Your answer: <strong>${utils.escapeHtml(recap)}</strong></p>
             <label class="checklist-field-label" for="extraDurMinutes">Duration (minutes)</label>
             <input type="number" id="extraDurMinutes" class="checklist-text-input duration-input" min="0" step="1" placeholder="Optional">
             <div class="checklist-duration-actions">
                 <button type="button" class="btn-primary duration-continue">Continue</button>
             </div>
-        </div>
-    `;
+        `,
+        { kind: 'duration', extraTag: `Extra question ${i + 1} of ${total} · Duration` },
+    );
 
     el.querySelector('.duration-continue').addEventListener('click', () => {
         const raw = el.querySelector('#extraDurMinutes').value.trim();
@@ -561,16 +689,16 @@ function renderExtraItem() {
     const item = items[i];
 
     if (item.type === 'yes_no') {
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
-                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
                 <div class="checklist-yesno">
                     <button type="button" class="btn-primary extra-yes">Yes</button>
                     <button type="button" class="btn-secondary extra-no">No</button>
                 </div>
-            </div>
-        `;
+            `,
+            { kind: 'yes_no', extraTag: `Extra question ${i + 1} of ${items.length}` },
+        );
         el.querySelector('.extra-yes').addEventListener('click', () => {
             if (item.trackDuration) {
                 showDurationStep(item, { type: 'yes_no', answer: true });
@@ -610,14 +738,14 @@ function renderExtraItem() {
                 <input type="text" class="checklist-other-input" id="extraOtherText" placeholder="Describe..." autocomplete="off">
             `;
         }
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
-                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
                 <div class="checklist-options">${radios}${otherBlock}</div>
                 <button type="button" class="btn-primary extra-next">Continue</button>
-            </div>
-        `;
+            `,
+            { kind: 'choice', extraTag: `Extra question ${i + 1} of ${items.length}` },
+        );
         const otherInput = el.querySelector('#extraOtherText');
         if (otherInput) {
             el.querySelectorAll('input[name="extraChoice"]').forEach((r) => {
@@ -663,14 +791,14 @@ function renderExtraItem() {
     }
 
     if (item.type === 'text') {
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
-                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
                 <textarea class="checklist-textarea checklist-flow-text" rows="3" id="extraTextInput"></textarea>
                 <button type="button" class="btn-primary extra-next">Continue</button>
-            </div>
-        `;
+            `,
+            { kind: 'text', extraTag: `Extra question ${i + 1} of ${items.length}` },
+        );
         el.querySelector('.extra-next').addEventListener('click', () => {
             const text = el.querySelector('#extraTextInput')?.value.trim() || '';
             if (!text && !item.optional) {
@@ -690,13 +818,13 @@ function renderExtraItem() {
         for (let v = min; v <= max; v++) {
             buttons += `<button type="button" class="btn-secondary checklist-scale-btn" data-value="${v}">${v}</button>`;
         }
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
-                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
                 <div class="checklist-scale-row">${buttons}</div>
-            </div>
-        `;
+            `,
+            { kind: 'scale', extraTag: `Extra question ${i + 1} of ${items.length}` },
+        );
         el.querySelectorAll('.checklist-scale-btn').forEach((btn) => {
             btn.addEventListener('click', () => {
                 state.answers[item.id] = parseInt(btn.getAttribute('data-value'), 10);
@@ -710,14 +838,14 @@ function renderExtraItem() {
         const min = item.min ?? 0;
         const max = item.max ?? 999;
         const step = item.step ?? 1;
-        el.innerHTML = `
-            <div class="checklist-card">
+        paintWizard(
+            `
                 <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
-                <p class="checklist-extra-tag">Extra question ${i + 1} of ${items.length}</p>
                 <input type="number" class="checklist-text-input" id="extraNumberInput" min="${min}" max="${max}" step="${step}">
                 <button type="button" class="btn-primary extra-next">Continue</button>
-            </div>
-        `;
+            `,
+            { kind: 'number', extraTag: `Extra question ${i + 1} of ${items.length}` },
+        );
         el.querySelector('.extra-next').addEventListener('click', () => {
             const raw = el.querySelector('#extraNumberInput')?.value.trim() || '';
             if (!raw) {
@@ -805,17 +933,18 @@ async function showRecoveryIfNeeded() {
     }
 }
 
+function fallbackFormatted(answers) {
+    return Object.entries(answers || {}).map(([key, val]) => {
+        const node = nodeForAnswerKey(key);
+        return {
+            label: node.question || String(key).replace(/[_-]+/g, ' '),
+            value: formatPreviewValue(node, val),
+        };
+    });
+}
+
 async function loadRecentSubmissions() {
     const listEl = document.getElementById('checklistRecentList');
-    const pathEl = document.getElementById('checklistDbPath');
-    if (pathEl) {
-        try {
-            const p = await eel.get_daily_checklist_db_path_exposed()();
-            pathEl.textContent = p;
-        } catch (_) {
-            pathEl.textContent = '';
-        }
-    }
     if (!listEl) return;
     listEl.innerHTML = '<div class="empty-state empty-state--loading"><div class="loading-spinner"></div><p>Loading…</p></div>';
     try {
@@ -832,12 +961,29 @@ async function loadRecentSubmissions() {
         let html = '';
         rows.forEach((row) => {
             const when = new Date(row.created_at).toLocaleString();
-            const summary = utils.escapeHtml(JSON.stringify(row.answers, null, 2));
+            const title = row.title || 'Checklist';
+            const formatted = row.answers_formatted?.length
+                ? row.answers_formatted
+                : fallbackFormatted(row.answers);
+            const summary = row.summary || formatted
+                .slice(0, 3)
+                .map((a) => `${a.label}: ${a.value}`)
+                .join(' · ');
+            const qa = formatted
+                .map(
+                    (a) =>
+                        `<tr><th>${utils.escapeHtml(a.label)}</th><td>${utils.escapeHtml(a.value)}</td></tr>`,
+                )
+                .join('');
             html += `
-                <div class="checklist-history-item">
-                    <div class="checklist-history-meta">${utils.escapeHtml(when)} · ${utils.escapeHtml(row.local_date)}</div>
-                    <pre class="checklist-history-json">${summary}</pre>
-                </div>
+                <article class="checklist-history-item">
+                    <div class="checklist-history-meta">
+                        <strong>${utils.escapeHtml(title)}</strong>
+                        <span>${utils.escapeHtml(when)}</span>
+                    </div>
+                    ${summary ? `<p class="checklist-history-summary">${utils.escapeHtml(summary)}</p>` : ''}
+                    <table class="timeline-answers checklist-history-qa"><tbody>${qa}</tbody></table>
+                </article>
             `;
         });
         listEl.innerHTML = html;

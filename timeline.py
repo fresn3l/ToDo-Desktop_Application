@@ -4,7 +4,7 @@ Unified timeline — journal entries + checklist submissions by date.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import eel
@@ -26,35 +26,6 @@ def _parse_date(s: str) -> Optional[date]:
         return None
 
 
-def _format_answer(key: str, val: Any) -> str:
-    if val is True:
-        return "Yes"
-    if val is False:
-        return "No"
-    if val is None:
-        return "—"
-    if isinstance(val, (int, float)):
-        return str(val)
-    if isinstance(val, str):
-        return val
-    if isinstance(val, dict):
-        duration = val.get("durationMinutes")
-        if "answer" in val:
-            base = _format_answer(key, val["answer"])
-        elif val.get("value") == "other":
-            base = f"Other: {val.get('otherText', '')}"
-        elif "value" in val:
-            base = str(val["value"])
-        elif duration is not None:
-            return f"{duration} min"
-        else:
-            return str(val)
-        if duration is not None:
-            return f"{base} ({duration} min)"
-        return base
-    return str(val)
-
-
 @eel.expose
 def get_timeline_day(local_date: str) -> Dict[str, Any]:
     """Everything recorded on one calendar day (YYYY-MM-DD)."""
@@ -65,18 +36,15 @@ def get_timeline_day(local_date: str) -> Dict[str, Any]:
     submissions: List[Dict[str, Any]] = []
     for row in daily_checklist.list_daily_checklist_submissions(500):
         if _parse_date(row.get("local_date", "")) == target:
-            answers = row.get("answers") or {}
-            formatted = [
-                {"key": k, "label": k.replace("_", " ").title(), "value": _format_answer(k, v)}
-                for k, v in answers.items()
-            ]
             submissions.append(
                 {
                     "id": row["id"],
                     "created_at": row["created_at"],
                     "checklist_id": row.get("checklist_id"),
-                    "answers": answers,
-                    "answers_formatted": formatted,
+                    "title": row.get("title") or row.get("checklist_id") or "Checklist",
+                    "answers": row.get("answers") or {},
+                    "answers_formatted": row.get("answers_formatted") or [],
+                    "summary": row.get("summary") or "",
                 }
             )
 
@@ -127,3 +95,52 @@ def list_timeline_dates(limit: int = 60) -> List[str]:
             dates_set.add(d.isoformat())
     sorted_dates = sorted(dates_set, reverse=True)
     return sorted_dates[:limit]
+
+
+@eel.expose
+def get_week_overview(end_date: str = "") -> Dict[str, Any]:
+    """Rolling 7 days ending at end_date (defaults to today, never in the future)."""
+    end = _parse_date(end_date) or date.today()
+    today = date.today()
+    if end > today:
+        end = today
+    start = end - timedelta(days=6)
+
+    checklist_counts: Dict[str, int] = {}
+    for row in daily_checklist.list_daily_checklist_submissions(500):
+        d = _parse_date(row.get("local_date", ""))
+        if d and start <= d <= end:
+            iso = d.isoformat()
+            checklist_counts[iso] = checklist_counts.get(iso, 0) + 1
+
+    journal_counts: Dict[str, int] = {}
+    span = max(14, (today - start).days + 1)
+    for e in journal.get_recent_entries(days=span):
+        d = _parse_date(e.get("date") or e.get("created_at") or "")
+        if d and start <= d <= end:
+            iso = d.isoformat()
+            journal_counts[iso] = journal_counts.get(iso, 0) + 1
+
+    days: List[Dict[str, Any]] = []
+    for i in range(6, -1, -1):
+        d = end - timedelta(days=i)
+        iso = d.isoformat()
+        c_count = checklist_counts.get(iso, 0)
+        j_count = journal_counts.get(iso, 0)
+        days.append(
+            {
+                "date": iso,
+                "weekday": d.strftime("%a"),
+                "day": d.day,
+                "is_today": d == today,
+                "checklist_count": c_count,
+                "journal_count": j_count,
+                "filled": (c_count + j_count) > 0,
+            }
+        )
+
+    return {
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "days": days,
+    }
