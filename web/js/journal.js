@@ -16,7 +16,6 @@ let journalTimerSeconds = 600;
 let journalTimerRunning = false;
 let journalTimerPaused = false;
 let journalOvertime = false;
-let journalStartTime = null;
 let journalDuration = 0;
 let journalCache = [];
 let expandedEntryId = null;
@@ -161,7 +160,6 @@ function startJournalTimer() {
     journalTimerRunning = true;
     journalTimerPaused = false;
     journalOvertime = false;
-    journalStartTime = Date.now();
     journalDuration = 0;
     journalTimerSeconds = timerDurationSeconds();
 
@@ -315,7 +313,6 @@ function clearJournalEntry() {
     journalTimerRunning = false;
     journalTimerPaused = false;
     journalOvertime = false;
-    journalStartTime = null;
     journalDuration = 0;
     
     const statusEl = document.getElementById('timerStatus');

@@ -6,7 +6,6 @@ Stored as JSON next to other Kosistenz data under Application Support.
 
 import json
 import os
-import sys
 from pathlib import Path
 from typing import Any, Dict
 
@@ -39,14 +38,9 @@ ALLOWED = {
 
 
 def _app_data_dir() -> Path:
-    if sys.platform == "win32":
-        base = Path.home() / "AppData" / "Local" / "ToDo"
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support" / "ToDo"
-    else:
-        base = Path.home() / ".local" / "share" / "ToDo"
-    base.mkdir(parents=True, exist_ok=True)
-    return base
+    import daily_checklist
+
+    return daily_checklist.get_data_directory()
 
 
 def _settings_path() -> Path:

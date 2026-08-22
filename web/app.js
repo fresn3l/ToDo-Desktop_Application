@@ -5,7 +5,7 @@
 import * as utils from './js/utils.js';
 import { initAppearance } from './js/appearance.js';
 import { setupTabs, switchTab } from './js/tabs.js';
-import { setupJournal, loadPastEntries } from './js/journal.js';
+import { setupJournal } from './js/journal.js';
 import { setupDailyChecklist } from './js/daily_checklist.js';
 import { setupReview } from './js/review.js';
 import { setupTimeline } from './js/timeline.js';
@@ -20,7 +20,6 @@ async function init() {
     await setupDailyChecklist();
     setupReview();
     setupTimeline();
-    await loadPastEntries();
     await switchTab('journal');
 }
 

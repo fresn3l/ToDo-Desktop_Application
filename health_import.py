@@ -12,7 +12,7 @@ import os
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import eel
 
@@ -183,14 +183,3 @@ def refresh_screen_time_for_recent_days(days: int = 7) -> Dict[str, Any]:
 def get_health_snapshot(local_date: str) -> Dict[str, Any]:
     store = _load_snapshots()
     return store.get(local_date, {})
-
-
-@eel.expose
-def get_health_snapshots_recent(limit: int = 14) -> List[Dict[str, Any]]:
-    store = _load_snapshots()
-    items = []
-    for k in sorted(store.keys(), reverse=True)[: max(1, min(limit, 90))]:
-        row = dict(store[k])
-        row["local_date"] = k
-        items.append(row)
-    return items

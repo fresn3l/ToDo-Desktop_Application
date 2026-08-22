@@ -6,27 +6,6 @@ import * as utils from './utils.js';
 import { mountWeekStrip, requestOpenTimelineDate } from './weekstrip.js';
 
 export async function setupReview() {
-    document.getElementById('savePatternNote')?.addEventListener('click', async () => {
-        const ta = document.getElementById('patternNoteInput');
-        const note = ta?.value.trim() || '';
-        try {
-            await eel.save_weekly_pattern_note(note)();
-            utils.showSuccessFeedback('Pattern note saved.');
-        } catch (e) {
-            console.error(e);
-            utils.showErrorFeedback('Could not save note.');
-        }
-    });
-
-    const exportsPath = document.getElementById('exportsPath');
-    if (exportsPath) {
-        try {
-            exportsPath.textContent = await eel.get_exports_directory()();
-        } catch (_) {
-            exportsPath.textContent = 'Application Support/ToDo/exports';
-        }
-    }
-
     document.querySelectorAll('[data-export]').forEach((btn) => {
         btn.addEventListener('click', async () => {
             const kind = btn.getAttribute('data-export');

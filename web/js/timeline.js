@@ -68,16 +68,6 @@ export async function onTimelineTabShown() {
     await loadTimelineDay(picker?.value || todayLocal());
 }
 
-export async function openTimelineDate(localDate) {
-    setupTimeline();
-    const picker = document.getElementById('timelineDate');
-    if (picker && localDate) {
-        picker.value = localDate;
-        picker.max = todayLocal();
-    }
-    await loadTimelineDay(localDate);
-}
-
 async function refreshWeekStrip(selectedDate) {
     const el = document.getElementById('timelineWeekStrip');
     await mountWeekStrip(el, {

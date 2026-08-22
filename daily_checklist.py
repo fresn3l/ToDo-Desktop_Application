@@ -308,12 +308,6 @@ def _defs_by_id() -> Dict[str, Dict[str, Any]]:
     return out
 
 
-def checklist_title(checklist_id: str) -> str:
-    defs = _defs_by_id()
-    data = defs.get(checklist_id) or {}
-    return str(data.get("title") or checklist_id or "Checklist")
-
-
 def _format_answer_value(node: Any, val: Any) -> str:
     if val is True:
         base = "Yes"

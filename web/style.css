@@ -897,15 +897,6 @@ input[type='radio'] {
     gap: var(--space-lg);
 }
 
-.checklist-db-label {
-    display: block;
-    margin-top: 4px;
-    font-size: 11px;
-    letter-spacing: var(--letter-wide);
-    text-transform: uppercase;
-    color: var(--text-muted);
-}
-
 .checklist-db-path {
     display: block;
     margin-top: 6px;
@@ -1021,15 +1012,6 @@ input[type='radio'] {
     margin-bottom: 6px;
 }
 
-.checklist-history-json {
-    font-size: 11px;
-    line-height: 1.5;
-    color: var(--text-secondary);
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-family: var(--font-mono);
-}
-
 .checklist-error {
     color: var(--danger);
 }
@@ -1110,18 +1092,6 @@ input[type='radio'] {
 
 .timeline-date-input {
     max-width: 12rem;
-}
-
-.timeline-date-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 18px;
-}
-
-.timeline-date-chip {
-    font-size: 12px;
-    padding: 6px 10px;
 }
 
 .timeline-summary {

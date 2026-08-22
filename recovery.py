@@ -74,11 +74,6 @@ def _first_missed_date(lookback: int = 7) -> Optional[str]:
 
 
 @eel.expose
-def get_recovery_options() -> List[Dict[str, str]]:
-    return list(RECOVERY_OPTIONS)
-
-
-@eel.expose
 def get_pending_recovery() -> Dict[str, Any]:
     missed = _first_missed_date()
     if not missed:

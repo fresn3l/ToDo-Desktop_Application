@@ -152,110 +152,52 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
 
     return entry
 
-@eel.expose
-def get_recent_entries(days: int = 30) -> List[Dict]:
-    """
-    Get journal entries from the last N days.
-    
-    Args:
-        days: Number of days to look back (default: 30)
-    
-    Returns:
-        List[Dict]: List of journal entries, sorted by date (newest first)
-    """
+def _load_entries_from_disk(cutoff_date: Optional[datetime] = None) -> List[Dict]:
     base_dir = get_journal_directory()
     entries = []
-    cutoff_date = datetime.now() - timedelta(days=days)
-    
-    # Walk through all journal folders
     if not base_dir.exists():
         return []
-    
+
     for year_dir in base_dir.iterdir():
         if not year_dir.is_dir():
             continue
-        
         for month_dir in year_dir.iterdir():
             if not month_dir.is_dir():
                 continue
-            
             for week_dir in month_dir.iterdir():
                 if not week_dir.is_dir():
                     continue
-                
-                # Look for entry JSON files
                 for entry_file in week_dir.glob('entry_*.json'):
                     try:
-                        # Read entry with file locking
                         with open(entry_file, 'r', encoding='utf-8') as f:
                             if sys.platform != 'win32':
                                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                             try:
                                 entry = json.load(f)
-                                # Parse entry date
-                                entry_date = datetime.fromisoformat(entry.get('date', entry.get('created_at', '')))
-                                
-                                # Only include entries within the date range
-                                if entry_date >= cutoff_date:
+                                entry_date = datetime.fromisoformat(
+                                    entry.get('date', entry.get('created_at', ''))
+                                )
+                                if cutoff_date is None or entry_date >= cutoff_date:
                                     entries.append(entry)
                             finally:
                                 if sys.platform != 'win32':
                                     fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                    except (json.JSONDecodeError, IOError, ValueError) as e:
-                        # Skip corrupted or invalid entries
+                    except (json.JSONDecodeError, IOError, ValueError):
                         continue
-    
-    # Sort by date (newest first)
+
     entries.sort(key=lambda x: x.get('date', x.get('created_at', '')), reverse=True)
-    
     return entries
+
+
+@eel.expose
+def get_recent_entries(days: int = 30) -> List[Dict]:
+    """Journal entries from the last N days, newest first."""
+    cutoff_date = datetime.now() - timedelta(days=days)
+    return _load_entries_from_disk(cutoff_date)
+
 
 @eel.expose
 def get_all_entries() -> List[Dict]:
-    """
-    Get all journal entries (no date limit).
-    
-    Returns:
-        List[Dict]: List of all journal entries, sorted by date (newest first)
-    """
-    base_dir = get_journal_directory()
-    entries = []
-    
-    if not base_dir.exists():
-        return []
-    
-    # Walk through all journal folders
-    for year_dir in base_dir.iterdir():
-        if not year_dir.is_dir():
-            continue
-        
-        for month_dir in year_dir.iterdir():
-            if not month_dir.is_dir():
-                continue
-            
-            for week_dir in month_dir.iterdir():
-                if not week_dir.is_dir():
-                    continue
-                
-                # Look for entry JSON files
-                for entry_file in week_dir.glob('entry_*.json'):
-                    try:
-                        # Read entry with file locking
-                        with open(entry_file, 'r', encoding='utf-8') as f:
-                            if sys.platform != 'win32':
-                                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-                            try:
-                                entry = json.load(f)
-                                entries.append(entry)
-                            finally:
-                                if sys.platform != 'win32':
-                                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                    except (json.JSONDecodeError, IOError, ValueError):
-                        # Skip corrupted or invalid entries
-                        continue
-    
-    # Sort by date (newest first)
-    entries.sort(key=lambda x: x.get('date', x.get('created_at', '')), reverse=True)
-    
-    return entries
+    """All journal entries, newest first."""
+    return _load_entries_from_disk()
 
