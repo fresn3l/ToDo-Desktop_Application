@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import eel
 
