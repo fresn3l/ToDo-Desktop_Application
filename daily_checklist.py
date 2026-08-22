@@ -16,7 +16,7 @@ import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import checkin_github
 
@@ -222,6 +222,9 @@ def _init_db(conn: sqlite3.Connection) -> None:
     )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_submissions_created ON submissions (created_at DESC)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_submissions_local_date ON submissions (local_date)"
     )
     conn.commit()
 
@@ -478,39 +481,74 @@ def submit_daily_checklist_response(
     return result
 
 
-@eel.expose
-def list_daily_checklist_submissions(limit: int = 30) -> List[Dict[str, Any]]:
-    limit = max(1, min(int(limit or 30), 200))
+def _submission_from_row(r: sqlite3.Row) -> Dict[str, Any]:
+    try:
+        answers = json.loads(r["answers_json"])
+    except (json.JSONDecodeError, TypeError):
+        answers = {}
+    return {
+        "id": r["id"],
+        "created_at": r["created_at"],
+        "checklist_id": r["checklist_id"],
+        "flow_version": r["flow_version"],
+        "local_date": r["local_date"],
+        "answers": answers,
+    }
+
+
+def fetch_submissions(
+    *,
+    limit: Optional[int] = None,
+    local_date: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    decorate: bool = True,
+) -> List[Dict[str, Any]]:
+    """Load submissions from SQLite. No default row cap — filter by date instead."""
+    clauses: List[str] = []
+    params: List[Any] = []
+    if local_date:
+        clauses.append("local_date = ?")
+        params.append(local_date)
+    if start_date:
+        clauses.append("local_date >= ?")
+        params.append(start_date)
+    if end_date:
+        clauses.append("local_date <= ?")
+        params.append(end_date)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    sql = f"""
+        SELECT id, created_at, checklist_id, flow_version, local_date, answers_json
+        FROM submissions
+        {where}
+        ORDER BY created_at DESC
+    """
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(max(1, int(limit)))
+    with _connect() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    defs = _defs_by_id() if decorate else None
+    custom_items = _load_custom_items_raw() if decorate else None
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        row = _submission_from_row(r)
+        if decorate:
+            row = decorate_submission(row, defs=defs, custom_items=custom_items)
+        out.append(row)
+    return out
+
+
+def list_submission_dates() -> List[str]:
     with _connect() as conn:
         rows = conn.execute(
-            """
-            SELECT id, created_at, checklist_id, flow_version, local_date, answers_json
-            FROM submissions
-            ORDER BY created_at DESC
-            LIMIT ?
-            """,
-            (limit,),
+            "SELECT DISTINCT local_date FROM submissions ORDER BY local_date DESC"
         ).fetchall()
-    out: List[Dict[str, Any]] = []
-    defs = _defs_by_id()
-    custom_items = _load_custom_items_raw()
-    for r in rows:
-        try:
-            answers = json.loads(r["answers_json"])
-        except (json.JSONDecodeError, TypeError):
-            answers = {}
-        out.append(
-            decorate_submission(
-                {
-                    "id": r["id"],
-                    "created_at": r["created_at"],
-                    "checklist_id": r["checklist_id"],
-                    "flow_version": r["flow_version"],
-                    "local_date": r["local_date"],
-                    "answers": answers,
-                },
-                defs=defs,
-                custom_items=custom_items,
-            )
-        )
-    return out
+    return [r["local_date"] for r in rows if r["local_date"]]
+
+
+@eel.expose
+def list_daily_checklist_submissions(limit: int = 30) -> List[Dict[str, Any]]:
+    """Recent submissions for the checklist history panel only."""
+    limit = max(1, min(int(limit or 30), 100))
+    return fetch_submissions(limit=limit, decorate=True)

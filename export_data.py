@@ -54,7 +54,7 @@ def _flatten_answer(val: Any) -> str:
 
 @eel.expose
 def export_checklist_json() -> Dict[str, Any]:
-    rows = daily_checklist.list_daily_checklist_submissions(5000)
+    rows = daily_checklist.fetch_submissions(decorate=True)
     path = _exports_dir() / f"checklist_{_stamp()}.json"
     with open(path, "w", encoding="utf-8") as f:
         json.dump(rows, f, indent=2, ensure_ascii=False)
@@ -63,7 +63,7 @@ def export_checklist_json() -> Dict[str, Any]:
 
 @eel.expose
 def export_checklist_csv() -> Dict[str, Any]:
-    rows = daily_checklist.list_daily_checklist_submissions(5000)
+    rows = daily_checklist.fetch_submissions(decorate=False)
     path = _exports_dir() / f"checklist_{_stamp()}.csv"
     with open(path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)

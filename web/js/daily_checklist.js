@@ -285,8 +285,12 @@ function setupChecklistKeys() {
         } else if (kind === 'yes_no' && (e.key === 'n' || e.key === 'N')) {
             e.preventDefault();
             card.querySelector('.checklist-no, .extra-no')?.click();
-        } else if (kind === 'scale' && /^[1-9]$/.test(e.key)) {
-            const btn = card.querySelector(`.checklist-scale-btn[data-value="${e.key}"]`);
+        } else if (kind === 'scale') {
+            let value = e.key;
+            if (e.key === '0' && card.querySelector('.checklist-scale-btn[data-value="10"]')) {
+                value = '10';
+            }
+            const btn = card.querySelector(`.checklist-scale-btn[data-value="${value}"]`);
             if (btn) {
                 e.preventDefault();
                 btn.click();
@@ -341,7 +345,12 @@ function currentStepNumber() {
     return Object.keys(state?.answers || {}).length + 1;
 }
 
-function paintWizard(cardBody, { kind = '', extraTag = '' } = {}) {
+function scaleKbdHint(min, max) {
+    if (max >= 10) return `${min}–${max} · 0 for 10`;
+    return `${min}–${max}`;
+}
+
+function paintWizard(cardBody, { kind = '', extraTag = '', kbdHint = '' } = {}) {
     const el = document.getElementById('checklistWizard');
     if (!el) return el;
     const total = estimatedTotalSteps();
@@ -356,12 +365,10 @@ function paintWizard(cardBody, { kind = '', extraTag = '' } = {}) {
         })
         .join('');
     const recap = recapItems ? `<ol class="wizard-recap">${recapItems}</ol>` : '';
-    const kbd =
-        kind === 'yes_no'
-            ? '<p class="wizard-kbd">Y / N</p>'
-            : kind === 'scale'
-              ? '<p class="wizard-kbd">1–5</p>'
-              : '';
+    const hint =
+        kbdHint
+        || (kind === 'yes_no' ? 'Y / N' : '');
+    const kbd = hint ? `<p class="wizard-kbd">${utils.escapeHtml(hint)}</p>` : '';
     el.innerHTML = `
         <div class="wizard-shell">
             <div class="wizard-progress">
@@ -451,7 +458,7 @@ function renderWizard() {
                 <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
                 <div class="checklist-scale-row">${buttons}</div>
             `,
-            { kind: 'scale' },
+            { kind: 'scale', kbdHint: scaleKbdHint(min, max) },
         );
         el.querySelectorAll('.checklist-scale-btn').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -823,7 +830,7 @@ function renderExtraItem() {
                 <p class="checklist-q">${utils.escapeHtml(item.question)}</p>
                 <div class="checklist-scale-row">${buttons}</div>
             `,
-            { kind: 'scale', extraTag: `Extra question ${i + 1} of ${items.length}` },
+            { kind: 'scale', extraTag: `Extra question ${i + 1} of ${items.length}`, kbdHint: scaleKbdHint(min, max) },
         );
         el.querySelectorAll('.checklist-scale-btn').forEach((btn) => {
             btn.addEventListener('click', () => {

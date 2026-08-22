@@ -48,12 +48,7 @@ def _save_recovery(data: Dict[str, Any]) -> None:
 
 
 def _dates_with_submissions() -> set[str]:
-    dates = set()
-    for row in daily_checklist.list_daily_checklist_submissions(500):
-        ld = row.get("local_date")
-        if ld:
-            dates.add(ld)
-    return dates
+    return set(daily_checklist.list_submission_dates())
 
 
 def _first_missed_date(lookback: int = 7) -> Optional[str]:

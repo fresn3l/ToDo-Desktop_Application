@@ -34,22 +34,22 @@ def get_timeline_day(local_date: str) -> Dict[str, Any]:
         raise ValueError("Invalid date; use YYYY-MM-DD")
 
     submissions: List[Dict[str, Any]] = []
-    for row in daily_checklist.list_daily_checklist_submissions(500):
-        if _parse_date(row.get("local_date", "")) == target:
-            submissions.append(
-                {
-                    "id": row["id"],
-                    "created_at": row["created_at"],
-                    "checklist_id": row.get("checklist_id"),
-                    "title": row.get("title") or row.get("checklist_id") or "Checklist",
-                    "answers": row.get("answers") or {},
-                    "answers_formatted": row.get("answers_formatted") or [],
-                    "summary": row.get("summary") or "",
-                }
-            )
+    for row in daily_checklist.fetch_submissions(local_date=target.isoformat()):
+        submissions.append(
+            {
+                "id": row["id"],
+                "created_at": row["created_at"],
+                "checklist_id": row.get("checklist_id"),
+                "title": row.get("title") or row.get("checklist_id") or "Checklist",
+                "answers": row.get("answers") or {},
+                "answers_formatted": row.get("answers_formatted") or [],
+                "summary": row.get("summary") or "",
+            }
+        )
 
     entries: List[Dict[str, Any]] = []
-    for e in journal.get_recent_entries(days=365):
+    span = max(1, (date.today() - target).days + 2)
+    for e in journal.get_recent_entries(days=span):
         ed = _parse_date(e.get("date") or e.get("created_at") or "")
         if ed == target:
             dur = int(e.get("duration_seconds") or 0)
@@ -85,11 +85,11 @@ def list_timeline_dates(limit: int = 60) -> List[str]:
     """Recent dates that have journal or checklist activity."""
     limit = max(1, min(int(limit or 60), 365))
     dates_set = set()
-    for row in daily_checklist.list_daily_checklist_submissions(500):
-        d = _parse_date(row.get("local_date", ""))
+    for iso in daily_checklist.list_submission_dates():
+        d = _parse_date(iso)
         if d:
             dates_set.add(d.isoformat())
-    for e in journal.get_recent_entries(days=365):
+    for e in journal.get_all_entries():
         d = _parse_date(e.get("date") or e.get("created_at") or "")
         if d:
             dates_set.add(d.isoformat())
@@ -107,10 +107,13 @@ def get_week_overview(end_date: str = "") -> Dict[str, Any]:
     start = end - timedelta(days=6)
 
     checklist_counts: Dict[str, int] = {}
-    for row in daily_checklist.list_daily_checklist_submissions(500):
-        d = _parse_date(row.get("local_date", ""))
-        if d and start <= d <= end:
-            iso = d.isoformat()
+    for row in daily_checklist.fetch_submissions(
+        start_date=start.isoformat(),
+        end_date=end.isoformat(),
+        decorate=False,
+    ):
+        iso = row.get("local_date")
+        if iso:
             checklist_counts[iso] = checklist_counts.get(iso, 0) + 1
 
     journal_counts: Dict[str, int] = {}

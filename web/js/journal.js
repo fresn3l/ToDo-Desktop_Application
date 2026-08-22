@@ -284,7 +284,7 @@ async function saveJournalEntry() {
     }
     
     try {
-        const continued = journalTimerSeconds <= 0 && journalTimerPaused;
+        const continued = journalOvertime || journalDuration > timerDurationSeconds();
         const tags = collectJournalTags();
         await eel.save_journal_entry(content, journalDuration, continued, tags)();
         

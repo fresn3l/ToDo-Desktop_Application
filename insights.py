@@ -9,7 +9,7 @@ import os
 from collections import Counter
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 import eel
 
@@ -53,21 +53,12 @@ def _week_key(d: date) -> str:
     return f"{iso.year}-W{iso.week:02d}"
 
 
-def _parse_local_date(s: str) -> Optional[date]:
-    try:
-        return date.fromisoformat(s[:10])
-    except (ValueError, TypeError):
-        return None
-
-
 def _submissions_in_range(start: date, end: date) -> List[Dict[str, Any]]:
-    rows = daily_checklist.list_daily_checklist_submissions(500)
-    out = []
-    for row in rows:
-        ld = _parse_local_date(row.get("local_date", ""))
-        if ld and start <= ld <= end:
-            out.append(row)
-    return out
+    return daily_checklist.fetch_submissions(
+        start_date=start.isoformat(),
+        end_date=end.isoformat(),
+        decorate=False,
+    )
 
 
 def _journal_entries_in_range(start: date, end: date) -> List[Dict[str, Any]]:
