@@ -49,8 +49,8 @@ OPTIONS = {
         "CFBundleShortVersionString": "1.0.0",
         "NSHighResolutionCapable": True,
     },
-    "packages": ["eel", "setuptools", "webview"],
-    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import", "appearance", "bridge", "paths"],
+    "packages": ["eel", "setuptools"],
+    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac"],
 }
 
 setup(

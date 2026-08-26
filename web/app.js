@@ -26,7 +26,10 @@ async function init() {
 }
 
 function markNativeShell() {
-    if (typeof window.pywebview === 'undefined') return;
+    const native = typeof window.pywebview !== 'undefined'
+        || window.kosistenzNative === true
+        || document.documentElement.classList.contains('native-shell');
+    if (!native) return;
     document.documentElement.classList.add('native-shell');
     if (document.body.dataset.nativeMenu === '1') return;
     document.body.dataset.nativeMenu = '1';

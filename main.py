@@ -1,9 +1,9 @@
 """
 Kosistenz — native desktop window (macOS WebKit / WKWebView).
 
-Chrome is not used. On a Mac this is a regular Cocoa window with traffic
-lights, Dock presence, and Cmd+Q. The HTML UI is served locally and shown
-in Apple’s WebKit engine.
+Chrome is not used. The installed .app’s main executable is a Swift Cocoa
+host; this Python program serves the UI over localhost (--bridge) or opens
+a PyObjC window when run from source.
 """
 
 from __future__ import annotations
@@ -42,6 +42,8 @@ def _log(message: str) -> None:
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with path.open("a", encoding="utf-8") as handle:
             handle.write(f"{stamp} {message}\n")
+            handle.flush()
+            os.fsync(handle.fileno())
     except OSError:
         pass
 
@@ -86,36 +88,6 @@ def _wait_for_server(port: int, timeout: float = 20.0) -> None:
             last_error = exc
             time.sleep(0.1)
     raise RuntimeError(f"UI server did not start on port {port}: {last_error}")
-
-
-def _storage_path() -> str:
-    if sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support" / "ToDo" / "webview"
-    elif sys.platform == "win32":
-        base = Path.home() / "AppData" / "Local" / "ToDo" / "webview"
-    else:
-        base = Path.home() / ".local" / "share" / "ToDo" / "webview"
-    base.mkdir(parents=True, exist_ok=True)
-    return str(base)
-
-
-def _polish_cocoa(window) -> None:
-    if sys.platform != "darwin":
-        return
-    try:
-        from AppKit import NSApp, NSApplicationActivationPolicyRegular
-
-        NSApp.setActivationPolicy_(NSApplicationActivationPolicyRegular)
-        NSApp.activateIgnoringOtherApps_(True)
-        native = getattr(window, "native", None)
-        if native is None:
-            return
-        if hasattr(native, "setTabbingMode_"):
-            native.setTabbingMode_(2)
-        if hasattr(native, "center"):
-            native.center()
-    except Exception as exc:
-        _log(f"Cocoa polish skipped: {exc}")
 
 
 def _start_bridge(port: int) -> subprocess.Popen:
@@ -169,55 +141,32 @@ def _stop_bridge(proc: subprocess.Popen | None) -> None:
 
 
 def _run_window(port: int, bridge: subprocess.Popen) -> None:
-    import webview
+    url = f"http://127.0.0.1:{port}/index.html"
+    _log(f"Opening window {url}")
 
-    try:
-        webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
-        webview.settings["ALLOW_DOWNLOADS"] = False
-    except Exception:
-        pass
-
-    window = webview.create_window(
-        "Kosistenz",
-        f"http://127.0.0.1:{port}/index.html",
-        width=WINDOW_WIDTH,
-        height=WINDOW_HEIGHT,
-        min_size=(MIN_WIDTH, MIN_HEIGHT),
-        background_color="#0B1218",
-        text_select=True,
-        confirm_close=False,
-        easy_drag=False,
-    )
-
-    def on_shown() -> None:
-        _polish_cocoa(window)
-        try:
-            window.evaluate_js(
-                "document.documentElement.classList.add('native-shell');"
-            )
-        except Exception:
-            pass
-
-    def on_closed() -> None:
+    def on_close() -> None:
         _stop_bridge(bridge)
-        os._exit(0)
 
-    window.events.shown += on_shown
-    window.events.closed += on_closed
+    from native_mac import available, run_mac_window
 
-    start_kwargs = {"debug": False}
-    if sys.platform == "darwin":
-        start_kwargs["gui"] = "cocoa"
-    elif sys.platform == "win32":
-        start_kwargs["gui"] = "edgechromium"
+    if not available():
+        raise RuntimeError(
+            "macOS WebKit bindings (PyObjC AppKit/WebKit) are missing. "
+            "On a Mac run: pip install pyobjc-framework-Cocoa pyobjc-framework-WebKit"
+        )
 
-    try:
-        webview.start(private_mode=False, storage_path=_storage_path(), **start_kwargs)
-    except TypeError:
-        webview.start(**start_kwargs)
+    _log("Starting Cocoa WKWebView")
+    run_mac_window(url, WINDOW_WIDTH, WINDOW_HEIGHT, MIN_WIDTH, MIN_HEIGHT, on_close)
 
 
 def main() -> None:
+    import faulthandler
+
+    try:
+        faulthandler.enable(open(_log_path(), "a", encoding="utf-8"), all_threads=True)
+    except Exception:
+        pass
+
     _log(f"argv={sys.argv!r} frozen={getattr(sys, 'frozen', False)}")
     if len(sys.argv) >= 4 and sys.argv[1] == "--bridge":
         from bridge import run_bridge
@@ -225,15 +174,6 @@ def main() -> None:
         _log(f"Bridge listening on {sys.argv[2]} serving {sys.argv[3]}")
         run_bridge(int(sys.argv[2]), sys.argv[3])
         return
-
-    try:
-        import webview  # noqa: F401
-    except ImportError as exc:
-        _show_alert(
-            "Kosistenz could not load the native window (pywebview). "
-            "Rebuild with ./macos/install_app.sh"
-        )
-        raise SystemExit(1) from exc
 
     port = _pick_port()
     bridge = _start_bridge(port)

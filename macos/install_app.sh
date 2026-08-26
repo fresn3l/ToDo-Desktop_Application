@@ -10,6 +10,13 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
+if ! xcrun --find swiftc >/dev/null 2>&1 && ! command -v swiftc >/dev/null 2>&1; then
+  echo "Need Xcode Command Line Tools to compile the native window (swiftc)." >&2
+  echo "Run: xcode-select --install" >&2
+  echo "Then run this installer again." >&2
+  exit 1
+fi
+
 if [[ ! -x "$ROOT/.venv/bin/python" ]]; then
   echo "Setting up virtualenv first..."
   "$ROOT/setup_venv.sh"
@@ -75,3 +82,4 @@ echo ""
 echo "Kosistenz should now be selected in Finder."
 echo "Double-click it to launch. First time: right-click → Open if macOS warns."
 echo "Quit with Cmd+Q."
+echo "If it fails: ~/Library/Logs/Kosistenz.log"

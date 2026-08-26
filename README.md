@@ -10,7 +10,7 @@ The app is a real `Kosistenz.app`: native traffic-light window, Dock / Spotlight
 
 - A Mac (macOS 11+)
 - Python 3.8+ (`python3 --version`)
-- Xcode Command Line Tools if `python3` is missing: `xcode-select --install`
+- Xcode Command Line Tools (`xcode-select --install`) so the installer can compile the native window
 
 You do **not** need Google Chrome.
 
@@ -39,7 +39,9 @@ Finder then reveals the app so you can double-click it. If `/Applications` is no
 
 Quit with **Cmd+Q**, like any Mac app.
 
-If you change the source and want a fresh bundle, run `./macos/install_app.sh` again.
+If you change the source and want a fresh bundle, run `./macos/install_app.sh` again. You must rebuild after `git pull` — opening the old app will still use the previous window code.
+
+If launch fails, paste `~/Library/Logs/Kosistenz.log`. A good start looks like `Swift host launching`, then `UI server ready`.
 
 ### Run from the repo (optional)
 
@@ -75,7 +77,7 @@ Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_s
 ## Technologies
 
 - **Python 3** + **Eel** (localhost bridge only)
-- **pywebview** / **WKWebView** on macOS
+- **Swift + WKWebView** for the Mac window (Safari engine; no Chrome)
 - **SQLite** for checklist submissions
 - **PyInstaller** for the standalone `.app`
 

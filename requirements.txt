@@ -1,10 +1,14 @@
 # Core application
 eel==0.16.0              # Python ↔ JavaScript bridge (localhost only; no Chrome)
-pywebview>=5.1           # Native window (WKWebView / Cocoa on macOS)
+
+# Native WKWebView window for source runs (`python main.py`). The installed
+# .app uses a Swift host instead; these are still useful as a fallback.
+pyobjc-core>=10.0; sys_platform == "darwin"
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"
+pyobjc-framework-WebKit>=10.0; sys_platform == "darwin"
 
 # Pin range: Eel still imports pkg_resources; very new setuptools may omit it
 setuptools>=69.0,<82
 
 # Build/packaging (needed for ./macos/install_app.sh)
 pyinstaller
-
