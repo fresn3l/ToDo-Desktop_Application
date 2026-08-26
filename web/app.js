@@ -25,6 +25,18 @@ async function init() {
     await switchTab('journal');
 }
 
+function markNativeShell() {
+    if (typeof window.pywebview === 'undefined') return;
+    document.documentElement.classList.add('native-shell');
+    if (document.body.dataset.nativeMenu === '1') return;
+    document.body.dataset.nativeMenu = '1';
+    document.addEventListener('contextmenu', (e) => {
+        if (!e.target.closest('input, textarea, select, [contenteditable="true"]')) {
+            e.preventDefault();
+        }
+    });
+}
+
 function waitForEel() {
     return new Promise((resolve) => {
         if (typeof eel !== 'undefined' && eel.init) {
@@ -46,6 +58,8 @@ function waitForEel() {
 }
 
 async function startApp() {
+    markNativeShell();
+    window.addEventListener('pywebviewready', markNativeShell);
     await waitForEel();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => init().catch(handleInitError));

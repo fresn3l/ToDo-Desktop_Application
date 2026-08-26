@@ -1,9 +1,10 @@
-# Core application dependencies
-eel==0.16.0              # Desktop app framework (Python <-> JavaScript bridge)
+# Core application
+eel==0.16.0              # Python ↔ JavaScript bridge (localhost only; no Chrome)
+pywebview>=5.1           # Native window (WKWebView / Cocoa on macOS)
 
 # Pin range: Eel still imports pkg_resources; very new setuptools may omit it
 setuptools>=69.0,<82
 
-# Build/packaging dependencies (optional - only needed for building .app)
-pyinstaller              # Creates standalone Mac/Windows/Linux executables
+# Build/packaging (needed for ./macos/install_app.sh)
+pyinstaller
 

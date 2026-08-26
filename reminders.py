@@ -14,6 +14,7 @@ from typing import Any, Dict
 import eel
 
 import daily_checklist
+from paths import resource_root
 
 PLIST_LABEL = "com.kosistenz.reminder"
 DEFAULT_CONFIG = {"enabled": False, "hour": 20, "minute": 0}
@@ -24,7 +25,7 @@ def _config_path() -> Path:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parent
+    return resource_root()
 
 
 def _load_config() -> Dict[str, Any]:

@@ -1,7 +1,6 @@
 """
-Setup script for py2app (Mac-specific packaging)
+Deprecated. Use ./macos/install_app.sh (PyInstaller + native WebKit window).
 
-Usage:
     python setup.py py2app
 """
 
@@ -50,8 +49,8 @@ OPTIONS = {
         "CFBundleShortVersionString": "1.0.0",
         "NSHighResolutionCapable": True,
     },
-    "packages": ["eel", "setuptools"],
-    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import"],
+    "packages": ["eel", "setuptools", "webview"],
+    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import", "appearance", "bridge", "paths"],
 }
 
 setup(

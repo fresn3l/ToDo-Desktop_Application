@@ -15,7 +15,7 @@ DEFAULTS: Dict[str, Any] = {
     "theme": "ocean",
     "accent": "sky",
     "customAccent": "#4F8FCF",
-    "font": "sans",
+    "font": "system",
     "density": "comfortable",
     "radius": "soft",
     "width": "standard",

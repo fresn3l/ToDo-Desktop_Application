@@ -211,6 +211,11 @@ html[data-font='system'] {
     --font-editor: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+html.native-shell,
+html.native-shell body {
+    overscroll-behavior: none;
+}
+
 html[data-density='compact'] {
     --space-xs: 4px;
     --space-sm: 8px;

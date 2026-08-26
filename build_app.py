@@ -1,126 +1,117 @@
 """
-Build Script for Creating Mac Application
+Build a standalone Kosistenz.app with PyInstaller.
 
-Uses PyInstaller to create a standalone macOS .app bundle.
-The resulting app will be in the 'dist' folder.
+The window is native (WKWebView on macOS). Chrome is not bundled or required.
+Run via ./macos/install_app.sh from a Mac.
 """
 
-import PyInstaller.__main__
+from __future__ import annotations
+
 import os
 import shutil
+import subprocess
 import sys
 
 
-def check_dependencies():
-    """Verify all required dependencies are installed"""
-    required_modules = ["eel", "setuptools"]
+def check_dependencies() -> None:
+    required = ["eel", "webview", "PyInstaller"]
     missing = []
-
-    for module in required_modules:
+    for module in required:
         try:
             __import__(module)
         except ImportError:
             missing.append(module)
-
     if missing:
-        print(f"\n❌ Missing dependencies: {', '.join(missing)}")
-        print("\nPlease install dependencies first:")
-        print("  pip install -r requirements.txt")
+        print(f"Missing dependencies: {', '.join(missing)}")
+        print("Run: ./setup_venv.sh")
         sys.exit(1)
-
-    try:
-        import checkin_github
-        import daily_checklist
-        import journal
-        import cluny_sync
-
-        print("✅ All dependencies and modules verified!")
-    except ImportError as e:
-        print(f"\n❌ Error importing modules: {e}")
-        sys.exit(1)
+    print("Dependencies OK.")
 
 
-def build_app():
-    """Build the Mac application using PyInstaller"""
-
-    print("🔍 Checking dependencies...")
-    check_dependencies()
-
-    print("\n🧹 Cleaning previous builds...")
-    if os.path.exists("build"):
-        shutil.rmtree("build")
-    if os.path.exists("dist"):
-        shutil.rmtree("dist")
-
-    print("🔨 Building Mac application...")
-    print("   This may take a few minutes...")
-
+def maybe_build_icon() -> list[str]:
     icon_path = "app_icon.icns"
-    icon_arg = []
     if os.path.exists("app_icon.png"):
-        print("   Regenerating icon from PNG...")
+        print("Regenerating icon from PNG...")
         try:
-            if os.path.exists(icon_path):
-                os.remove(icon_path)
             if os.path.exists("app_icon.iconset"):
                 shutil.rmtree("app_icon.iconset")
-
             os.makedirs("app_icon.iconset", exist_ok=True)
-
-            import subprocess
-
             sizes = [16, 32, 128, 256, 512]
             for size in sizes:
                 subprocess.run(
                     [
-                        "sips",
-                        "-z",
-                        str(size),
-                        str(size),
-                        "app_icon.png",
-                        "--out",
-                        f"app_icon.iconset/icon_{size}x{size}.png",
+                        "sips", "-z", str(size), str(size), "app_icon.png",
+                        "--out", f"app_icon.iconset/icon_{size}x{size}.png",
                     ],
                     check=False,
                     capture_output=True,
                 )
                 subprocess.run(
                     [
-                        "sips",
-                        "-z",
-                        str(size * 2),
-                        str(size * 2),
-                        "app_icon.png",
-                        "--out",
-                        f"app_icon.iconset/icon_{size}x{size}@2x.png",
+                        "sips", "-z", str(size * 2), str(size * 2), "app_icon.png",
+                        "--out", f"app_icon.iconset/icon_{size}x{size}@2x.png",
                     ],
                     check=False,
                     capture_output=True,
                 )
-
             subprocess.run(
                 ["iconutil", "-c", "icns", "app_icon.iconset", "-o", icon_path],
                 check=False,
                 capture_output=True,
             )
+            shutil.rmtree("app_icon.iconset", ignore_errors=True)
+        except Exception as exc:
+            print(f"Icon generation skipped: {exc}")
+    if os.path.exists(icon_path):
+        print(f"Using icon: {icon_path}")
+        return [f"--icon={icon_path}"]
+    print("No app_icon.icns — macOS will use a default icon.")
+    return []
 
-            if os.path.exists("app_icon.iconset"):
-                shutil.rmtree("app_icon.iconset")
 
-            if os.path.exists(icon_path):
-                icon_arg = [f"--icon={icon_path}"]
-                print(f"   ✅ Icon regenerated: {icon_path}")
-            else:
-                print("   ⚠️  Icon generation failed - app will use default icon")
-        except Exception as e:
-            print(f"   ⚠️  Error regenerating icon: {e}")
-            if os.path.exists(icon_path):
-                icon_arg = [f"--icon={icon_path}"]
-    elif os.path.exists(icon_path):
-        icon_arg = [f"--icon={icon_path}"]
-        print(f"   Using existing icon: {icon_path}")
+def build_app() -> None:
+    check_dependencies()
+    import PyInstaller.__main__
+
+    print("Cleaning previous builds...")
+    for folder in ("build", "dist"):
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+
+    hidden = [
+        "eel",
+        "bottle",
+        "gevent",
+        "geventwebsocket",
+        "webview",
+        "setuptools",
+        "checkin_github",
+        "daily_checklist",
+        "journal",
+        "cluny_sync",
+        "insights",
+        "timeline",
+        "export_data",
+        "recovery",
+        "reminders",
+        "health_import",
+        "appearance",
+        "bridge",
+        "paths",
+    ]
+    if sys.platform == "darwin":
+        hidden += [
+            "webview.platforms.cocoa",
+            "objc",
+            "AppKit",
+            "Foundation",
+            "WebKit",
+            "CoreFoundation",
+        ]
+    elif sys.platform == "win32":
+        hidden.append("webview.platforms.edgechromium")
     else:
-        print("   ⚠️  No icon found - app will use default icon")
+        hidden.append("webview.platforms.gtk")
 
     args = [
         "main.py",
@@ -129,66 +120,51 @@ def build_app():
         "--onedir",
         "--add-data=web:web",
         "--add-data=checklists:checklists",
-        "--hidden-import=eel",
-        "--hidden-import=setuptools",
-        "--hidden-import=checkin_github",
-        "--hidden-import=daily_checklist",
-        "--hidden-import=journal",
-        "--hidden-import=cluny_sync",
-        "--hidden-import=insights",
-        "--hidden-import=timeline",
-        "--hidden-import=export_data",
-        "--hidden-import=recovery",
-        "--hidden-import=reminders",
-        "--hidden-import=health_import",
-        "--hidden-import=appearance",
+        "--add-data=macos/kosistenz-reminder.sh:macos",
         "--collect-all=eel",
+        "--collect-all=webview",
         "--osx-bundle-identifier=com.kosistenz.app",
         "--noconfirm",
-    ] + icon_arg
+        *maybe_build_icon(),
+    ]
+    for name in hidden:
+        args.append(f"--hidden-import={name}")
 
-    try:
-        PyInstaller.__main__.run(args)
+    print("Building standalone app (this takes a few minutes)...")
+    PyInstaller.__main__.run(args)
 
-        app_path = None
-        if os.path.exists("dist/Kosistenz.app"):
-            app_path = "dist/Kosistenz.app"
-        elif os.path.exists("dist/Kosistenz/Kosistenz.app"):
-            app_path = "dist/Kosistenz/Kosistenz.app"
-
-        if not app_path:
-            print("\n⚠️  Warning: Could not find built app in expected location")
-            return
-
-        print("\n" + "=" * 50)
-        print("✅ Build complete!")
-        print("=" * 50)
-        print("📦 Your app is located at:")
-        print(f"   {os.path.abspath(app_path)}")
-
-        applications_path = "/Applications/Kosistenz.app"
-        print(f"\n📋 Copying to Applications folder...")
-
-        try:
-            if os.path.exists(applications_path):
-                shutil.rmtree(applications_path)
-                print("   Removed old app from Applications")
-
-            shutil.copytree(app_path, applications_path)
-            print(f"   ✅ Successfully copied to: {applications_path}")
-
-        except PermissionError:
-            print("   ⚠️  Permission denied. Copy manually if needed.")
-            print(f"   cp -R {app_path} /Applications/")
-        except Exception as e:
-            print(f"   ⚠️  Error copying to Applications: {e}")
-
-        print("\n🚀 Build finished.")
-        print("=" * 50)
-
-    except Exception as e:
-        print(f"\n❌ Build failed: {e}")
+    app_path = None
+    for candidate in ("dist/Kosistenz.app", "dist/Kosistenz/Kosistenz.app"):
+        if os.path.exists(candidate):
+            app_path = candidate
+            break
+    if not app_path:
+        print("Build finished but Kosistenz.app was not found under dist/.")
         sys.exit(1)
+
+    print(f"Built: {os.path.abspath(app_path)}")
+    _patch_info_plist(app_path)
+
+
+def _patch_info_plist(app_path: str) -> None:
+    plist_path = os.path.join(app_path, "Contents", "Info.plist")
+    if not os.path.exists(plist_path):
+        return
+    try:
+        import plistlib
+
+        with open(plist_path, "rb") as handle:
+            info = plistlib.load(handle)
+        info["CFBundleName"] = "Kosistenz"
+        info["CFBundleDisplayName"] = "Kosistenz"
+        info["LSApplicationCategoryType"] = "public.app-category.productivity"
+        info["NSHighResolutionCapable"] = True
+        info["NSRequiresAquaSystemAppearance"] = False
+        info["LSMinimumSystemVersion"] = "11.0"
+        with open(plist_path, "wb") as handle:
+            plistlib.dump(info, handle)
+    except Exception as exc:
+        print(f"Could not patch Info.plist: {exc}")
 
 
 if __name__ == "__main__":
