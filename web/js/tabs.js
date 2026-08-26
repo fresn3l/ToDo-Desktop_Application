@@ -1,5 +1,5 @@
 /**
- * Tab navigation — journal, checklist, review, timeline, settings.
+ * Tab navigation — journal, checklist, to do, all work, review, timeline, settings.
  */
 
 import { loadPastEntries, exitJournalFocus } from './journal.js';
@@ -7,10 +7,14 @@ import { onChecklistTabShown, openChecklistTemplate } from './daily_checklist.js
 import { onReviewTabShown } from './review.js';
 import { onTimelineTabShown } from './timeline.js';
 import { onSettingsTabShown } from './settings.js';
+import { onTodoTabShown } from './todo.js';
+import { onAllWorkTabShown } from './all_work.js';
 
 const ID_MAP = {
     journal: 'journalTab',
     checklist: 'checklistTab',
+    todo: 'todoTab',
+    allwork: 'allWorkTab',
     review: 'reviewTab',
     timeline: 'timelineTab',
     settings: 'settingsTab',
@@ -19,6 +23,8 @@ const ID_MAP = {
 const LABELS = {
     journal: 'Journal',
     checklist: 'Checklist',
+    todo: 'To Do',
+    allwork: 'All Work',
     review: 'Review',
     timeline: 'Timeline',
     settings: 'Settings',
@@ -45,7 +51,15 @@ export function setupTabs() {
 
     document.addEventListener('keydown', (e) => {
         if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
-        const map = { 1: 'journal', 2: 'checklist', 3: 'review', 4: 'timeline', 5: 'settings' };
+        const map = {
+            1: 'journal',
+            2: 'checklist',
+            3: 'todo',
+            4: 'allwork',
+            5: 'review',
+            6: 'timeline',
+            7: 'settings',
+        };
         const tab = map[e.key];
         if (!tab) return;
         e.preventDefault();
@@ -93,6 +107,10 @@ export async function switchTab(name) {
         await loadPastEntries();
     } else if (name === 'checklist') {
         await onChecklistTabShown();
+    } else if (name === 'todo') {
+        await onTodoTabShown();
+    } else if (name === 'allwork') {
+        await onAllWorkTabShown();
     } else if (name === 'review') {
         await onReviewTabShown();
     } else if (name === 'timeline') {

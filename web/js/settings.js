@@ -175,4 +175,20 @@ async function loadAdvancedPaths() {
             exportsPath.textContent = 'Application Support/ToDo/exports';
         }
     }
+    const workDb = document.getElementById('workDbPath');
+    if (workDb && !workDb.textContent) {
+        try {
+            workDb.textContent = await eel.get_work_db_path_exposed()();
+        } catch (_) {
+            workDb.textContent = '';
+        }
+    }
+    const widgetPath = document.getElementById('widgetSnapshotPath');
+    if (widgetPath && !widgetPath.textContent) {
+        try {
+            widgetPath.textContent = await eel.get_widget_snapshot_path_exposed()();
+        } catch (_) {
+            widgetPath.textContent = '';
+        }
+    }
 }

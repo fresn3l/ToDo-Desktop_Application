@@ -11,6 +11,8 @@ import { setupReview } from './js/review.js';
 import { setupTimeline } from './js/timeline.js';
 import { setupSettings } from './js/settings.js';
 import { setupToday } from './js/today.js';
+import { setupTodo } from './js/todo.js';
+import { setupAllWork } from './js/all_work.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -18,6 +20,8 @@ async function init() {
     setupTabs();
     setupSettings();
     setupToday();
+    setupTodo();
+    setupAllWork();
     setupJournal();
     await setupDailyChecklist();
     setupReview();

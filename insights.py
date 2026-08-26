@@ -15,6 +15,7 @@ import eel
 
 import daily_checklist
 import journal
+import work
 
 
 def _data_dir() -> Path:
@@ -239,6 +240,10 @@ def get_today_status() -> Dict[str, Any]:
 
     morning_done = "morning" in done_ids
     evening_done = "evening" in done_ids
+    work_board = work.get_work_board(iso)
+    work_open = int(work_board.get("counts", {}).get("today_open") or 0)
+    work_done = int(work_board.get("counts", {}).get("today_done") or 0)
+    work_total = int(work_board.get("counts", {}).get("today_total") or 0)
 
     if morning_done and not evening_done:
         suggested = "evening"
@@ -265,4 +270,9 @@ def get_today_status() -> Dict[str, Any]:
         "suggested": suggested,
         "suggested_title": _title_for_checklist(suggested),
         "suggested_done": suggested in done_ids,
+        "work": {
+            "open": work_open,
+            "done": work_done,
+            "total": work_total,
+        },
     }

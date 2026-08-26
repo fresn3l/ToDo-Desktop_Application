@@ -70,6 +70,14 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 1.2 1.2L7.5 5M4 12l1.2 1.2L7.5 11M4 18l1.2 1.2L7.5 17"/></svg>
                     <span class="nav-label">Checklist</span>
                 </button>
+                <button type="button" class="nav-item" data-tab="todo">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><path d="m8 12 2.2 2.2L16 8.5"/></svg>
+                    <span class="nav-label">To Do</span>
+                </button>
+                <button type="button" class="nav-item" data-tab="allwork">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14l-1.2 12.2A2 2 0 0 1 15.8 21H8.2a2 2 0 0 1-2-1.8L5 7Z"/><path d="M9 7V5.8A2.8 2.8 0 0 1 11.8 3h.4A2.8 2.8 0 0 1 15 5.8V7"/></svg>
+                    <span class="nav-label">All Work</span>
+                </button>
                 <button type="button" class="nav-item" data-tab="review">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15v4M12 11v8M16 8v11"/></svg>
                     <span class="nav-label">Review</span>
@@ -238,6 +246,50 @@
                     </div>
                 </section>
 
+                <section id="todoTab" class="tab-content" aria-label="To Do">
+                    <div class="work-layout">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Today’s To Do</h2>
+                                    <p class="panel-sub" id="todoSummary">Work you dated for today. Start a timer, then finish when it’s done.</p>
+                                </div>
+                            </div>
+                            <div class="work-add-row">
+                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="Pay electricity bill" autocomplete="off">
+                                <button type="button" id="todoAddBtn" class="btn-primary">Add to today</button>
+                            </div>
+                            <div id="todoList" class="work-list"></div>
+                        </div>
+                        <aside class="work-aside">
+                            <div id="todoOverdue" class="panel work-side-panel is-hidden"></div>
+                            <div id="todoTomorrow" class="panel work-side-panel is-hidden"></div>
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <h3>How this works</h3>
+                                </div>
+                                <p class="checklist-hint small">Evening check-in plans tomorrow. Those tasks show up here the next day. Park undated work in All Work until you assign it.</p>
+                            </div>
+                        </aside>
+                    </div>
+                </section>
+
+                <section id="allWorkTab" class="tab-content" aria-label="All Work">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <h2>All Work</h2>
+                                <p class="panel-sub" id="allWorkSummary">Undated tasks. Assign them to today or tomorrow, or leave them here.</p>
+                            </div>
+                        </div>
+                        <div class="work-add-row">
+                            <input type="text" id="allWorkNewTitle" class="checklist-text-input" placeholder="A task without a date yet" autocomplete="off">
+                            <button type="button" id="allWorkAddBtn" class="btn-primary">Park in All Work</button>
+                        </div>
+                        <div id="allWorkList" class="work-list"></div>
+                    </div>
+                </section>
+
                 <section id="reviewTab" class="tab-content" aria-label="Weekly review">
                     <div class="panel review-section">
                         <div class="panel-header">
@@ -257,7 +309,7 @@
                         <div class="panel-header">
                             <div>
                                 <h2>Timeline</h2>
-                                <p class="panel-sub">Checklist answers and journal entries for a single day.</p>
+                                <p class="panel-sub">Checklist answers, journal, and work for a single day.</p>
                             </div>
                         </div>
                         <div id="timelineWeekStrip" class="week-strip-host"></div>
@@ -376,7 +428,7 @@
                             <div class="settings-block">
                                 <h3>Shortcuts</h3>
                                 <ul class="shortcut-list">
-                                    <li><kbd>⌘</kbd><kbd>1</kbd>–<kbd>5</kbd> Switch tabs</li>
+                                    <li><kbd>⌘</kbd><kbd>1</kbd>–<kbd>7</kbd> Switch tabs</li>
                                     <li><kbd>⌘</kbd><kbd>Enter</kbd> Save journal entry</li>
                                     <li><kbd>Esc</kbd> Pause timer, then clear with confirm</li>
                                     <li><kbd>Y</kbd> / <kbd>N</kbd> Yes / no checklist steps</li>
@@ -434,6 +486,10 @@
                                 <div class="checklist-add-form">
                                     <label class="checklist-field-label">SQLite database</label>
                                     <code id="checklistDbPath" class="checklist-db-path"></code>
+                                    <label class="checklist-field-label">Work database</label>
+                                    <code id="workDbPath" class="checklist-db-path"></code>
+                                    <label class="checklist-field-label">Widget snapshot</label>
+                                    <code id="widgetSnapshotPath" class="checklist-db-path"></code>
                                     <label class="checklist-field-label">Export folder</label>
                                     <code id="exportsPath" class="checklist-db-path"></code>
                                     <label class="checklist-field-label">Reminder launchd plist</label>

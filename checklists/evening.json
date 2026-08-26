@@ -1,6 +1,6 @@
 {
   "id": "evening",
-  "version": 1,
+  "version": 2,
   "title": "Evening check-in",
   "start": "day_recap",
   "nodes": {
@@ -43,9 +43,9 @@
       "next": "tomorrow_prep"
     },
     "tomorrow_prep": {
-      "type": "text",
-      "question": "Tomorrow prep: What's the first thing you'll do?",
-      "placeholder": "First action when you start tomorrow…",
+      "type": "work_planning",
+      "question": "Plan tomorrow’s work",
+      "placeholder": "Pay electricity bill",
       "next": "end"
     }
   }

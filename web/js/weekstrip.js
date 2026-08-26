@@ -40,6 +40,7 @@ export function renderWeekStrip(el, data, { selectedDate, onSelect } = {}) {
             const titleParts = [];
             if (day.checklist_count) titleParts.push(`${day.checklist_count} checklist`);
             if (day.journal_count) titleParts.push(`${day.journal_count} journal`);
+            if (day.work_count) titleParts.push(`${day.work_count} to do`);
             const title = titleParts.join(' · ') || 'No activity';
             return `
                 <button type="button" class="week-day ${filled} ${isSelected} ${isToday}"

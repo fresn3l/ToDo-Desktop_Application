@@ -337,6 +337,16 @@ def _format_answer_value(node: Any, val: Any) -> str:
                 base = str(raw)
         elif duration is not None:
             return f"{duration} min"
+        elif "created_titles" in val or "assign_ids" in val:
+            titles = [str(t).strip() for t in (val.get("created_titles") or []) if str(t).strip()]
+            assigned = [x for x in (val.get("assign_ids") or []) if x]
+            n = len(titles) + len(assigned)
+            if not n:
+                return "No tasks planned"
+            sample = ", ".join(titles[:2])
+            if sample:
+                return f"{n} for tomorrow: {sample}"
+            return f"{n} task{'s' if n != 1 else ''} for tomorrow"
         else:
             base = str(val)
         if duration is not None:
@@ -472,6 +482,12 @@ def submit_daily_checklist_response(
             "flowVersion": flow_version,
         },
     )
+    try:
+        import work
+
+        work.apply_evening_plan(answers)
+    except Exception:
+        pass
     return result
 
 

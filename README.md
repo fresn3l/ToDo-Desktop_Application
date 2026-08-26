@@ -57,7 +57,9 @@ That still opens the **native WebKit window**, not Chrome.
 ## Features
 
 - **Journal**: Timed entries
-- **Daily checklist**: Branching morning / evening / full flows
+- **To Do**: Dated tasks with start / finish timers
+- **All Work**: Undated backlog you assign to a day later
+- **Daily checklist**: Branching morning / evening / full flows (evening plans tomorrow’s To Do)
 - **Review + Timeline**: Week strip, streaks, markdown export
 - **Appearance**: Themes and type (San Francisco by default on Mac)
 - **Local storage**: SQLite + JSON under Application Support
@@ -68,6 +70,8 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 
 - **Journal**: `~/Library/Application Support/ToDo/Journal/`
 - **Daily checklist DB**: `~/Library/Application Support/ToDo/daily_checklist.sqlite`
+- **Work / To Do DB**: `~/Library/Application Support/ToDo/work_items.sqlite`
+- **Widget snapshot** (task counts for a future Mac widget): `~/Library/Application Support/ToDo/widget_snapshot.json`
 - **Custom checklist items**: `~/Library/Application Support/ToDo/checklist_custom_items.json`
 - **Active checklist template**: `~/Library/Application Support/ToDo/checklist_selected_stem.txt`
 - **Appearance**: `~/Library/Application Support/ToDo/appearance.json`
@@ -78,7 +82,7 @@ Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_s
 
 - **Python 3** + **Eel** (localhost bridge only)
 - **Swift + WKWebView** for the Mac window (Safari engine; no Chrome)
-- **SQLite** for checklist submissions
+- **SQLite** for checklist submissions and work items
 - **PyInstaller** for the standalone `.app`
 
 ## License

@@ -157,6 +157,21 @@ function renderTimeline(data, health) {
     }
 
     const writingMin = Math.round((data.total_writing_seconds || 0) / 60);
+    const workMin = Math.round((data.total_work_seconds || 0) / 60);
+
+    let workHtml = '';
+    const workItems = data.work_items || [];
+    if (!workItems.length) {
+        workHtml = '<p class="checklist-empty">No dated work this day.</p>';
+    } else {
+        workHtml = `<ul class="timeline-work-list">${workItems
+            .map((item) => {
+                const mins = Math.round((item.duration_seconds || 0) / 60);
+                const status = item.status === 'done' ? 'Done' : item.status === 'active' ? 'In progress' : 'Open';
+                return `<li><strong>${utils.escapeHtml(item.title)}</strong> · ${utils.escapeHtml(status)}${mins ? ` · ${mins}m` : ''}</li>`;
+            })
+            .join('')}</ul>`;
+    }
 
     let healthHtml = '';
     if (health && Object.keys(health).length) {
@@ -183,9 +198,15 @@ function renderTimeline(data, health) {
         <div class="timeline-summary">
             <span>${data.submission_count} checklist(s)</span>
             <span>${data.journal_count} journal entry(ies)</span>
+            <span>${data.work_count || 0} to do</span>
             <span>${writingMin} min writing</span>
+            ${workMin ? `<span>${workMin} min work</span>` : ''}
         </div>
         ${healthHtml}
+        <section class="timeline-section">
+            <h3>To Do</h3>
+            ${workHtml}
+        </section>
         <section class="timeline-section">
             <h3>Checklist</h3>
             ${checkHtml}
