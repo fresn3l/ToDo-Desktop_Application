@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a standalone Kosistenz.app (WebKit, no Chrome) and install to ~/Applications.
+# Build a standalone Kosistenz.app (WebKit, no Chrome) and install to /Applications.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -30,18 +30,48 @@ if [[ -z "$APP_SRC" ]]; then
   exit 1
 fi
 
-DEST="$HOME/Applications/Kosistenz.app"
-mkdir -p "$HOME/Applications"
-rm -rf "$DEST"
-cp -R "$APP_SRC" "$DEST"
-xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
+copy_app() {
+  local dest="$1"
+  local use_sudo="${2:-}"
+  if [[ -n "$use_sudo" ]]; then
+    sudo rm -rf "$dest"
+    sudo cp -R "$APP_SRC" "$dest"
+    sudo xattr -dr com.apple.quarantine "$dest" 2>/dev/null || true
+  else
+    rm -rf "$dest"
+    cp -R "$APP_SRC" "$dest"
+    xattr -dr com.apple.quarantine "$dest" 2>/dev/null || true
+  fi
+}
+
+SYSTEM_DEST="/Applications/Kosistenz.app"
+HOME_DEST="$HOME/Applications/Kosistenz.app"
+DEST=""
+
+if [[ -w /Applications ]]; then
+  copy_app "$SYSTEM_DEST"
+  DEST="$SYSTEM_DEST"
+else
+  echo "Installing to /Applications. macOS may ask for your password."
+  if sudo -v && copy_app "$SYSTEM_DEST" sudo; then
+    DEST="$SYSTEM_DEST"
+  else
+    echo "Could not write /Applications. Installing to $HOME_DEST instead."
+    mkdir -p "$HOME/Applications"
+    copy_app "$HOME_DEST"
+    DEST="$HOME_DEST"
+  fi
+fi
+
+# Helps Launchpad / Spotlight pick it up.
+touch "$DEST" 2>/dev/null || sudo touch "$DEST" 2>/dev/null || true
 
 echo ""
 echo "Installed: $DEST"
+echo "Opening that folder in Finder…"
+open -R "$DEST"
+
 echo ""
-echo "This is a standalone app. Chrome is not used."
-echo "  1. Finder → Go → Home → Applications → Kosistenz"
-echo "  2. Drag it to the Dock if you want"
-echo "  3. Double-click, or Spotlight (Cmd+Space) and type Kosistenz"
-echo ""
-echo "First open: right-click → Open, if macOS asks about an unidentified developer."
+echo "Kosistenz should now be selected in Finder."
+echo "Double-click it to launch. First time: right-click → Open if macOS warns."
+echo "Quit with Cmd+Q."

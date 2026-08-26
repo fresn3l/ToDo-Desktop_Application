@@ -26,15 +26,16 @@ chmod +x setup_venv.sh macos/install_app.sh
 
 That creates a virtualenv, packages a standalone app, and copies it to:
 
-`~/Applications/Kosistenz.app`
+`/Applications/Kosistenz.app`
 
-(That’s **Home → Applications**, not the system `/Applications` folder.)
+Finder then reveals the app so you can double-click it. If `/Applications` is not writable, it falls back to `~/Applications`.
 
 ### Open it
 
-1. Finder → **Go → Home** (`Shift+Cmd+H`) → **Applications** → **Kosistenz**
-2. First launch: **right-click → Open** if macOS warns about an unidentified developer
-3. Optional: drag Kosistenz to the Dock, or use Spotlight (`Cmd+Space`)
+1. Finder should jump to **Kosistenz** after install. Double-click it.
+2. Or Finder sidebar → **Applications** → **Kosistenz**
+3. First launch: **right-click → Open** if macOS warns about an unidentified developer
+4. Optional: drag Kosistenz to the Dock, or use Spotlight (`Cmd+Space`)
 
 Quit with **Cmd+Q**, like any Mac app.
 
