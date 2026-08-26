@@ -42,7 +42,7 @@ function paintSettings(settings) {
         customWrap.classList.toggle('is-hidden', settings.accent !== 'custom');
     }
     const customInput = document.getElementById('customAccentInput');
-    if (customInput) customInput.value = settings.customAccent || '#38bdf8';
+    if (customInput) customInput.value = settings.customAccent || '#4F8FCF';
 
     const fontSize = document.getElementById('journalFontSize');
     const fontSizeVal = document.getElementById('journalFontSizeValue');

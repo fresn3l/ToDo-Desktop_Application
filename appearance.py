@@ -14,7 +14,7 @@ import eel
 DEFAULTS: Dict[str, Any] = {
     "theme": "ocean",
     "accent": "sky",
-    "customAccent": "#38bdf8",
+    "customAccent": "#4F8FCF",
     "font": "sans",
     "density": "comfortable",
     "radius": "soft",
