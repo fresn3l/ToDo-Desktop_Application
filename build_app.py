@@ -101,7 +101,6 @@ def build_app() -> None:
         "proxy_tools",
         "packaging",
         "bottle_websocket",
-        "geventwebsocket",
         "greenlet",
     ]
     if sys.platform == "darwin":
