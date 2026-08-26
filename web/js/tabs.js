@@ -31,11 +31,11 @@ function setDocumentTitle(name) {
 }
 
 export function setupTabs() {
-    const nav = document.querySelector('.app-nav');
-    if (!nav) return;
+    const sidebar = document.querySelector('.app-sidebar');
+    if (!sidebar) return;
 
-    nav.addEventListener('click', (e) => {
-        const btn = e.target.closest('.nav-item');
+    sidebar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.nav-item[data-tab]');
         if (!btn) return;
         const tab = btn.getAttribute('data-tab');
         if (tab) {
