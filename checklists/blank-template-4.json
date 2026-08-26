@@ -1,0 +1,18 @@
+{
+  "id": "blank-template-4",
+  "version": 1,
+  "title": "Blank template 4 — Choice with Other",
+  "start": "replace_me",
+  "nodes": {
+    "replace_me": {
+      "type": "choice",
+      "question": "[Template 4] Replace this question in checklists/blank-template-4.json",
+      "allowOther": true,
+      "otherNext": "end",
+      "options": [
+        { "label": "Preset option 1", "value": "preset_1", "next": "end" },
+        { "label": "Preset option 2", "value": "preset_2", "next": "end" }
+      ]
+    }
+  }
+}

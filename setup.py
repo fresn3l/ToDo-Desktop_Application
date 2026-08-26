@@ -1,40 +1,58 @@
 """
 Setup script for py2app (Mac-specific packaging)
 
-This creates a native Mac .app bundle using py2app.
-
 Usage:
     python setup.py py2app
-
-The resulting .app will be in the 'dist' folder.
 """
 
 from setuptools import setup
 
-APP = ['main.py']
+APP = ["main.py"]
 DATA_FILES = [
-    ('web', ['web/index.html', 'web/style.css', 'web/app.js']),
+    ("web", ["web/index.html", "web/style.css", "web/app.js"]),
+    (
+        "web/js",
+        [
+            "web/js/journal.js",
+            "web/js/utils.js",
+            "web/js/tabs.js",
+            "web/js/daily_checklist.js",
+            "web/js/review.js",
+            "web/js/timeline.js",
+        ],
+    ),
+    (
+        "checklists",
+        [
+            "checklists/default.json",
+            "checklists/blank-template-1.json",
+            "checklists/blank-template-2.json",
+            "checklists/blank-template-3.json",
+            "checklists/blank-template-4.json",
+            "checklists/morning.json",
+            "checklists/evening.json",
+        ],
+    ),
 ]
 
 OPTIONS = {
-    'argv_emulation': True,
-    'plist': {
-        'CFBundleName': 'ToDo',
-        'CFBundleDisplayName': 'ToDo',
-        'CFBundleGetInfoString': 'ToDo',
-        'CFBundleIdentifier': 'com.todo.app',
-        'CFBundleVersion': '1.0.0',
-        'CFBundleShortVersionString': '1.0.0',
-        'NSHighResolutionCapable': True,
+    "argv_emulation": True,
+    "plist": {
+        "CFBundleName": "Kosistenz",
+        "CFBundleDisplayName": "Kosistenz",
+        "CFBundleGetInfoString": "Kosistenz",
+        "CFBundleIdentifier": "com.kosistenz.app",
+        "CFBundleVersion": "1.0.0",
+        "CFBundleShortVersionString": "1.0.0",
+        "NSHighResolutionCapable": True,
     },
-    'packages': ['eel', 'setuptools'],
-    'includes': ['todo', 'goals', 'analytics', 'data_storage'],
+    "packages": ["eel", "setuptools"],
+    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import"],
 }
 
 setup(
     app=APP,
     data_files=DATA_FILES,
-    options={'py2app': OPTIONS},
-    setup_requires=['py2app'],
+    options={"py2app": OPTIONS},
+    setup_requires=["py2app"],
 )
-

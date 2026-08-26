@@ -1,0 +1,17 @@
+{
+  "id": "blank-template-2",
+  "version": 1,
+  "title": "Blank template 2 — Multiple choice only",
+  "start": "replace_me",
+  "nodes": {
+    "replace_me": {
+      "type": "choice",
+      "question": "[Template 2] Replace this question in checklists/blank-template-2.json",
+      "allowOther": false,
+      "options": [
+        { "label": "Option A (edit labels)", "value": "option_a", "next": "end" },
+        { "label": "Option B", "value": "option_b", "next": "end" }
+      ]
+    }
+  }
+}

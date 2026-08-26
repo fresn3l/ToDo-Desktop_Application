@@ -1,41 +1,23 @@
 """
-ToDo Application - Main Entry Point
+Kosistenz — Python (Eel) + web UI (journal + daily checklist).
 
-Desktop task management application built with Python (Eel) and modern web technologies.
-Provides task management, goal tracking, analytics, journaling, and notification features.
+Set CLUNY_SQLITE_PATH or CLUNY_INGEST_URL (see cluny_sync.py) to sync journal entries to Cluny.
+Daily checklist responses live in daily_checklist.sqlite (see daily_checklist.py).
 """
 
 import eel
-import threading
-import time
 
-import todo
-import goals
-import analytics
+import appearance  # noqa: F401 — theme / layout preferences
+import daily_checklist  # noqa: F401 — registers eel endpoints
 import journal
-import notifications
+import insights  # noqa: F401 — weekly review endpoints
+import timeline  # noqa: F401 — unified timeline endpoints
+import export_data  # noqa: F401 — CSV/JSON export endpoints
+import recovery  # noqa: F401 — missed-day recovery prompts
+import reminders  # noqa: F401 — local launchd reminders
+import health_import  # noqa: F401 — Apple Health / Screen Time imports
 
-eel.init('web')
+eel.init("web")
 
-
-def notification_scheduler():
-    """Background thread that periodically checks for tasks due soon and sends notifications."""
-    while True:
-        try:
-            notifications.check_and_send_notifications()
-        except Exception as e:
-            print(f"Error in notification scheduler: {e}")
-        
-        time.sleep(3600)
-
-
-if __name__ == '__main__':
-    scheduler_thread = threading.Thread(target=notification_scheduler, daemon=True)
-    scheduler_thread.start()
-    
-    try:
-        notifications.check_and_send_notifications()
-    except Exception as e:
-        print(f"Error checking notifications on startup: {e}")
-    
-    eel.start('index.html', size=(900, 700), port=0, mode='chrome-app')
+if __name__ == "__main__":
+    eel.start("index.html", size=(1280, 840), port=0, mode="chrome-app")

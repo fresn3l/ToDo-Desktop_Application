@@ -1,0 +1,55 @@
+{
+  "id": "morning",
+  "version": 1,
+  "title": "Morning check-in",
+  "start": "intentions",
+  "nodes": {
+    "intentions": {
+      "type": "text",
+      "question": "What are your intentions for today?",
+      "placeholder": "One or two sentences…",
+      "next": "sleep_quality"
+    },
+    "sleep_quality": {
+      "type": "scale",
+      "question": "How was your sleep?",
+      "min": 1,
+      "max": 5,
+      "next": "sleep_hours"
+    },
+    "sleep_hours": {
+      "type": "number",
+      "question": "Hours of sleep (approx.)",
+      "min": 0,
+      "max": 24,
+      "step": 0.5,
+      "optional": true,
+      "next": "planned_workout"
+    },
+    "planned_workout": {
+      "type": "yes_no",
+      "question": "Planning to exercise today?",
+      "onYes": "workout_type",
+      "onNo": "top_priority"
+    },
+    "workout_type": {
+      "type": "choice",
+      "question": "What workout do you plan?",
+      "allowOther": true,
+      "otherNext": "top_priority",
+      "options": [
+        { "label": "Legs", "value": "legs", "next": "top_priority" },
+        { "label": "Chest and tris", "value": "chest_tris", "next": "top_priority" },
+        { "label": "Back", "value": "back", "next": "top_priority" },
+        { "label": "Core", "value": "core", "next": "top_priority" },
+        { "label": "Running", "value": "running", "next": "top_priority" }
+      ]
+    },
+    "top_priority": {
+      "type": "text",
+      "question": "Top priority for today — the one thing that matters most?",
+      "placeholder": "If I only finish one thing today…",
+      "next": "end"
+    }
+  }
+}

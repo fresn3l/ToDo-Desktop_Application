@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import fcntl
 import sys
+import uuid
+
+import cluny_sync
 
 # ============================================
 # JOURNAL STORAGE PATHS
@@ -68,7 +71,7 @@ def get_entry_path(entry_date: datetime = None) -> Path:
     
     # Create filename with timestamp
     timestamp = entry_date.strftime('%Y-%m-%d_%H-%M-%S')
-    filename = f'entry_{timestamp}.json'
+    filename = f'entry_{timestamp}_{uuid.uuid4().hex[:8]}.json'
     
     return entry_dir / filename
 
@@ -76,8 +79,35 @@ def get_entry_path(entry_date: datetime = None) -> Path:
 # JOURNAL CRUD OPERATIONS
 # ============================================
 
+JOURNAL_TAG_PRESETS = ["work", "health", "relationships"]
+
+
+def _normalize_tags(tags) -> List[str]:
+    if not tags:
+        return []
+    if isinstance(tags, str):
+        raw = [t.strip().lstrip("#") for t in tags.replace(",", " ").split()]
+    elif isinstance(tags, list):
+        raw = [str(t).strip().lstrip("#") for t in tags]
+    else:
+        return []
+    out = []
+    seen = set()
+    for t in raw:
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        out.append(t)
+    return out
+
+
 @eel.expose
-def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool = False):
+def get_journal_tag_presets() -> List[str]:
+    return list(JOURNAL_TAG_PRESETS)
+
+
+@eel.expose
+def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool = False, tags=None):
     """
     Save a new journal entry.
     
@@ -99,7 +129,8 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
         "date": entry_date.isoformat(),
         "duration_seconds": duration_seconds,
         "continued": continued,
-        "created_at": entry_date.isoformat()
+        "created_at": entry_date.isoformat(),
+        "tags": _normalize_tags(tags),
     }
     
     # Save to file with atomic write and file locking
@@ -116,113 +147,57 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
     
     # Atomically replace old file with new one
     os.replace(temp_file, entry_path)
-    
+
+    cluny_sync.sync_journal_entry_safe(entry)
+
     return entry
 
-@eel.expose
-def get_recent_entries(days: int = 30) -> List[Dict]:
-    """
-    Get journal entries from the last N days.
-    
-    Args:
-        days: Number of days to look back (default: 30)
-    
-    Returns:
-        List[Dict]: List of journal entries, sorted by date (newest first)
-    """
+def _load_entries_from_disk(cutoff_date: Optional[datetime] = None) -> List[Dict]:
     base_dir = get_journal_directory()
     entries = []
-    cutoff_date = datetime.now() - timedelta(days=days)
-    
-    # Walk through all journal folders
     if not base_dir.exists():
         return []
-    
+
     for year_dir in base_dir.iterdir():
         if not year_dir.is_dir():
             continue
-        
         for month_dir in year_dir.iterdir():
             if not month_dir.is_dir():
                 continue
-            
             for week_dir in month_dir.iterdir():
                 if not week_dir.is_dir():
                     continue
-                
-                # Look for entry JSON files
                 for entry_file in week_dir.glob('entry_*.json'):
                     try:
-                        # Read entry with file locking
                         with open(entry_file, 'r', encoding='utf-8') as f:
                             if sys.platform != 'win32':
                                 fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                             try:
                                 entry = json.load(f)
-                                # Parse entry date
-                                entry_date = datetime.fromisoformat(entry.get('date', entry.get('created_at', '')))
-                                
-                                # Only include entries within the date range
-                                if entry_date >= cutoff_date:
+                                entry_date = datetime.fromisoformat(
+                                    entry.get('date', entry.get('created_at', ''))
+                                )
+                                if cutoff_date is None or entry_date >= cutoff_date:
                                     entries.append(entry)
                             finally:
                                 if sys.platform != 'win32':
                                     fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                    except (json.JSONDecodeError, IOError, ValueError) as e:
-                        # Skip corrupted or invalid entries
+                    except (json.JSONDecodeError, IOError, ValueError):
                         continue
-    
-    # Sort by date (newest first)
+
     entries.sort(key=lambda x: x.get('date', x.get('created_at', '')), reverse=True)
-    
     return entries
+
+
+@eel.expose
+def get_recent_entries(days: int = 30) -> List[Dict]:
+    """Journal entries from the last N days, newest first."""
+    cutoff_date = datetime.now() - timedelta(days=days)
+    return _load_entries_from_disk(cutoff_date)
+
 
 @eel.expose
 def get_all_entries() -> List[Dict]:
-    """
-    Get all journal entries (no date limit).
-    
-    Returns:
-        List[Dict]: List of all journal entries, sorted by date (newest first)
-    """
-    base_dir = get_journal_directory()
-    entries = []
-    
-    if not base_dir.exists():
-        return []
-    
-    # Walk through all journal folders
-    for year_dir in base_dir.iterdir():
-        if not year_dir.is_dir():
-            continue
-        
-        for month_dir in year_dir.iterdir():
-            if not month_dir.is_dir():
-                continue
-            
-            for week_dir in month_dir.iterdir():
-                if not week_dir.is_dir():
-                    continue
-                
-                # Look for entry JSON files
-                for entry_file in week_dir.glob('entry_*.json'):
-                    try:
-                        # Read entry with file locking
-                        with open(entry_file, 'r', encoding='utf-8') as f:
-                            if sys.platform != 'win32':
-                                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-                            try:
-                                entry = json.load(f)
-                                entries.append(entry)
-                            finally:
-                                if sys.platform != 'win32':
-                                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                    except (json.JSONDecodeError, IOError, ValueError):
-                        # Skip corrupted or invalid entries
-                        continue
-    
-    # Sort by date (newest first)
-    entries.sort(key=lambda x: x.get('date', x.get('created_at', '')), reverse=True)
-    
-    return entries
+    """All journal entries, newest first."""
+    return _load_entries_from_disk()
 
