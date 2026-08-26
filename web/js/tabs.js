@@ -3,7 +3,7 @@
  */
 
 import { loadPastEntries, exitJournalFocus } from './journal.js';
-import { onChecklistTabShown } from './daily_checklist.js';
+import { onChecklistTabShown, openChecklistTemplate } from './daily_checklist.js';
 import { onReviewTabShown } from './review.js';
 import { onTimelineTabShown } from './timeline.js';
 import { onSettingsTabShown } from './settings.js';
@@ -59,6 +59,18 @@ export function setupTabs() {
         if (picker) picker.value = date;
         switchTab('timeline').catch((err) => console.error(err));
     });
+
+    document.addEventListener('kosistenz:open-checklist', (e) => {
+        const stem = e.detail?.stem;
+        switchTab('checklist')
+            .then(() => (stem ? openChecklistTemplate(stem) : undefined))
+            .catch((err) => console.error(err));
+    });
+
+    document.addEventListener('kosistenz:open-tab', (e) => {
+        const tab = e.detail?.tab;
+        if (tab) switchTab(tab).catch((err) => console.error(err));
+    });
 }
 
 export async function switchTab(name) {
@@ -88,4 +100,6 @@ export async function switchTab(name) {
     } else if (name === 'settings') {
         onSettingsTabShown();
     }
+
+    document.dispatchEvent(new CustomEvent('kosistenz:tab-shown', { detail: { tab: name } }));
 }

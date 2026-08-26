@@ -19,6 +19,10 @@ DATA_FILES = [
             "web/js/daily_checklist.js",
             "web/js/review.js",
             "web/js/timeline.js",
+            "web/js/weekstrip.js",
+            "web/js/appearance.js",
+            "web/js/settings.js",
+            "web/js/today.js",
         ],
     ),
     (

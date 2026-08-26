@@ -10,12 +10,14 @@ import { setupDailyChecklist } from './js/daily_checklist.js';
 import { setupReview } from './js/review.js';
 import { setupTimeline } from './js/timeline.js';
 import { setupSettings } from './js/settings.js';
+import { setupToday } from './js/today.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     await initAppearance();
     setupTabs();
     setupSettings();
+    setupToday();
     setupJournal();
     await setupDailyChecklist();
     setupReview();

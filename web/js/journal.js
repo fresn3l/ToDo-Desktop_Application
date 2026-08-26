@@ -292,6 +292,7 @@ async function saveJournalEntry() {
         
         await loadPastEntries();
         setJournalFocus(false);
+        utils.notifyDataChanged();
     } catch (error) {
         console.error('Error saving journal entry:', error);
         utils.showErrorFeedback('Failed to save entry. Please try again.');

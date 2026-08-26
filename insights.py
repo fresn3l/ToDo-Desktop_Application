@@ -200,3 +200,69 @@ def get_weekly_review(days: int = 7) -> Dict[str, Any]:
 def save_weekly_pattern_note(note: str) -> None:
     week_key = _week_key(date.today())
     _save_pattern_note(week_key, (note or "").strip())
+
+
+def _title_for_checklist(checklist_id: str) -> str:
+    for bundle in daily_checklist.list_bundled_checklists():
+        if bundle.get("id") == checklist_id:
+            return bundle.get("title") or checklist_id
+    fallback = {
+        "morning": "Morning check-in",
+        "evening": "Evening check-in",
+        "default": "Daily check-in",
+    }
+    return fallback.get(checklist_id, checklist_id.replace("_", " ").title())
+
+
+@eel.expose
+def get_today_status() -> Dict[str, Any]:
+    """Morning/evening check-in state and journal count for today."""
+    today = date.today()
+    iso = today.isoformat()
+    hour = datetime.now().hour
+
+    done_ids: Set[str] = set()
+    for row in daily_checklist.fetch_submissions(local_date=iso, decorate=False):
+        cid = row.get("checklist_id")
+        if cid:
+            done_ids.add(str(cid))
+
+    journal_count = 0
+    for entry in journal.get_recent_entries(days=2):
+        raw = entry.get("date") or entry.get("created_at") or ""
+        try:
+            ed = datetime.fromisoformat(raw).date()
+        except (ValueError, TypeError):
+            continue
+        if ed == today:
+            journal_count += 1
+
+    morning_done = "morning" in done_ids
+    evening_done = "evening" in done_ids
+
+    if morning_done and not evening_done:
+        suggested = "evening"
+    elif hour < 14:
+        suggested = "morning"
+    else:
+        suggested = "evening"
+
+    return {
+        "local_date": iso,
+        "hour": hour,
+        "journal_count": journal_count,
+        "checklist_ids": sorted(done_ids),
+        "morning": {
+            "id": "morning",
+            "title": _title_for_checklist("morning"),
+            "done": morning_done,
+        },
+        "evening": {
+            "id": "evening",
+            "title": _title_for_checklist("evening"),
+            "done": evening_done,
+        },
+        "suggested": suggested,
+        "suggested_title": _title_for_checklist(suggested),
+        "suggested_done": suggested in done_ids,
+    }

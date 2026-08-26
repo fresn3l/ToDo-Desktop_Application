@@ -74,6 +74,7 @@
                     <p class="eyebrow">Kosistenz</p>
                     <h1 id="pageCrumb">Journal</h1>
                 </div>
+                <div id="todayStatus" class="today-status" aria-live="polite"></div>
                 <p class="topbar-note">Everything stays on this Mac.</p>
             </header>
 
@@ -220,6 +221,7 @@
                                 <h2>Weekly review</h2>
                                 <p class="panel-sub">Last 7 days. Click a day to open it on Timeline.</p>
                             </div>
+                            <button type="button" class="btn-secondary" data-export="week-markdown">Export this week</button>
                         </div>
                         <div id="reviewWeekStrip" class="week-strip-host"></div>
                         <div id="reviewContent" class="review-content"></div>
@@ -393,12 +395,13 @@
                             </div>
                             <div class="export-panel">
                                 <h3>Export</h3>
-                                <p class="checklist-hint small">JSON and CSV copies of your checklist and journal.</p>
+                                <p class="checklist-hint small">JSON, CSV, or a markdown recap of the last 7 days.</p>
                                 <div class="export-buttons">
                                     <button type="button" class="btn-secondary" data-export="checklist-json">Checklist JSON</button>
                                     <button type="button" class="btn-secondary" data-export="checklist-csv">Checklist CSV</button>
                                     <button type="button" class="btn-secondary" data-export="journal-json">Journal JSON</button>
                                     <button type="button" class="btn-secondary" data-export="journal-csv">Journal CSV</button>
+                                    <button type="button" class="btn-secondary" data-export="week-markdown">Week markdown</button>
                                 </div>
                                 <p id="exportStatus" class="checklist-hint small"></p>
                             </div>

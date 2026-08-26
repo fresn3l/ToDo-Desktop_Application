@@ -146,4 +146,44 @@ def get_week_overview(end_date: str = "") -> Dict[str, Any]:
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
         "days": days,
+        "streaks": compute_streaks(today),
     }
+
+
+def compute_streaks(today: Optional[date] = None) -> Dict[str, int]:
+    """Consecutive days of activity, always measured from today.
+
+    If today is still empty, the streak continues from yesterday until a
+    missed past day. Used by the week strip so browsing older weeks does
+    not change the live streak.
+    """
+    today = today or date.today()
+
+    checkin_dates = set()
+    for iso in daily_checklist.list_submission_dates():
+        d = _parse_date(iso)
+        if d:
+            checkin_dates.add(d)
+
+    journal_dates = set()
+    for entry in journal.get_recent_entries(days=400):
+        d = _parse_date(entry.get("date") or entry.get("created_at") or "")
+        if d:
+            journal_dates.add(d)
+
+    return {
+        "show_up": _count_streak(checkin_dates | journal_dates, today),
+        "writing": _count_streak(journal_dates, today),
+        "checkin": _count_streak(checkin_dates, today),
+    }
+
+
+def _count_streak(dates: set, today: date) -> int:
+    if not dates:
+        return 0
+    cursor = today if today in dates else today - timedelta(days=1)
+    n = 0
+    while cursor in dates:
+        n += 1
+        cursor -= timedelta(days=1)
+    return n

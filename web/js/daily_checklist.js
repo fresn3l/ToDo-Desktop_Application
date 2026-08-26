@@ -32,12 +32,7 @@ async function populateChecklistTemplateSelect() {
         checklistTemplateSelectBound = true;
         sel.addEventListener('change', async () => {
             try {
-                await eel.set_active_checklist_stem(sel.value)();
-                await loadDefinition();
-                await renderCustomItemsList();
-                startWizard();
-                await loadRecentSubmissions();
-                utils.showSuccessFeedback('Checklist template updated.');
+                await openChecklistTemplate(sel.value, { announce: true });
             } catch (e) {
                 console.error(e);
                 utils.showErrorFeedback(
@@ -50,6 +45,20 @@ async function populateChecklistTemplateSelect() {
                 }
             }
         });
+    }
+}
+
+export async function openChecklistTemplate(stem, { announce = false } = {}) {
+    if (!stem) return;
+    await eel.set_active_checklist_stem(stem)();
+    const sel = document.getElementById('checklistTemplateSelect');
+    if (sel) sel.value = stem;
+    await loadDefinition();
+    await renderCustomItemsList();
+    startWizard();
+    await loadRecentSubmissions();
+    if (announce) {
+        utils.showSuccessFeedback('Checklist template updated.');
     }
 }
 
@@ -893,6 +902,7 @@ async function completeFlow() {
         const answers = { ...state.answers };
         await eel.submit_daily_checklist_response(id, version, answers)();
         utils.showSuccessFeedback('Saved to your local database.');
+        utils.notifyDataChanged();
         await loadRecentSubmissions();
     } catch (e) {
         console.error(e);
@@ -929,6 +939,7 @@ async function showRecoveryIfNeeded() {
                 try {
                     await eel.submit_recovery_response(data.missed_date, btn.getAttribute('data-value'))();
                     utils.showSuccessFeedback('Thanks — logged.');
+                    utils.notifyDataChanged();
                     await showRecoveryIfNeeded();
                 } catch (e) {
                     utils.showErrorFeedback('Could not save.');

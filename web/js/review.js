@@ -16,11 +16,21 @@ export async function setupReview() {
                 else if (kind === 'checklist-csv') result = await eel.export_checklist_csv()();
                 else if (kind === 'journal-json') result = await eel.export_journal_json()();
                 else if (kind === 'journal-csv') result = await eel.export_journal_csv()();
+                else if (kind === 'week-markdown') result = await eel.export_week_markdown(7)();
                 else return;
                 if (status) {
-                    status.textContent = `Exported ${result.count} record(s).`;
+                    const name = result.path ? result.path.split(/[/\\]/).pop() : '';
+                    if (kind === 'week-markdown') {
+                        status.textContent = name
+                            ? `Week ${result.start} → ${result.end} saved as ${name}`
+                            : `Week ${result.start} → ${result.end} saved.`;
+                    } else {
+                        status.textContent = name
+                            ? `Exported ${result.count} record(s) · ${name}`
+                            : `Exported ${result.count} record(s).`;
+                    }
                 }
-                utils.showSuccessFeedback('Export saved.');
+                utils.showSuccessFeedback(kind === 'week-markdown' ? 'Week markdown saved.' : 'Export saved.');
             } catch (e) {
                 console.error(e);
                 utils.showErrorFeedback('Export failed.');

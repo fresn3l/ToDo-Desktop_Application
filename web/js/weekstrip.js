@@ -10,6 +10,24 @@ function shiftIsoDate(iso, days) {
     return utils.localISODate(d);
 }
 
+function formatStreaks(streaks) {
+    if (!streaks) return '';
+    const parts = [];
+    const showUp = streaks.show_up || 0;
+    const writing = streaks.writing || 0;
+    const checkin = streaks.checkin || 0;
+    if (showUp > 0) {
+        parts.push(`${showUp}-day streak`);
+    }
+    if (writing > 0) {
+        parts.push(`${writing} day${writing === 1 ? '' : 's'} writing`);
+    }
+    if (checkin > 0 && checkin !== showUp) {
+        parts.push(`${checkin} day${checkin === 1 ? '' : 's'} check-in`);
+    }
+    return parts.length ? utils.escapeHtml(parts.join(' · ')) : 'No streak yet';
+}
+
 export function renderWeekStrip(el, data, { selectedDate, onSelect } = {}) {
     if (!el || !data) return;
     const selected = selectedDate || data.end_date;
@@ -37,12 +55,16 @@ export function renderWeekStrip(el, data, { selectedDate, onSelect } = {}) {
         .join('');
 
     const canGoForward = data.end_date < today;
+    const streakLine = formatStreaks(data.streaks);
 
     el.innerHTML = `
-        <div class="week-strip">
+        <div class="week-strip-block">
+            ${streakLine ? `<p class="week-streaks">${streakLine}</p>` : ''}
+            <div class="week-strip">
             <button type="button" class="week-nav" data-shift="-7" aria-label="Previous week">‹</button>
             <div class="week-days" role="list">${days}</div>
             <button type="button" class="week-nav" data-shift="7" aria-label="Next week" ${canGoForward ? '' : 'disabled'}>›</button>
+            </div>
         </div>
     `;
 
