@@ -98,15 +98,23 @@ def build_app() -> None:
         "appearance",
         "bridge",
         "paths",
+        "proxy_tools",
+        "packaging",
+        "bottle_websocket",
+        "geventwebsocket",
+        "greenlet",
     ]
     if sys.platform == "darwin":
         hidden += [
             "webview.platforms.cocoa",
             "objc",
+            "objc._objc",
             "AppKit",
             "Foundation",
             "WebKit",
             "CoreFoundation",
+            "Quartz",
+            "CoreGraphics",
         ]
     elif sys.platform == "win32":
         hidden.append("webview.platforms.edgechromium")
@@ -123,6 +131,9 @@ def build_app() -> None:
         "--add-data=macos/kosistenz-reminder.sh:macos",
         "--collect-all=eel",
         "--collect-all=webview",
+        "--collect-all=gevent",
+        "--collect-all=bottle",
+        "--copy-metadata=pywebview",
         "--osx-bundle-identifier=com.kosistenz.app",
         "--noconfirm",
         *maybe_build_icon(),
