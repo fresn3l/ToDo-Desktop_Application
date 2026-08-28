@@ -15,6 +15,8 @@ import journal  # noqa: F401
 import recovery  # noqa: F401
 import reminders  # noqa: F401
 import work  # noqa: F401
+import workouts  # noqa: F401
+import timeline  # noqa: F401
 
 
 def run_bridge(port: int, web_dir: str) -> None:

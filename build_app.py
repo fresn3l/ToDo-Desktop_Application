@@ -169,6 +169,7 @@ def build_app() -> None:
         "insights",
         "timeline",
         "work",
+        "workouts",
         "export_data",
         "recovery",
         "reminders",

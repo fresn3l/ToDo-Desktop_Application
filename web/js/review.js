@@ -100,9 +100,9 @@ function renderReview(data) {
                 <ul class="review-list">${breakdown}</ul>
             </div>
             <div class="review-card">
-                <h3>Exercise</h3>
+                <h3>Workout</h3>
                 <p class="review-stat">${data.exercise_sessions}</p>
-                <p class="review-detail">${data.exercise_days ?? data.exercise_sessions} days with exercise logged</p>
+                <p class="review-detail">${data.exercise_days ?? data.exercise_sessions} days trained${data.workout_miles ? ` · ${data.workout_miles} mi` : ''}</p>
                 <ul class="review-list">${workouts}</ul>
             </div>
             <div class="review-card">

@@ -183,6 +183,14 @@ async function loadAdvancedPaths() {
             workDb.textContent = '';
         }
     }
+    const workoutsDb = document.getElementById('workoutsDbPath');
+    if (workoutsDb && !workoutsDb.textContent) {
+        try {
+            workoutsDb.textContent = await eel.get_workouts_db_path_exposed()();
+        } catch (_) {
+            workoutsDb.textContent = '';
+        }
+    }
     const widgetPath = document.getElementById('widgetSnapshotPath');
     if (widgetPath && !widgetPath.textContent) {
         try {

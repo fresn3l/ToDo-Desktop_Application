@@ -1768,6 +1768,34 @@ input[type='range'] {
     width: 4.5rem;
 }
 
+/* ---------- Workout ---------- */
+
+.workout-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.workout-session-form {
+    display: grid;
+    gap: 8px;
+}
+
+.workout-recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    list-style: none;
+}
+
+.workout-recent-list strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
 .work-scope-modal {
     position: fixed;
     inset: 0;

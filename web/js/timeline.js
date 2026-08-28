@@ -1,5 +1,5 @@
 /**
- * Unified timeline — journal + checklist for one day.
+ * Unified timeline — journal, workouts, and to dos for one day.
  */
 
 import * as utils from './utils.js';
@@ -110,14 +110,32 @@ async function loadTimelineDay(localDate, { refreshStrip = true } = {}) {
 }
 
 function renderTimeline(data, health) {
-    let checkHtml = '';
-    if (!data.submissions.length) {
-        checkHtml = '<p class="checklist-empty">No checklist submissions this day.</p>';
+    const workout = data.workout || {};
+    const sessions = workout.sessions || [];
+    let workoutHtml = '';
+    if (!sessions.length) {
+        workoutHtml = '<p class="checklist-empty">No workout this day.</p>';
     } else {
-        data.submissions.forEach((sub) => {
+        workoutHtml = `<ul class="timeline-work-list">${sessions
+            .map((session) => {
+                const bits = [session.label || session.kind_label];
+                if (session.miles != null) bits.push(`${session.miles} mi`);
+                if (session.minutes != null) bits.push(`${session.minutes} min`);
+                return `<li>${utils.escapeHtml(bits.join(' · '))}</li>`;
+            })
+            .join('')}</ul>`;
+        if (workout.body_weight != null) {
+            workoutHtml += `<p class="timeline-health-summary">Body weight: ${utils.escapeHtml(String(workout.body_weight))}</p>`;
+        }
+    }
+
+    let checkHtml = '';
+    const submissions = data.submissions || [];
+    if (submissions.length) {
+        submissions.forEach((sub) => {
             const when = new Date(sub.created_at).toLocaleTimeString();
             const title = sub.title || sub.checklist_id || 'Checklist';
-            let rows = (sub.answers_formatted || [])
+            const rows = (sub.answers_formatted || [])
                 .map(
                     (a) =>
                         `<tr><td>${utils.escapeHtml(a.label)}</td><td>${utils.escapeHtml(a.value)}</td></tr>`,
@@ -196,7 +214,7 @@ function renderTimeline(data, health) {
 
     return `
         <div class="timeline-summary">
-            <span>${data.submission_count} checklist(s)</span>
+            <span>${data.workout_count || 0} workout${(data.workout_count || 0) === 1 ? '' : 's'}</span>
             <span>${data.journal_count} journal entry(ies)</span>
             <span>${data.work_count || 0} to do</span>
             <span>${writingMin} min writing</span>
@@ -204,13 +222,14 @@ function renderTimeline(data, health) {
         </div>
         ${healthHtml}
         <section class="timeline-section">
+            <h3>Workout</h3>
+            ${workoutHtml}
+        </section>
+        <section class="timeline-section">
             <h3>To Do</h3>
             ${workHtml}
         </section>
-        <section class="timeline-section">
-            <h3>Checklist</h3>
-            ${checkHtml}
-        </section>
+        ${checkHtml ? `<section class="timeline-section"><h3>Earlier checklists</h3>${checkHtml}</section>` : ''}
         <section class="timeline-section">
             <h3>Journal</h3>
             ${journalHtml}

@@ -25,6 +25,7 @@ DATA_FILES = [
             "web/js/todo.js",
             "web/js/all_work.js",
             "web/js/work.js",
+            "web/js/workouts.js",
         ],
     ),
     (
@@ -53,7 +54,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work"],
+    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts"],
 }
 
 setup(

@@ -16,13 +16,17 @@ function formatStreaks(streaks) {
     const showUp = streaks.show_up || 0;
     const writing = streaks.writing || 0;
     const checkin = streaks.checkin || 0;
+    const workout = streaks.workout || 0;
     if (showUp > 0) {
         parts.push(`${showUp}-day streak`);
     }
     if (writing > 0) {
         parts.push(`${writing} day${writing === 1 ? '' : 's'} writing`);
     }
-    if (checkin > 0 && checkin !== showUp) {
+    if (workout > 0 && workout !== showUp) {
+        parts.push(`${workout} day${workout === 1 ? '' : 's'} training`);
+    }
+    if (checkin > 0 && checkin !== showUp && checkin !== workout) {
         parts.push(`${checkin} day${checkin === 1 ? '' : 's'} check-in`);
     }
     return parts.length ? utils.escapeHtml(parts.join(' · ')) : 'No streak yet';
@@ -38,9 +42,10 @@ export function renderWeekStrip(el, data, { selectedDate, onSelect } = {}) {
             const isSelected = day.date === selected ? 'is-selected' : '';
             const isToday = day.is_today || day.date === today ? 'is-today' : '';
             const titleParts = [];
-            if (day.checklist_count) titleParts.push(`${day.checklist_count} checklist`);
+            if (day.workout_count) titleParts.push(`${day.workout_count} workout`);
             if (day.journal_count) titleParts.push(`${day.journal_count} journal`);
             if (day.work_count) titleParts.push(`${day.work_count} to do`);
+            if (day.checklist_count) titleParts.push(`${day.checklist_count} checklist`);
             const title = titleParts.join(' · ') || 'No activity';
             return `
                 <button type="button" class="week-day ${filled} ${isSelected} ${isToday}"
