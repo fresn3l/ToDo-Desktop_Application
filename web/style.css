@@ -1198,6 +1198,34 @@ input[type='radio'] {
     grid-column: 1 / -1;
 }
 
+.analytics-miss-list {
+    list-style: none;
+}
+
+.analytics-miss-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: 6px 0;
+}
+
+.analytics-miss-btn span {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.review-card .btn-primary {
+    margin-top: 10px;
+}
+
 .review-stat {
     font-size: 2rem;
     font-weight: 700;

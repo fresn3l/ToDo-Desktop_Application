@@ -26,6 +26,7 @@ DATA_FILES = [
             "web/js/all_work.js",
             "web/js/work.js",
             "web/js/workouts.js",
+            "web/js/analytics.js",
         ],
     ),
     (

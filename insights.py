@@ -247,3 +247,47 @@ def get_today_status() -> Dict[str, Any]:
             "total": work_total,
         },
     }
+
+
+@eel.expose
+def get_analytics(days: int = 30) -> Dict[str, Any]:
+    """Journal, workout, and repeating to-do metrics for the last N days."""
+    import timeline
+
+    days = max(1, min(int(days or 30), 365))
+    end = date.today()
+    start = end - timedelta(days=days - 1)
+    journal_entries = _journal_entries_in_range(start, end)
+    journal_days: Set[str] = set()
+    total_writing = 0
+    for entry in journal_entries:
+        total_writing += int(entry.get("duration_seconds") or 0)
+        raw = entry.get("date") or entry.get("created_at") or ""
+        try:
+            journal_days.add(datetime.fromisoformat(raw).date().isoformat())
+        except (ValueError, TypeError):
+            continue
+
+    streaks = timeline.compute_streaks(end)
+    workout = workouts.workout_metrics(days)
+    work_stats = work.repeating_work_analytics(days)
+    week_key = _week_key(end)
+    pattern_notes = _load_pattern_notes()
+    return {
+        "period_start": start.isoformat(),
+        "period_end": end.isoformat(),
+        "days": days,
+        "week_key": week_key,
+        "show_up_streak": int(streaks.get("show_up") or 0),
+        "journal": {
+            "entries": len(journal_entries),
+            "days_written": len(journal_days),
+            "minutes": round(total_writing / 60, 1),
+            "streak": int(streaks.get("writing") or 0),
+        },
+        "workout": workout,
+        "workout_streak": int(streaks.get("workout") or 0),
+        "work": work_stats,
+        "pattern_prompt": "What pattern do you notice?",
+        "pattern_note": pattern_notes.get(week_key, ""),
+    }

@@ -1,9 +1,9 @@
 /**
- * Tab navigation — journal, workout, to do, all work, review, timeline, settings.
+ * Tab navigation — journal, workout, to do, all work, analytics, timeline, settings.
  */
 
 import { loadPastEntries, exitJournalFocus } from './journal.js';
-import { onReviewTabShown } from './review.js';
+import { onAnalyticsTabShown } from './analytics.js';
 import { onTimelineTabShown } from './timeline.js';
 import { onSettingsTabShown } from './settings.js';
 import { onTodoTabShown } from './todo.js';
@@ -15,7 +15,7 @@ const ID_MAP = {
     workout: 'workoutTab',
     todo: 'todoTab',
     allwork: 'allWorkTab',
-    review: 'reviewTab',
+    analytics: 'analyticsTab',
     timeline: 'timelineTab',
     settings: 'settingsTab',
 };
@@ -25,7 +25,7 @@ const LABELS = {
     workout: 'Workout',
     todo: 'To Do',
     allwork: 'All Work',
-    review: 'Review',
+    analytics: 'Analytics',
     timeline: 'Timeline',
     settings: 'Settings',
 };
@@ -56,7 +56,7 @@ export function setupTabs() {
             2: 'workout',
             3: 'todo',
             4: 'allwork',
-            5: 'review',
+            5: 'analytics',
             6: 'timeline',
             7: 'settings',
         };
@@ -104,8 +104,8 @@ export async function switchTab(name) {
         await onTodoTabShown();
     } else if (name === 'allwork') {
         await onAllWorkTabShown();
-    } else if (name === 'review') {
-        await onReviewTabShown();
+    } else if (name === 'analytics') {
+        await onAnalyticsTabShown();
     } else if (name === 'timeline') {
         await onTimelineTabShown();
     } else if (name === 'settings') {

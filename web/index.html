@@ -78,9 +78,9 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14l-1.2 12.2A2 2 0 0 1 15.8 21H8.2a2 2 0 0 1-2-1.8L5 7Z"/><path d="M9 7V5.8A2.8 2.8 0 0 1 11.8 3h.4A2.8 2.8 0 0 1 15 5.8V7"/></svg>
                     <span class="nav-label">All Work</span>
                 </button>
-                <button type="button" class="nav-item" data-tab="review">
+                <button type="button" class="nav-item" data-tab="analytics">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15v4M12 11v8M16 8v11"/></svg>
-                    <span class="nav-label">Review</span>
+                    <span class="nav-label">Analytics</span>
                 </button>
                 <button type="button" class="nav-item" data-tab="timeline">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
@@ -294,17 +294,21 @@
                     </div>
                 </section>
 
-                <section id="reviewTab" class="tab-content" aria-label="Weekly review">
+                <section id="analyticsTab" class="tab-content" aria-label="Analytics">
                     <div class="panel review-section">
                         <div class="panel-header">
                             <div>
-                                <h2>Weekly review</h2>
-                                <p class="panel-sub">Last 7 days. Click a day to open it on Timeline.</p>
+                                <h2>Analytics</h2>
+                                <p class="panel-sub">Journal, workouts, and repeating to dos. Missed days stay on that date.</p>
                             </div>
-                            <button type="button" class="btn-secondary" data-export="week-markdown">Export this week</button>
+                            <div class="segmented" id="analyticsRange" role="group" aria-label="Analytics range">
+                                <button type="button" data-value="7">7 days</button>
+                                <button type="button" data-value="30" class="is-selected">30 days</button>
+                                <button type="button" data-value="90">90 days</button>
+                            </div>
                         </div>
-                        <div id="reviewWeekStrip" class="week-strip-host"></div>
-                        <div id="reviewContent" class="review-content"></div>
+                        <div id="analyticsWeekStrip" class="week-strip-host"></div>
+                        <div id="analyticsContent" class="review-content"></div>
                     </div>
                 </section>
 

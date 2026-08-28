@@ -902,3 +902,104 @@ def count_work_by_date(start_date: str, end_date: str) -> Dict[str, int]:
             (start, end),
         ).fetchall()
     return {str(row["scheduled_date"]): int(row["n"] or 0) for row in rows}
+
+
+def repeating_work_analytics(days: int = 30) -> Dict[str, Any]:
+    """Expected repeating days vs done. Misses stay on that date and never carry over."""
+    days = max(1, min(int(days or 30), 3650))
+    today = _today()
+    window_start = today - timedelta(days=days - 1)
+    miss_end = today - timedelta(days=1)
+    series_out: List[Dict[str, Any]] = []
+    misses: List[Dict[str, Any]] = []
+    total_expected = 0
+    total_done = 0
+    total_missed = 0
+    total_skipped = 0
+
+    with _connect() as conn:
+        for series in conn.execute("SELECT * FROM work_series WHERE archived = 0").fetchall():
+            series_d = dict(series)
+            expected_dates: List[date] = []
+            cursor = window_start
+            while cursor <= miss_end:
+                if _occurs_on(series_d, cursor):
+                    expected_dates.append(cursor)
+                cursor += timedelta(days=1)
+
+            hits = 0
+            skipped = 0
+            missed = 0
+            miss_dates: List[str] = []
+            for day in expected_dates:
+                iso = day.isoformat()
+                exception = _exception_for(conn, series["id"], iso)
+                if exception and exception["action"] == "skip":
+                    skipped += 1
+                    continue
+                row = conn.execute(
+                    """
+                    SELECT status FROM work_items
+                    WHERE series_id = ? AND occurrence_date = ?
+                    """,
+                    (series["id"], iso),
+                ).fetchone()
+                if row and row["status"] == "done":
+                    hits += 1
+                    continue
+                missed += 1
+                miss_dates.append(iso)
+                misses.append(
+                    {
+                        "date": iso,
+                        "title": series["title"],
+                        "series_id": series["id"],
+                        "cadence_label": cadence_label(series["cadence_json"]),
+                    }
+                )
+
+            total_expected += len(expected_dates)
+            total_done += hits
+            total_missed += missed
+            total_skipped += skipped
+            series_out.append(
+                {
+                    "id": series["id"],
+                    "title": series["title"],
+                    "cadence_label": cadence_label(series["cadence_json"]),
+                    "expected": len(expected_dates),
+                    "done": hits,
+                    "missed": missed,
+                    "skipped": skipped,
+                    "miss_dates": miss_dates,
+                }
+            )
+
+        dated = conn.execute(
+            """
+            SELECT status FROM work_items
+            WHERE scheduled_date IS NOT NULL
+              AND scheduled_date >= ?
+              AND scheduled_date <= ?
+            """,
+            (window_start.isoformat(), today.isoformat()),
+        ).fetchall()
+
+    dated_total = len(dated)
+    dated_done = sum(1 for row in dated if row["status"] == "done")
+    misses.sort(key=lambda item: item["date"], reverse=True)
+    return {
+        "period_start": window_start.isoformat(),
+        "period_end": today.isoformat(),
+        "days": days,
+        "dated_total": dated_total,
+        "dated_done": dated_done,
+        "dated_completion_pct": round((dated_done / dated_total) * 100, 1) if dated_total else 0.0,
+        "repeat_expected": total_expected,
+        "repeat_done": total_done,
+        "repeat_missed": total_missed,
+        "repeat_skipped": total_skipped,
+        "repeat_completion_pct": round((total_done / total_expected) * 100, 1) if total_expected else 0.0,
+        "misses": misses[:80],
+        "series": series_out,
+    }

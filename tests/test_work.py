@@ -155,6 +155,57 @@ class WorkStoreTests(unittest.TestCase):
             board = self.work.get_work_board(saturday.isoformat())
             self.assertEqual([row["title"] for row in board["today"]], ["Meditate 15 mins"])
 
+    def test_missed_repeat_is_logged_without_carryover(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            board = self.work.get_work_board(saturday.isoformat())
+            self.assertEqual(board["overdue"], [])
+            stats = self.work.repeating_work_analytics(7)
+            miss_dates = [row["date"] for row in stats["misses"]]
+            self.assertIn(friday.isoformat(), miss_dates)
+            self.assertNotIn(saturday.isoformat(), miss_dates)
+            self.assertEqual(stats["repeat_missed"], 1)
+            self.assertEqual(stats["repeat_skipped"], 0)
+
+    def test_skip_is_not_counted_as_a_miss(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            item = self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+            self.work.delete_work_item(item["id"], scope="occurrence")
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            stats = self.work.repeating_work_analytics(7)
+            self.assertEqual(stats["repeat_skipped"], 1)
+            self.assertEqual(stats["repeat_missed"], 0)
+            self.assertEqual(stats["misses"], [])
+
+    def test_finished_repeat_is_not_a_miss(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            item = self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+            self.work.finish_work_item(item["id"])
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            stats = self.work.repeating_work_analytics(7)
+            self.assertEqual(stats["repeat_done"], 1)
+            self.assertEqual(stats["repeat_missed"], 0)
+            self.assertEqual(stats["misses"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

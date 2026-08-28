@@ -6,7 +6,7 @@ import * as utils from './js/utils.js';
 import { initAppearance } from './js/appearance.js';
 import { setupTabs, switchTab } from './js/tabs.js';
 import { setupJournal } from './js/journal.js';
-import { setupReview } from './js/review.js';
+import { setupAnalytics } from './js/analytics.js';
 import { setupTimeline } from './js/timeline.js';
 import { setupSettings } from './js/settings.js';
 import { setupToday } from './js/today.js';
@@ -24,7 +24,7 @@ async function init() {
     setupAllWork();
     setupWorkouts();
     setupJournal();
-    setupReview();
+    setupAnalytics();
     setupTimeline();
     await switchTab('journal');
 }
