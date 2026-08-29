@@ -1,5 +1,6 @@
 import Cocoa
 import Foundation
+import WebKit
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -255,7 +256,13 @@ extension AppDelegate {
     func runInWebView(_ javascript: String, retries: Int = 10) {
         showMainWindow()
         guard let webView = webView else { return }
+        if let current = webView.url, !isUiURL(current) {
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            if let current = webView.url, !self.isUiURL(current) {
+                return
+            }
             webView.evaluateJavaScript(javascript) { _, error in
                 if error != nil && retries > 0 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -264,6 +271,21 @@ extension AppDelegate {
                 }
             }
         }
+    }
+
+    func isUiURL(_ url: URL) -> Bool {
+        let scheme = url.scheme?.lowercased() ?? ""
+        let host = url.host?.lowercased() ?? ""
+        guard scheme == "http" || scheme == "https" else { return false }
+        guard host == "127.0.0.1" || host == "localhost" else { return false }
+        let port = url.port ?? (scheme == "https" ? 443 : 80)
+        return port == Int(uiPort)
+    }
+
+    func isTrustedScriptOrigin(_ origin: WKSecurityOrigin) -> Bool {
+        let host = origin.host.lowercased()
+        guard host == "127.0.0.1" || host == "localhost" else { return false }
+        return origin.port == Int(uiPort)
     }
 
     func applyNativeAppearance(dark: Bool) {

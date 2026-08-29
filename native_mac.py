@@ -44,6 +44,8 @@ def _size(w: float, h: float):
 
 
 def run_mac_window(url: str, width: int, height: int, min_width: int, min_height: int, on_close) -> None:
+    from urllib.parse import urlparse
+
     from AppKit import (
         NSApplication,
         NSApplicationActivationPolicyRegular,
@@ -58,6 +60,9 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     )
     from Foundation import NSObject, NSURL, NSURLRequest
     from WebKit import WKUserScript, WKWebView, WKWebViewConfiguration
+
+    allowed = urlparse(url)
+    allowed_port = int(allowed.port or 0)
 
     class AppDelegate(NSObject):
         def applicationShouldTerminateAfterLastWindowClosed_(self, _app):
@@ -79,7 +84,16 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
                 url = navigationAction.request().URL()
                 host = str(url.host() or "").lower()
                 scheme = str(url.scheme() or "").lower()
-                if scheme in ("http", "https") and host in ("127.0.0.1", "localhost"):
+                port_val = url.port()
+                if port_val is None:
+                    port_int = 443 if scheme == "https" else 80
+                else:
+                    port_int = int(port_val)
+                if (
+                    scheme in ("http", "https")
+                    and host in ("127.0.0.1", "localhost")
+                    and port_int == allowed_port
+                ):
                     decisionHandler(allow)
                     return
             except Exception:

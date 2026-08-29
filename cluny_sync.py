@@ -24,6 +24,7 @@ import sqlite3
 import urllib.error
 import urllib.request
 from typing import Any, Dict
+from pathlib import Path
 from urllib.parse import urlparse
 
 
@@ -34,10 +35,36 @@ def _journal_table_name() -> str:
     return "cluny_journal_entries"
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ARG002
+        return None
+
+
+def _http_opener() -> urllib.request.OpenerDirector:
+    return urllib.request.build_opener(_NoRedirect)
+
+
+def _validate_sqlite_path(raw: str) -> str:
+    path = Path(raw).expanduser()
+    if ".." in path.parts:
+        raise ValueError("CLUNY_SQLITE_PATH cannot contain ..")
+    try:
+        resolved = path.resolve()
+    except OSError as exc:
+        raise ValueError("Invalid CLUNY_SQLITE_PATH") from exc
+    home = Path.home().resolve()
+    try:
+        resolved.relative_to(home)
+    except ValueError as exc:
+        raise ValueError("CLUNY_SQLITE_PATH must be inside your home folder") from exc
+    return str(resolved)
+
+
 def _sync_sqlite(entry: Dict[str, Any]) -> None:
     path = os.environ.get("CLUNY_SQLITE_PATH") or os.environ.get("CLUNY_DATABASE_PATH")
     if not path:
         return
+    path = _validate_sqlite_path(path)
     table = _journal_table_name()
     raw = json.dumps(entry, ensure_ascii=False)
     conn = sqlite3.connect(path)
@@ -93,7 +120,7 @@ def _sync_http(entry: Dict[str, Any]) -> None:
     key = os.environ.get("CLUNY_API_KEY")
     if key:
         req.add_header("Authorization", f"Bearer {key}")
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with _http_opener().open(req, timeout=60) as resp:
         resp.read()
 
 
@@ -108,6 +135,7 @@ def _sync_checklist_sqlite(submission: Dict[str, Any]) -> None:
     path = os.environ.get("CLUNY_SQLITE_PATH") or os.environ.get("CLUNY_DATABASE_PATH")
     if not path:
         return
+    path = _validate_sqlite_path(path)
     table = _checklist_table_name()
     raw = json.dumps(submission, ensure_ascii=False)
     conn = sqlite3.connect(path)
@@ -167,7 +195,7 @@ def _sync_checklist_http(submission: Dict[str, Any]) -> None:
     key = os.environ.get("CLUNY_API_KEY")
     if key:
         req.add_header("Authorization", f"Bearer {key}")
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with _http_opener().open(req, timeout=60) as resp:
         resp.read()
 
 

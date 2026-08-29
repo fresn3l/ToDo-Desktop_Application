@@ -5,6 +5,8 @@ The menu bar, widget, and Services use a separate 127.0.0.1 API on port 18741.
 
 from __future__ import annotations
 
+import os
+
 import eel
 
 import appearance  # noqa: F401
@@ -20,6 +22,7 @@ import workouts  # noqa: F401
 
 
 def run_bridge(port: int, web_dir: str) -> None:
+    os.environ["KOSISTENZ_UI_PORT"] = str(int(port))
     api_port = local_api.start_background_server()
     print(f"KOSISTENZ_API_PORT={api_port}", flush=True)
     eel.init(web_dir)

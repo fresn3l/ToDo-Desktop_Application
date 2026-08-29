@@ -69,6 +69,28 @@ class LocalApiTests(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertFalse(payload["ok"])
 
+    def test_rejects_dns_rebinding_host(self) -> None:
+        self.assertFalse(local_api.client_allowed({"Host": "evil.example", "Origin": ""}))
+        self.assertTrue(local_api.client_allowed({"Host": "127.0.0.1:18741"}))
+        self.assertTrue(local_api.client_allowed({"Host": "localhost:18741"}))
+
+    def test_rejects_website_csrf_origin(self) -> None:
+        self.assertFalse(local_api.client_allowed({
+            "Host": "127.0.0.1:18741",
+            "Origin": "https://evil.example",
+        }))
+        self.assertFalse(local_api.origin_allowed("null"))
+        self.assertTrue(local_api.client_allowed({"Host": "127.0.0.1:18741"}))
+
+    def test_origin_must_match_ui_port(self) -> None:
+        with mock.patch.dict("os.environ", {"KOSISTENZ_UI_PORT": "17653"}):
+            self.assertTrue(
+                local_api.origin_allowed("http://127.0.0.1:17653")
+            )
+            self.assertFalse(
+                local_api.origin_allowed("http://127.0.0.1:9999")
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,6 +21,8 @@ import workouts
 
 API_PORT_START = 18741
 API_PORT_END = 18750
+MAX_BODY_BYTES = 64 * 1024
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 _bound_port: Optional[int] = None
 _server: Optional[ThreadingHTTPServer] = None
@@ -28,6 +30,57 @@ _server: Optional[ThreadingHTTPServer] = None
 
 def bound_port() -> Optional[int]:
     return _bound_port
+
+
+def _hostname(host_header: str) -> str:
+    raw = (host_header or "").strip().lower()
+    if raw.startswith("["):
+        end = raw.find("]")
+        if end != -1:
+            return raw[1:end]
+    return raw.split("/")[0].split(":")[0]
+
+
+def is_loopback_host(host_header: str) -> bool:
+    return _hostname(host_header) in LOOPBACK_HOSTS
+
+
+def origin_allowed(origin: str) -> bool:
+    """Native clients omit Origin. Browser CSRF sends a non-loopback Origin."""
+    raw = (origin or "").strip()
+    if not raw:
+        return True
+    if raw.lower() == "null":
+        return False
+    parsed = urlparse(raw)
+    if parsed.scheme not in ("http", "https"):
+        return False
+    host = (parsed.hostname or "").lower()
+    if host not in LOOPBACK_HOSTS:
+        return False
+    ui_port = os.environ.get("KOSISTENZ_UI_PORT")
+    if not ui_port:
+        return True
+    try:
+        want = int(ui_port)
+    except ValueError:
+        return True
+    port = parsed.port
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+    return port == want
+
+
+def client_allowed(headers: Any) -> bool:
+    """DNS-rebinding (Host) and website CSRF (Origin) gates for the loopback API."""
+    getter = headers.get if hasattr(headers, "get") else lambda _key, default="": default
+    host = str(getter("Host") or getter("host") or "")
+    origin = str(getter("Origin") or getter("origin") or "")
+    if host and not is_loopback_host(host):
+        return False
+    if not origin_allowed(origin):
+        return False
+    return True
 
 
 def _today() -> date:
@@ -145,8 +198,8 @@ def handle_request(method: str, path: str, body: Optional[Dict[str, Any]] = None
             return 200, park_in_all_work(str(title))
     except ValueError as exc:
         return 400, {"ok": False, "error": str(exc)}
-    except Exception as exc:
-        return 500, {"ok": False, "error": str(exc)}
+    except Exception:
+        return 500, {"ok": False, "error": "Server error"}
     return 404, {"ok": False, "error": "Not found"}
 
 
@@ -158,17 +211,32 @@ class _Handler(BaseHTTPRequestHandler):
         self._dispatch("POST")
 
     def do_OPTIONS(self) -> None:  # noqa: N802
+        if not client_allowed(self.headers):
+            self._write(403, {"ok": False, "error": "Forbidden"})
+            return
         self.send_response(204)
-        self._cors()
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
         return
 
     def _dispatch(self, method: str) -> None:
+        if not client_allowed(self.headers):
+            self._write(403, {"ok": False, "error": "Forbidden"})
+            return
         body: Dict[str, Any] = {}
         if method == "POST":
-            length = int(self.headers.get("Content-Length") or 0)
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except (TypeError, ValueError):
+                self._write(400, {"ok": False, "error": "Invalid Content-Length"})
+                return
+            if length < 0 or length > MAX_BODY_BYTES:
+                self._write(413, {"ok": False, "error": "Request too large"})
+                return
             raw = self.rfile.read(length) if length else b""
             if raw:
                 try:
@@ -176,23 +244,18 @@ class _Handler(BaseHTTPRequestHandler):
                     if isinstance(parsed, dict):
                         body = parsed
                 except (json.JSONDecodeError, UnicodeDecodeError):
-                    status, payload = 400, {"ok": False, "error": "Invalid JSON"}
-                    self._write(status, payload)
+                    self._write(400, {"ok": False, "error": "Invalid JSON"})
                     return
         status, payload = handle_request(method, self.path, body)
         self._write(status, payload)
-
-    def _cors(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def _write(self, status: int, payload: Dict[str, Any]) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
-        self._cors()
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(data)
 

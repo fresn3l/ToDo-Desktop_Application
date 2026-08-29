@@ -72,13 +72,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard isTrustedScriptOrigin(message.frameInfo.securityOrigin) else { return }
         guard let body = message.body as? [String: Any],
               let type = body["type"] as? String else { return }
         if type == "theme" {
             let dark = body["dark"] as? Bool ?? true
             applyNativeAppearance(dark: dark)
         } else if type == "tab", let title = body["title"] as? String {
-            window?.title = title
+            let clipped = String(title.prefix(80))
+            window?.title = clipped
         } else if type == "status" {
             refreshToolbarStatus()
         }
@@ -90,13 +92,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             return
         }
         let scheme = url.scheme?.lowercased() ?? ""
-        let host = url.host?.lowercased() ?? ""
         if scheme == "kosistenz" {
             handleKosistenzURL(url)
             decisionHandler(.cancel)
             return
         }
-        if (scheme == "http" || scheme == "https"), host == "127.0.0.1" || host == "localhost" {
+        if isUiURL(url) {
             decisionHandler(.allow)
             return
         }
@@ -167,6 +168,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         let webView = WKWebView(frame: effect.bounds, configuration: config)
         webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
+        webView.allowsBackForwardNavigationGestures = false
+        webView.allowsLinkPreview = false
         if #available(macOS 12.0, *) {
             webView.underPageBackgroundColor = .clear
         } else {

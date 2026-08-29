@@ -85,5 +85,40 @@ class UnloadedApiTests(unittest.TestCase):
             self.assertNotIn(name, exposed)
 
 
+class PageLockdownTests(unittest.TestCase):
+    def test_index_has_csp_and_no_inline_script(self) -> None:
+        html = Path(__file__).resolve().parents[1] / "web" / "index.html"
+        text = html.read_text(encoding="utf-8")
+        self.assertIn('http-equiv="Content-Security-Policy"', text)
+        self.assertIn("frame-src 'none'", text)
+        self.assertIn("object-src 'none'", text)
+        self.assertIn("script-src 'self'", text)
+        self.assertNotIn("<script>", text)
+        self.assertIn("js/boot-appearance.js", text)
+
+    def test_local_api_does_not_send_wildcard_cors(self) -> None:
+        source = Path(__file__).resolve().parents[1] / "local_api.py"
+        text = source.read_text(encoding="utf-8")
+        self.assertNotIn("Access-Control-Allow-Origin", text)
+        self.assertIn("X-Content-Type-Options", text)
+
+
+class ClunyPathTests(unittest.TestCase):
+    def test_sqlite_path_must_stay_in_home(self) -> None:
+        import cluny_sync
+
+        with tempfile.TemporaryDirectory() as tmp:
+            outside = Path(tmp) / "cluny.sqlite"
+            home = Path.home().resolve()
+            try:
+                outside.resolve().relative_to(home)
+                in_home = True
+            except ValueError:
+                in_home = False
+            if not in_home:
+                with self.assertRaises(ValueError):
+                    cluny_sync._validate_sqlite_path(str(outside))
+
+
 if __name__ == "__main__":
     unittest.main()
