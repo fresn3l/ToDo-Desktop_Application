@@ -1,5 +1,5 @@
 /**
- * Tab navigation — journal, workout, to do, all work, analytics, timeline, settings.
+ * Tab navigation — today, journal, workout, to do, all work, analytics, timeline, settings.
  */
 
 import { loadPastEntries, exitJournalFocus } from './journal.js';
@@ -9,8 +9,11 @@ import { onSettingsTabShown } from './settings.js';
 import { onTodoTabShown } from './todo.js';
 import { onAllWorkTabShown } from './all_work.js';
 import { onWorkoutTabShown } from './workouts.js';
+import { onTodayTabShown } from './today.js';
+import { notifyNativeTab } from './appearance.js';
 
 const ID_MAP = {
+    today: 'todayTab',
     journal: 'journalTab',
     workout: 'workoutTab',
     todo: 'todoTab',
@@ -21,6 +24,7 @@ const ID_MAP = {
 };
 
 const LABELS = {
+    today: 'Today',
     journal: 'Journal',
     workout: 'Workout',
     todo: 'To Do',
@@ -34,6 +38,7 @@ function setDocumentTitle(name) {
     document.title = `${LABELS[name] || 'Kosistenz'} · Kosistenz`;
     const crumb = document.getElementById('pageCrumb');
     if (crumb) crumb.textContent = LABELS[name] || '';
+    notifyNativeTab(name, LABELS[name] || 'Kosistenz');
 }
 
 export function setupTabs() {
@@ -50,15 +55,20 @@ export function setupTabs() {
     });
 
     document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+            e.preventDefault();
+            switchTab('settings').catch((err) => console.error(err));
+            return;
+        }
         if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
         const map = {
-            1: 'journal',
-            2: 'workout',
-            3: 'todo',
-            4: 'allwork',
-            5: 'analytics',
-            6: 'timeline',
-            7: 'settings',
+            1: 'today',
+            2: 'journal',
+            3: 'workout',
+            4: 'todo',
+            5: 'allwork',
+            6: 'analytics',
+            7: 'timeline',
         };
         const tab = map[e.key];
         if (!tab) return;
@@ -96,7 +106,9 @@ export async function switchTab(name) {
         exitJournalFocus();
     }
 
-    if (name === 'journal') {
+    if (name === 'today') {
+        await onTodayTabShown();
+    } else if (name === 'journal') {
         await loadPastEntries();
     } else if (name === 'workout') {
         await onWorkoutTabShown();

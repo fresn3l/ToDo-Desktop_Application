@@ -1,25 +1,17 @@
 /**
- * Workout tab — body weight and sessions for the day.
+ * Workout tab — body weight and one-tap session chips.
  */
 
 import * as utils from './utils.js';
+import { logWorkoutKind, renderWorkoutChips } from './workout_chips.js';
 
-const KINDS = [
-    { value: 'running', label: 'Running' },
-    { value: 'legs', label: 'Leg day' },
-    { value: 'push', label: 'Push day' },
-    { value: 'pull', label: 'Pull day' },
-    { value: 'other', label: 'Other' },
-];
-
-function selectedKind() {
-    return document.getElementById('workoutKind')?.value || 'running';
-}
+let selectedChip = '';
 
 function syncKindFields() {
-    const kind = selectedKind();
+    const kind = selectedChip;
     document.getElementById('workoutMilesWrap')?.classList.toggle('is-hidden', kind !== 'running' && kind !== 'other');
     document.getElementById('workoutOtherWrap')?.classList.toggle('is-hidden', kind !== 'other');
+    document.getElementById('workoutAddBtn')?.classList.toggle('is-hidden', kind !== 'running' && kind !== 'other');
 }
 
 function sessionLine(session) {
@@ -74,6 +66,23 @@ export async function refreshWorkouts() {
                 });
             });
         }
+        const chips = document.getElementById('workoutChips');
+        let expected = [];
+        try {
+            expected = (await eel.get_today_status()()).expected?.kinds || [];
+        } catch (_) {
+            expected = [];
+        }
+        renderWorkoutChips(chips, {
+            expected,
+            logged: (data.sessions || []).map((s) => s.kind),
+        });
+        chips?.querySelectorAll('[data-kind]').forEach((btn) => {
+            btn.classList.toggle('is-selected', btn.getAttribute('data-kind') === selectedChip);
+            btn.addEventListener('click', () => {
+                void onWorkoutChip(btn.getAttribute('data-kind'));
+            });
+        });
         const days = await eel.list_recent_workout_days(10)();
         if (recent) {
             const others = (days || []).filter((row) => row.local_date !== day);
@@ -104,27 +113,51 @@ async function saveWeight() {
     }
 }
 
+async function onWorkoutChip(kind) {
+    selectedChip = kind;
+    syncKindFields();
+    document.querySelectorAll('#workoutChips [data-kind]').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-kind') === kind);
+    });
+    if (kind === 'running' || kind === 'other') {
+        const field = document.getElementById(kind === 'running' ? 'workoutMiles' : 'workoutOtherLabel');
+        field?.focus();
+        return;
+    }
+    try {
+        await logWorkoutKind(kind, {
+            minutes: document.getElementById('workoutMinutes')?.value,
+        });
+        selectedChip = '';
+        syncKindFields();
+        utils.showSuccessFeedback('Session logged.');
+        await refreshWorkouts();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || e || 'Could not log that session.');
+    }
+}
+
 async function addSession() {
-    const kind = selectedKind();
+    const kind = selectedChip;
+    if (!kind) return;
     const other = document.getElementById('workoutOtherLabel')?.value || '';
     const miles = document.getElementById('workoutMiles')?.value;
     const minutes = document.getElementById('workoutMinutes')?.value;
     try {
-        await eel.add_workout_session(
-            utils.localISODate(),
-            kind,
-            other,
-            miles === '' ? null : miles,
-            minutes === '' ? null : minutes,
-        )();
+        await logWorkoutKind(kind, {
+            other_label: other,
+            miles: miles === '' ? null : miles,
+            minutes: minutes === '' ? null : minutes,
+        });
         const otherInput = document.getElementById('workoutOtherLabel');
         const milesInput = document.getElementById('workoutMiles');
         const minutesInput = document.getElementById('workoutMinutes');
         if (otherInput) otherInput.value = '';
         if (milesInput) milesInput.value = '';
         if (minutesInput) minutesInput.value = '';
+        selectedChip = '';
+        syncKindFields();
         utils.showSuccessFeedback('Session logged.');
-        utils.notifyDataChanged();
         await refreshWorkouts();
     } catch (e) {
         utils.showErrorFeedback(e?.message || e || 'Could not log that session.');
@@ -151,8 +184,8 @@ const LIFT_OPTIONS = [
 function readTemplateForm() {
     const lifts = {};
     WEEKDAYS.forEach((day) => {
-        const select = document.getElementById(`weekLift-${day.value}`);
-        const kind = select?.value || '';
+        const cell = document.getElementById(`weekLift-${day.value}`);
+        const kind = cell?.getAttribute('data-kind') || '';
         if (kind) lifts[day.value] = kind;
     });
     const everyOther = document.getElementById('weekRunEveryOther')?.checked;
@@ -168,31 +201,42 @@ function readTemplateForm() {
     };
 }
 
+function cycleLift(kind) {
+    const order = ['', 'push', 'pull', 'legs'];
+    const i = order.indexOf(kind);
+    return order[(i + 1) % order.length];
+}
+
 function renderWeekTemplate(plan) {
     const form = document.getElementById('weekTemplateForm');
     if (!form) return;
     const lifts = plan?.lifts || {};
     const running = plan?.running || {};
-    const rows = WEEKDAYS.map((day) => {
+    const cells = WEEKDAYS.map((day) => {
         const current = lifts[day.value] || lifts[Number(day.value)] || '';
-        const options = LIFT_OPTIONS.map(
-            (opt) =>
-                `<option value="${opt.value}"${opt.value === current ? ' selected' : ''}>${opt.label}</option>`,
-        ).join('');
+        const label = LIFT_OPTIONS.find((opt) => opt.value === current)?.label || '—';
         return `
-            <label class="week-template-row">
+            <button type="button" class="week-template-cell${current ? ' is-set' : ''}" id="weekLift-${day.value}" data-kind="${current}">
                 <span>${day.label}</span>
-                <select id="weekLift-${day.value}" class="checklist-select">${options}</select>
-            </label>`;
+                <strong>${label}</strong>
+            </button>`;
     }).join('');
     const everyOther = running.enabled !== false && (running.mode || 'interval') === 'interval';
     form.innerHTML = `
-        ${rows}
+        <div class="week-template-strip">${cells}</div>
         <label class="week-template-run">
             <input type="checkbox" id="weekRunEveryOther"${everyOther ? ' checked' : ''}>
             Run every other day
         </label>
     `;
+    form.querySelectorAll('.week-template-cell').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const next = cycleLift(btn.getAttribute('data-kind') || '');
+            btn.setAttribute('data-kind', next);
+            btn.classList.toggle('is-set', !!next);
+            btn.querySelector('strong').textContent = LIFT_OPTIONS.find((opt) => opt.value === next)?.label || '—';
+        });
+    });
 }
 
 async function loadWeekTemplate() {
@@ -218,13 +262,6 @@ async function saveWeekTemplate() {
 }
 
 export function setupWorkouts() {
-    const kind = document.getElementById('workoutKind');
-    if (kind && !kind.dataset.ready) {
-        kind.dataset.ready = '1';
-        kind.innerHTML = KINDS.map((item) => `<option value="${item.value}">${item.label}</option>`).join('');
-        kind.addEventListener('change', syncKindFields);
-        syncKindFields();
-    }
     document.getElementById('workoutWeightSave')?.addEventListener('click', () => {
         void saveWeight();
     });

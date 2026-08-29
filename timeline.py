@@ -15,6 +15,10 @@ import work
 import workouts
 
 
+def _today() -> date:
+    return date.today()
+
+
 def _parse_date(s: str) -> Optional[date]:
     if not s:
         return None
@@ -50,7 +54,7 @@ def get_timeline_day(local_date: str) -> Dict[str, Any]:
         )
 
     entries: List[Dict[str, Any]] = []
-    span = max(1, (date.today() - target).days + 2)
+    span = max(1, (_today() - target).days + 2)
     for e in journal.get_recent_entries(days=span):
         ed = _parse_date(e.get("date") or e.get("created_at") or "")
         if ed == target:
@@ -118,8 +122,8 @@ def list_timeline_dates(limit: int = 60) -> List[str]:
 @eel.expose
 def get_week_overview(end_date: str = "") -> Dict[str, Any]:
     """Rolling 7 days ending at end_date (defaults to today, never in the future)."""
-    end = _parse_date(end_date) or date.today()
-    today = date.today()
+    end = _parse_date(end_date) or _today()
+    today = _today()
     if end > today:
         end = today
     start = end - timedelta(days=6)
@@ -136,6 +140,21 @@ def get_week_overview(end_date: str = "") -> Dict[str, Any]:
 
     work_counts = work.count_work_by_date(start.isoformat(), end.isoformat())
     workout_counts = workouts.count_workouts_by_date(start.isoformat(), end.isoformat())
+    template = workouts.load_week_template()
+    miss_lookback = max(14, (today - start).days + 2)
+    miss_dates = set()
+    try:
+        miss_dates.update(
+            row["date"] for row in workouts.workout_plan_analytics(miss_lookback).get("misses") or []
+        )
+    except Exception:
+        pass
+    try:
+        miss_dates.update(
+            row["date"] for row in work.repeating_work_analytics(miss_lookback).get("misses") or []
+        )
+    except Exception:
+        pass
     journal_counts: Dict[str, int] = {}
     span = max(14, (today - start).days + 1)
     for e in journal.get_recent_entries(days=span):
@@ -152,6 +171,7 @@ def get_week_overview(end_date: str = "") -> Dict[str, Any]:
         j_count = journal_counts.get(iso, 0)
         w_count = work_counts.get(iso, 0)
         wo_count = workout_counts.get(iso, 0)
+        expected = workouts.expected_kinds_for_date(d, template)
         days.append(
             {
                 "date": iso,
@@ -162,6 +182,8 @@ def get_week_overview(end_date: str = "") -> Dict[str, Any]:
                 "journal_count": j_count,
                 "work_count": w_count,
                 "workout_count": wo_count,
+                "expected_kinds": expected,
+                "miss": iso in miss_dates,
                 "filled": (c_count + j_count + w_count + wo_count) > 0,
             }
         )
@@ -181,7 +203,7 @@ def compute_streaks(today: Optional[date] = None) -> Dict[str, int]:
     missed past day. Used by the week strip so browsing older weeks does
     not change the live streak.
     """
-    today = today or date.today()
+    today = today or _today()
 
     checkin_dates = set()
     for iso in daily_checklist.list_submission_dates():

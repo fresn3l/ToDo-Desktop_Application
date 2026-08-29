@@ -17,6 +17,7 @@ export const DEFAULTS = {
     sidebar: 'expanded',
     journalFontSize: 17,
     timerMinutes: 10,
+    autoFocus: false,
     reducedMotion: false,
     highContrast: false,
 };
@@ -125,6 +126,7 @@ export function applyAppearance(settings) {
     root.style.setProperty('--accent-s', `${hsl.s}%`);
     root.style.setProperty('--accent-l', `${hsl.l}%`);
     root.style.setProperty('--journal-font-size', `${current.journalFontSize}px`);
+    notifyNativeShell(current);
     listeners.forEach((fn) => {
         try {
             fn(current);
@@ -132,6 +134,23 @@ export function applyAppearance(settings) {
             console.error(e);
         }
     });
+}
+
+function notifyNativeShell(settings) {
+    const dark = settings.theme !== 'paper';
+    try {
+        window.webkit?.messageHandlers?.kosistenz?.postMessage({ type: 'theme', dark });
+    } catch (_) {
+        /* not the native host */
+    }
+}
+
+export function notifyNativeTab(tab, title) {
+    try {
+        window.webkit?.messageHandlers?.kosistenz?.postMessage({ type: 'tab', tab, title });
+    } catch (_) {
+        /* not the native host */
+    }
 }
 
 export function getAppearance() {

@@ -109,32 +109,10 @@ function renderAnalytics(data) {
         .filter((row) => row.expected || row.done || row.missed)
         .map((row) => {
             const rate = row.expected ? Math.round((row.done / row.expected) * 100) : 0;
-            return `<li><strong>${utils.escapeHtml(row.title)}</strong> · ${utils.escapeHtml(row.cadence_label)} · ${row.done}/${row.expected} (${rate}%)${row.missed ? ` · ${row.missed} missed` : ''}</li>`;
+            return `<li><strong>${utils.escapeHtml(row.title)}</strong> · ${utils.escapeHtml(row.cadence_label)} · ${row.done}/${row.expected} (${rate}%)</li>`;
         })
         .join('') || '<li class="checklist-empty">No repeating to dos this period</li>';
-    const misses = (work.misses || [])
-        .map(
-            (row) => `
-                <li>
-                    <button type="button" class="analytics-miss-btn" data-open-day="${utils.escapeHtml(row.date)}">
-                        <strong>${utils.escapeHtml(row.title)}</strong>
-                        <span>${utils.escapeHtml(row.date)} · ${utils.escapeHtml(row.cadence_label)}</span>
-                    </button>
-                </li>`,
-        )
-        .join('') || '<li class="checklist-empty">No missed repeating days</li>';
     const plan = data.workout_plan || {};
-    const planMisses = (plan.misses || [])
-        .map(
-            (row) => `
-                <li>
-                    <button type="button" class="analytics-miss-btn" data-open-day="${utils.escapeHtml(row.date)}">
-                        <strong>${utils.escapeHtml(row.kind_label || row.kind)}</strong>
-                        <span>${utils.escapeHtml(row.date)} · ${utils.escapeHtml(row.weekday || '')}</span>
-                    </button>
-                </li>`,
-        )
-        .join('') || '<li class="checklist-empty">No missed template days</li>';
 
     return `
         <div class="review-grid">
@@ -145,54 +123,39 @@ function renderAnalytics(data) {
                 <ul class="review-list">
                     <li>${journal.days_written || 0} of ${data.days} days written</li>
                     <li>${journal.entries || 0} entries · ${journal.minutes || 0} min</li>
-                    <li>${data.show_up_streak || 0}-day show-up streak</li>
                 </ul>
             </div>
             <div class="review-card">
                 <h3>Workout</h3>
                 <p class="review-stat">${workout.miles || 0}</p>
-                <p class="review-detail">miles · ${workout.days_trained || 0} days trained${data.workout_streak ? ` · ${data.workout_streak}-day streak` : ''}</p>
+                <p class="review-detail">miles · ${workout.days_trained || 0} days trained</p>
                 <ul class="review-list">${byKind}</ul>
             </div>
             <div class="review-card">
                 <h3>To Do</h3>
                 <p class="review-stat">${work.repeat_missed || 0}</p>
-                <p class="review-detail">missed repeating days (they stay on that date)</p>
+                <p class="review-detail">missed repeating days</p>
                 <ul class="review-list">
-                    <li>${work.repeat_done || 0} of ${work.repeat_expected || 0} expected repeats done (${work.repeat_completion_pct || 0}%)</li>
-                    <li>${work.dated_done || 0} of ${work.dated_total || 0} dated tasks finished (${work.dated_completion_pct || 0}%)</li>
-                    <li>${work.repeat_skipped || 0} skipped on purpose</li>
+                    <li>${work.repeat_done || 0} of ${work.repeat_expected || 0} expected (${work.repeat_completion_pct || 0}%)</li>
+                    <li>${plan.done || 0} of ${plan.expected || 0} template sessions</li>
                 </ul>
-            </div>
-            <div class="review-card review-card--wide">
-                <h3>Repeating series</h3>
-                <ul class="review-list">${series}</ul>
-            </div>
-            <div class="review-card review-card--wide">
-                <h3>Missed days</h3>
-                <p class="review-detail">A miss is logged here and does not pile onto today. Skipping a day is not a miss.</p>
-                <ul class="review-list analytics-miss-list">${misses}</ul>
-            </div>
-            <div class="review-card review-card--wide">
-                <h3>Week template</h3>
-                <p class="review-stat">${plan.missed || 0}</p>
-                <p class="review-detail">missed expected days · ${utils.escapeHtml(plan.label || 'No expected days')}</p>
-                <ul class="review-list">
-                    <li>${plan.done || 0} of ${plan.expected || 0} expected sessions (${plan.completion_pct || 0}%)</li>
-                </ul>
-                <ul class="review-list analytics-miss-list">${planMisses}</ul>
             </div>
             <div class="review-card review-card--wide">
                 <h3>Weight</h3>
                 ${weightSparkline(workout.weight_log || [])}
             </div>
             <div class="review-card review-card--wide">
+                <h3>Repeating series</h3>
+                <p class="review-detail">Amber dots on the week strip are misses. They stay on that date — click a day to open Timeline.</p>
+                <ul class="review-list">${series}</ul>
+            </div>
+            <div class="review-card review-card--wide">
                 <h3>${utils.escapeHtml(data.pattern_prompt || 'What pattern do you notice?')}</h3>
-                <textarea id="patternNoteInput" class="checklist-textarea" rows="4" placeholder="Your reflection for week ${utils.escapeHtml(data.week_key || '')}…">${utils.escapeHtml(data.pattern_note || '')}</textarea>
+                <textarea id="patternNoteInput" class="checklist-textarea" rows="3" placeholder="Your reflection for week ${utils.escapeHtml(data.week_key || '')}…">${utils.escapeHtml(data.pattern_note || '')}</textarea>
                 <button type="button" id="savePatternNote" class="btn-primary">Save reflection</button>
             </div>
         </div>
-        <p class="checklist-hint small">Period: ${utils.escapeHtml(data.period_start)} → ${utils.escapeHtml(data.period_end)}</p>
+        <p class="checklist-hint small">Period: ${utils.escapeHtml(data.period_start)} → ${utils.escapeHtml(data.period_end)} · ${utils.escapeHtml(plan.label || '')}</p>
     `;
 }
 

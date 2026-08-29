@@ -185,7 +185,9 @@ function startJournalTimer() {
     if (saveBtn) saveBtn.disabled = false;
 
     journalTimer = setInterval(tickJournalTimer, 1000);
-    setJournalFocus(true);
+    if (getAppearance().autoFocus) {
+        setJournalFocus(true);
+    }
 }
 
 function tickJournalTimer() {
@@ -236,7 +238,9 @@ function continueJournalTimer() {
     }
 
     journalTimer = setInterval(tickJournalTimer, 1000);
-    setJournalFocus(true);
+    if (getAppearance().autoFocus) {
+        setJournalFocus(true);
+    }
 }
 
 /**

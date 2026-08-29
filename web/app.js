@@ -38,7 +38,7 @@ async function init() {
             switchTab(e.detail.tab).catch((err) => console.error(err));
         }
     });
-    await switchTab('journal');
+    await switchTab('today');
 }
 
 function markNativeShell() {

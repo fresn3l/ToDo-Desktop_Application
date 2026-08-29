@@ -39,16 +39,21 @@ export function renderWeekStrip(el, data, { selectedDate, onSelect } = {}) {
     const days = (data.days || [])
         .map((day) => {
             const filled = day.filled ? 'is-filled' : 'is-empty';
+            const miss = day.miss ? 'is-miss' : '';
             const isSelected = day.date === selected ? 'is-selected' : '';
             const isToday = day.is_today || day.date === today ? 'is-today' : '';
             const titleParts = [];
+            if (day.miss) titleParts.push('Missed expected day');
+            if (day.expected_kinds && day.expected_kinds.length) {
+                titleParts.push(`Expected ${day.expected_kinds.join(', ')}`);
+            }
             if (day.workout_count) titleParts.push(`${day.workout_count} workout`);
             if (day.journal_count) titleParts.push(`${day.journal_count} journal`);
             if (day.work_count) titleParts.push(`${day.work_count} to do`);
             if (day.checklist_count) titleParts.push(`${day.checklist_count} checklist`);
             const title = titleParts.join(' · ') || 'No activity';
             return `
-                <button type="button" class="week-day ${filled} ${isSelected} ${isToday}"
+                <button type="button" class="week-day ${filled} ${miss} ${isSelected} ${isToday}"
                     data-date="${utils.escapeHtml(day.date)}"
                     title="${utils.escapeHtml(day.date)} · ${utils.escapeHtml(title)}"
                     aria-pressed="${day.date === selected ? 'true' : 'false'}">

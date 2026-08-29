@@ -56,6 +56,8 @@ function paintSettings(settings) {
     if (motion) motion.checked = !!settings.reducedMotion;
     const contrast = document.getElementById('highContrastToggle');
     if (contrast) contrast.checked = !!settings.highContrast;
+    const autoFocus = document.getElementById('autoFocusToggle');
+    if (autoFocus) autoFocus.checked = !!settings.autoFocus;
 }
 
 async function update(partial) {
@@ -136,6 +138,9 @@ export function setupSettings() {
     });
     document.getElementById('highContrastToggle')?.addEventListener('change', (e) => {
         update({ highContrast: e.target.checked });
+    });
+    document.getElementById('autoFocusToggle')?.addEventListener('change', (e) => {
+        update({ autoFocus: e.target.checked });
     });
 
     document.getElementById('resetAppearanceBtn')?.addEventListener('click', async () => {

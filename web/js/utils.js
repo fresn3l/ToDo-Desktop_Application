@@ -45,6 +45,11 @@ export function showErrorFeedback(message) {
 
 export function notifyDataChanged() {
     document.dispatchEvent(new CustomEvent('kosistenz:data-changed'));
+    try {
+        window.webkit?.messageHandlers?.kosistenz?.postMessage({ type: 'status' });
+    } catch (_) {
+        /* not the native host */
+    }
 }
 
 /**

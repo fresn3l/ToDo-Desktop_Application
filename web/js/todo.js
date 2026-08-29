@@ -19,7 +19,7 @@ function stopTick() {
 function startTick() {
     stopTick();
     tickTimer = setInterval(() => {
-        document.querySelectorAll('#todoTab .work-timer[data-live="1"]').forEach((el) => {
+        document.querySelectorAll('.work-timer[data-live="1"]').forEach((el) => {
             const started = el.getAttribute('data-started');
             const stored = Number(el.getAttribute('data-stored') || 0);
             const start = started ? new Date(started).getTime() : NaN;
@@ -134,7 +134,7 @@ function itemRow(item, { showDate = false } = {}) {
 }
 
 function bindList(root, onChange) {
-    root.querySelectorAll('.work-item').forEach((row) => {
+    root.querySelectorAll('.work-item, .todo-hero').forEach((row) => {
         const id = row.getAttribute('data-id');
         const repeating = row.getAttribute('data-repeating') === '1';
         row.querySelectorAll('[data-act]').forEach((btn) => {
@@ -190,16 +190,36 @@ export async function refreshTodo() {
                     : 'Nothing dated for today yet';
         }
 
+        const active = (board.today || []).find((item) => item.status === 'active');
+        const rest = (board.today || []).filter((item) => item.id !== active?.id);
+        const parts = [];
+        if (active) {
+            const seconds = liveSeconds(active);
+            parts.push(`
+                <article class="todo-hero" data-id="${utils.escapeHtml(active.id)}" data-repeating="${active.is_repeating ? '1' : '0'}">
+                    <p class="eyebrow">In progress</p>
+                    <h2>${utils.escapeHtml(active.title)}</h2>
+                    <p class="todo-hero-timer work-timer" data-live="1"
+                        data-started="${utils.escapeHtml(active.active_started_at || '')}"
+                        data-stored="${active.stored_duration_seconds ?? active.duration_seconds ?? 0}">${formatDuration(seconds)}</p>
+                    <div class="todo-hero-actions work-item-actions">
+                        <button type="button" class="btn-primary" data-act="finish">Finish</button>
+                        <button type="button" class="btn-secondary" data-act="stop">Stop</button>
+                    </div>
+                </article>
+            `);
+        }
         if (!board.today.length) {
-            list.innerHTML = `
+            parts.push(`
                 <div class="empty-state">
                     <h3>No tasks for today</h3>
                     <p>Add a one-off or a repeating to do. Missed repeats stay on that past day for Analytics.</p>
-                </div>`;
-        } else {
-            list.innerHTML = board.today.map((item) => itemRow(item)).join('');
-            bindList(list, refreshTodo);
+                </div>`);
+        } else if (rest.length) {
+            parts.push(rest.map((item) => itemRow(item)).join(''));
         }
+        list.innerHTML = parts.join('');
+        bindList(list, refreshTodo);
 
         if (overdueEl) {
             if (board.overdue.length) {

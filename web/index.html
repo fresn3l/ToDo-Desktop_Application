@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Journal · Kosistenz</title>
+    <title>Today · Kosistenz</title>
     <link rel="stylesheet" href="style.css">
     <script>
         (function () {
@@ -59,7 +59,11 @@
             </div>
 
             <nav class="app-nav" aria-label="Sections">
-                <button type="button" class="nav-item active" data-tab="journal" aria-current="page">
+                <button type="button" class="nav-item active" data-tab="today" aria-current="page">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="5.5" width="15" height="14" rx="2"/><path d="M8 3.5v3M16 3.5v3M4.5 9.5h15"/></svg>
+                    <span class="nav-label">Today</span>
+                </button>
+                <button type="button" class="nav-item" data-tab="journal">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 4.5h11.5A2.5 2.5 0 0 1 19 7v13.5H7.5A2.5 2.5 0 0 1 5 18V4.5Z"/><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19"/><path d="M9 9h6M9 13h6"/></svg>
                     <span class="nav-label">Journal</span>
                 </button>
@@ -101,31 +105,85 @@
             <header class="app-topbar">
                 <div>
                     <p class="eyebrow">Kosistenz</p>
-                    <h1 id="pageCrumb">Journal</h1>
+                    <h1 id="pageCrumb">Today</h1>
                 </div>
                 <div id="todayStatus" class="today-status" aria-live="polite"></div>
                 <p class="topbar-note">Everything stays on this Mac.</p>
             </header>
 
             <main class="app-content">
-                <section id="journalTab" class="tab-content active" aria-label="Journal">
-                    <div class="journal-layout">
-                        <div class="panel journal-compose">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Write</h2>
-                                    <p class="panel-sub">A timed session, then a new entry each time you save.</p>
+                <section id="todayTab" class="tab-content active" aria-label="Today">
+                    <div id="todayHome" class="today-home">
+                        <div class="today-home-main">
+                            <div id="todayActiveTodo"></div>
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <div>
+                                        <h2>To Do</h2>
+                                        <p class="panel-sub">Dated for today. Start one and it fills this column.</p>
+                                    </div>
                                 </div>
-                                <div class="journal-header-actions">
-                                    <span class="meta-chip" id="journalWordCount">0 words</span>
-                                    <button type="button" id="journalFocusBtn" class="btn-ghost" aria-pressed="false">Focus</button>
+                                <div id="todayTodoList" class="work-list"></div>
+                                <div class="work-add-row">
+                                    <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="Add a to do for today" autocomplete="off">
+                                    <button type="button" id="todayAddBtn" class="btn-primary">Add</button>
                                 </div>
                             </div>
+                            <div class="panel today-journal-panel">
+                                <div class="panel-header">
+                                    <div>
+                                        <h2>Journal</h2>
+                                        <p class="panel-sub" id="todayJournalMeta">A few sentences. Saved as a new entry.</p>
+                                    </div>
+                                    <button type="button" id="todayOpenJournal" class="btn-ghost">Open Journal</button>
+                                </div>
+                                <textarea id="todayJournal" class="today-journal-input" rows="6" placeholder="What happened today?"></textarea>
+                                <div class="journal-actions">
+                                    <button type="button" id="todayJournalSave" class="btn-primary">Save entry</button>
+                                </div>
+                            </div>
+                        </div>
+                        <aside class="today-home-aside">
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <div>
+                                        <h2>Workout</h2>
+                                        <p class="panel-sub" id="todayExpected">Expected sessions for this weekday.</p>
+                                    </div>
+                                </div>
+                                <div id="todayWorkoutChips" class="workout-chips"></div>
+                                <div id="todayMilesWrap" class="workout-chip-extra is-hidden">
+                                    <label class="checklist-field-label" for="todayMiles">Miles</label>
+                                    <input type="number" id="todayMiles" class="checklist-text-input" min="0" step="0.1" placeholder="0.0" inputmode="decimal">
+                                </div>
+                                <div id="todayOtherWrap" class="workout-chip-extra is-hidden">
+                                    <label class="checklist-field-label" for="todayOtherLabel">What did you do?</label>
+                                    <input type="text" id="todayOtherLabel" class="checklist-text-input" placeholder="Pickleball, hill sprints, …" autocomplete="off">
+                                </div>
+                                <button type="button" id="todayLogSpecial" class="btn-primary is-hidden">Log</button>
+                                <ul id="todaySessions" class="review-list"></ul>
+                            </div>
+                        </aside>
+                    </div>
+                </section>
 
+                <section id="journalTab" class="tab-content" aria-label="Journal">
+                    <div class="journal-layout">
+                        <div class="panel journal-compose journal-paper">
                             <div class="journal-entry-section">
+                                <div class="journal-text-container">
+                                    <textarea
+                                        id="journalEntry"
+                                        placeholder="Start writing. The timer begins with the first sentence."
+                                        rows="15"
+                                    ></textarea>
+                                </div>
+
                                 <div class="journal-timer-container">
                                     <div class="timer-display" id="timerDisplay">10:00</div>
                                     <div class="timer-controls">
+                                        <span class="meta-chip" id="journalWordCount">0 words</span>
+                                        <button type="button" id="journalFocusBtn" class="btn-ghost" aria-pressed="false">Focus</button>
                                         <button type="button" id="startTimer" class="btn-primary">Start session</button>
                                         <button type="button" id="pauseTimer" class="btn-secondary is-hidden">Pause</button>
                                         <button type="button" id="continueTimer" class="btn-secondary is-hidden">Continue</button>
@@ -133,18 +191,13 @@
                                     <div class="timer-status" id="timerStatus">Ready when you are</div>
                                 </div>
 
-                                <div class="journal-text-container">
+                                <details class="journal-tags-details">
+                                    <summary>Tags</summary>
                                     <div class="journal-tags-row">
-                                        <span class="checklist-field-label">Tags</span>
                                         <div id="journalTagPresets" class="journal-tag-presets"></div>
                                         <input type="text" id="journalCustomTags" class="checklist-text-input" placeholder="Custom tags, comma-separated" autocomplete="off">
                                     </div>
-                                    <textarea
-                                        id="journalEntry"
-                                        placeholder="Start writing. The timer begins with the first sentence."
-                                        rows="15"
-                                    ></textarea>
-                                </div>
+                                </details>
 
                                 <div class="journal-actions">
                                     <p class="wizard-kbd journal-kbd-hint">⌘Enter save · Esc pause / clear</p>
@@ -154,11 +207,11 @@
                             </div>
                         </div>
 
-                        <aside class="panel journal-entries-section">
+                        <aside class="panel journal-entries-section journal-inspector">
                             <div class="panel-header">
                                 <div>
                                     <h2>Recent</h2>
-                                    <p class="panel-sub">Last 30 days · grouped by day</p>
+                                    <p class="panel-sub">Last 30 days</p>
                                 </div>
                             </div>
                             <div class="journal-history-toolbar">
@@ -182,27 +235,27 @@
                                 </div>
                             </div>
                             <div class="workout-form">
-                                <div>
-                                    <label class="checklist-field-label" for="workoutWeight">Body weight</label>
+                                <div class="workout-weight-row">
+                                    <label class="checklist-field-label" for="workoutWeight">Weight</label>
                                     <div class="work-add-row">
                                         <input type="number" id="workoutWeight" class="checklist-text-input" min="0" step="0.1" placeholder="lb" inputmode="decimal">
-                                        <button type="button" id="workoutWeightSave" class="btn-secondary">Save weight</button>
+                                        <button type="button" id="workoutWeightSave" class="btn-secondary">Save</button>
                                     </div>
                                 </div>
-                                <div class="workout-session-form">
-                                    <label class="checklist-field-label" for="workoutKind">Session type</label>
-                                    <select id="workoutKind" class="checklist-select"></select>
-                                    <div id="workoutOtherWrap" class="is-hidden">
+                                <div>
+                                    <p class="checklist-field-label">Log a session</p>
+                                    <div id="workoutChips" class="workout-chips"></div>
+                                    <div id="workoutOtherWrap" class="workout-chip-extra is-hidden">
                                         <label class="checklist-field-label" for="workoutOtherLabel">What did you do?</label>
                                         <input type="text" id="workoutOtherLabel" class="checklist-text-input" placeholder="Pickleball, hill sprints, …" autocomplete="off">
                                     </div>
-                                    <div id="workoutMilesWrap" class="is-hidden">
+                                    <div id="workoutMilesWrap" class="workout-chip-extra is-hidden">
                                         <label class="checklist-field-label" for="workoutMiles">Miles</label>
                                         <input type="number" id="workoutMiles" class="checklist-text-input" min="0" step="0.1" placeholder="0.0" inputmode="decimal">
                                     </div>
                                     <label class="checklist-field-label" for="workoutMinutes">Minutes (optional)</label>
                                     <input type="number" id="workoutMinutes" class="checklist-text-input" min="0" step="1" placeholder="0" inputmode="numeric">
-                                    <button type="button" id="workoutAddBtn" class="btn-primary">Log session</button>
+                                    <button type="button" id="workoutAddBtn" class="btn-primary is-hidden">Log session</button>
                                 </div>
                             </div>
                             <div id="workoutSessionList" class="work-list"></div>
@@ -212,7 +265,7 @@
                                 <div class="panel-header">
                                     <h3>Week template</h3>
                                 </div>
-                                <p class="checklist-hint small">Expected days only — not a program. Missed days stay on that date in Analytics, same as repeating to dos. Today is never a miss.</p>
+                                <p class="checklist-hint small">Click a day to cycle none → push → pull → legs. Missed expected days stay on that date in Analytics.</p>
                                 <div id="weekTemplateForm" class="week-template"></div>
                                 <button type="button" id="weekTemplateSave" class="btn-secondary">Save template</button>
                             </div>
@@ -432,6 +485,9 @@
                             <div class="settings-block">
                                 <h3>Accessibility</h3>
                                 <label class="checklist-checkbox-label">
+                                    <input type="checkbox" id="autoFocusToggle"> Enter focus mode when the journal timer starts
+                                </label>
+                                <label class="checklist-checkbox-label">
                                     <input type="checkbox" id="reducedMotionToggle"> Reduce motion
                                 </label>
                                 <label class="checklist-checkbox-label">
@@ -441,7 +497,8 @@
                             <div class="settings-block">
                                 <h3>Shortcuts</h3>
                                 <ul class="shortcut-list">
-                                    <li><kbd>⌘</kbd><kbd>1</kbd>–<kbd>7</kbd> Switch tabs</li>
+                                    <li><kbd>⌘</kbd><kbd>1</kbd> Today · <kbd>2</kbd>–<kbd>7</kbd> other tabs</li>
+                                    <li><kbd>⌘</kbd><kbd>,</kbd> Settings</li>
                                     <li><kbd>⌘</kbd><kbd>Enter</kbd> Save journal entry</li>
                                     <li><kbd>Esc</kbd> Pause timer, then clear with confirm</li>
                                 </ul>

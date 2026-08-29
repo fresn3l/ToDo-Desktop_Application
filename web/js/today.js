@@ -1,10 +1,37 @@
 /**
- * Compact Today status in the topbar — workout, to do, journal.
+ * Today home — open to-dos, expected workout, short journal.
+ * Also paints the compact status pills used in the web topbar.
  */
 
 import * as utils from './utils.js';
+import { formatDuration, liveSeconds } from './work.js';
+import { logWorkoutKind, renderWorkoutChips } from './workout_chips.js';
 
-function renderToday(el, data) {
+let homeTick = null;
+
+function stopHomeTick() {
+    if (homeTick) {
+        clearInterval(homeTick);
+        homeTick = null;
+    }
+}
+
+function startHomeTick() {
+    stopHomeTick();
+    homeTick = setInterval(() => {
+        document.querySelectorAll('.work-timer[data-live="1"]').forEach((el) => {
+            const started = el.getAttribute('data-started');
+            const stored = Number(el.getAttribute('data-stored') || 0);
+            const start = started ? new Date(started).getTime() : NaN;
+            const seconds = Number.isNaN(start)
+                ? stored
+                : stored + Math.max(0, Math.floor((Date.now() - start) / 1000));
+            el.textContent = formatDuration(seconds);
+        });
+    }, 1000);
+}
+
+function renderPills(el, data) {
     const journalCount = data.journal_count || 0;
     const journalLabel = journalCount
         ? `${journalCount} journal${journalCount === 1 ? '' : 's'}`
@@ -12,9 +39,10 @@ function renderToday(el, data) {
 
     const workout = data.workout || {};
     const workoutDone = !!workout.done;
-    const sessionCount = workout.session_count || 0;
-    let workoutLabel = 'Workout';
+    const expected = (data.expected && data.expected.labels) || [];
+    let workoutLabel = expected.length ? expected.join(' · ') : 'Workout';
     if (workoutDone) {
+        const sessionCount = workout.session_count || 0;
         workoutLabel = sessionCount === 1 ? 'Workout done' : `${sessionCount} workouts`;
         if (workout.miles) workoutLabel += ` · ${workout.miles} mi`;
     }
@@ -40,23 +68,16 @@ function renderToday(el, data) {
         .filter(Boolean)
         .join(' ');
 
-    const journalAction = journalCount ? 'timeline' : 'journal';
     el.innerHTML = `
         <span class="today-label">Today</span>
-        <div class="today-pills">
-            <button type="button" class="${workoutClasses}"
-                data-action="${workoutDone ? 'timeline' : 'workout'}"
-                title="${workoutDone ? 'Open today on Timeline' : 'Log a workout'}">
-                ${utils.escapeHtml(workoutLabel)}
-            </button>
-        </div>
-        <button type="button" class="${workClasses}"
-            data-action="todo"
-            title="${workOpen ? 'Open today’s To Do' : 'Open To Do'}">
+        <button type="button" class="${workoutClasses}" data-action="today" title="Open Today">
+            ${utils.escapeHtml(workoutLabel)}
+        </button>
+        <button type="button" class="${workClasses}" data-action="today" title="Open Today">
             ${utils.escapeHtml(workLabel)}
         </button>
         <button type="button" class="today-pill today-journal ${journalCount ? 'is-done' : 'is-muted'}"
-            data-action="${journalAction}"
+            data-action="${journalCount ? 'timeline' : 'journal'}"
             title="${journalCount ? 'Open today on Timeline' : 'Write a journal entry'}">
             ${utils.escapeHtml(journalLabel)}
         </button>
@@ -66,45 +87,281 @@ function renderToday(el, data) {
         btn.addEventListener('click', () => {
             const action = btn.getAttribute('data-action');
             const date = data.local_date;
-            if (action === 'workout') {
-                document.dispatchEvent(
-                    new CustomEvent('kosistenz:open-tab', { detail: { tab: 'workout' } }),
-                );
+            if (action === 'today') {
+                document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'today' } }));
             } else if (action === 'timeline' && date) {
-                document.dispatchEvent(
-                    new CustomEvent('kosistenz:open-day', { detail: { date } }),
-                );
+                document.dispatchEvent(new CustomEvent('kosistenz:open-day', { detail: { date } }));
             } else if (action === 'journal') {
-                document.dispatchEvent(
-                    new CustomEvent('kosistenz:open-tab', { detail: { tab: 'journal' } }),
-                );
-            } else if (action === 'todo') {
-                document.dispatchEvent(
-                    new CustomEvent('kosistenz:open-tab', { detail: { tab: 'todo' } }),
-                );
+                document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'journal' } }));
             }
         });
     });
 }
 
-export async function refreshToday() {
-    const el = document.getElementById('todayStatus');
-    if (!el) return;
+function heroCard(item) {
+    const seconds = liveSeconds(item);
+    return `
+        <article class="todo-hero" data-id="${utils.escapeHtml(item.id)}">
+            <p class="eyebrow">In progress</p>
+            <h2>${utils.escapeHtml(item.title)}</h2>
+            <p class="todo-hero-timer work-timer" data-live="1"
+                data-started="${utils.escapeHtml(item.active_started_at || '')}"
+                data-stored="${item.stored_duration_seconds ?? item.duration_seconds ?? 0}">${formatDuration(seconds)}</p>
+            <div class="todo-hero-actions">
+                <button type="button" class="btn-primary" data-act="finish">Finish</button>
+                <button type="button" class="btn-secondary" data-act="stop">Stop</button>
+            </div>
+        </article>
+    `;
+}
+
+function compactRow(item) {
+    const running = item.status === 'active';
+    const done = item.status === 'done';
+    return `
+        <article class="work-item ${running ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-id="${utils.escapeHtml(item.id)}">
+            <div class="work-item-main">
+                <h3>${utils.escapeHtml(item.title)}</h3>
+                <p class="work-meta">${done ? 'Done' : running ? 'In progress' : 'Open'}</p>
+            </div>
+            <div class="work-item-actions">
+                ${
+                    done
+                        ? ''
+                        : running
+                          ? `<button type="button" class="btn-primary" data-act="finish">Finish</button>`
+                          : `<button type="button" class="btn-primary" data-act="start">Start</button>`
+                }
+            </div>
+        </article>
+    `;
+}
+
+async function bindActs(root) {
+    root.querySelectorAll('[data-act]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const id = btn.closest('[data-id]')?.getAttribute('data-id');
+            const act = btn.getAttribute('data-act');
+            if (!id) return;
+            try {
+                if (act === 'start') await eel.start_work_item(id)();
+                else if (act === 'stop') await eel.stop_work_item(id)();
+                else if (act === 'finish') await eel.finish_work_item(id)();
+                utils.notifyDataChanged();
+                await refreshTodayHome();
+            } catch (e) {
+                utils.showErrorFeedback(e?.message || String(e) || 'Could not update task.');
+            }
+        });
+    });
+}
+
+function syncTodayExtras(kind) {
+    const miles = kind === 'running';
+    const other = kind === 'other';
+    document.getElementById('todayMilesWrap')?.classList.toggle('is-hidden', !miles);
+    document.getElementById('todayOtherWrap')?.classList.toggle('is-hidden', !other);
+    const logBtn = document.getElementById('todayLogSpecial');
+    if (logBtn) {
+        logBtn.classList.toggle('is-hidden', !miles && !other);
+        logBtn.textContent = miles ? 'Log run' : 'Log other';
+    }
+}
+
+async function handleTodayChip(kind) {
+    syncTodayExtras(kind);
+    if (kind === 'running' || kind === 'other') {
+        const field = document.getElementById(kind === 'running' ? 'todayMiles' : 'todayOtherLabel');
+        field?.focus();
+        return;
+    }
     try {
-        const data = await eel.get_today_status()();
-        renderToday(el, data);
+        await logWorkoutKind(kind);
+        utils.showSuccessFeedback('Session logged.');
+        await refreshTodayHome();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || String(e) || 'Could not log that session.');
+    }
+}
+
+async function confirmTodaySpecial() {
+    const milesWrap = document.getElementById('todayMilesWrap');
+    const otherWrap = document.getElementById('todayOtherWrap');
+    try {
+        if (milesWrap && !milesWrap.classList.contains('is-hidden')) {
+            const miles = document.getElementById('todayMiles')?.value;
+            await logWorkoutKind('running', { miles: miles === '' ? null : miles });
+            const input = document.getElementById('todayMiles');
+            if (input) input.value = '';
+        } else if (otherWrap && !otherWrap.classList.contains('is-hidden')) {
+            const other = document.getElementById('todayOtherLabel')?.value || '';
+            await logWorkoutKind('other', { other_label: other });
+            const input = document.getElementById('todayOtherLabel');
+            if (input) input.value = '';
+        } else {
+            return;
+        }
+        utils.showSuccessFeedback('Session logged.');
+        syncTodayExtras('');
+        await refreshTodayHome();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || String(e) || 'Could not log that session.');
+    }
+}
+
+async function addTodayTask() {
+    const input = document.getElementById('todayNewTitle');
+    const title = (input?.value || '').trim();
+    if (!title) {
+        utils.showErrorFeedback('Name the task first.');
+        return;
+    }
+    try {
+        await eel.create_work_item(title, utils.localISODate())();
+        if (input) input.value = '';
+        utils.showSuccessFeedback('Added to today.');
+        utils.notifyDataChanged();
+        await refreshTodayHome();
+        input?.focus();
+    } catch (e) {
+        utils.showErrorFeedback('Could not add that task.');
+    }
+}
+
+async function saveTodayJournal() {
+    const ta = document.getElementById('todayJournal');
+    const text = (ta?.value || '').trim();
+    if (!text) {
+        utils.showErrorFeedback('Write a sentence first.');
+        return;
+    }
+    try {
+        await eel.save_journal_entry(text, 0, false, [])();
+        if (ta) ta.value = '';
+        utils.showSuccessFeedback('Journal saved.');
+        utils.notifyDataChanged();
+        await refreshTodayHome();
+    } catch (e) {
+        utils.showErrorFeedback('Could not save that entry.');
+    }
+}
+
+export async function refreshTodayHome() {
+    const root = document.getElementById('todayHome');
+    if (!root) return;
+    try {
+        const data = await eel.get_today_home()();
+        const items = data.today || [];
+        const active = items.find((item) => item.status === 'active');
+        const rest = items.filter((item) => item.id !== active?.id);
+        const hero = document.getElementById('todayActiveTodo');
+        if (hero) {
+            hero.innerHTML = active
+                ? heroCard(active)
+                : '';
+            if (active) await bindActs(hero);
+        }
+        const list = document.getElementById('todayTodoList');
+        if (list) {
+            const open = rest.filter((item) => item.status !== 'done');
+            const done = rest.filter((item) => item.status === 'done');
+            if (!items.length) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Nothing dated for today</h3>
+                        <p>Add a to do below, or park work in All Work for later.</p>
+                    </div>`;
+            } else {
+                list.innerHTML = `${open.map(compactRow).join('')}${done.map(compactRow).join('')}`;
+                await bindActs(list);
+            }
+        }
+        const expectedEl = document.getElementById('todayExpected');
+        const expected = data.expected || {};
+        if (expectedEl) {
+            expectedEl.textContent = expected.labels?.length
+                ? `Expected today: ${expected.labels.join(' · ')}`
+                : 'No template session expected today';
+        }
+        const chips = document.getElementById('todayWorkoutChips');
+        const logged = (data.workout_day?.sessions || []).map((s) => s.kind);
+        renderWorkoutChips(chips, { expected: expected.kinds || [], logged });
+        chips?.querySelectorAll('[data-kind]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                void handleTodayChip(btn.getAttribute('data-kind'));
+            });
+        });
+        const sessions = document.getElementById('todaySessions');
+        if (sessions) {
+            const rows = data.workout_day?.sessions || [];
+            sessions.innerHTML = rows.length
+                ? rows.map((s) => `<li>${utils.escapeHtml(s.label || s.kind_label)}</li>`).join('')
+                : '<li class="checklist-empty">No session yet</li>';
+        }
+        const streak = document.getElementById('todayJournalMeta');
+        if (streak) {
+            const count = data.journal_count || 0;
+            const n = data.journal_streak || 0;
+            streak.textContent = count
+                ? `${count} saved today${n ? ` · ${n}-day streak` : ''}`
+                : n
+                  ? `${n}-day writing streak`
+                  : 'No entry yet today';
+        }
+        if (active) startHomeTick();
+        else stopHomeTick();
     } catch (e) {
         console.error(e);
-        el.innerHTML = '<span class="today-label">Today</span><span class="today-fallback">Status unavailable</span>';
+        const list = document.getElementById('todayTodoList');
+        if (list) list.innerHTML = '<p class="checklist-error">Could not load today.</p>';
+    }
+}
+
+export async function refreshToday() {
+    const el = document.getElementById('todayStatus');
+    if (el) {
+        try {
+            const data = await eel.get_today_status()();
+            renderPills(el, data);
+        } catch (e) {
+            console.error(e);
+            el.innerHTML = '<span class="today-label">Today</span><span class="today-fallback">Status unavailable</span>';
+        }
+    }
+    if (document.getElementById('todayTab')?.classList.contains('active')) {
+        await refreshTodayHome();
     }
 }
 
 export function setupToday() {
+    document.getElementById('todayAddBtn')?.addEventListener('click', () => {
+        void addTodayTask();
+    });
+    document.getElementById('todayNewTitle')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            void addTodayTask();
+        }
+    });
+    document.getElementById('todayJournalSave')?.addEventListener('click', () => {
+        void saveTodayJournal();
+    });
+    document.getElementById('todayOpenJournal')?.addEventListener('click', () => {
+        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'journal' } }));
+    });
+    document.getElementById('todayLogSpecial')?.addEventListener('click', () => {
+        void confirmTodaySpecial();
+    });
     void refreshToday();
     document.addEventListener('kosistenz:data-changed', () => {
         void refreshToday();
     });
-    document.addEventListener('kosistenz:tab-shown', () => {
-        void refreshToday();
+    document.addEventListener('kosistenz:tab-shown', (e) => {
+        if (e.detail?.tab === 'today') void refreshTodayHome();
+        else void refreshToday();
     });
+}
+
+export async function onTodayTabShown() {
+    await refreshTodayHome();
 }

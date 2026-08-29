@@ -85,15 +85,17 @@ extension AppDelegate {
     @objc func startActiveTodo() {
         _ = postJSON(path: "/api/todo/start", body: [:])
         reloadWidgets()
+        refreshToolbarStatus()
         showMainWindow()
-        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'todo'}}));")
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
     }
 
     @objc func finishActiveTodo() {
         _ = postJSON(path: "/api/todo/finish", body: [:])
         reloadWidgets()
+        refreshToolbarStatus()
         showMainWindow()
-        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'todo'}}));")
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
     }
 
     @objc func logPush() { logKind("push") }
@@ -104,8 +106,9 @@ extension AppDelegate {
     func logKind(_ kind: String) {
         _ = postJSON(path: "/api/workout/log", body: ["kind": kind])
         reloadWidgets()
+        refreshToolbarStatus()
         showMainWindow()
-        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'workout'}}));")
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
     }
 
     @objc func openNewJournal() {
@@ -163,6 +166,10 @@ extension AppDelegate {
         }
         if combined.hasPrefix("todo") || combined.hasPrefix("work/todo") {
             runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'todo'}}));")
+            return
+        }
+        if combined.isEmpty || combined == "today" || combined.hasPrefix("today") {
+            runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
             return
         }
         if combined.hasPrefix("workout") {
@@ -258,6 +265,93 @@ extension AppDelegate {
             }
         }
     }
+
+    func applyNativeAppearance(dark: Bool) {
+        let name: NSAppearance.Name = dark ? .darkAqua : .aqua
+        window?.appearance = NSAppearance(named: name)
+        effectView?.appearance = NSAppearance(named: name)
+        effectView?.material = .sidebar
+    }
+
+    func setupToolbar(on window: NSWindow) {
+        let toolbar = NSToolbar(identifier: "Kosistenz.Main")
+        toolbar.delegate = self
+        toolbar.allowsUserCustomization = false
+        toolbar.displayMode = .iconAndLabel
+        window.toolbar = toolbar
+        refreshToolbarStatus()
+    }
+
+    func refreshToolbarStatus() {
+        let status = fetchStatus()
+        let workoutDone = status?["workout_logged"] as? Bool ?? false
+        let openCount = intValue(status, "open_count")
+        let journalToday = status?["journal_today"] as? Bool ?? false
+        toolbarWorkout?.title = workoutDone ? "Workout ✓" : "Workout"
+        toolbarTodo?.title = openCount > 0 ? "To Do (\(openCount))" : "To Do"
+        toolbarJournal?.title = journalToday ? "Journal ✓" : "Journal"
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [
+            NSToolbarItem.Identifier("todayWorkout"),
+            NSToolbarItem.Identifier("todayTodo"),
+            NSToolbarItem.Identifier("todayJournal"),
+            .flexibleSpace,
+        ]
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    func toolbar(
+        _ toolbar: NSToolbar,
+        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
+        let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+        let button: NSButton
+        switch itemIdentifier.rawValue {
+        case "todayWorkout":
+            button = toolbarButton("Workout", action: #selector(toolbarOpenToday))
+            toolbarWorkout = button
+        case "todayTodo":
+            button = toolbarButton("To Do", action: #selector(toolbarOpenToday))
+            toolbarTodo = button
+        case "todayJournal":
+            button = toolbarButton("Journal", action: #selector(openNewJournal))
+            toolbarJournal = button
+        default:
+            return nil
+        }
+        item.view = button
+        item.label = button.title
+        item.paletteLabel = button.title
+        return item
+    }
+
+    func toolbarButton(_ title: String, action: Selector) -> NSButton {
+        let button = NSButton(title: title, target: self, action: action)
+        button.bezelStyle = .texturedRounded
+        if #available(macOS 11.0, *) {
+            button.bezelStyle = .toolbar
+        }
+        button.setButtonType(.momentaryPushIn)
+        return button
+    }
+
+    @objc func toolbarOpenToday() {
+        showMainWindow()
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
+    }
+}
+
+private func intValue(_ json: [String: Any]?, _ key: String) -> Int {
+    guard let json = json else { return 0 }
+    if let n = json[key] as? Int { return n }
+    if let n = json[key] as? NSNumber { return n.intValue }
+    return 0
 }
 
 private func menuItem(_ title: String, action: Selector, key: String) -> NSMenuItem {

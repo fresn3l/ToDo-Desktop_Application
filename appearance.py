@@ -22,6 +22,7 @@ DEFAULTS: Dict[str, Any] = {
     "sidebar": "expanded",
     "journalFontSize": 17,
     "timerMinutes": 10,
+    "autoFocus": False,
     "reducedMotion": False,
     "highContrast": False,
 }
@@ -68,6 +69,7 @@ def _sanitize(raw: Any) -> Dict[str, Any]:
         out["customAccent"] = custom.strip() or DEFAULTS["customAccent"]
     out["journalFontSize"] = _clamp_int(raw.get("journalFontSize"), 14, 22, DEFAULTS["journalFontSize"])
     out["timerMinutes"] = _clamp_int(raw.get("timerMinutes"), 5, 30, DEFAULTS["timerMinutes"])
+    out["autoFocus"] = bool(raw.get("autoFocus", False))
     out["reducedMotion"] = bool(raw.get("reducedMotion", False))
     out["highContrast"] = bool(raw.get("highContrast", False))
     return out

@@ -71,14 +71,8 @@ def save_weekly_pattern_note(note: str) -> None:
     _save_pattern_note(week_key, (note or "").strip())
 
 
-@eel.expose
-def get_today_status() -> Dict[str, Any]:
-    """Workout, to-do, and journal counts for today."""
-    today = date.today()
-    iso = today.isoformat()
-    hour = datetime.now().hour
-
-    journal_count = 0
+def _journal_count_for(today: date) -> int:
+    count = 0
     for entry in journal.get_recent_entries(days=2):
         raw = entry.get("date") or entry.get("created_at") or ""
         try:
@@ -86,28 +80,71 @@ def get_today_status() -> Dict[str, Any]:
         except (ValueError, TypeError):
             continue
         if ed == today:
-            journal_count += 1
+            count += 1
+    return count
 
+
+def _expected_payload(today: date) -> Dict[str, Any]:
+    template = workouts.load_week_template()
+    kinds = workouts.expected_kinds_for_date(today, template)
+    return {
+        "kinds": kinds,
+        "labels": [workouts.KIND_LABELS.get(kind, kind) for kind in kinds],
+        "template_label": workouts.week_template_label(template),
+    }
+
+
+@eel.expose
+def get_today_status() -> Dict[str, Any]:
+    """Workout, to-do, and journal counts for today."""
+    today = date.today()
+    iso = today.isoformat()
     work_board = work.get_work_board(iso)
     work_open = int(work_board.get("counts", {}).get("today_open") or 0)
     work_done = int(work_board.get("counts", {}).get("today_done") or 0)
     work_total = int(work_board.get("counts", {}).get("today_total") or 0)
     workout = workouts.get_workout_day(iso)
-
+    expected = _expected_payload(today)
     return {
         "local_date": iso,
-        "hour": hour,
-        "journal_count": journal_count,
+        "hour": datetime.now().hour,
+        "journal_count": _journal_count_for(today),
+        "expected": expected,
         "workout": {
             "done": bool(workout.get("done")),
             "session_count": int(workout.get("session_count") or 0),
             "miles": workout.get("miles") or 0,
+            "kinds": [s.get("kind") for s in workout.get("sessions") or []],
         },
         "work": {
             "open": work_open,
             "done": work_done,
             "total": work_total,
         },
+    }
+
+
+@eel.expose
+def get_today_home() -> Dict[str, Any]:
+    """Full Today home payload: to-dos, expected workout, journal count."""
+    today = date.today()
+    iso = today.isoformat()
+    status = get_today_status()
+    board = work.get_work_board(iso)
+    workout = workouts.get_workout_day(iso)
+    writing_streak = 0
+    try:
+        import timeline
+
+        writing_streak = int(timeline.compute_streaks(today).get("writing") or 0)
+    except Exception:
+        pass
+    return {
+        **status,
+        "today": board.get("today") or [],
+        "counts": board.get("counts") or {},
+        "workout_day": workout,
+        "journal_streak": writing_streak,
     }
 
 

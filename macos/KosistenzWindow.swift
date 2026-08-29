@@ -8,7 +8,7 @@ import WidgetKit
 
 /// Native Mac host for Kosistenz: Cocoa window + WKWebView + menu bar.
 /// Python (kosistenz-bridge) only serves the local UI; it does not create the window.
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, NSMenuDelegate, WKScriptMessageHandler, NSToolbarDelegate {
     var window: NSWindow?
     var webView: WKWebView?
     var bridge: Process?
@@ -17,6 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var uiPort: UInt16 = 17653
     var apiPort: UInt16 = 18741
     var statusItem: NSStatusItem?
+    var toolbarWorkout: NSButton?
+    var toolbarTodo: NSButton?
+    var toolbarJournal: NSButton?
+    var effectView: NSVisualEffectView?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         log("Swift host launching")
@@ -57,9 +61,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         return false
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        refreshToolbarStatus()
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
             handleKosistenzURL(url)
+        }
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any],
+              let type = body["type"] as? String else { return }
+        if type == "theme" {
+            let dark = body["dark"] as? Bool ?? true
+            applyNativeAppearance(dark: dark)
+        } else if type == "tab", let title = body["title"] as? String {
+            window?.title = title
+        } else if type == "status" {
+            refreshToolbarStatus()
         }
     }
 
@@ -110,9 +131,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         )
         window.title = "Kosistenz"
         window.minSize = NSSize(width: 960, height: 680)
-        window.backgroundColor = NSColor(calibratedRed: 0.965, green: 0.961, blue: 0.953, alpha: 1)
+        window.backgroundColor = .clear
         window.isReleasedWhenClosed = false
         window.delegate = self
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        if #available(macOS 11.0, *) {
+            window.toolbarStyle = .unified
+            window.titlebarSeparatorStyle = .none
+        }
 
         let config = WKWebViewConfiguration()
         let controller = WKUserContentController()
@@ -121,21 +148,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             document.documentElement.classList.add('native-shell');
             window.kosistenzNative = true;
             """,
-            injectionTime: .atDocumentEnd,
+            injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         )
         controller.addUserScript(script)
+        controller.add(self, name: "kosistenz")
         config.userContentController = controller
         let prefs = WKWebpagePreferences()
         prefs.allowsContentJavaScript = true
         config.defaultWebpagePreferences = prefs
 
-        let webView = WKWebView(frame: rect, configuration: config)
+        let effect = NSVisualEffectView(frame: rect)
+        effect.material = .sidebar
+        effect.blendingMode = .behindWindow
+        effect.state = .active
+        effect.autoresizingMask = [.width, .height]
+
+        let webView = WKWebView(frame: effect.bounds, configuration: config)
+        webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
-        window.contentView = webView
+        if #available(macOS 12.0, *) {
+            webView.underPageBackgroundColor = .clear
+        } else {
+            webView.setValue(false, forKey: "drawsBackground")
+        }
+        effect.addSubview(webView)
+        window.contentView = effect
+        setupToolbar(on: window)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
+        self.effectView = effect
         self.window = window
         self.webView = webView
         log("Native window shown")

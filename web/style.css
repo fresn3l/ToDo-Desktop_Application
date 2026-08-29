@@ -278,6 +278,33 @@ html[data-font='system'] {
 html.native-shell,
 html.native-shell body {
     overscroll-behavior: none;
+    background: transparent;
+}
+
+html.native-shell .app-shell {
+    background: transparent;
+}
+
+html.native-shell .app-sidebar {
+    background: transparent;
+    border-right-color: hsl(0 0% 100% / 0.08);
+    padding-top: 16px;
+}
+
+html.native-shell .app-topbar {
+    display: none;
+}
+
+html.native-shell .app-main {
+    background: var(--bg-main);
+}
+
+html.native-shell .app-content {
+    padding-top: 16px;
+}
+
+html[data-theme='paper'].native-shell .app-sidebar {
+    border-right-color: hsl(36 16% 22% / 0.12);
 }
 
 html[data-density='compact'] {
@@ -947,9 +974,38 @@ input[type='radio'] {
 
 .journal-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
     gap: var(--space-lg);
     align-items: start;
+}
+
+.journal-paper.panel {
+    background: var(--bg-panel);
+    box-shadow: none;
+}
+
+.journal-paper #journalEntry {
+    min-height: 52vh;
+    border: 0;
+    background: transparent;
+    padding: 8px 4px 24px;
+    box-shadow: none;
+}
+
+.journal-tags-details {
+    margin: 4px 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.journal-tags-details summary {
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.journal-inspector {
+    max-height: calc(100vh - 80px);
+    overflow: auto;
 }
 
 .journal-entry-section {
@@ -1299,18 +1355,41 @@ input[type='radio'] {
     margin: 8px 0 4px;
 }
 
-.week-template {
+.week-template-strip {
     display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 6px;
-    margin: 8px 0 12px;
+    margin-bottom: 10px;
 }
 
-.week-template-row {
-    display: grid;
-    grid-template-columns: 2.5rem 1fr;
+.week-template-cell {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
+    gap: 4px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    padding: 8px 4px;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.week-template-cell strong {
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--text-muted);
+}
+
+.week-template-cell.is-set {
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.week-template-cell.is-set strong {
+    color: var(--text-primary);
 }
 
 .week-template-run {
@@ -1789,6 +1868,14 @@ input[type='range'] {
     background: var(--success);
 }
 
+.week-day.is-miss .week-day-dot {
+    background: var(--attention);
+}
+
+.week-day.is-miss.is-filled .week-day-dot {
+    box-shadow: 0 0 0 2px var(--attention-muted);
+}
+
 .week-day.is-empty {
     opacity: 0.8;
 }
@@ -1978,6 +2065,89 @@ input[type='range'] {
     opacity: 0.72;
 }
 
+.todo-hero {
+    padding: 22px 24px;
+    margin-bottom: var(--space-md);
+    background: var(--bg-elevated);
+    border: 1px solid color-mix(in srgb, var(--attention) 45%, var(--border-color));
+    border-radius: var(--radius-lg);
+}
+
+.todo-hero h2 {
+    font-size: 1.45rem;
+    letter-spacing: var(--letter-tight);
+    margin: 4px 0 10px;
+}
+
+.todo-hero-timer {
+    font-size: 2rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    margin-bottom: 14px;
+}
+
+.todo-hero-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.today-home {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
+    gap: var(--space-lg);
+    align-items: start;
+}
+
+.today-journal-input {
+    width: 100%;
+    min-height: 8rem;
+    margin-bottom: 10px;
+}
+
+.workout-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0 12px;
+}
+
+.workout-chip {
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-pill);
+    padding: 8px 14px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.workout-chip.is-expected {
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.workout-chip.is-logged {
+    background: var(--success-muted);
+    border-color: var(--success);
+    color: var(--text-primary);
+}
+
+.workout-chip.is-selected {
+    background: var(--primary-muted);
+    color: var(--text-primary);
+}
+
+.workout-chip-extra {
+    margin-bottom: 10px;
+}
+
+.workout-chip-extra .checklist-text-input {
+    margin-top: 4px;
+}
+
 .work-item.is-done h3 {
     text-decoration: line-through;
     color: var(--text-muted);
@@ -2098,7 +2268,8 @@ html[data-focus='on'] .journal-layout {
     grid-template-columns: 1fr;
 }
 
-html[data-focus='on'] .today-status {
+html[data-focus='on'] .today-status,
+html[data-focus='on'] .app-topbar {
     display: none;
 }
 
@@ -2108,6 +2279,7 @@ html[data-focus='on'] .today-status {
     .journal-layout,
     .checklist-layout,
     .work-layout,
+    .today-home,
     .settings-row {
         grid-template-columns: 1fr;
     }

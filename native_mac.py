@@ -114,6 +114,11 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     )
     window.setTitle_("Kosistenz")
     window.setMinSize_(_size(min_width, min_height))
+    try:
+        window.setTitlebarAppearsTransparent_(True)
+        window.setTitleVisibility_(1)
+    except Exception:
+        pass
     window.center()
 
     win_delegate = WindowDelegate.alloc().init()
@@ -124,14 +129,19 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     config = WKWebViewConfiguration.alloc().init()
     script = None
     try:
-        from WebKit import WKUserScriptInjectionTimeAtDocumentEnd
+        from WebKit import WKUserScriptInjectionTimeAtDocumentStart
 
-        inject_at = WKUserScriptInjectionTimeAtDocumentEnd
+        inject_at = WKUserScriptInjectionTimeAtDocumentStart
     except Exception:
-        inject_at = 1
+        try:
+            from WebKit import WKUserScriptInjectionTimeAtDocumentEnd
+
+            inject_at = WKUserScriptInjectionTimeAtDocumentEnd
+        except Exception:
+            inject_at = 0
     try:
         script = WKUserScript.alloc().initWithSource_injectionTime_forMainFrameOnly_(
-            "document.documentElement.classList.add('native-shell'); window.kosistenzNative = true;",
+            "document.documentElement.classList.add('native-shell');window.kosistenzNative=true;",
             inject_at,
             True,
         )
@@ -150,6 +160,10 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     web.setAutoresizingMask_(NSViewWidthSizable | NSViewHeightSizable)
     try:
         web.setNavigationDelegate_(nav_delegate)
+    except Exception:
+        pass
+    try:
+        web.setValue_forKey_(False, "drawsBackground")
     except Exception:
         pass
     window.setContentView_(web)
