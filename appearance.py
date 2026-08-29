@@ -20,6 +20,11 @@ DEFAULTS: Dict[str, Any] = {
     "radius": "soft",
     "width": "standard",
     "sidebar": "expanded",
+    "todayLayout": "split",
+    "todayOrder": "todo,workout,journal",
+    "todayTodo": True,
+    "todayWorkout": True,
+    "todayJournal": True,
     "journalFontSize": 17,
     "timerMinutes": 10,
     "autoFocus": False,
@@ -35,7 +40,26 @@ ALLOWED = {
     "radius": {"sharp", "soft", "round"},
     "width": {"narrow", "standard", "wide"},
     "sidebar": {"expanded", "compact"},
+    "todayLayout": {"split", "stack", "columns"},
 }
+
+_TODAY_MODULES = ("todo", "workout", "journal")
+
+
+def _as_today_order(raw: Any) -> str:
+    parts: list[str] = []
+    if isinstance(raw, str):
+        parts = [p.strip() for p in raw.split(",")]
+    elif isinstance(raw, (list, tuple)):
+        parts = [str(p).strip() for p in raw]
+    seen: list[str] = []
+    for part in parts:
+        if part in _TODAY_MODULES and part not in seen:
+            seen.append(part)
+    for part in _TODAY_MODULES:
+        if part not in seen:
+            seen.append(part)
+    return ",".join(seen)
 
 
 def _app_data_dir() -> Path:
@@ -46,6 +70,18 @@ def _app_data_dir() -> Path:
 
 def _settings_path() -> Path:
     return _app_data_dir() / "appearance.json"
+
+
+def _as_bool(raw: Any, default: bool) -> bool:
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, (int, float)):
+        return bool(raw)
+    if isinstance(raw, str):
+        return raw.strip().lower() in {"1", "true", "yes", "on"}
+    return default
 
 
 def _clamp_int(value: Any, lo: int, hi: int, fallback: int) -> int:
@@ -69,9 +105,13 @@ def _sanitize(raw: Any) -> Dict[str, Any]:
         out["customAccent"] = custom.strip() or DEFAULTS["customAccent"]
     out["journalFontSize"] = _clamp_int(raw.get("journalFontSize"), 14, 22, DEFAULTS["journalFontSize"])
     out["timerMinutes"] = _clamp_int(raw.get("timerMinutes"), 5, 30, DEFAULTS["timerMinutes"])
-    out["autoFocus"] = bool(raw.get("autoFocus", False))
-    out["reducedMotion"] = bool(raw.get("reducedMotion", False))
-    out["highContrast"] = bool(raw.get("highContrast", False))
+    out["autoFocus"] = _as_bool(raw.get("autoFocus"), False)
+    out["reducedMotion"] = _as_bool(raw.get("reducedMotion"), False)
+    out["highContrast"] = _as_bool(raw.get("highContrast"), False)
+    out["todayTodo"] = _as_bool(raw.get("todayTodo"), True)
+    out["todayWorkout"] = _as_bool(raw.get("todayWorkout"), True)
+    out["todayJournal"] = _as_bool(raw.get("todayJournal"), True)
+    out["todayOrder"] = _as_today_order(raw.get("todayOrder"))
     return out
 
 

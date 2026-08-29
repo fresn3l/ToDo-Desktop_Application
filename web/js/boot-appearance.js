@@ -11,6 +11,11 @@
         if (s.width) r.setAttribute('data-width', s.width);
         if (s.font) r.setAttribute('data-font', s.font);
         if (s.sidebar) r.setAttribute('data-sidebar', s.sidebar);
+        r.setAttribute('data-today-layout', s.todayLayout || 'split');
+        r.setAttribute('data-today-order', s.todayOrder || 'todo,workout,journal');
+        r.setAttribute('data-today-todo', s.todayTodo === false ? 'off' : 'on');
+        r.setAttribute('data-today-workout', s.todayWorkout === false ? 'off' : 'on');
+        r.setAttribute('data-today-journal', s.todayJournal === false ? 'off' : 'on');
         r.setAttribute('data-contrast', s.highContrast ? 'high' : 'normal');
         r.setAttribute('data-motion', s.reducedMotion ? 'reduce' : 'full');
         if (s.journalFontSize) r.style.setProperty('--journal-font-size', s.journalFontSize + 'px');

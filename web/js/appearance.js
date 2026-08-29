@@ -15,6 +15,11 @@ export const DEFAULTS = {
     radius: 'soft',
     width: 'standard',
     sidebar: 'expanded',
+    todayLayout: 'split',
+    todayOrder: 'todo,workout,journal',
+    todayTodo: true,
+    todayWorkout: true,
+    todayJournal: true,
     journalFontSize: 17,
     timerMinutes: 10,
     autoFocus: false,
@@ -119,6 +124,11 @@ export function applyAppearance(settings) {
     root.setAttribute('data-width', current.width);
     root.setAttribute('data-font', current.font);
     root.setAttribute('data-sidebar', current.sidebar);
+    root.setAttribute('data-today-layout', current.todayLayout || 'split');
+    root.setAttribute('data-today-order', current.todayOrder || 'todo,workout,journal');
+    root.setAttribute('data-today-todo', current.todayTodo === false ? 'off' : 'on');
+    root.setAttribute('data-today-workout', current.todayWorkout === false ? 'off' : 'on');
+    root.setAttribute('data-today-journal', current.todayJournal === false ? 'off' : 'on');
     root.setAttribute('data-contrast', current.highContrast ? 'high' : 'normal');
     root.setAttribute('data-motion', current.reducedMotion ? 'reduce' : 'full');
     const hsl = accentHsl(current);

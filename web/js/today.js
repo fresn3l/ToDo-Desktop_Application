@@ -6,6 +6,12 @@
 import * as utils from './utils.js';
 import { formatDuration, liveSeconds } from './work.js';
 import { logWorkoutKind, renderWorkoutChips } from './workout_chips.js';
+import { getAppearance, persistAppearance, onAppearanceChange } from './appearance.js';
+import {
+    applyTodayOrder,
+    moveTodayModule,
+    renderTodayOrderList,
+} from './today_layout.js';
 
 let homeTick = null;
 
@@ -29,6 +35,60 @@ function startHomeTick() {
             el.textContent = formatDuration(seconds);
         });
     }, 1000);
+}
+
+function mastheadParts(iso) {
+    const d = iso ? new Date(`${iso}T12:00:00`) : new Date();
+    if (Number.isNaN(d.getTime())) {
+        return { weekday: 'Today', rest: '' };
+    }
+    return {
+        weekday: d.toLocaleDateString(undefined, { weekday: 'long' }),
+        rest: d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }),
+    };
+}
+
+function paintPulse(data) {
+    const el = document.getElementById('todayPulse');
+    if (!el) return;
+    const work = data.work || {};
+    const workout = data.workout || {};
+    const expected = (data.expected && data.expected.labels) || [];
+    const bits = [];
+    if (work.open) bits.push(`${work.open} open`);
+    else if (work.total) bits.push('To do done');
+    if (workout.done) bits.push(workout.session_count === 1 ? 'Workout logged' : `${workout.session_count} workouts`);
+    else if (expected.length) bits.push(expected.join(' · '));
+    if (data.journal_count) bits.push(`${data.journal_count} journal`);
+    else if (data.journal_streak) bits.push(`${data.journal_streak}-day streak`);
+    el.textContent = bits.join('  ·  ') || 'A quiet day so far';
+}
+
+function paintCustomize() {
+    const s = getAppearance();
+    const todo = document.getElementById('todayShowTodo');
+    const workout = document.getElementById('todayShowWorkout');
+    const journal = document.getElementById('todayShowJournal');
+    if (todo) todo.checked = s.todayTodo !== false;
+    if (workout) workout.checked = s.todayWorkout !== false;
+    if (journal) journal.checked = s.todayJournal !== false;
+    document.querySelectorAll('#todayLayoutGroup [data-value]').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-value') === (s.todayLayout || 'split'));
+    });
+    applyTodayOrder(s.todayOrder);
+    renderTodayOrderList(document.getElementById('todayOrderList'), s.todayOrder);
+}
+
+function setCustomizeOpen(open) {
+    const panel = document.getElementById('todayCustomizePanel');
+    const btn = document.getElementById('todayCustomizeBtn');
+    if (!panel) return;
+    panel.classList.toggle('is-hidden', !open);
+    panel.hidden = !open;
+    if (btn) {
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.textContent = open ? 'Done' : 'Customize';
+    }
 }
 
 function renderPills(el, data) {
@@ -102,8 +162,10 @@ function heroCard(item) {
     const seconds = liveSeconds(item);
     return `
         <article class="todo-hero" data-id="${utils.escapeHtml(item.id)}">
-            <p class="eyebrow">In progress</p>
-            <h2>${utils.escapeHtml(item.title)}</h2>
+            <div class="todo-hero-copy">
+                <p class="eyebrow">In progress</p>
+                <h2>${utils.escapeHtml(item.title)}</h2>
+            </div>
             <p class="todo-hero-timer work-timer" data-live="1"
                 data-started="${utils.escapeHtml(item.active_started_at || '')}"
                 data-stored="${item.stored_duration_seconds ?? item.duration_seconds ?? 0}">${formatDuration(seconds)}</p>
@@ -251,6 +313,13 @@ export async function refreshTodayHome() {
     if (!root) return;
     try {
         const data = await eel.get_today_home()();
+        const heading = document.getElementById('todayDateTitle');
+        const sub = document.getElementById('todayDateSub');
+        const parts = mastheadParts(data.local_date);
+        if (heading) heading.textContent = parts.weekday;
+        if (sub) sub.textContent = parts.rest;
+        paintPulse(data);
+        paintCustomize();
         const items = data.today || [];
         const active = items.find((item) => item.status === 'active');
         const rest = items.filter((item) => item.id !== active?.id);
@@ -267,9 +336,8 @@ export async function refreshTodayHome() {
             const done = rest.filter((item) => item.status === 'done');
             if (!items.length) {
                 list.innerHTML = `
-                    <div class="empty-state">
-                        <h3>Nothing dated for today</h3>
-                        <p>Add a to do below, or park work in All Work for later.</p>
+                    <div class="empty-state empty-state--quiet">
+                        <p>Nothing dated for today.</p>
                     </div>`;
             } else {
                 list.innerHTML = `${open.map(compactRow).join('')}${done.map(compactRow).join('')}`;
@@ -296,7 +364,7 @@ export async function refreshTodayHome() {
             const rows = data.workout_day?.sessions || [];
             sessions.innerHTML = rows.length
                 ? rows.map((s) => `<li>${utils.escapeHtml(s.label || s.kind_label)}</li>`).join('')
-                : '<li class="checklist-empty">No session yet</li>';
+                : '<li class="today-session-empty">No session yet</li>';
         }
         const streak = document.getElementById('todayJournalMeta');
         if (streak) {
@@ -306,7 +374,7 @@ export async function refreshTodayHome() {
                 ? `${count} saved today${n ? ` · ${n}-day streak` : ''}`
                 : n
                   ? `${n}-day writing streak`
-                  : 'No entry yet today';
+                  : '';
         }
         if (active) startHomeTick();
         else stopHomeTick();
@@ -349,6 +417,42 @@ export function setupToday() {
     document.getElementById('todayOpenJournal')?.addEventListener('click', () => {
         document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'journal' } }));
     });
+    document.getElementById('todayOpenTodo')?.addEventListener('click', () => {
+        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'todo' } }));
+    });
+    document.getElementById('todayOpenWorkout')?.addEventListener('click', () => {
+        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'workout' } }));
+    });
+    document.getElementById('todayCustomizeBtn')?.addEventListener('click', () => {
+        const panel = document.getElementById('todayCustomizePanel');
+        setCustomizeOpen(!!panel?.classList.contains('is-hidden'));
+        paintCustomize();
+    });
+    document.getElementById('todayShowTodo')?.addEventListener('change', (e) => {
+        persistAppearance({ todayTodo: e.target.checked });
+    });
+    document.getElementById('todayShowWorkout')?.addEventListener('change', (e) => {
+        persistAppearance({ todayWorkout: e.target.checked });
+    });
+    document.getElementById('todayShowJournal')?.addEventListener('change', (e) => {
+        persistAppearance({ todayJournal: e.target.checked });
+    });
+    document.getElementById('todayLayoutGroup')?.querySelectorAll('[data-value]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            persistAppearance({ todayLayout: btn.getAttribute('data-value') });
+            paintCustomize();
+        });
+    });
+    document.getElementById('todayOrderList')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-move]');
+        if (!btn || btn.disabled) return;
+        const moduleId = btn.closest('[data-module]')?.getAttribute('data-module');
+        if (!moduleId) return;
+        const next = moveTodayModule(getAppearance().todayOrder, moduleId, btn.getAttribute('data-move'));
+        persistAppearance({ todayOrder: next.join(',') });
+        paintCustomize();
+    });
+    onAppearanceChange(() => paintCustomize());
     document.getElementById('todayLogSpecial')?.addEventListener('click', () => {
         void confirmTodaySpecial();
     });

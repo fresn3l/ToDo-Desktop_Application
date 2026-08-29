@@ -41,18 +41,21 @@ function setDocumentTitle(name) {
     notifyNativeTab(name, LABELS[name] || 'Kosistenz');
 }
 
+function openTabFromEvent(e) {
+    const btn = e.target.closest?.('.nav-item[data-tab]');
+    if (!btn) return;
+    const tab = btn.getAttribute('data-tab');
+    if (!tab) return;
+    e.preventDefault();
+    switchTab(tab).catch((err) => console.error(err));
+}
+
 export function setupTabs() {
     const sidebar = document.querySelector('.app-sidebar');
     if (!sidebar) return;
 
-    sidebar.addEventListener('click', (e) => {
-        const btn = e.target.closest('.nav-item[data-tab]');
-        if (!btn) return;
-        const tab = btn.getAttribute('data-tab');
-        if (tab) {
-            switchTab(tab).catch((err) => console.error(err));
-        }
-    });
+    // Capture phase: native WKWebView can miss bubble-phase clicks on transparent pixels.
+    sidebar.addEventListener('click', openTabFromEvent, true);
 
     document.addEventListener('keydown', (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === ',') {
@@ -101,27 +104,32 @@ export async function switchTab(name) {
         c.classList.toggle('active', activeId !== undefined && c.id === activeId);
     });
     setDocumentTitle(name);
+    document.documentElement.setAttribute('data-page', name);
 
     if (name !== 'journal') {
         exitJournalFocus();
     }
 
-    if (name === 'today') {
-        await onTodayTabShown();
-    } else if (name === 'journal') {
-        await loadPastEntries();
-    } else if (name === 'workout') {
-        await onWorkoutTabShown();
-    } else if (name === 'todo') {
-        await onTodoTabShown();
-    } else if (name === 'allwork') {
-        await onAllWorkTabShown();
-    } else if (name === 'analytics') {
-        await onAnalyticsTabShown();
-    } else if (name === 'timeline') {
-        await onTimelineTabShown();
-    } else if (name === 'settings') {
-        onSettingsTabShown();
+    try {
+        if (name === 'today') {
+            await onTodayTabShown();
+        } else if (name === 'journal') {
+            await loadPastEntries();
+        } else if (name === 'workout') {
+            await onWorkoutTabShown();
+        } else if (name === 'todo') {
+            await onTodoTabShown();
+        } else if (name === 'allwork') {
+            await onAllWorkTabShown();
+        } else if (name === 'analytics') {
+            await onAnalyticsTabShown();
+        } else if (name === 'timeline') {
+            await onTimelineTabShown();
+        } else if (name === 'settings') {
+            onSettingsTabShown();
+        }
+    } catch (err) {
+        console.error(err);
     }
 
     document.dispatchEvent(new CustomEvent('kosistenz:tab-shown', { detail: { tab: name } }));
