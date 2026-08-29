@@ -1198,6 +1198,34 @@ input[type='radio'] {
     grid-column: 1 / -1;
 }
 
+.analytics-miss-list {
+    list-style: none;
+}
+
+.analytics-miss-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: 6px 0;
+}
+
+.analytics-miss-btn span {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.review-card .btn-primary {
+    margin-top: 10px;
+}
+
 .review-stat {
     font-size: 2rem;
     font-weight: 700;
@@ -1718,6 +1746,116 @@ input[type='range'] {
 
 .work-add-row .checklist-text-input {
     flex: 1;
+}
+
+.work-repeat-toggle {
+    margin: 0 0 10px;
+}
+
+.work-repeat-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: var(--space-md);
+    padding: 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.work-weekdays {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.work-day-chip {
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-pill);
+    padding: 4px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.work-day-chip.is-selected {
+    background: var(--primary-muted);
+    color: var(--text-primary);
+    border-color: var(--primary);
+}
+
+.work-interval-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.work-interval-input {
+    width: 4.5rem;
+}
+
+/* ---------- Workout ---------- */
+
+.workout-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.workout-session-form {
+    display: grid;
+    gap: 8px;
+}
+
+.workout-recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    list-style: none;
+}
+
+.workout-recent-list strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.work-scope-modal {
+    position: fixed;
+    inset: 0;
+    background: hsl(0 0% 0% / 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    padding: 16px;
+}
+
+.work-scope-modal.is-hidden {
+    display: none;
+}
+
+.work-scope-card {
+    width: min(420px, 100%);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 18px;
+    box-shadow: var(--shadow-lg);
+}
+
+.work-scope-card h3 {
+    text-transform: none;
+    letter-spacing: var(--letter-tight);
+    margin-bottom: 6px;
+}
+
+.work-scope-card .work-item-actions {
+    margin-top: 14px;
 }
 
 .work-list {

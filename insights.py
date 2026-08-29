@@ -16,6 +16,7 @@ import eel
 import daily_checklist
 import journal
 import work
+import workouts
 
 
 def _data_dir() -> Path:
@@ -153,10 +154,9 @@ def get_weekly_review(days: int = 7) -> Dict[str, Any]:
     submissions = _submissions_in_range(start, end)
     journal_entries = _journal_entries_in_range(start, end)
     custom_items = daily_checklist.get_custom_checklist_items()
+    workout = workouts.workout_metrics(days)
 
     days_with_checkin: Set[str] = set()
-    days_with_exercise: Set[str] = set()
-    workout_counter: Counter = Counter()
     checklist_ids: Counter = Counter()
 
     for sub in submissions:
@@ -164,13 +164,6 @@ def get_weekly_review(days: int = 7) -> Dict[str, Any]:
         if ld:
             days_with_checkin.add(ld)
         checklist_ids[sub.get("checklist_id", "unknown")] += 1
-        answers = sub.get("answers") or {}
-        if _is_exercise_yes(answers):
-            if ld:
-                days_with_exercise.add(ld)
-            for wt in _workout_types(answers):
-                if wt:
-                    workout_counter[wt] += 1
 
     completion_pct = round(len(days_with_checkin) / days * 100, 1)
     total_writing = sum(int(e.get("duration_seconds") or 0) for e in journal_entries)
@@ -185,9 +178,10 @@ def get_weekly_review(days: int = 7) -> Dict[str, Any]:
         "days_with_checkin": len(days_with_checkin),
         "total_submissions": len(submissions),
         "checklist_breakdown": dict(checklist_ids),
-        "exercise_sessions": len(days_with_exercise),
-        "exercise_days": len(days_with_exercise),
-        "workout_types": dict(workout_counter),
+        "exercise_sessions": workout.get("sessions") or 0,
+        "exercise_days": workout.get("days_trained") or 0,
+        "workout_types": workout.get("by_kind") or {},
+        "workout_miles": workout.get("miles") or 0,
         "journal_entry_count": len(journal_entries),
         "journal_writing_seconds": total_writing,
         "journal_writing_minutes": round(total_writing / 60, 1),
@@ -217,16 +211,10 @@ def _title_for_checklist(checklist_id: str) -> str:
 
 @eel.expose
 def get_today_status() -> Dict[str, Any]:
-    """Morning/evening check-in state and journal count for today."""
+    """Workout, to-do, and journal counts for today."""
     today = date.today()
     iso = today.isoformat()
     hour = datetime.now().hour
-
-    done_ids: Set[str] = set()
-    for row in daily_checklist.fetch_submissions(local_date=iso, decorate=False):
-        cid = row.get("checklist_id")
-        if cid:
-            done_ids.add(str(cid))
 
     journal_count = 0
     for entry in journal.get_recent_entries(days=2):
@@ -238,41 +226,68 @@ def get_today_status() -> Dict[str, Any]:
         if ed == today:
             journal_count += 1
 
-    morning_done = "morning" in done_ids
-    evening_done = "evening" in done_ids
     work_board = work.get_work_board(iso)
     work_open = int(work_board.get("counts", {}).get("today_open") or 0)
     work_done = int(work_board.get("counts", {}).get("today_done") or 0)
     work_total = int(work_board.get("counts", {}).get("today_total") or 0)
-
-    if morning_done and not evening_done:
-        suggested = "evening"
-    elif hour < 14:
-        suggested = "morning"
-    else:
-        suggested = "evening"
+    workout = workouts.get_workout_day(iso)
 
     return {
         "local_date": iso,
         "hour": hour,
         "journal_count": journal_count,
-        "checklist_ids": sorted(done_ids),
-        "morning": {
-            "id": "morning",
-            "title": _title_for_checklist("morning"),
-            "done": morning_done,
+        "workout": {
+            "done": bool(workout.get("done")),
+            "session_count": int(workout.get("session_count") or 0),
+            "miles": workout.get("miles") or 0,
         },
-        "evening": {
-            "id": "evening",
-            "title": _title_for_checklist("evening"),
-            "done": evening_done,
-        },
-        "suggested": suggested,
-        "suggested_title": _title_for_checklist(suggested),
-        "suggested_done": suggested in done_ids,
         "work": {
             "open": work_open,
             "done": work_done,
             "total": work_total,
         },
+    }
+
+
+@eel.expose
+def get_analytics(days: int = 30) -> Dict[str, Any]:
+    """Journal, workout, and repeating to-do metrics for the last N days."""
+    import timeline
+
+    days = max(1, min(int(days or 30), 365))
+    end = date.today()
+    start = end - timedelta(days=days - 1)
+    journal_entries = _journal_entries_in_range(start, end)
+    journal_days: Set[str] = set()
+    total_writing = 0
+    for entry in journal_entries:
+        total_writing += int(entry.get("duration_seconds") or 0)
+        raw = entry.get("date") or entry.get("created_at") or ""
+        try:
+            journal_days.add(datetime.fromisoformat(raw).date().isoformat())
+        except (ValueError, TypeError):
+            continue
+
+    streaks = timeline.compute_streaks(end)
+    workout = workouts.workout_metrics(days)
+    work_stats = work.repeating_work_analytics(days)
+    week_key = _week_key(end)
+    pattern_notes = _load_pattern_notes()
+    return {
+        "period_start": start.isoformat(),
+        "period_end": end.isoformat(),
+        "days": days,
+        "week_key": week_key,
+        "show_up_streak": int(streaks.get("show_up") or 0),
+        "journal": {
+            "entries": len(journal_entries),
+            "days_written": len(journal_days),
+            "minutes": round(total_writing / 60, 1),
+            "streak": int(streaks.get("writing") or 0),
+        },
+        "workout": workout,
+        "workout_streak": int(streaks.get("workout") or 0),
+        "work": work_stats,
+        "pattern_prompt": "What pattern do you notice?",
+        "pattern_note": pattern_notes.get(week_key, ""),
     }

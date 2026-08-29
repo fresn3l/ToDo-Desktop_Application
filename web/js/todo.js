@@ -1,11 +1,13 @@
 /**
- * Today's To Do — dated work with start / finish timers.
+ * Today's To Do — dated work with start / finish timers and optional repeats.
  */
 
 import * as utils from './utils.js';
 import { formatDuration, liveSeconds, tomorrowISO } from './work.js';
 
 let tickTimer = null;
+let repeatKind = 'daily';
+let scopeResolver = null;
 
 function stopTick() {
     if (tickTimer) {
@@ -29,12 +31,70 @@ function startTick() {
     }, 1000);
 }
 
+function askScope(copy) {
+    const modal = document.getElementById('workScopeModal');
+    const text = document.getElementById('workScopeCopy');
+    if (!modal || !text) return Promise.resolve('occurrence');
+    text.textContent = copy;
+    modal.classList.remove('is-hidden');
+    modal.hidden = false;
+    return new Promise((resolve) => {
+        scopeResolver = resolve;
+    });
+}
+
+function closeScope(result) {
+    const modal = document.getElementById('workScopeModal');
+    if (modal) {
+        modal.classList.add('is-hidden');
+        modal.hidden = true;
+    }
+    if (scopeResolver) {
+        const resolve = scopeResolver;
+        scopeResolver = null;
+        resolve(result);
+    }
+}
+
+function selectedWeekdays() {
+    return [...document.querySelectorAll('#todoWeekdays .work-day-chip.is-selected')].map((btn) =>
+        Number(btn.getAttribute('data-day')),
+    );
+}
+
+function currentRepeat() {
+    const on = document.getElementById('todoRepeatToggle')?.checked;
+    if (!on) return null;
+    if (repeatKind === 'daily') return { kind: 'daily' };
+    if (repeatKind === 'weekdays') return { kind: 'weekdays' };
+    if (repeatKind === 'interval') {
+        const n = Number(document.getElementById('todoEveryDays')?.value || 2);
+        return { kind: 'interval', every_days: Number.isFinite(n) ? Math.max(2, n) : 2 };
+    }
+    const weekdays = selectedWeekdays();
+    if (!weekdays.length) return { kind: 'daily' };
+    return { kind: 'weekly', weekdays };
+}
+
+function syncRepeatPanel() {
+    const on = document.getElementById('todoRepeatToggle')?.checked;
+    document.getElementById('todoRepeatPanel')?.classList.toggle('is-hidden', !on);
+    document.getElementById('todoWeekdays')?.classList.toggle('is-hidden', !on || repeatKind !== 'custom');
+    document.getElementById('todoIntervalWrap')?.classList.toggle('is-hidden', !on || repeatKind !== 'interval');
+    document.querySelectorAll('#todoRepeatKind [data-value]').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-value') === repeatKind);
+    });
+}
+
 function itemRow(item, { showDate = false } = {}) {
     const running = item.status === 'active';
     const done = item.status === 'done';
     const seconds = liveSeconds(item);
     const dateBit = showDate && item.scheduled_date
         ? `<span class="work-date">${utils.escapeHtml(item.scheduled_date)}</span>`
+        : '';
+    const repeatBit = item.is_repeating
+        ? `<span class="work-flag">${utils.escapeHtml(item.cadence_label || 'Repeats')}</span>`
         : '';
     const actions = done
         ? `<button type="button" class="btn-ghost" data-act="reopen">Reopen</button>`
@@ -47,8 +107,11 @@ function itemRow(item, { showDate = false } = {}) {
                 <button type="button" class="btn-primary" data-act="start">Start</button>
                 <button type="button" class="btn-secondary" data-act="finish">Finish</button>
               `;
+    const repeatActions = item.is_repeating
+        ? `<button type="button" class="btn-ghost" data-act="rename">Rename</button>`
+        : '';
     return `
-        <article class="work-item ${running ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-id="${utils.escapeHtml(item.id)}">
+        <article class="work-item ${running ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-id="${utils.escapeHtml(item.id)}" data-repeating="${item.is_repeating ? '1' : '0'}">
             <div class="work-item-main">
                 <h3>${utils.escapeHtml(item.title)}</h3>
                 <p class="work-meta">
@@ -56,11 +119,13 @@ function itemRow(item, { showDate = false } = {}) {
                         data-started="${utils.escapeHtml(item.active_started_at || '')}"
                         data-stored="${item.stored_duration_seconds ?? item.duration_seconds ?? 0}">${formatDuration(seconds)}</span>
                     ${dateBit}
+                    ${repeatBit}
                     ${done ? '<span class="work-flag">Done</span>' : running ? '<span class="work-flag is-live">In progress</span>' : ''}
                 </p>
             </div>
             <div class="work-item-actions">
                 ${actions}
+                ${repeatActions}
                 <button type="button" class="btn-ghost" data-act="park">All Work</button>
                 <button type="button" class="btn-ghost" data-act="delete">Delete</button>
             </div>
@@ -71,6 +136,7 @@ function itemRow(item, { showDate = false } = {}) {
 function bindList(root, onChange) {
     root.querySelectorAll('.work-item').forEach((row) => {
         const id = row.getAttribute('data-id');
+        const repeating = row.getAttribute('data-repeating') === '1';
         row.querySelectorAll('[data-act]').forEach((btn) => {
             btn.addEventListener('click', async () => {
                 const act = btn.getAttribute('data-act');
@@ -80,7 +146,21 @@ function bindList(root, onChange) {
                     else if (act === 'finish') await eel.finish_work_item(id)();
                     else if (act === 'reopen') await eel.reopen_work_item(id)();
                     else if (act === 'park') await eel.assign_work_item(id, '')();
-                    else if (act === 'delete') await eel.delete_work_item(id)();
+                    else if (act === 'rename') {
+                        const next = window.prompt('New name');
+                        if (!next || !next.trim()) return;
+                        const scope = repeating
+                            ? await askScope('Rename only this day, or every future day in the series?')
+                            : 'occurrence';
+                        if (!scope) return;
+                        await eel.update_work_item(id, next.trim(), null, scope)();
+                    } else if (act === 'delete') {
+                        const scope = repeating
+                            ? await askScope('Remove only today’s copy, or stop the whole repeating series?')
+                            : 'occurrence';
+                        if (!scope) return;
+                        await eel.delete_work_item(id, scope)();
+                    }
                     utils.notifyDataChanged();
                     await onChange();
                 } catch (e) {
@@ -114,7 +194,7 @@ export async function refreshTodo() {
             list.innerHTML = `
                 <div class="empty-state">
                     <h3>No tasks for today</h3>
-                    <p>Add one here, or plan them tonight from All Work during the evening check-in.</p>
+                    <p>Add a one-off or a repeating to do. Missed repeats stay on that past day for Analytics.</p>
                 </div>`;
         } else {
             list.innerHTML = board.today.map((item) => itemRow(item)).join('');
@@ -141,7 +221,7 @@ export async function refreshTodo() {
                 tomorrowEl.innerHTML = `
                     <h3>Already set for tomorrow</h3>
                     <ul class="work-already">${board.tomorrow
-                        .map((item) => `<li>${utils.escapeHtml(item.title)}</li>`)
+                        .map((item) => `<li>${utils.escapeHtml(item.title)}${item.cadence_label ? ` · ${utils.escapeHtml(item.cadence_label)}` : ''}</li>`)
                         .join('')}</ul>
                 `;
             } else {
@@ -150,11 +230,9 @@ export async function refreshTodo() {
             }
         }
 
-        if (board.today.some((item) => item.status === 'active') || board.overdue.some((item) => item.status === 'active')) {
-            startTick();
-        } else {
-            stopTick();
-        }
+        const active = [...(board.today || []), ...(board.overdue || [])].some((item) => item.status === 'active');
+        if (active) startTick();
+        else stopTick();
     } catch (e) {
         console.error(e);
         list.innerHTML = '<p class="checklist-error">Could not load today’s work.</p>';
@@ -168,10 +246,15 @@ async function addTodayTask() {
         utils.showErrorFeedback('Name the task first.');
         return;
     }
+    const repeat = currentRepeat();
+    if (repeatKind === 'custom' && repeat && !(repeat.weekdays || []).length) {
+        utils.showErrorFeedback('Pick at least one weekday.');
+        return;
+    }
     try {
-        await eel.create_work_item(title, utils.localISODate(), '', 'manual')();
+        await eel.create_work_item(title, utils.localISODate(), '', 'manual', repeat)();
         if (input) input.value = '';
-        utils.showSuccessFeedback('Added to today.');
+        utils.showSuccessFeedback(repeat ? 'Repeating to do saved.' : 'Added to today.');
         utils.notifyDataChanged();
         await refreshTodo();
         input?.focus();
@@ -192,11 +275,27 @@ export function setupTodo() {
             void addTodayTask();
         }
     });
+    document.getElementById('todoRepeatToggle')?.addEventListener('change', syncRepeatPanel);
+    document.getElementById('todoRepeatKind')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-value]');
+        if (!btn) return;
+        repeatKind = btn.getAttribute('data-value') || 'daily';
+        syncRepeatPanel();
+    });
+    document.getElementById('todoWeekdays')?.addEventListener('click', (e) => {
+        const chip = e.target.closest('.work-day-chip');
+        if (!chip) return;
+        chip.classList.toggle('is-selected');
+    });
+    document.getElementById('workScopeOccurrence')?.addEventListener('click', () => closeScope('occurrence'));
+    document.getElementById('workScopeSeries')?.addEventListener('click', () => closeScope('series'));
+    document.getElementById('workScopeCancel')?.addEventListener('click', () => closeScope(null));
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('todoTab')?.classList.contains('active')) {
             void refreshTodo();
         }
     });
+    syncRepeatPanel();
 }
 
 export async function onTodoTabShown() {

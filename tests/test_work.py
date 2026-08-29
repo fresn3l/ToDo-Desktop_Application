@@ -91,6 +91,121 @@ class WorkStoreTests(unittest.TestCase):
         data = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(data["open_count"], 1)
 
+    def test_daily_repeat_spawns_fresh_day_without_carryover(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            item = self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+            self.assertTrue(item["is_repeating"])
+            self.assertEqual(item["scheduled_date"], friday.isoformat())
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            board = self.work.get_work_board(saturday.isoformat())
+            self.assertEqual([row["title"] for row in board["today"]], ["Meditate 15 mins"])
+            self.assertEqual(board["today"][0]["scheduled_date"], saturday.isoformat())
+            self.assertEqual(board["overdue"], [])
+            self.assertNotEqual(board["today"][0]["id"], item["id"])
+
+    def test_custom_weekdays_skip_other_days(self) -> None:
+        friday = date(2026, 8, 28)  # Friday
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            self.work.create_work_item(
+                "Deep work",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "weekly", "weekdays": [0, 4]},  # Mon, Fri
+            )
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            board = self.work.get_work_board(saturday.isoformat())
+            self.assertEqual(board["today"], [])
+            self.assertEqual(board["overdue"], [])
+
+    def test_rename_can_be_this_day_or_series(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            item = self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+            self.work.update_work_item(item["id"], "Only Friday", scope="occurrence")
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            board = self.work.get_work_board(saturday.isoformat())
+            self.assertEqual(board["today"][0]["title"], "Meditate 15 mins")
+            self.work.update_work_item(board["today"][0]["id"], "Meditate 20 mins", scope="series")
+            board = self.work.get_work_board(saturday.isoformat())
+            self.assertEqual(board["today"][0]["title"], "Meditate 20 mins")
+
+    def test_delete_this_day_keeps_the_series(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            item = self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+            self.work.delete_work_item(item["id"], scope="occurrence")
+            self.assertEqual(self.work.list_work_for_date(friday.isoformat()), [])
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            board = self.work.get_work_board(saturday.isoformat())
+            self.assertEqual([row["title"] for row in board["today"]], ["Meditate 15 mins"])
+
+    def test_missed_repeat_is_logged_without_carryover(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            board = self.work.get_work_board(saturday.isoformat())
+            self.assertEqual(board["overdue"], [])
+            stats = self.work.repeating_work_analytics(7)
+            miss_dates = [row["date"] for row in stats["misses"]]
+            self.assertIn(friday.isoformat(), miss_dates)
+            self.assertNotIn(saturday.isoformat(), miss_dates)
+            self.assertEqual(stats["repeat_missed"], 1)
+            self.assertEqual(stats["repeat_skipped"], 0)
+
+    def test_skip_is_not_counted_as_a_miss(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            item = self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+            self.work.delete_work_item(item["id"], scope="occurrence")
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            stats = self.work.repeating_work_analytics(7)
+            self.assertEqual(stats["repeat_skipped"], 1)
+            self.assertEqual(stats["repeat_missed"], 0)
+            self.assertEqual(stats["misses"], [])
+
+    def test_finished_repeat_is_not_a_miss(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        with mock.patch.object(self.work, "_today", return_value=friday):
+            item = self.work.create_work_item(
+                "Meditate 15 mins",
+                scheduled_date=friday.isoformat(),
+                repeat={"kind": "daily"},
+            )
+            self.work.finish_work_item(item["id"])
+        with mock.patch.object(self.work, "_today", return_value=saturday):
+            stats = self.work.repeating_work_analytics(7)
+            self.assertEqual(stats["repeat_done"], 1)
+            self.assertEqual(stats["repeat_missed"], 0)
+            self.assertEqual(stats["misses"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
