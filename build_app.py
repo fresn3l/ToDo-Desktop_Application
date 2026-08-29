@@ -95,14 +95,19 @@ def _install_swift_host(app_path: str) -> bool:
     macos_dir = os.path.join(app_path, "Contents", "MacOS")
     python_exe = os.path.join(macos_dir, "Kosistenz")
     bridge_exe = os.path.join(macos_dir, "kosistenz-bridge")
-    swift_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macos", "KosistenzWindow.swift")
+    src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macos")
+    host_sources = [
+        os.path.join(src_dir, "KosistenzWindow.swift"),
+        os.path.join(src_dir, "KosistenzChrome.swift"),
+    ]
     compiler = _swiftc()
     if compiler is None:
         print("swiftc not found.")
         return False
-    if not os.path.isfile(swift_src):
-        print(f"Swift source missing: {swift_src}")
-        return False
+    for src in host_sources:
+        if not os.path.isfile(src):
+            print(f"Swift source missing: {src}")
+            return False
     if not os.path.isfile(python_exe):
         print(f"PyInstaller executable missing: {python_exe}")
         return False
@@ -116,7 +121,9 @@ def _install_swift_host(app_path: str) -> bool:
         "-o", python_exe,
         "-framework", "Cocoa",
         "-framework", "WebKit",
-        swift_src,
+        "-framework", "WidgetKit",
+        "-framework", "SwiftUI",
+        *host_sources,
     ]
     print("Compiling native WKWebView host...")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -132,7 +139,74 @@ def _install_swift_host(app_path: str) -> bool:
     os.chmod(bridge_exe, os.stat(bridge_exe).st_mode | stat.S_IEXEC)
     print(f"Native window host: {python_exe}")
     print(f"UI server:          {bridge_exe}")
+    _install_widget_extension(app_path, compiler)
     return True
+
+
+def _install_widget_extension(app_path: str, compiler: list[str]) -> bool:
+    """Compile WidgetKit .appex into Contents/PlugIns. Skip if the SDK is too old."""
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macos", "KosistenzWidget.swift")
+    if not os.path.isfile(src):
+        print("Widget source missing; skipping WidgetKit extension.")
+        return False
+    plugins = os.path.join(app_path, "Contents", "PlugIns", "KosistenzWidget.appex")
+    os.makedirs(plugins, exist_ok=True)
+    exe = os.path.join(plugins, "KosistenzWidget")
+    cmd = compiler + [
+        "-O",
+        "-parse-as-library",
+        "-target", _widget_target(),
+        "-o", exe,
+        "-framework", "SwiftUI",
+        "-framework", "WidgetKit",
+        "-framework", "AppKit",
+        src,
+    ]
+    print("Compiling Notification Center widget...")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stdout)
+        print(result.stderr)
+        print("Widget compile skipped (needs macOS 14 SDK for Lock Screen families).")
+        shutil.rmtree(os.path.join(app_path, "Contents", "PlugIns"), ignore_errors=True)
+        return False
+    os.chmod(exe, os.stat(exe).st_mode | stat.S_IEXEC)
+    _write_widget_info_plist(os.path.join(plugins, "Info.plist"))
+    print(f"Widget extension: {plugins}")
+    return True
+
+
+def _widget_target() -> str:
+    arch = os.uname().machine if hasattr(os, "uname") else "arm64"
+    if arch in ("x86_64", "amd64"):
+        return "x86_64-apple-macos14.0"
+    return "arm64-apple-macos14.0"
+
+
+def _write_widget_info_plist(path: str) -> None:
+    import plistlib
+
+    info = {
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleDisplayName": "Kosistenz",
+        "CFBundleExecutable": "KosistenzWidget",
+        "CFBundleIdentifier": "com.kosistenz.app.widget",
+        "CFBundleInfoDictionaryVersion": "6.0",
+        "CFBundleName": "KosistenzWidget",
+        "CFBundlePackageType": "XPC!",
+        "CFBundleShortVersionString": "1.0.0",
+        "CFBundleVersion": "1",
+        "LSMinimumSystemVersion": "14.0",
+        "NSExtension": {
+            "NSExtensionPointIdentifier": "com.apple.widgetkit-extension",
+        },
+        "NSAppTransportSecurity": {
+            "NSAllowsLocalNetworking": True,
+            "NSAllowsArbitraryLoads": False,
+        },
+    }
+    with open(path, "wb") as handle:
+        plistlib.dump(info, handle)
 
 
 def build_app() -> None:
@@ -174,6 +248,7 @@ def build_app() -> None:
         "health_import",
         "appearance",
         "bridge",
+        "local_api",
         "paths",
         "native_mac",
         "proxy_tools",
@@ -255,6 +330,27 @@ def _patch_info_plist(app_path: str) -> None:
             "NSAllowsLocalNetworking": True,
             "NSAllowsArbitraryLoads": False,
         }
+        info["CFBundleURLTypes"] = [
+            {
+                "CFBundleURLName": "com.kosistenz.app",
+                "CFBundleURLSchemes": ["kosistenz"],
+                "CFBundleTypeRole": "Editor",
+            }
+        ]
+        info["NSServices"] = [
+            {
+                "NSMenuItem": {"default": "New Journal Entry in Kosistenz"},
+                "NSMessage": "newJournalEntry",
+                "NSPortName": "Kosistenz",
+                "NSSendTypes": ["public.utf8-plain-text", "NSStringPboardType"],
+            },
+            {
+                "NSMenuItem": {"default": "Park in All Work"},
+                "NSMessage": "parkInAllWork",
+                "NSPortName": "Kosistenz",
+                "NSSendTypes": ["public.utf8-plain-text", "NSStringPboardType"],
+            },
+        ]
         with open(plist_path, "wb") as handle:
             plistlib.dump(info, handle)
     except Exception as exc:

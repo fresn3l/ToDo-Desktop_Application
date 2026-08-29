@@ -2,27 +2,37 @@ import Cocoa
 import Darwin
 import Foundation
 import WebKit
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
-/// Native Mac host for Kosistenz: Cocoa window + WKWebView.
+/// Native Mac host for Kosistenz: Cocoa window + WKWebView + menu bar.
 /// Python (kosistenz-bridge) only serves the local UI; it does not create the window.
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate {
-    private var window: NSWindow?
-    private var webView: WKWebView?
-    private var bridge: Process?
-    private var logHandle: FileHandle?
-    private var stopping = false
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, NSMenuDelegate {
+    var window: NSWindow?
+    var webView: WKWebView?
+    var bridge: Process?
+    var logHandle: FileHandle?
+    var stopping = false
+    var uiPort: UInt16 = 17653
+    var apiPort: UInt16 = 18741
+    var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         log("Swift host launching")
         buildMenu()
+        NSApp.servicesProvider = self
+        NSUpdateDynamicServices()
 
         do {
             let port = try pickPort()
+            uiPort = port
             let webDir = try locateWebDir()
             let bridgeURL = try locateBridge()
             log("Starting bridge: \(bridgeURL.path) --bridge \(port) \(webDir)")
             try startBridge(executable: bridgeURL, port: port, webDir: webDir)
             createWindow()
+            setupStatusItem()
             waitForServerThenLoad(port: port)
         } catch {
             fail("Kosistenz could not start.\n\n\(error.localizedDescription)")
@@ -30,15 +40,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showMainWindow()
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         stopBridge()
     }
 
-    func windowWillClose(_ notification: Notification) {
-        stopBridge()
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        sender.orderOut(nil)
+        return false
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            handleKosistenzURL(url)
+        }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -48,6 +70,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         let scheme = url.scheme?.lowercased() ?? ""
         let host = url.host?.lowercased() ?? ""
+        if scheme == "kosistenz" {
+            handleKosistenzURL(url)
+            decisionHandler(.cancel)
+            return
+        }
         if (scheme == "http" || scheme == "https"), host == "127.0.0.1" || host == "localhost" {
             decisionHandler(.allow)
             return
@@ -64,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         log("Provisional navigation failed: \(error.localizedDescription)")
     }
 
-    private func createWindow() {
+    func createWindow() {
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let width = min(1280.0, max(960.0, screen.width - 80))
         let height = min(840.0, max(680.0, screen.height - 80))
@@ -114,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         log("Native window shown")
     }
 
-    private func waitForServerThenLoad(port: UInt16) {
+    func waitForServerThenLoad(port: UInt16) {
         let url = URL(string: "http://127.0.0.1:\(port)/index.html")!
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let ok = self?.waitForHTTP(url: url, timeout: 20) ?? false
@@ -128,6 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                     log("UI server ready on \(port)")
                     self.webView?.load(URLRequest(url: url))
                     log("Loading \(url.absoluteString)")
+                    self.reloadWidgets()
                 } else {
                     self.fail("The UI server did not start on port \(port). See ~/Library/Logs/Kosistenz.log")
                 }
@@ -141,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         process.arguments = ["--bridge", "\(port)", webDir]
         var env = ProcessInfo.processInfo.environment
         env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+        env["KOSISTENZ_API_PORT"] = "\(apiPort)"
         process.environment = env
 
         let logURL = logFileURL()
@@ -311,7 +340,7 @@ private func logFileURL() -> URL {
         .appendingPathComponent("Library/Logs/Kosistenz.log")
 }
 
-private func log(_ message: String) {
+func log(_ message: String) {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
     let line = "\(formatter.string(from: Date())) \(message)\n"

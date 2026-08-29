@@ -36,6 +36,9 @@ class AnalyticsApiTests(unittest.TestCase):
         self.assertIn("miles", data["workout"])
         self.assertIn("misses", data["work"])
         self.assertIn("repeat_missed", data["work"])
+        self.assertIn("workout_plan", data)
+        self.assertIn("misses", data["workout_plan"])
+        self.assertIn("weight_log", data["workout"])
 
 
 if __name__ == "__main__":

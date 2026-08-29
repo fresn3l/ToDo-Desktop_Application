@@ -123,10 +123,18 @@ function renderAnalytics(data) {
                 </li>`,
         )
         .join('') || '<li class="checklist-empty">No missed repeating days</li>';
-    const weights = (workout.weight_log || [])
-        .slice(-8)
-        .map((row) => `<li>${utils.escapeHtml(row.date)} · ${utils.escapeHtml(String(row.weight))}</li>`)
-        .join('') || '<li class="checklist-empty">No weight logged</li>';
+    const plan = data.workout_plan || {};
+    const planMisses = (plan.misses || [])
+        .map(
+            (row) => `
+                <li>
+                    <button type="button" class="analytics-miss-btn" data-open-day="${utils.escapeHtml(row.date)}">
+                        <strong>${utils.escapeHtml(row.kind_label || row.kind)}</strong>
+                        <span>${utils.escapeHtml(row.date)} · ${utils.escapeHtml(row.weekday || '')}</span>
+                    </button>
+                </li>`,
+        )
+        .join('') || '<li class="checklist-empty">No missed template days</li>';
 
     return `
         <div class="review-grid">
@@ -165,9 +173,18 @@ function renderAnalytics(data) {
                 <p class="review-detail">A miss is logged here and does not pile onto today. Skipping a day is not a miss.</p>
                 <ul class="review-list analytics-miss-list">${misses}</ul>
             </div>
-            <div class="review-card">
+            <div class="review-card review-card--wide">
+                <h3>Week template</h3>
+                <p class="review-stat">${plan.missed || 0}</p>
+                <p class="review-detail">missed expected days · ${utils.escapeHtml(plan.label || 'No expected days')}</p>
+                <ul class="review-list">
+                    <li>${plan.done || 0} of ${plan.expected || 0} expected sessions (${plan.completion_pct || 0}%)</li>
+                </ul>
+                <ul class="review-list analytics-miss-list">${planMisses}</ul>
+            </div>
+            <div class="review-card review-card--wide">
                 <h3>Weight</h3>
-                <ul class="review-list">${weights}</ul>
+                ${weightSparkline(workout.weight_log || [])}
             </div>
             <div class="review-card review-card--wide">
                 <h3>${utils.escapeHtml(data.pattern_prompt || 'What pattern do you notice?')}</h3>
@@ -176,5 +193,41 @@ function renderAnalytics(data) {
             </div>
         </div>
         <p class="checklist-hint small">Period: ${utils.escapeHtml(data.period_start)} → ${utils.escapeHtml(data.period_end)}</p>
+    `;
+}
+
+function weightSparkline(log) {
+    const points = (log || []).filter((row) => row && row.weight != null && !Number.isNaN(Number(row.weight)));
+    if (!points.length) {
+        return '<p class="checklist-empty">No weight logged</p>';
+    }
+    const vals = points.map((row) => Number(row.weight));
+    const last = vals[vals.length - 1];
+    const first = vals[0];
+    const delta = last - first;
+    const deltaLabel = `${delta > 0 ? '+' : ''}${delta.toFixed(1)} lb`;
+    const latestDate = points[points.length - 1].date || '';
+    if (vals.length === 1) {
+        return `
+            <p class="review-stat">${utils.escapeHtml(String(last))}</p>
+            <p class="review-detail">lb on ${utils.escapeHtml(String(latestDate))}</p>
+        `;
+    }
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const span = max - min || 1;
+    const width = 320;
+    const height = 56;
+    const pad = 4;
+    const coords = vals.map((value, index) => {
+        const x = pad + (index / (vals.length - 1)) * (width - pad * 2);
+        const y = pad + (1 - (value - min) / span) * (height - pad * 2);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    return `
+        <svg class="weight-sparkline" viewBox="0 0 ${width} ${height}" role="img" aria-label="Body weight trend">
+            <polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${coords.join(' ')}"></polyline>
+        </svg>
+        <p class="review-detail">${utils.escapeHtml(String(last))} lb · ${utils.escapeHtml(deltaLabel)} over ${points.length} weigh-ins${latestDate ? ` · last ${utils.escapeHtml(String(latestDate))}` : ''}</p>
     `;
 }

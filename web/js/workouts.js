@@ -131,6 +131,92 @@ async function addSession() {
     }
 }
 
+const WEEKDAYS = [
+    { value: '0', label: 'Mon' },
+    { value: '1', label: 'Tue' },
+    { value: '2', label: 'Wed' },
+    { value: '3', label: 'Thu' },
+    { value: '4', label: 'Fri' },
+    { value: '5', label: 'Sat' },
+    { value: '6', label: 'Sun' },
+];
+
+const LIFT_OPTIONS = [
+    { value: '', label: '—' },
+    { value: 'push', label: 'Push' },
+    { value: 'pull', label: 'Pull' },
+    { value: 'legs', label: 'Legs' },
+];
+
+function readTemplateForm() {
+    const lifts = {};
+    WEEKDAYS.forEach((day) => {
+        const select = document.getElementById(`weekLift-${day.value}`);
+        const kind = select?.value || '';
+        if (kind) lifts[day.value] = kind;
+    });
+    const everyOther = document.getElementById('weekRunEveryOther')?.checked;
+    return {
+        lifts,
+        running: {
+            enabled: !!everyOther,
+            mode: 'interval',
+            every_days: 2,
+            anchor: '2020-01-06',
+            weekdays: [],
+        },
+    };
+}
+
+function renderWeekTemplate(plan) {
+    const form = document.getElementById('weekTemplateForm');
+    if (!form) return;
+    const lifts = plan?.lifts || {};
+    const running = plan?.running || {};
+    const rows = WEEKDAYS.map((day) => {
+        const current = lifts[day.value] || lifts[Number(day.value)] || '';
+        const options = LIFT_OPTIONS.map(
+            (opt) =>
+                `<option value="${opt.value}"${opt.value === current ? ' selected' : ''}>${opt.label}</option>`,
+        ).join('');
+        return `
+            <label class="week-template-row">
+                <span>${day.label}</span>
+                <select id="weekLift-${day.value}" class="checklist-select">${options}</select>
+            </label>`;
+    }).join('');
+    const everyOther = running.enabled !== false && (running.mode || 'interval') === 'interval';
+    form.innerHTML = `
+        ${rows}
+        <label class="week-template-run">
+            <input type="checkbox" id="weekRunEveryOther"${everyOther ? ' checked' : ''}>
+            Run every other day
+        </label>
+    `;
+}
+
+async function loadWeekTemplate() {
+    const form = document.getElementById('weekTemplateForm');
+    if (!form) return;
+    try {
+        const plan = await eel.get_week_template()();
+        renderWeekTemplate(plan);
+    } catch (e) {
+        console.error(e);
+        renderWeekTemplate({ lifts: { 0: 'push', 2: 'pull', 4: 'legs' }, running: { enabled: true } });
+    }
+}
+
+async function saveWeekTemplate() {
+    try {
+        await eel.save_week_template(readTemplateForm())();
+        utils.showSuccessFeedback('Week template saved.');
+        utils.notifyDataChanged();
+    } catch (e) {
+        utils.showErrorFeedback('Could not save the week template.');
+    }
+}
+
 export function setupWorkouts() {
     const kind = document.getElementById('workoutKind');
     if (kind && !kind.dataset.ready) {
@@ -145,6 +231,9 @@ export function setupWorkouts() {
     document.getElementById('workoutAddBtn')?.addEventListener('click', () => {
         void addSession();
     });
+    document.getElementById('weekTemplateSave')?.addEventListener('click', () => {
+        void saveWeekTemplate();
+    });
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('workoutTab')?.classList.contains('active')) {
             void refreshWorkouts();
@@ -154,5 +243,5 @@ export function setupWorkouts() {
 
 export async function onWorkoutTabShown() {
     syncKindFields();
-    await refreshWorkouts();
+    await Promise.all([refreshWorkouts(), loadWeekTemplate()]);
 }

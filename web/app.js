@@ -5,7 +5,7 @@
 import * as utils from './js/utils.js';
 import { initAppearance } from './js/appearance.js';
 import { setupTabs, switchTab } from './js/tabs.js';
-import { setupJournal } from './js/journal.js';
+import { setupJournal, beginNewJournalEntry } from './js/journal.js';
 import { setupAnalytics } from './js/analytics.js';
 import { setupTimeline } from './js/timeline.js';
 import { setupSettings } from './js/settings.js';
@@ -26,6 +26,18 @@ async function init() {
     setupJournal();
     setupAnalytics();
     setupTimeline();
+    document.addEventListener('kosistenz:command', (e) => {
+        const action = e.detail?.action;
+        if (action === 'journal-new') {
+            switchTab('journal')
+                .then(() => beginNewJournalEntry(e.detail?.text || ''))
+                .catch((err) => console.error(err));
+            return;
+        }
+        if (action === 'open-tab' && e.detail?.tab) {
+            switchTab(e.detail.tab).catch((err) => console.error(err));
+        }
+    });
     await switchTab('journal');
 }
 

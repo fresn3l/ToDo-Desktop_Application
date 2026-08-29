@@ -138,6 +138,13 @@ def save_journal_entry(content: str, duration_seconds: int = 0, continued: bool 
 
     cluny_sync.sync_journal_entry_safe(entry)
 
+    try:
+        import work
+
+        work.refresh_widget_snapshot()
+    except Exception:
+        pass
+
     return entry
 
 def _load_entries_from_disk(cutoff_date: Optional[datetime] = None) -> List[Dict]:

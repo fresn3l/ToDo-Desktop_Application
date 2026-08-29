@@ -1290,6 +1290,37 @@ input[type='radio'] {
     margin-top: 10px;
 }
 
+.weight-sparkline {
+    display: block;
+    width: 100%;
+    max-width: 360px;
+    height: 56px;
+    color: var(--text-primary);
+    margin: 8px 0 4px;
+}
+
+.week-template {
+    display: grid;
+    gap: 6px;
+    margin: 8px 0 12px;
+}
+
+.week-template-row {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.week-template-run {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    margin-top: 6px;
+}
+
 .review-stat {
     font-size: 2rem;
     font-weight: 700;

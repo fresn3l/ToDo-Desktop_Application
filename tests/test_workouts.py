@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 from unittest import mock
 
@@ -44,6 +45,47 @@ class WorkoutStoreTests(unittest.TestCase):
         self.assertEqual(metrics["miles"], 1)
         days = workouts.list_all_workout_days()
         self.assertGreaterEqual(len(days), 1)
+
+    def test_week_template_miss_stays_on_that_date(self) -> None:
+        friday = date(2026, 8, 28)
+        saturday = date(2026, 8, 29)
+        workouts.save_week_template(
+            {
+                "lifts": {"4": "legs"},
+                "running": {"enabled": False},
+            }
+        )
+        with mock.patch.object(workouts, "_today", return_value=saturday):
+            stats = workouts.workout_plan_analytics(7)
+        miss_dates = [row["date"] for row in stats["misses"]]
+        self.assertIn(friday.isoformat(), miss_dates)
+        self.assertNotIn(saturday.isoformat(), miss_dates)
+        self.assertEqual(stats["missed"], 1)
+        self.assertEqual(stats["misses"][0]["kind"], "legs")
+
+        workouts.add_workout_session(friday.isoformat(), "legs")
+        with mock.patch.object(workouts, "_today", return_value=saturday):
+            stats = workouts.workout_plan_analytics(7)
+        self.assertEqual(stats["missed"], 0)
+        self.assertEqual(stats["done"], 1)
+
+    def test_today_is_not_a_template_miss(self) -> None:
+        friday = date(2026, 8, 28)
+        workouts.save_week_template(
+            {
+                "lifts": {"4": "legs"},
+                "running": {"enabled": False},
+            }
+        )
+        with mock.patch.object(workouts, "_today", return_value=friday):
+            stats = workouts.workout_plan_analytics(7)
+        miss_dates = [row["date"] for row in stats["misses"]]
+        self.assertNotIn(friday.isoformat(), miss_dates)
+
+    def test_expected_kinds_default_monday_push(self) -> None:
+        monday = date(2026, 8, 24)
+        kinds = workouts.expected_kinds_for_date(monday, workouts.DEFAULT_WEEK_TEMPLATE)
+        self.assertIn("push", kinds)
 
     def test_lift_day_needs_no_miles(self) -> None:
         day = workouts.add_workout_session("2026-08-28", "legs")

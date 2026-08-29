@@ -3,7 +3,7 @@ Work items — dated To Do tasks, undated All Work backlog, and timer sessions.
 
 Storage: Application Support/ToDo/work_items.sqlite
 Widget snapshot: Application Support/ToDo/widget_snapshot.json
-  (a future Mac widget can read open_count for today without opening the app)
+  (Notification Center / Lock Screen widget plus the menu bar read this)
 """
 
 from __future__ import annotations
@@ -389,12 +389,80 @@ def _pause_active(conn: sqlite3.Connection, except_id: Optional[str] = None) -> 
         )
 
 
+def refresh_widget_snapshot() -> Dict[str, Any]:
+    return _write_widget_snapshot()
+
+
+def _workout_snapshot_bits(today: str) -> Dict[str, Any]:
+    empty = {"workout_logged": False, "workout_kinds": [], "workout_session_count": 0}
+    try:
+        import workouts
+
+        if not workouts.get_workouts_db_path().exists():
+            return empty
+        day = workouts.get_workout_day(today)
+        kinds = [str(session.get("kind") or "") for session in day.get("sessions") or []]
+        return {
+            "workout_logged": bool(day.get("done")),
+            "workout_kinds": [kind for kind in kinds if kind],
+            "workout_session_count": int(day.get("session_count") or 0),
+        }
+    except Exception:
+        return empty
+
+
+def _journal_snapshot_bits(today: date) -> Dict[str, Any]:
+    empty = {"journal_today": False, "journal_streak": 0}
+    try:
+        import journal
+
+        entries = journal.get_recent_entries(days=400)
+    except Exception:
+        return empty
+    days = set()
+    for entry in entries:
+        raw = str(entry.get("date") or entry.get("created_at") or "")[:10]
+        try:
+            days.add(date.fromisoformat(raw))
+        except ValueError:
+            continue
+    cursor = today if today in days else today - timedelta(days=1)
+    streak = 0
+    while cursor in days:
+        streak += 1
+        cursor -= timedelta(days=1)
+    return {"journal_today": today in days, "journal_streak": streak}
+
+
+def _summary_line(
+    *,
+    open_count: int,
+    done_count: int,
+    workout_logged: bool,
+    journal_streak: int,
+    today_empty: bool,
+) -> str:
+    if today_empty and done_count == 0:
+        return "Today is empty"
+    bits = []
+    if open_count:
+        bits.append(f"{open_count} open")
+    elif done_count:
+        bits.append("To dos done")
+    else:
+        bits.append("No to dos")
+    bits.append("Workout logged" if workout_logged else "No workout")
+    bits.append(f"Streak {journal_streak}" if journal_streak else "No journal streak")
+    return " · ".join(bits)
+
+
 def _write_widget_snapshot() -> Dict[str, Any]:
-    today = _today().isoformat()
+    today = _today()
+    today_iso = today.isoformat()
     with _connect() as conn:
         today_rows = conn.execute(
             "SELECT * FROM work_items WHERE scheduled_date = ?",
-            (today,),
+            (today_iso,),
         ).fetchall()
         backlog = conn.execute(
             "SELECT COUNT(*) AS n FROM work_items WHERE scheduled_date IS NULL AND status != 'done'"
@@ -411,16 +479,42 @@ def _write_widget_snapshot() -> Dict[str, Any]:
             open_items.append(item)
             if item["status"] == "active":
                 active_count += 1
+    workout = _workout_snapshot_bits(today_iso)
+    journal = _journal_snapshot_bits(today)
+    open_count = len(open_items)
+    today_empty = (
+        open_count == 0 and not workout["workout_logged"] and not journal["journal_today"]
+    )
+    active_title = None
+    for item in open_items:
+        if item["status"] == "active":
+            active_title = item["title"]
+            break
     snapshot = {
-        "date": today,
+        "date": today_iso,
         "updated_at": now.isoformat(),
-        "open_count": len(open_items),
+        "open_count": open_count,
         "active_count": active_count,
         "done_count": done_count,
         "backlog_count": int(backlog or 0),
         "titles": [item["title"] for item in open_items[:12]],
+        "active_title": active_title,
+        "workout_logged": workout["workout_logged"],
+        "workout_kinds": workout["workout_kinds"],
+        "workout_session_count": workout["workout_session_count"],
+        "journal_today": journal["journal_today"],
+        "journal_streak": journal["journal_streak"],
+        "today_empty": today_empty,
+        "summary": _summary_line(
+            open_count=open_count,
+            done_count=done_count,
+            workout_logged=workout["workout_logged"],
+            journal_streak=journal["journal_streak"],
+            today_empty=today_empty,
+        ),
     }
     path = get_widget_snapshot_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     tmp = str(path) + ".tmp"
     with open(tmp, "w", encoding="utf-8") as handle:
         json.dump(snapshot, handle, indent=2, ensure_ascii=False)

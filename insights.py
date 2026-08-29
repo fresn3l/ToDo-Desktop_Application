@@ -132,6 +132,7 @@ def get_analytics(days: int = 30) -> Dict[str, Any]:
 
     streaks = timeline.compute_streaks(end)
     workout = workouts.workout_metrics(days)
+    plan = workouts.workout_plan_analytics(days)
     work_stats = work.repeating_work_analytics(days)
     week_key = _week_key(end)
     pattern_notes = _load_pattern_notes()
@@ -148,6 +149,7 @@ def get_analytics(days: int = 30) -> Dict[str, Any]:
             "streak": int(streaks.get("writing") or 0),
         },
         "workout": workout,
+        "workout_plan": plan,
         "workout_streak": int(streaks.get("workout") or 0),
         "work": work_stats,
         "pattern_prompt": "What pattern do you notice?",

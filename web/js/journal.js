@@ -106,6 +106,20 @@ export function setupJournal() {
     void loadJournalTagPresets();
 }
 
+export function beginNewJournalEntry(seedText) {
+    const textarea = document.getElementById('journalEntry');
+    if (!textarea) return;
+    if (typeof seedText === 'string' && seedText.trim()) {
+        const current = textarea.value;
+        textarea.value = current && !current.endsWith('\n') && current.length ? `${current}\n${seedText}` : `${current}${seedText}`;
+        updateWordCount();
+        if (textarea.value.trim().length > 0 && !journalTimerRunning && !journalTimerPaused) {
+            startJournalTimer();
+        }
+    }
+    textarea.focus();
+}
+
 function updateWordCount() {
     const el = document.getElementById('journalWordCount');
     const textarea = document.getElementById('journalEntry');
