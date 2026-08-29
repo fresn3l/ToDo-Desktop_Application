@@ -177,7 +177,7 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     except Exception:
         pass
     try:
-        web.setValue_forKey_(False, "drawsBackground")
+        web.setValue_forKey_(True, "drawsBackground")
     except Exception:
         pass
     window.setContentView_(web)

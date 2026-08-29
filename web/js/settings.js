@@ -11,6 +11,7 @@ import {
     resetAppearance,
     applyAppearance,
 } from './appearance.js';
+import { moveTodayModule, renderTodayOrderList } from './today_layout.js';
 
 function bindSegmented(name, current, onPick) {
     const group = document.querySelector(`[data-setting-group="${name}"]`);
@@ -58,6 +59,13 @@ function paintSettings(settings) {
     if (contrast) contrast.checked = !!settings.highContrast;
     const autoFocus = document.getElementById('autoFocusToggle');
     if (autoFocus) autoFocus.checked = !!settings.autoFocus;
+    const todayTodo = document.getElementById('todayTodoToggle');
+    if (todayTodo) todayTodo.checked = settings.todayTodo !== false;
+    const todayWorkout = document.getElementById('todayWorkoutToggle');
+    if (todayWorkout) todayWorkout.checked = settings.todayWorkout !== false;
+    const todayJournal = document.getElementById('todayJournalToggle');
+    if (todayJournal) todayJournal.checked = settings.todayJournal !== false;
+    renderTodayOrderList(document.getElementById('settingsTodayOrder'), settings.todayOrder);
 }
 
 async function update(partial) {
@@ -118,6 +126,7 @@ export function setupSettings() {
     bindSegmented('radius', getAppearance().radius, (v) => update({ radius: v }));
     bindSegmented('width', getAppearance().width, (v) => update({ width: v }));
     bindSegmented('sidebar', getAppearance().sidebar, (v) => update({ sidebar: v }));
+    bindSegmented('todayLayout', getAppearance().todayLayout, (v) => update({ todayLayout: v }));
 
     document.getElementById('journalFontSize')?.addEventListener('input', (e) => {
         const n = parseInt(e.target.value, 10);
@@ -141,6 +150,23 @@ export function setupSettings() {
     });
     document.getElementById('autoFocusToggle')?.addEventListener('change', (e) => {
         update({ autoFocus: e.target.checked });
+    });
+    document.getElementById('todayTodoToggle')?.addEventListener('change', (e) => {
+        update({ todayTodo: e.target.checked });
+    });
+    document.getElementById('todayWorkoutToggle')?.addEventListener('change', (e) => {
+        update({ todayWorkout: e.target.checked });
+    });
+    document.getElementById('todayJournalToggle')?.addEventListener('change', (e) => {
+        update({ todayJournal: e.target.checked });
+    });
+    document.getElementById('settingsTodayOrder')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-move]');
+        if (!btn || btn.disabled) return;
+        const moduleId = btn.closest('[data-module]')?.getAttribute('data-module');
+        if (!moduleId) return;
+        const next = moveTodayModule(getAppearance().todayOrder, moduleId, btn.getAttribute('data-move'));
+        update({ todayOrder: next.join(',') });
     });
 
     document.getElementById('resetAppearanceBtn')?.addEventListener('click', async () => {

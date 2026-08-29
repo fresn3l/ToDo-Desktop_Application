@@ -15,7 +15,7 @@
                 <span class="brand-mark" aria-hidden="true">K</span>
                 <div class="brand-copy">
                     <strong class="brand-name">Kosistenz</strong>
-                    <span class="brand-tag">Local journal</span>
+                    <span class="brand-tag">On this Mac</span>
                 </div>
             </div>
 
@@ -75,43 +75,64 @@
             <main class="app-content">
                 <section id="todayTab" class="tab-content active" aria-label="Today">
                     <div id="todayHome" class="today-home">
-                        <div class="today-home-main">
-                            <div id="todayActiveTodo"></div>
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <div>
-                                        <h2>To Do</h2>
-                                        <p class="panel-sub">Dated for today. Start one and it fills this column.</p>
-                                    </div>
+                        <header class="today-masthead">
+                            <div>
+                                <p class="today-kicker">Today</p>
+                                <h1 id="todayDateTitle">Today</h1>
+                                <p id="todayDateSub" class="today-date-sub"></p>
+                            </div>
+                            <div class="today-masthead-side">
+                                <p id="todayPulse" class="today-pulse"></p>
+                                <button type="button" id="todayCustomizeBtn" class="btn-ghost today-customize-btn" aria-expanded="false">Customize</button>
+                            </div>
+                        </header>
+                        <div id="todayCustomizePanel" class="today-customize is-hidden" hidden>
+                            <div class="today-customize-section">
+                                <p class="today-customize-label">Show</p>
+                                <div class="today-toggles">
+                                    <label class="today-toggle">
+                                        <input type="checkbox" id="todayShowTodo" checked> To Do
+                                    </label>
+                                    <label class="today-toggle">
+                                        <input type="checkbox" id="todayShowWorkout" checked> Workout
+                                    </label>
+                                    <label class="today-toggle">
+                                        <input type="checkbox" id="todayShowJournal" checked> Journal
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="today-customize-section">
+                                <p class="today-customize-label">Layout</p>
+                                <div class="segmented" id="todayLayoutGroup" role="group" aria-label="Today layout">
+                                    <button type="button" data-value="split" class="is-selected">Two columns</button>
+                                    <button type="button" data-value="columns">Three columns</button>
+                                    <button type="button" data-value="stack">One column</button>
+                                </div>
+                            </div>
+                            <div class="today-customize-section">
+                                <p class="today-customize-label">Order</p>
+                                <ul id="todayOrderList" class="today-order-list"></ul>
+                            </div>
+                        </div>
+                        <div id="todayActiveTodo"></div>
+                        <div class="today-board">
+                            <section id="todayTodoModule" class="today-card" data-module="todo">
+                                <div class="today-card-head">
+                                    <h2>To Do</h2>
+                                    <button type="button" id="todayOpenTodo" class="btn-ghost today-card-link">Open</button>
                                 </div>
                                 <div id="todayTodoList" class="work-list"></div>
                                 <div class="work-add-row">
-                                    <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="Add a to do for today" autocomplete="off">
+                                    <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="Add for today" autocomplete="off">
                                     <button type="button" id="todayAddBtn" class="btn-primary">Add</button>
                                 </div>
-                            </div>
-                            <div class="panel today-journal-panel">
-                                <div class="panel-header">
-                                    <div>
-                                        <h2>Journal</h2>
-                                        <p class="panel-sub" id="todayJournalMeta">A few sentences. Saved as a new entry.</p>
-                                    </div>
-                                    <button type="button" id="todayOpenJournal" class="btn-ghost">Open Journal</button>
+                            </section>
+                            <section id="todayWorkoutModule" class="today-card" data-module="workout">
+                                <div class="today-card-head">
+                                    <h2>Workout</h2>
+                                    <button type="button" id="todayOpenWorkout" class="btn-ghost today-card-link">Open</button>
                                 </div>
-                                <textarea id="todayJournal" class="today-journal-input" rows="6" placeholder="What happened today?"></textarea>
-                                <div class="journal-actions">
-                                    <button type="button" id="todayJournalSave" class="btn-primary">Save entry</button>
-                                </div>
-                            </div>
-                        </div>
-                        <aside class="today-home-aside">
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <div>
-                                        <h2>Workout</h2>
-                                        <p class="panel-sub" id="todayExpected">Expected sessions for this weekday.</p>
-                                    </div>
-                                </div>
+                                <p class="today-card-meta" id="todayExpected"></p>
                                 <div id="todayWorkoutChips" class="workout-chips"></div>
                                 <div id="todayMilesWrap" class="workout-chip-extra is-hidden">
                                     <label class="checklist-field-label" for="todayMiles">Miles</label>
@@ -122,9 +143,20 @@
                                     <input type="text" id="todayOtherLabel" class="checklist-text-input" placeholder="Pickleball, hill sprints, …" autocomplete="off">
                                 </div>
                                 <button type="button" id="todayLogSpecial" class="btn-primary is-hidden">Log</button>
-                                <ul id="todaySessions" class="review-list"></ul>
-                            </div>
-                        </aside>
+                                <ul id="todaySessions" class="today-session-list"></ul>
+                            </section>
+                            <section id="todayJournalModule" class="today-card today-card--wide" data-module="journal">
+                                <div class="today-card-head">
+                                    <h2>Journal</h2>
+                                    <button type="button" id="todayOpenJournal" class="btn-ghost today-card-link">Open</button>
+                                </div>
+                                <p class="today-card-meta" id="todayJournalMeta"></p>
+                                <textarea id="todayJournal" class="today-journal-input" rows="5" placeholder="What happened today?"></textarea>
+                                <div class="journal-actions">
+                                    <button type="button" id="todayJournalSave" class="btn-primary">Save</button>
+                                </div>
+                            </section>
+                        </div>
                     </div>
                 </section>
 
@@ -418,6 +450,27 @@
                                         <button type="button" data-value="compact">Compact</button>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="settings-block">
+                                <h3>Today dashboard</h3>
+                                <p class="checklist-hint small">Pick the cards, their order, and how they sit on Today.</p>
+                                <div class="today-toggles">
+                                    <label class="today-toggle">
+                                        <input type="checkbox" id="todayTodoToggle" checked> To Do
+                                    </label>
+                                    <label class="today-toggle">
+                                        <input type="checkbox" id="todayWorkoutToggle" checked> Workout
+                                    </label>
+                                    <label class="today-toggle">
+                                        <input type="checkbox" id="todayJournalToggle" checked> Journal
+                                    </label>
+                                </div>
+                                <div class="segmented" data-setting-group="todayLayout" role="group" aria-label="Today layout">
+                                    <button type="button" data-value="split">Two columns</button>
+                                    <button type="button" data-value="columns">Three columns</button>
+                                    <button type="button" data-value="stack">One column</button>
+                                </div>
+                                <ul id="settingsTodayOrder" class="today-order-list"></ul>
                             </div>
                         </div>
 

@@ -132,11 +132,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         )
         window.title = "Kosistenz"
         window.minSize = NSSize(width: 960, height: 680)
-        window.backgroundColor = .clear
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        window.backgroundColor = NSColor.windowBackgroundColor
         if #available(macOS 11.0, *) {
             window.toolbarStyle = .unified
             window.titlebarSeparatorStyle = .none
@@ -170,10 +170,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         webView.navigationDelegate = self
         webView.allowsBackForwardNavigationGestures = false
         webView.allowsLinkPreview = false
+        // Opaque page so sidebar clicks hit the UI. A clear WKWebView
+        // passes mouse events through transparent CSS pixels to the
+        // vibrancy view behind it, which is why tabs used to be dead.
+        webView.setValue(true, forKey: "drawsBackground")
         if #available(macOS 12.0, *) {
-            webView.underPageBackgroundColor = .clear
-        } else {
-            webView.setValue(false, forKey: "drawsBackground")
+            webView.underPageBackgroundColor = NSColor.windowBackgroundColor
         }
         effect.addSubview(webView)
         window.contentView = effect
