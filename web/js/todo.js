@@ -250,8 +250,8 @@ export async function refreshTodo() {
             }
         }
 
-        const active = [...(board.today || []), ...(board.overdue || [])].some((item) => item.status === 'active');
-        if (active) startTick();
+        const running = [...(board.today || []), ...(board.overdue || [])].some((item) => item.status === 'active');
+        if (running) startTick();
         else stopTick();
     } catch (e) {
         console.error(e);
