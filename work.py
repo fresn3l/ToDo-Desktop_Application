@@ -519,6 +519,12 @@ def _write_widget_snapshot() -> Dict[str, Any]:
     with open(tmp, "w", encoding="utf-8") as handle:
         json.dump(snapshot, handle, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
+    try:
+        import icloud_sync
+
+        icloud_sync.export_if_enabled()
+    except Exception:
+        pass
     return snapshot
 
 

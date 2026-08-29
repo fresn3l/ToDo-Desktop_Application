@@ -11,6 +11,7 @@ import eel
 
 import appearance  # noqa: F401
 import export_data  # noqa: F401
+import icloud_sync  # noqa: F401
 import health_import  # noqa: F401
 import insights  # noqa: F401
 import journal  # noqa: F401

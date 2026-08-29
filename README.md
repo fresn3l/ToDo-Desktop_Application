@@ -68,6 +68,7 @@ That still opens the **native WebKit window**, not Chrome.
 - **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in All Work** in the Services menu
 - **Appearance**: Themes and type (San Francisco by default on Mac)
 - **Local storage**: SQLite + JSON under Application Support
+- **iPhone (in progress)**: same Apple ID, JSON pack in iCloud Drive / Kosistenz — see `docs/iphone-sprint.md` and `ios/`
 
 ## Data Storage
 
@@ -92,6 +93,7 @@ Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_s
 - **WidgetKit** for the Notification Center / Lock Screen Today widget
 - **SQLite** for checklist submissions and work items
 - **PyInstaller** for the standalone `.app`
+- **SwiftUI** iPhone companion (`ios/`) synced through iCloud Drive
 
 ## License
 

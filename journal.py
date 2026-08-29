@@ -63,6 +63,51 @@ def get_entry_path(entry_date: datetime = None) -> Path:
     
     return entry_dir / filename
 
+
+def _entry_folder(entry_date: datetime) -> Path:
+    year = entry_date.strftime("%Y")
+    month = entry_date.strftime("%m")
+    week_num = ((entry_date.day - 1) // 7) + 1
+    folder = get_journal_directory() / year / month / f"Week_{week_num:02d}"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def import_journal_entry(entry: Dict) -> Optional[Dict]:
+    """Write one journal record without minting a new id (used by the iCloud pack)."""
+    if not isinstance(entry, dict):
+        return None
+    content = str(entry.get("content") or "").strip()
+    if not content:
+        return None
+    raw = entry.get("date") or entry.get("created_at")
+    try:
+        when = datetime.fromisoformat(str(raw)) if raw else datetime.now()
+    except (TypeError, ValueError):
+        when = datetime.now()
+    stem = str(entry.get("id") or "").strip()
+    if not stem.startswith("entry_"):
+        stem = f"entry_{when.strftime('%Y-%m-%d_%H-%M-%S')}_{uuid.uuid4().hex[:8]}"
+    path = _entry_folder(when) / f"{stem}.json"
+    if path.exists():
+        return None
+    record = {
+        "id": stem,
+        "content": content,
+        "date": entry.get("date") or when.isoformat(),
+        "duration_seconds": int(entry.get("duration_seconds") or 0),
+        "continued": bool(entry.get("continued")),
+        "created_at": entry.get("created_at") or when.isoformat(),
+        "tags": _normalize_tags(entry.get("tags")),
+    }
+    temp_file = str(path) + ".tmp"
+    with open(temp_file, "w", encoding="utf-8") as handle:
+        if sys.platform != "win32":
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        json.dump(record, handle, indent=2, ensure_ascii=False)
+    os.replace(temp_file, path)
+    return record
+
 # ============================================
 # JOURNAL CRUD OPERATIONS
 # ============================================

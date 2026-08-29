@@ -180,13 +180,78 @@ export function setupSettings() {
         update({ sidebar: next });
     });
 
+    document.getElementById('icloudAutoToggle')?.addEventListener('change', async (e) => {
+        if (typeof eel === 'undefined' || !eel.save_icloud_sync_settings) return;
+        try {
+            const status = await eel.save_icloud_sync_settings({ auto: e.target.checked })();
+            paintIcloudStatus(status);
+        } catch (err) {
+            utils.showErrorFeedback('Could not save phone sync settings.');
+        }
+    });
+    document.getElementById('icloudPushBtn')?.addEventListener('click', async () => {
+        if (typeof eel === 'undefined' || !eel.push_icloud_pack) return;
+        try {
+            const result = await eel.push_icloud_pack()();
+            const statusEl = document.getElementById('icloudSyncStatus');
+            if (statusEl) statusEl.textContent = result.exported_at ? `Pushed ${result.exported_at}` : 'Pushed.';
+            utils.showSuccessFeedback('Pushed the pack for the iPhone.');
+            void loadIcloudSync();
+        } catch (err) {
+            utils.showErrorFeedback('Could not push the iCloud pack.');
+        }
+    });
+    document.getElementById('icloudPullBtn')?.addEventListener('click', async () => {
+        if (typeof eel === 'undefined' || !eel.pull_icloud_pack) return;
+        try {
+            const result = await eel.pull_icloud_pack()();
+            const bits = result.applied || {};
+            const statusEl = document.getElementById('icloudSyncStatus');
+            if (statusEl) statusEl.textContent = `Pulled · work ${bits.work || 0} · workouts ${bits.workouts || 0} · journal ${bits.journal || 0}`;
+            utils.showSuccessFeedback('Pulled phone changes into this Mac.');
+            utils.notifyDataChanged();
+            void loadIcloudSync();
+        } catch (err) {
+            utils.showErrorFeedback('Could not pull the iCloud pack.');
+        }
+    });
+
     paintSettings(getAppearance());
     void loadAdvancedPaths();
+    void loadIcloudSync();
 }
 
 export function onSettingsTabShown() {
     paintSettings(getAppearance());
     void loadAdvancedPaths();
+    void loadIcloudSync();
+}
+
+function paintIcloudStatus(status) {
+    const folder = document.getElementById('icloudSyncFolder');
+    if (folder) folder.textContent = status.folder || status.default_folder || '';
+    const auto = document.getElementById('icloudAutoToggle');
+    if (auto) auto.checked = status.auto !== false;
+    const line = document.getElementById('icloudSyncStatus');
+    if (line) {
+        if (status.last_export) {
+            const where = status.using_icloud_drive ? 'iCloud Drive' : 'this Mac';
+            line.textContent = `Last pack ${status.last_export} · ${where}${status.last_device ? ` · ${status.last_device}` : ''}`;
+        } else {
+            line.textContent = status.using_icloud_drive
+                ? 'No pack yet. Push once so the iPhone has something to read.'
+                : 'iCloud Drive is not on this account. Packs stay in the local folder until you turn it on.';
+        }
+    }
+}
+
+async function loadIcloudSync() {
+    if (typeof eel === 'undefined' || !eel.get_icloud_sync_status) return;
+    try {
+        paintIcloudStatus(await eel.get_icloud_sync_status()());
+    } catch (_) {
+        /* eel not ready */
+    }
 }
 
 async function loadAdvancedPaths() {

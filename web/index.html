@@ -547,6 +547,26 @@
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
+                                    <h2>Phone</h2>
+                                    <p class="panel-sub">Same Apple ID. A JSON pack in iCloud Drive / Kosistenz, not a Kosistenz server.</p>
+                                </div>
+                            </div>
+                            <p class="checklist-hint small" id="icloudSyncHint">The iPhone app reads this folder. Push after you want the phone updated; pull to bring phone changes back.</p>
+                            <label class="checklist-field-label">Sync folder</label>
+                            <code id="icloudSyncFolder" class="checklist-db-path"></code>
+                            <label class="checklist-checkbox-label">
+                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, To Do, Workout, or Journal changes
+                            </label>
+                            <div class="reminder-actions">
+                                <button type="button" id="icloudPushBtn" class="btn-primary">Push to iCloud</button>
+                                <button type="button" id="icloudPullBtn" class="btn-secondary">Pull from iPhone</button>
+                            </div>
+                            <p id="icloudSyncStatus" class="checklist-hint small"></p>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <div>
                                     <h2>Data</h2>
                                     <p class="panel-sub">Export files stay on this Mac.</p>
                                 </div>
