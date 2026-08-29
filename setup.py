@@ -1,7 +1,6 @@
 """
-Setup script for py2app (Mac-specific packaging)
+Deprecated. Use ./macos/install_app.sh (PyInstaller + native WebKit window).
 
-Usage:
     python setup.py py2app
 """
 
@@ -19,6 +18,15 @@ DATA_FILES = [
             "web/js/daily_checklist.js",
             "web/js/review.js",
             "web/js/timeline.js",
+            "web/js/weekstrip.js",
+            "web/js/appearance.js",
+            "web/js/settings.js",
+            "web/js/today.js",
+            "web/js/todo.js",
+            "web/js/all_work.js",
+            "web/js/work.js",
+            "web/js/workouts.js",
+            "web/js/analytics.js",
         ],
     ),
     (
@@ -47,7 +55,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import"],
+    "includes": ["daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts"],
 }
 
 setup(

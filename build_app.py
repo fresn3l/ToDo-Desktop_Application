@@ -1,126 +1,194 @@
 """
-Build Script for Creating Mac Application
+Build a standalone Kosistenz.app with PyInstaller + a native Swift WKWebView host.
 
-Uses PyInstaller to create a standalone macOS .app bundle.
-The resulting app will be in the 'dist' folder.
+Chrome is not bundled or required. Run via ./macos/install_app.sh from a Mac.
 """
 
-import PyInstaller.__main__
+from __future__ import annotations
+
 import os
 import shutil
+import stat
+import subprocess
 import sys
 
 
-def check_dependencies():
-    """Verify all required dependencies are installed"""
-    required_modules = ["eel", "setuptools"]
+def check_dependencies() -> None:
+    required = ["eel", "PyInstaller"]
     missing = []
-
-    for module in required_modules:
+    for module in required:
         try:
             __import__(module)
         except ImportError:
             missing.append(module)
-
     if missing:
-        print(f"\n❌ Missing dependencies: {', '.join(missing)}")
-        print("\nPlease install dependencies first:")
-        print("  pip install -r requirements.txt")
+        print(f"Missing dependencies: {', '.join(missing)}")
+        print("Run: ./setup_venv.sh")
         sys.exit(1)
-
-    try:
-        import checkin_github
-        import daily_checklist
-        import journal
-        import cluny_sync
-
-        print("✅ All dependencies and modules verified!")
-    except ImportError as e:
-        print(f"\n❌ Error importing modules: {e}")
-        sys.exit(1)
+    print("Dependencies OK.")
 
 
-def build_app():
-    """Build the Mac application using PyInstaller"""
-
-    print("🔍 Checking dependencies...")
-    check_dependencies()
-
-    print("\n🧹 Cleaning previous builds...")
-    if os.path.exists("build"):
-        shutil.rmtree("build")
-    if os.path.exists("dist"):
-        shutil.rmtree("dist")
-
-    print("🔨 Building Mac application...")
-    print("   This may take a few minutes...")
-
+def maybe_build_icon() -> list[str]:
     icon_path = "app_icon.icns"
-    icon_arg = []
     if os.path.exists("app_icon.png"):
-        print("   Regenerating icon from PNG...")
+        print("Regenerating icon from PNG...")
         try:
-            if os.path.exists(icon_path):
-                os.remove(icon_path)
             if os.path.exists("app_icon.iconset"):
                 shutil.rmtree("app_icon.iconset")
-
             os.makedirs("app_icon.iconset", exist_ok=True)
-
-            import subprocess
-
             sizes = [16, 32, 128, 256, 512]
             for size in sizes:
                 subprocess.run(
                     [
-                        "sips",
-                        "-z",
-                        str(size),
-                        str(size),
-                        "app_icon.png",
-                        "--out",
-                        f"app_icon.iconset/icon_{size}x{size}.png",
+                        "sips", "-z", str(size), str(size), "app_icon.png",
+                        "--out", f"app_icon.iconset/icon_{size}x{size}.png",
                     ],
                     check=False,
                     capture_output=True,
                 )
                 subprocess.run(
                     [
-                        "sips",
-                        "-z",
-                        str(size * 2),
-                        str(size * 2),
-                        "app_icon.png",
-                        "--out",
-                        f"app_icon.iconset/icon_{size}x{size}@2x.png",
+                        "sips", "-z", str(size * 2), str(size * 2), "app_icon.png",
+                        "--out", f"app_icon.iconset/icon_{size}x{size}@2x.png",
                     ],
                     check=False,
                     capture_output=True,
                 )
-
             subprocess.run(
                 ["iconutil", "-c", "icns", "app_icon.iconset", "-o", icon_path],
                 check=False,
                 capture_output=True,
             )
+            shutil.rmtree("app_icon.iconset", ignore_errors=True)
+        except Exception as exc:
+            print(f"Icon generation skipped: {exc}")
+    if os.path.exists(icon_path):
+        print(f"Using icon: {icon_path}")
+        return [f"--icon={icon_path}"]
+    print("No app_icon.icns — macOS will use a default icon.")
+    return []
 
-            if os.path.exists("app_icon.iconset"):
-                shutil.rmtree("app_icon.iconset")
 
-            if os.path.exists(icon_path):
-                icon_arg = [f"--icon={icon_path}"]
-                print(f"   ✅ Icon regenerated: {icon_path}")
-            else:
-                print("   ⚠️  Icon generation failed - app will use default icon")
-        except Exception as e:
-            print(f"   ⚠️  Error regenerating icon: {e}")
-            if os.path.exists(icon_path):
-                icon_arg = [f"--icon={icon_path}"]
-    elif os.path.exists(icon_path):
-        icon_arg = [f"--icon={icon_path}"]
-        print(f"   Using existing icon: {icon_path}")
-    else:
-        print("   ⚠️  No icon found - app will use default icon")
+def _swiftc() -> list[str] | None:
+    xcrun = shutil.which("xcrun")
+    if xcrun:
+        probe = subprocess.run([xcrun, "--find", "swiftc"], capture_output=True, text=True)
+        if probe.returncode == 0 and probe.stdout.strip():
+            return [xcrun, "--sdk", "macosx", "swiftc"]
+    swiftc = shutil.which("swiftc")
+    if swiftc:
+        return [swiftc]
+    return None
+
+
+def _has_pyobjc() -> bool:
+    try:
+        import AppKit  # noqa: F401
+        import WebKit  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+def _install_swift_host(app_path: str) -> bool:
+    """Make the Swift WKWebView binary the app executable; Python becomes the UI server."""
+    macos_dir = os.path.join(app_path, "Contents", "MacOS")
+    python_exe = os.path.join(macos_dir, "Kosistenz")
+    bridge_exe = os.path.join(macos_dir, "kosistenz-bridge")
+    swift_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macos", "KosistenzWindow.swift")
+    compiler = _swiftc()
+    if compiler is None:
+        print("swiftc not found.")
+        return False
+    if not os.path.isfile(swift_src):
+        print(f"Swift source missing: {swift_src}")
+        return False
+    if not os.path.isfile(python_exe):
+        print(f"PyInstaller executable missing: {python_exe}")
+        return False
+
+    if os.path.exists(bridge_exe):
+        os.remove(bridge_exe)
+    os.rename(python_exe, bridge_exe)
+
+    cmd = compiler + [
+        "-O",
+        "-o", python_exe,
+        "-framework", "Cocoa",
+        "-framework", "WebKit",
+        swift_src,
+    ]
+    print("Compiling native WKWebView host...")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(result.stdout)
+        print(result.stderr)
+        if os.path.exists(bridge_exe) and not os.path.exists(python_exe):
+            os.rename(bridge_exe, python_exe)
+        print("Swift compile failed.")
+        return False
+
+    os.chmod(python_exe, os.stat(python_exe).st_mode | stat.S_IEXEC)
+    os.chmod(bridge_exe, os.stat(bridge_exe).st_mode | stat.S_IEXEC)
+    print(f"Native window host: {python_exe}")
+    print(f"UI server:          {bridge_exe}")
+    return True
+
+
+def build_app() -> None:
+    check_dependencies()
+    if sys.platform != "darwin":
+        print("This builder produces a macOS .app. Run it on a Mac.")
+        sys.exit(1)
+
+    swift_ok = _swiftc() is not None
+    pyobjc_ok = _has_pyobjc()
+    if not swift_ok and not pyobjc_ok:
+        print("Need Xcode Command Line Tools (swiftc) to build the native window.")
+        print("Run: xcode-select --install")
+        print("Then install PyObjC as a fallback: pip install pyobjc-framework-Cocoa pyobjc-framework-WebKit")
+        sys.exit(1)
+
+    import PyInstaller.__main__
+
+    print("Cleaning previous builds...")
+    for folder in ("build", "dist"):
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+
+    hidden = [
+        "eel",
+        "bottle",
+        "gevent",
+        "geventwebsocket",
+        "setuptools",
+        "journal",
+        "cluny_sync",
+        "insights",
+        "timeline",
+        "work",
+        "workouts",
+        "export_data",
+        "daily_checklist",
+        "reminders",
+        "health_import",
+        "appearance",
+        "bridge",
+        "paths",
+        "native_mac",
+        "proxy_tools",
+        "packaging",
+        "bottle_websocket",
+        "greenlet",
+        "objc",
+        "objc._objc",
+        "AppKit",
+        "Foundation",
+        "WebKit",
+        "CoreFoundation",
+        "PyObjCTools",
+        "PyObjCTools.AppHelper",
+    ]
 
     args = [
         "main.py",
@@ -129,66 +197,68 @@ def build_app():
         "--onedir",
         "--add-data=web:web",
         "--add-data=checklists:checklists",
-        "--hidden-import=eel",
-        "--hidden-import=setuptools",
-        "--hidden-import=checkin_github",
-        "--hidden-import=daily_checklist",
-        "--hidden-import=journal",
-        "--hidden-import=cluny_sync",
-        "--hidden-import=insights",
-        "--hidden-import=timeline",
-        "--hidden-import=export_data",
-        "--hidden-import=recovery",
-        "--hidden-import=reminders",
-        "--hidden-import=health_import",
-        "--hidden-import=appearance",
+        "--add-data=macos/kosistenz-reminder.sh:macos",
         "--collect-all=eel",
+        "--collect-all=gevent",
+        "--collect-all=bottle",
         "--osx-bundle-identifier=com.kosistenz.app",
         "--noconfirm",
-    ] + icon_arg
+        *maybe_build_icon(),
+    ]
+    for name in hidden:
+        args.append(f"--hidden-import={name}")
 
-    try:
-        PyInstaller.__main__.run(args)
+    print("Building standalone app (this takes a few minutes)...")
+    PyInstaller.__main__.run(args)
 
-        app_path = None
-        if os.path.exists("dist/Kosistenz.app"):
-            app_path = "dist/Kosistenz.app"
-        elif os.path.exists("dist/Kosistenz/Kosistenz.app"):
-            app_path = "dist/Kosistenz/Kosistenz.app"
-
-        if not app_path:
-            print("\n⚠️  Warning: Could not find built app in expected location")
-            return
-
-        print("\n" + "=" * 50)
-        print("✅ Build complete!")
-        print("=" * 50)
-        print("📦 Your app is located at:")
-        print(f"   {os.path.abspath(app_path)}")
-
-        applications_path = "/Applications/Kosistenz.app"
-        print(f"\n📋 Copying to Applications folder...")
-
-        try:
-            if os.path.exists(applications_path):
-                shutil.rmtree(applications_path)
-                print("   Removed old app from Applications")
-
-            shutil.copytree(app_path, applications_path)
-            print(f"   ✅ Successfully copied to: {applications_path}")
-
-        except PermissionError:
-            print("   ⚠️  Permission denied. Copy manually if needed.")
-            print(f"   cp -R {app_path} /Applications/")
-        except Exception as e:
-            print(f"   ⚠️  Error copying to Applications: {e}")
-
-        print("\n🚀 Build finished.")
-        print("=" * 50)
-
-    except Exception as e:
-        print(f"\n❌ Build failed: {e}")
+    app_path = None
+    for candidate in ("dist/Kosistenz.app", "dist/Kosistenz/Kosistenz.app"):
+        if os.path.exists(candidate):
+            app_path = candidate
+            break
+    if not app_path:
+        print("Build finished but Kosistenz.app was not found under dist/.")
         sys.exit(1)
+
+    used_swift = _install_swift_host(app_path)
+    if not used_swift and not pyobjc_ok:
+        print("Could not compile the native window, and PyObjC is not installed.")
+        sys.exit(1)
+    if used_swift:
+        print("Window host: Swift WKWebView (Python only serves the UI).")
+    else:
+        print("Window host: Python PyObjC WKWebView fallback.")
+
+    print(f"Built: {os.path.abspath(app_path)}")
+    _patch_info_plist(app_path)
+
+
+def _patch_info_plist(app_path: str) -> None:
+    plist_path = os.path.join(app_path, "Contents", "Info.plist")
+    if not os.path.exists(plist_path):
+        return
+    try:
+        import plistlib
+
+        with open(plist_path, "rb") as handle:
+            info = plistlib.load(handle)
+        info["CFBundleName"] = "Kosistenz"
+        info["CFBundleDisplayName"] = "Kosistenz"
+        info["CFBundleExecutable"] = "Kosistenz"
+        info["CFBundlePackageType"] = "APPL"
+        info["LSApplicationCategoryType"] = "public.app-category.productivity"
+        info["NSHighResolutionCapable"] = True
+        info["NSRequiresAquaSystemAppearance"] = False
+        info["LSMinimumSystemVersion"] = "11.0"
+        info["NSPrincipalClass"] = "NSApplication"
+        info["NSAppTransportSecurity"] = {
+            "NSAllowsLocalNetworking": True,
+            "NSAllowsArbitraryLoads": False,
+        }
+        with open(plist_path, "wb") as handle:
+            plistlib.dump(info, handle)
+    except Exception as exc:
+        print(f"Could not patch Info.plist: {exc}")
 
 
 if __name__ == "__main__":

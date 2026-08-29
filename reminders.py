@@ -13,18 +13,20 @@ from typing import Any, Dict
 
 import eel
 
-import daily_checklist
+import plistlib
+
+from paths import data_directory, resource_root
 
 PLIST_LABEL = "com.kosistenz.reminder"
 DEFAULT_CONFIG = {"enabled": False, "hour": 20, "minute": 0}
 
 
 def _config_path() -> Path:
-    return daily_checklist.get_data_directory() / "reminder_config.json"
+    return data_directory() / "reminder_config.json"
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parent
+    return resource_root()
 
 
 def _load_config() -> Dict[str, Any]:
@@ -87,30 +89,17 @@ def install_local_reminder() -> Dict[str, Any]:
     if not script.exists():
         return {"ok": False, "error": "Missing macos/kosistenz-reminder.sh"}
     _launchagents_dir().mkdir(parents=True, exist_ok=True)
-    plist = f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>{PLIST_LABEL}</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>{script}</string>
-    </array>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>{cfg['hour']}</integer>
-        <key>Minute</key>
-        <integer>{cfg['minute']}</integer>
-    </dict>
-    <key>RunAtLoad</key>
-    <false/>
-</dict>
-</plist>
-"""
-    _plist_path().write_text(plist, encoding="utf-8")
+    payload = {
+        "Label": PLIST_LABEL,
+        "ProgramArguments": ["/bin/bash", str(script)],
+        "StartCalendarInterval": {
+            "Hour": int(cfg["hour"]),
+            "Minute": int(cfg["minute"]),
+        },
+        "RunAtLoad": False,
+    }
+    with _plist_path().open("wb") as handle:
+        plistlib.dump(payload, handle, sort_keys=False)
     subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", str(_plist_path())], capture_output=True)
     result = subprocess.run(
         ["launchctl", "bootstrap", f"gui/{os.getuid()}", str(_plist_path())],

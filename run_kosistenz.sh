@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-# Run Kosistenz from the repo virtualenv (used by Kosistenz.app).
+#!/bin/bash
+# Run Kosistenz from the repo virtualenv (native WebKit window, no Chrome).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"

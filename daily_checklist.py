@@ -7,7 +7,6 @@ Database: Application Support/ToDo/daily_checklist.sqlite (macOS; legacy path pr
 
 from __future__ import annotations
 
-import eel
 import json
 import os
 import re
@@ -18,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import checkin_github
+from paths import data_directory
 
 
 def _resource_base() -> Path:
@@ -76,14 +75,7 @@ def _is_valid_bundle_dict(data: Any) -> bool:
 
 
 def get_data_directory() -> Path:
-    if sys.platform == "win32":
-        base = Path.home() / "AppData" / "Local" / "ToDo"
-    elif sys.platform == "darwin":
-        base = Path.home() / "Library" / "Application Support" / "ToDo"
-    else:
-        base = Path.home() / ".local" / "share" / "ToDo"
-    base.mkdir(parents=True, exist_ok=True)
-    return base
+    return data_directory()
 
 
 def get_daily_checklist_db_path() -> Path:
@@ -121,13 +113,11 @@ def _slug_option(label: str, idx: int) -> str:
     return s or f"option_{idx}"
 
 
-@eel.expose
 def get_custom_checklist_items() -> List[Dict[str, Any]]:
     """User-defined extra questions (yes/no or choice), stored locally."""
     return _load_custom_items_raw()
 
 
-@eel.expose
 def add_custom_checklist_item(item: Dict[str, Any]) -> Dict[str, Any]:
     """
     Append a validated item. choice.options must be a list of non-empty strings (min 2).
@@ -194,7 +184,6 @@ def add_custom_checklist_item(item: Dict[str, Any]) -> Dict[str, Any]:
     return row
 
 
-@eel.expose
 def remove_custom_checklist_item(item_id: str) -> bool:
     item_id = (item_id or "").strip()
     if not item_id:
@@ -237,7 +226,6 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
-@eel.expose
 def get_daily_checklist() -> Dict[str, Any]:
     """Return the active checklist flow definition."""
     path = get_checklist_definition_path()
@@ -247,7 +235,6 @@ def get_daily_checklist() -> Dict[str, Any]:
         return json.load(f)
 
 
-@eel.expose
 def list_bundled_checklists() -> List[Dict[str, str]]:
     """JSON files in the bundled checklists/ folder (valid flow definitions only)."""
     out: List[Dict[str, str]] = []
@@ -268,17 +255,14 @@ def list_bundled_checklists() -> List[Dict[str, str]]:
     return out
 
 
-@eel.expose
 def get_active_checklist_stem() -> str:
     return get_selected_checklist_stem()
 
 
-@eel.expose
 def set_active_checklist_stem(stem: str) -> None:
     set_selected_checklist_stem(stem)
 
 
-@eel.expose
 def get_daily_checklist_db_path_exposed() -> str:
     """Absolute path to the SQLite file (for Cluny / agents)."""
     return str(get_daily_checklist_db_path().resolve())
@@ -337,6 +321,16 @@ def _format_answer_value(node: Any, val: Any) -> str:
                 base = str(raw)
         elif duration is not None:
             return f"{duration} min"
+        elif "created_titles" in val or "assign_ids" in val:
+            titles = [str(t).strip() for t in (val.get("created_titles") or []) if str(t).strip()]
+            assigned = [x for x in (val.get("assign_ids") or []) if x]
+            n = len(titles) + len(assigned)
+            if not n:
+                return "No tasks planned"
+            sample = ", ".join(titles[:2])
+            if sample:
+                return f"{n} for tomorrow: {sample}"
+            return f"{n} task{'s' if n != 1 else ''} for tomorrow"
         else:
             base = str(val)
         if duration is not None:
@@ -430,7 +424,6 @@ def decorate_submission(
     return out
 
 
-@eel.expose
 def submit_daily_checklist_response(
     checklist_id: str, flow_version: int, answers: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -459,19 +452,6 @@ def submit_daily_checklist_response(
         "flow_version": flow_version,
         "answers": answers,
     }
-    import cluny_sync
-
-    cluny_sync.sync_checklist_submission_safe(result)
-    checkin_github.safe_try_push_checkin(
-        local_date,
-        {
-            "localDate": local_date,
-            "createdAt": created_at,
-            "checklistId": checklist_id,
-            "submissionId": row_id,
-            "flowVersion": flow_version,
-        },
-    )
     return result
 
 
@@ -541,7 +521,6 @@ def list_submission_dates() -> List[str]:
     return [r["local_date"] for r in rows if r["local_date"]]
 
 
-@eel.expose
 def list_daily_checklist_submissions(limit: int = 30) -> List[Dict[str, Any]]:
     """Recent submissions for the checklist history panel only."""
     limit = max(1, min(int(limit or 30), 100))

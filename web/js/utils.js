@@ -43,6 +43,10 @@ export function showErrorFeedback(message) {
     }, 3000);
 }
 
+export function notifyDataChanged() {
+    document.dispatchEvent(new CustomEvent('kosistenz:data-changed'));
+}
+
 /**
  * Local calendar date as YYYY-MM-DD (not UTC).
  */

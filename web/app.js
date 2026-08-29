@@ -1,26 +1,47 @@
 /**
- * Kosistenz app entry point (journal + daily checklist).
+ * Kosistenz app entry point (journal, workout, work).
  */
 
 import * as utils from './js/utils.js';
 import { initAppearance } from './js/appearance.js';
 import { setupTabs, switchTab } from './js/tabs.js';
 import { setupJournal } from './js/journal.js';
-import { setupDailyChecklist } from './js/daily_checklist.js';
-import { setupReview } from './js/review.js';
+import { setupAnalytics } from './js/analytics.js';
 import { setupTimeline } from './js/timeline.js';
 import { setupSettings } from './js/settings.js';
+import { setupToday } from './js/today.js';
+import { setupTodo } from './js/todo.js';
+import { setupAllWork } from './js/all_work.js';
+import { setupWorkouts } from './js/workouts.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     await initAppearance();
     setupTabs();
     setupSettings();
+    setupToday();
+    setupTodo();
+    setupAllWork();
+    setupWorkouts();
     setupJournal();
-    await setupDailyChecklist();
-    setupReview();
+    setupAnalytics();
     setupTimeline();
     await switchTab('journal');
+}
+
+function markNativeShell() {
+    const native = typeof window.pywebview !== 'undefined'
+        || window.kosistenzNative === true
+        || document.documentElement.classList.contains('native-shell');
+    if (!native) return;
+    document.documentElement.classList.add('native-shell');
+    if (document.body.dataset.nativeMenu === '1') return;
+    document.body.dataset.nativeMenu = '1';
+    document.addEventListener('contextmenu', (e) => {
+        if (!e.target.closest('input, textarea, select, [contenteditable="true"]')) {
+            e.preventDefault();
+        }
+    });
 }
 
 function waitForEel() {
@@ -44,6 +65,8 @@ function waitForEel() {
 }
 
 async function startApp() {
+    markNativeShell();
+    window.addEventListener('pywebviewready', markNativeShell);
     await waitForEel();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => init().catch(handleInitError));

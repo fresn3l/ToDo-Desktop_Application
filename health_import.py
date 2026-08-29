@@ -1,8 +1,7 @@
 """
-Optional Apple Health export + Screen Time imports (macOS, read-only).
+Optional Apple Health export import (macOS, read-only).
 
 Health: parse Apple Health export.xml (Export All Health Data).
-Screen Time: best-effort read from Knowledge database (may require Full Disk Access).
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ from typing import Any, Dict
 
 import eel
 
-import daily_checklist
+from paths import data_directory
 
 SLEEP_TYPE = "HKCategoryTypeIdentifierSleepAnalysis"
 STEPS_TYPE = "HKQuantityTypeIdentifierStepCount"
@@ -28,6 +27,7 @@ ASLEEP_MARKERS = (
     "HKCategoryValueSleepAnalysisAsleepDeep",
     "HKCategoryValueSleepAnalysisAsleepREM",
 )
+MAX_HEALTH_EXPORT_BYTES = 200 * 1024 * 1024
 
 
 def _parse_health_datetime(raw: str) -> datetime | None:
@@ -73,7 +73,7 @@ def _workout_duration_minutes(workout: ET.Element) -> float:
 
 
 def _snapshots_path() -> Path:
-    return daily_checklist.get_data_directory() / "health_snapshots.json"
+    return data_directory() / "health_snapshots.json"
 
 
 def _load_snapshots() -> Dict[str, Any]:
@@ -101,7 +101,36 @@ def _day_key(dt: datetime) -> str:
     return dt.date().isoformat()
 
 
-def _parse_health_export_xml(path: str, days: int = 14) -> Dict[str, Dict[str, Any]]:
+def _validate_health_export_path(export_path: str) -> Path:
+    raw = (export_path or "").strip()
+    if not raw:
+        raise ValueError("Valid path to export.xml required")
+    path = Path(raw).expanduser()
+    if ".." in path.parts:
+        raise ValueError("Health export path cannot contain ..")
+    try:
+        path = path.resolve()
+    except OSError as exc:
+        raise ValueError("Valid path to export.xml required") from exc
+    if path.name.lower() != "export.xml":
+        raise ValueError("File must be named export.xml")
+    home = Path.home().resolve()
+    try:
+        path.relative_to(home)
+    except ValueError as exc:
+        raise ValueError("Health export must be inside your home folder") from exc
+    if not path.is_file():
+        raise ValueError("Valid path to export.xml required")
+    try:
+        size = path.stat().st_size
+    except OSError as exc:
+        raise ValueError("Valid path to export.xml required") from exc
+    if size > MAX_HEALTH_EXPORT_BYTES:
+        raise ValueError("Health export is too large")
+    return path
+
+
+def _parse_health_export_xml(path: Path, days: int = 14) -> Dict[str, Dict[str, Any]]:
     root = ET.parse(path).getroot()
     cutoff = datetime.now() - timedelta(days=days)
     by_day: Dict[str, Dict[str, Any]] = {}
@@ -151,9 +180,7 @@ def _parse_health_export_xml(path: str, days: int = 14) -> Dict[str, Dict[str, A
 
 @eel.expose
 def import_health_export(export_path: str, days: int = 14) -> Dict[str, Any]:
-    path = (export_path or "").strip()
-    if not path or not os.path.isfile(path):
-        raise ValueError("Valid path to export.xml required")
+    path = _validate_health_export_path(export_path)
     parsed = _parse_health_export_xml(path, days=days)
     store = _load_snapshots()
     for day, metrics in parsed.items():
@@ -164,19 +191,6 @@ def import_health_export(export_path: str, days: int = 14) -> Dict[str, Any]:
         store[day] = existing
     _save_snapshots(store)
     return {"ok": True, "days_imported": len(parsed), "dates": sorted(parsed.keys(), reverse=True)}
-
-
-@eel.expose
-def refresh_screen_time_for_recent_days(days: int = 7) -> Dict[str, Any]:
-    """Disabled — prior Knowledge DB heuristic was unreliable."""
-    return {
-        "ok": False,
-        "updated": 0,
-        "note": (
-            "Screen Time import is experimental and currently disabled. "
-            "Apple does not expose reliable Screen Time data to third-party apps on macOS."
-        ),
-    }
 
 
 @eel.expose

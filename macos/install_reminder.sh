@@ -5,12 +5,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-HOUR="${1:-20}"
-MINUTE="${2:-0}"
+export KOSISTENZ_REMINDER_HOUR="${1:-20}"
+export KOSISTENZ_REMINDER_MINUTE="${2:-0}"
 
-python3 - <<PY
+python3 - <<'PY'
+import os
 import reminders
-reminders._save_config({"enabled": True, "hour": int("$HOUR"), "minute": int("$MINUTE")})
+
+hour = int(os.environ["KOSISTENZ_REMINDER_HOUR"])
+minute = int(os.environ["KOSISTENZ_REMINDER_MINUTE"])
+reminders._save_config({"enabled": True, "hour": hour, "minute": minute})
 result = reminders.install_local_reminder()
 print(result)
 if not result.get("ok"):
@@ -18,6 +22,6 @@ if not result.get("ok"):
 PY
 
 echo ""
-echo "Local reminder installed for ${HOUR}:$(printf '%02d' "$MINUTE") daily."
+echo "Local reminder installed for ${KOSISTENZ_REMINDER_HOUR}:$(printf '%02d' "${KOSISTENZ_REMINDER_MINUTE}") daily."
 echo "Plist: ~/Library/LaunchAgents/com.kosistenz.reminder.plist"
 echo "Test now: bash macos/kosistenz-reminder.sh"

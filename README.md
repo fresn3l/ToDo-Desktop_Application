@@ -1,92 +1,68 @@
 # Kosistenz
 
-Journal and daily checklist desktop app (Python + Eel). Data stays local on your Mac.
+Journal and daily checklist for Mac. Data stays on this computer.
 
-## Features
+The app is a real `Kosistenz.app`: native traffic-light window, Dock / Spotlight, Apple WebKit (Safari engine). **Chrome is not used.**
 
-- **Journal**: Time-tracked entries with optional Cluny sync
-- **Daily Checklist**: Branching yes/no and multiple-choice flows from JSON
-- **Custom questions**: Add your own checklist items (optional duration step)
-- **Templates**: Bundled blank checklist JSON files to copy and edit
-- **Appearance**: Themes, accent color, typeface, density, layout width, and sidebar
-- **Local storage**: SQLite + JSON under Application Support
+## Install on a Mac
 
-## Installation
+### What you need
 
-### Prerequisites
+- A Mac (macOS 11+)
+- Python 3.8+ (`python3 --version`)
+- Xcode Command Line Tools (`xcode-select --install`) so the installer can compile the native window
 
-- Python 3.8+
-- Google Chrome (used as the app window)
+You do **not** need Google Chrome.
 
-### Setup
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd intelligent_to-do_list
-```
-
-2. Create the virtualenv and install dependencies:
-```bash
-./setup_venv.sh
-```
-
-## Usage
-
-### Development mode
+### Build and install
 
 ```bash
-./run_kosistenz.sh
-# or: python main.py
-```
-
-### Dock / one-click launch (recommended)
-
-Same pattern as Cluny: build a small `Kosistenz.app` launcher and install it to your home Applications folder.
-
-```bash
+git clone https://github.com/fresn3l/ToDo-Desktop_Application.git
+cd ToDo-Desktop_Application
+git checkout cursor/native-macos-app-7484
+chmod +x setup_venv.sh macos/install_app.sh
 ./macos/install_app.sh
 ```
 
-Then:
+That creates a virtualenv, packages a standalone app, and copies it to:
 
-1. Open Finder → **Applications** (your home folder, not `/Applications`) → **Kosistenz**
-2. **Drag Kosistenz to the Dock**
-3. Launch from the Dock or Spotlight (`Cmd+Space`, type "Kosistenz")
+`/Applications/Kosistenz.app`
 
-The `.app` is a thin wrapper around this repo — it always runs your latest code. If you move the repo, run `./macos/install_app.sh` again.
+Finder then reveals the app so you can double-click it. If `/Applications` is not writable, it falls back to `~/Applications`.
 
-### Standalone bundle (optional)
+### Open it
 
-For a self-contained PyInstaller app (no repo path required):
+1. Finder should jump to **Kosistenz** after install. Double-click it.
+2. Or Finder sidebar → **Applications** → **Kosistenz**
+3. First launch: **right-click → Open** if macOS warns about an unidentified developer
+4. Optional: drag Kosistenz to the Dock, or use Spotlight (`Cmd+Space`)
+
+Quit with **Cmd+Q**, like any Mac app.
+
+If you change the source and want a fresh bundle, run `./macos/install_app.sh` again. You must rebuild after `git pull` — opening the old app will still use the previous window code.
+
+If launch fails, paste `~/Library/Logs/Kosistenz.log`. A good start looks like `Swift host launching`, then `UI server ready`.
+
+### Run from the repo (optional)
+
+For day-to-day coding without rebuilding the `.app`:
 
 ```bash
-pip install pyinstaller
-python build_app.py
+./setup_venv.sh
+./run_kosistenz.sh
 ```
 
-Output: `dist/Kosistenz.app` (also copied to `/Applications/Kosistenz.app` when permissions allow).
+That still opens the **native WebKit window**, not Chrome.
 
-## Project Structure
+## Features
 
-```
-intelligent_to-do_list/
-├── main.py                 # Application entry point
-├── appearance.py           # Theme / layout preferences
-├── journal.py              # Journal entries
-├── daily_checklist.py      # Checklist flow + SQLite
-├── cluny_sync.py           # Optional Cluny journal sync
-├── checkin_github.py       # Optional GitHub check-in push
-├── run_kosistenz.sh        # Run from repo venv
-├── setup_venv.sh           # Create .venv + install deps
-├── build_app.py            # PyInstaller standalone build
-├── macos/
-│   ├── install_app.sh      # Build + install to ~/Applications
-│   ├── build_app.sh        # Build Kosistenz.app launcher
-│   └── kosistenz-gui       # App executable script
-├── checklists/             # Bundled checklist JSON flows
-└── web/                    # Frontend (HTML/CSS/JS)
-```
+- **Journal**: Timed entries
+- **To Do**: Dated tasks with start / finish timers
+- **All Work**: Undated backlog you assign to a day later
+- **Daily checklist**: Branching morning / evening / full flows (evening plans tomorrow’s To Do)
+- **Review + Timeline**: Week strip, streaks, markdown export
+- **Appearance**: Themes and type (San Francisco by default on Mac)
+- **Local storage**: SQLite + JSON under Application Support
 
 ## Data Storage
 
@@ -94,6 +70,8 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 
 - **Journal**: `~/Library/Application Support/ToDo/Journal/`
 - **Daily checklist DB**: `~/Library/Application Support/ToDo/daily_checklist.sqlite`
+- **Work / To Do DB**: `~/Library/Application Support/ToDo/work_items.sqlite`
+- **Widget snapshot** (task counts for a future Mac widget): `~/Library/Application Support/ToDo/widget_snapshot.json`
 - **Custom checklist items**: `~/Library/Application Support/ToDo/checklist_custom_items.json`
 - **Active checklist template**: `~/Library/Application Support/ToDo/checklist_selected_stem.txt`
 - **Appearance**: `~/Library/Application Support/ToDo/appearance.json`
@@ -102,10 +80,10 @@ Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_s
 
 ## Technologies
 
-- **Python 3** + **Eel** (Python ↔ JavaScript bridge)
-- **SQLite** for checklist submissions
-- **HTML/CSS/JavaScript** frontend
-- **PyInstaller** (optional standalone build)
+- **Python 3** + **Eel** (localhost bridge only)
+- **Swift + WKWebView** for the Mac window (Safari engine; no Chrome)
+- **SQLite** for checklist submissions and work items
+- **PyInstaller** for the standalone `.app`
 
 ## License
 

@@ -36,5 +36,5 @@ else
   echo "No app_icon.icns found — Kosistenz.app will use the default icon."
 fi
 
-echo "Built $APP"
-echo "Install to Applications: ./macos/install_app.sh"
+echo "Built $APP (repo-linked launcher for development)."
+echo "For the standalone Mac app (recommended): ./macos/install_app.sh"

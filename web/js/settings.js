@@ -42,7 +42,7 @@ function paintSettings(settings) {
         customWrap.classList.toggle('is-hidden', settings.accent !== 'custom');
     }
     const customInput = document.getElementById('customAccentInput');
-    if (customInput) customInput.value = settings.customAccent || '#38bdf8';
+    if (customInput) customInput.value = settings.customAccent || '#4F8FCF';
 
     const fontSize = document.getElementById('journalFontSize');
     const fontSizeVal = document.getElementById('journalFontSizeValue');
@@ -159,12 +159,12 @@ export function onSettingsTabShown() {
 }
 
 async function loadAdvancedPaths() {
-    const dbEl = document.getElementById('checklistDbPath');
-    if (dbEl && !dbEl.textContent) {
+    const dataDir = document.getElementById('appDataPath');
+    if (dataDir && !dataDir.textContent) {
         try {
-            dbEl.textContent = await eel.get_daily_checklist_db_path_exposed()();
+            dataDir.textContent = await eel.get_app_data_directory()();
         } catch (_) {
-            dbEl.textContent = '';
+            dataDir.textContent = '';
         }
     }
     const exportsPath = document.getElementById('exportsPath');
@@ -173,6 +173,30 @@ async function loadAdvancedPaths() {
             exportsPath.textContent = await eel.get_exports_directory()();
         } catch (_) {
             exportsPath.textContent = 'Application Support/ToDo/exports';
+        }
+    }
+    const workDb = document.getElementById('workDbPath');
+    if (workDb && !workDb.textContent) {
+        try {
+            workDb.textContent = await eel.get_work_db_path_exposed()();
+        } catch (_) {
+            workDb.textContent = '';
+        }
+    }
+    const workoutsDb = document.getElementById('workoutsDbPath');
+    if (workoutsDb && !workoutsDb.textContent) {
+        try {
+            workoutsDb.textContent = await eel.get_workouts_db_path_exposed()();
+        } catch (_) {
+            workoutsDb.textContent = '';
+        }
+    }
+    const widgetPath = document.getElementById('widgetSnapshotPath');
+    if (widgetPath && !widgetPath.textContent) {
+        try {
+            widgetPath.textContent = await eel.get_widget_snapshot_path_exposed()();
+        } catch (_) {
+            widgetPath.textContent = '';
         }
     }
 }

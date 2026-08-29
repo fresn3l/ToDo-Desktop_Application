@@ -3,6 +3,7 @@
  */
 
 import * as utils from './utils.js';
+import { mountWorkPlanner, tomorrowISO } from './work.js';
 
 let state = null;
 let checklistTemplateSelectBound = false;
@@ -32,12 +33,7 @@ async function populateChecklistTemplateSelect() {
         checklistTemplateSelectBound = true;
         sel.addEventListener('change', async () => {
             try {
-                await eel.set_active_checklist_stem(sel.value)();
-                await loadDefinition();
-                await renderCustomItemsList();
-                startWizard();
-                await loadRecentSubmissions();
-                utils.showSuccessFeedback('Checklist template updated.');
+                await openChecklistTemplate(sel.value, { announce: true });
             } catch (e) {
                 console.error(e);
                 utils.showErrorFeedback(
@@ -50,6 +46,20 @@ async function populateChecklistTemplateSelect() {
                 }
             }
         });
+    }
+}
+
+export async function openChecklistTemplate(stem, { announce = false } = {}) {
+    if (!stem) return;
+    await eel.set_active_checklist_stem(stem)();
+    const sel = document.getElementById('checklistTemplateSelect');
+    if (sel) sel.value = stem;
+    await loadDefinition();
+    await renderCustomItemsList();
+    startWizard();
+    await loadRecentSubmissions();
+    if (announce) {
+        utils.showSuccessFeedback('Checklist template updated.');
     }
 }
 
@@ -322,6 +332,12 @@ function formatPreviewValue(node, val) {
             return val.durationMinutes != null ? `${base} (${val.durationMinutes} min)` : base;
         }
         if (val.durationMinutes != null) return `${val.durationMinutes} min`;
+        if (Array.isArray(val.created_titles) || Array.isArray(val.assign_ids)) {
+            const n = (val.created_titles || []).filter(Boolean).length + (val.assign_ids || []).length;
+            const sample = (val.created_titles || []).filter(Boolean).slice(0, 2).join(', ');
+            if (!n) return 'No tasks planned';
+            return sample ? `${n} for tomorrow: ${sample}` : `${n} task${n === 1 ? '' : 's'} for tomorrow`;
+        }
         return '';
     }
     if (node?.type === 'choice') {
@@ -335,7 +351,7 @@ function estimatedTotalSteps() {
     const nodes = state?.def?.nodes || {};
     let n = 0;
     Object.values(nodes).forEach((node) => {
-        if (node && ['yes_no', 'choice', 'text', 'scale', 'number'].includes(node.type)) n += 1;
+        if (node && ['yes_no', 'choice', 'text', 'scale', 'number', 'work_planning'].includes(node.type)) n += 1;
     });
     n += (state?.customItems || []).length;
     return Math.max(n, 1);
@@ -586,7 +602,40 @@ function renderWizard() {
             state.answers[state.currentId] = { value: opt.value };
             goTo(opt.next);
         });
+        return;
     }
+
+    if (node.type === 'work_planning') {
+        void renderWorkPlanningNode(node);
+    }
+}
+
+async function renderWorkPlanningNode(node) {
+    const el = document.getElementById('checklistWizard');
+    paintWizard(
+        `
+            <p class="checklist-q">${utils.escapeHtml(node.question)}</p>
+            <div id="workPlannerMount"></div>
+            <button type="button" class="btn-primary checklist-next">Continue</button>
+        `,
+        { kind: 'work_planning' },
+    );
+    const mount = el.querySelector('#workPlannerMount');
+    let planner = {
+        getPlan: () => ({ created_titles: [], assign_ids: [], tomorrow: tomorrowISO() }),
+    };
+    try {
+        planner = await mountWorkPlanner(mount, { targetDate: tomorrowISO() });
+    } catch (e) {
+        console.error(e);
+        if (mount) {
+            mount.innerHTML = '<p class="checklist-error">Could not load All Work. You can still add nothing and continue.</p>';
+        }
+    }
+    el.querySelector('.checklist-next')?.addEventListener('click', () => {
+        state.answers[state.currentId] = planner.getPlan();
+        goTo(node.next || 'end');
+    });
 }
 
 function goTo(nextId) {
@@ -893,6 +942,7 @@ async function completeFlow() {
         const answers = { ...state.answers };
         await eel.submit_daily_checklist_response(id, version, answers)();
         utils.showSuccessFeedback('Saved to your local database.');
+        utils.notifyDataChanged();
         await loadRecentSubmissions();
     } catch (e) {
         console.error(e);
@@ -929,6 +979,7 @@ async function showRecoveryIfNeeded() {
                 try {
                     await eel.submit_recovery_response(data.missed_date, btn.getAttribute('data-value'))();
                     utils.showSuccessFeedback('Thanks — logged.');
+                    utils.notifyDataChanged();
                     await showRecoveryIfNeeded();
                 } catch (e) {
                     utils.showErrorFeedback('Could not save.');

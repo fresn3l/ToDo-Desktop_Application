@@ -9,8 +9,6 @@ import os
 from datetime import date, timedelta
 from typing import Any, Dict, Optional
 
-import eel
-
 import daily_checklist
 
 RECOVERY_OPTIONS = [
@@ -73,7 +71,6 @@ def _first_missed_date(lookback: int = 7) -> Optional[str]:
     return None
 
 
-@eel.expose
 def get_pending_recovery() -> Dict[str, Any]:
     missed = _first_missed_date()
     if not missed:
@@ -86,7 +83,6 @@ def get_pending_recovery() -> Dict[str, Any]:
     }
 
 
-@eel.expose
 def submit_recovery_response(missed_date: str, reason: str) -> Dict[str, Any]:
     missed_date = (missed_date or "").strip()
     reason = (reason or "").strip()

@@ -14,8 +14,8 @@ import eel
 DEFAULTS: Dict[str, Any] = {
     "theme": "ocean",
     "accent": "sky",
-    "customAccent": "#38bdf8",
-    "font": "sans",
+    "customAccent": "#4F8FCF",
+    "font": "system",
     "density": "comfortable",
     "radius": "soft",
     "width": "standard",
@@ -38,9 +38,9 @@ ALLOWED = {
 
 
 def _app_data_dir() -> Path:
-    import daily_checklist
+    from paths import data_directory
 
-    return daily_checklist.get_data_directory()
+    return data_directory()
 
 
 def _settings_path() -> Path:

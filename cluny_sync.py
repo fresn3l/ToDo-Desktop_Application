@@ -24,6 +24,7 @@ import sqlite3
 import urllib.error
 import urllib.request
 from typing import Any, Dict
+from urllib.parse import urlparse
 
 
 def _journal_table_name() -> str:
@@ -79,6 +80,9 @@ def _sync_http(entry: Dict[str, Any]) -> None:
     url = os.environ.get("CLUNY_INGEST_URL")
     if not url:
         return
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise ValueError("CLUNY_INGEST_URL must be https")
     body = json.dumps(entry, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
         url,
@@ -146,6 +150,9 @@ def _sync_checklist_http(submission: Dict[str, Any]) -> None:
     url = os.environ.get("CLUNY_CHECKLIST_INGEST_URL") or os.environ.get("CLUNY_INGEST_URL")
     if not url:
         return
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise ValueError("Cluny ingest URL must be https")
     payload = {
         "type": "checklist_submission",
         **submission,

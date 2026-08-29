@@ -9,8 +9,8 @@ const STORAGE_KEY = 'kosistenz-appearance';
 export const DEFAULTS = {
     theme: 'ocean',
     accent: 'sky',
-    customAccent: '#38bdf8',
-    font: 'sans',
+    customAccent: '#4F8FCF',
+    font: 'system',
     density: 'comfortable',
     radius: 'soft',
     width: 'standard',
@@ -31,12 +31,12 @@ export const THEMES = [
 ];
 
 export const ACCENTS = [
-    { id: 'sky', label: 'Sky', hex: '#0ea5e9' },
-    { id: 'teal', label: 'Teal', hex: '#14b8a6' },
-    { id: 'amber', label: 'Amber', hex: '#f59e0b' },
-    { id: 'rose', label: 'Rose', hex: '#f43f5e' },
-    { id: 'violet', label: 'Violet', hex: '#8b5cf6' },
-    { id: 'lime', label: 'Lime', hex: '#84cc16' },
+    { id: 'sky', label: 'Blue', hex: '#4F8FCF' },
+    { id: 'teal', label: 'Teal', hex: '#2A9A8C' },
+    { id: 'amber', label: 'Ochre', hex: '#C8892C' },
+    { id: 'rose', label: 'Rose', hex: '#C45C6A' },
+    { id: 'violet', label: 'Violet', hex: '#7A6CB5' },
+    { id: 'lime', label: 'Moss', hex: '#6A9A6E' },
     { id: 'custom', label: 'Custom', hex: null },
 ];
 
@@ -68,7 +68,7 @@ function hexToHsl(hex) {
         h = h.split('').map((c) => c + c).join('');
     }
     if (!/^[0-9a-fA-F]{6}$/.test(h)) {
-        return { h: 199, s: 89, l: 48 };
+        return { h: 210, s: 56, l: 56 };
     }
     const r = parseInt(h.slice(0, 2), 16) / 255;
     const g = parseInt(h.slice(2, 4), 16) / 255;

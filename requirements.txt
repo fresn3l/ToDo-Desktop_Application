@@ -1,9 +1,14 @@
-# Core application dependencies
-eel==0.16.0              # Desktop app framework (Python <-> JavaScript bridge)
+# Core application
+eel==0.16.0              # Python ↔ JavaScript bridge (localhost only; no Chrome)
+
+# Native WKWebView window for source runs (`python main.py`). The installed
+# .app uses a Swift host instead; these are still useful as a fallback.
+pyobjc-core>=10.0; sys_platform == "darwin"
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"
+pyobjc-framework-WebKit>=10.0; sys_platform == "darwin"
 
 # Pin range: Eel still imports pkg_resources; very new setuptools may omit it
 setuptools>=69.0,<82
 
-# Build/packaging dependencies (optional - only needed for building .app)
-pyinstaller              # Creates standalone Mac/Windows/Linux executables
-
+# Build/packaging (needed for ./macos/install_app.sh)
+pyinstaller
