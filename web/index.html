@@ -66,13 +66,21 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 4.5h11.5A2.5 2.5 0 0 1 19 7v13.5H7.5A2.5 2.5 0 0 1 5 18V4.5Z"/><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19"/><path d="M9 9h6M9 13h6"/></svg>
                     <span class="nav-label">Journal</span>
                 </button>
-                <button type="button" class="nav-item" data-tab="checklist">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m4 6 1.2 1.2L7.5 5M4 12l1.2 1.2L7.5 11M4 18l1.2 1.2L7.5 17"/></svg>
-                    <span class="nav-label">Checklist</span>
+                <button type="button" class="nav-item" data-tab="workout">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 8h10M6 12h12M8 16h8"/><circle cx="12" cy="12" r="8.5"/></svg>
+                    <span class="nav-label">Workout</span>
                 </button>
-                <button type="button" class="nav-item" data-tab="review">
+                <button type="button" class="nav-item" data-tab="todo">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><path d="m8 12 2.2 2.2L16 8.5"/></svg>
+                    <span class="nav-label">To Do</span>
+                </button>
+                <button type="button" class="nav-item" data-tab="allwork">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14l-1.2 12.2A2 2 0 0 1 15.8 21H8.2a2 2 0 0 1-2-1.8L5 7Z"/><path d="M9 7V5.8A2.8 2.8 0 0 1 11.8 3h.4A2.8 2.8 0 0 1 15 5.8V7"/></svg>
+                    <span class="nav-label">All Work</span>
+                </button>
+                <button type="button" class="nav-item" data-tab="analytics">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15v4M12 11v8M16 8v11"/></svg>
-                    <span class="nav-label">Review</span>
+                    <span class="nav-label">Analytics</span>
                 </button>
                 <button type="button" class="nav-item" data-tab="timeline">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
@@ -167,88 +175,140 @@
                     </div>
                 </section>
 
-                <section id="checklistTab" class="tab-content" aria-label="Daily checklist">
-                    <div class="checklist-layout">
-                        <div class="panel checklist-main">
+                <section id="workoutTab" class="tab-content" aria-label="Workout">
+                    <div class="work-layout">
+                        <div class="panel">
                             <div class="panel-header">
                                 <div>
-                                    <h2>Daily checklist</h2>
-                                    <p class="panel-sub">Work through today’s flow. Extra questions run afterward.</p>
+                                    <h2>Workout</h2>
+                                    <p class="panel-sub" id="workoutSummary">Log body weight and today’s sessions. Multiple sessions in a day are fine.</p>
                                 </div>
-                                <button type="button" id="restartChecklist" class="btn-secondary">Start over</button>
                             </div>
-                            <div id="recoveryPanel" class="recovery-panel is-hidden"></div>
-                            <div id="checklistWizard" class="checklist-wizard"></div>
+                            <div class="workout-form">
+                                <div>
+                                    <label class="checklist-field-label" for="workoutWeight">Body weight</label>
+                                    <div class="work-add-row">
+                                        <input type="number" id="workoutWeight" class="checklist-text-input" min="0" step="0.1" placeholder="lb" inputmode="decimal">
+                                        <button type="button" id="workoutWeightSave" class="btn-secondary">Save weight</button>
+                                    </div>
+                                </div>
+                                <div class="workout-session-form">
+                                    <label class="checklist-field-label" for="workoutKind">Session type</label>
+                                    <select id="workoutKind" class="checklist-select"></select>
+                                    <div id="workoutOtherWrap" class="is-hidden">
+                                        <label class="checklist-field-label" for="workoutOtherLabel">What did you do?</label>
+                                        <input type="text" id="workoutOtherLabel" class="checklist-text-input" placeholder="Pickleball, hill sprints, …" autocomplete="off">
+                                    </div>
+                                    <div id="workoutMilesWrap" class="is-hidden">
+                                        <label class="checklist-field-label" for="workoutMiles">Miles</label>
+                                        <input type="number" id="workoutMiles" class="checklist-text-input" min="0" step="0.1" placeholder="0.0" inputmode="decimal">
+                                    </div>
+                                    <label class="checklist-field-label" for="workoutMinutes">Minutes (optional)</label>
+                                    <input type="number" id="workoutMinutes" class="checklist-text-input" min="0" step="1" placeholder="0" inputmode="numeric">
+                                    <button type="button" id="workoutAddBtn" class="btn-primary">Log session</button>
+                                </div>
+                            </div>
+                            <div id="workoutSessionList" class="work-list"></div>
                         </div>
-
-                        <aside class="checklist-aside">
+                        <aside class="work-aside">
                             <div class="panel">
                                 <div class="panel-header">
-                                    <h3>Flow</h3>
+                                    <h3>How this works</h3>
                                 </div>
-                                <div class="stack">
-                                    <label class="checklist-field-label" for="checklistTemplateSelect">Built-in template</label>
-                                    <select id="checklistTemplateSelect" class="checklist-select checklist-template-select" title="Bundled checklist JSON in the app"></select>
-                                </div>
+                                <p class="checklist-hint small">Lift days are type only — push, pull, or legs. Runs store miles. Other is a name plus optional minutes or miles. Analytics tracks totals; nothing carries over from a missed day.</p>
                             </div>
-
-                            <div class="panel checklist-custom-panel">
+                            <div class="panel">
                                 <div class="panel-header">
-                                    <h3>Your extra questions</h3>
+                                    <h3>Recent days</h3>
                                 </div>
-                                <p class="checklist-hint small">These run after the built-in checklist. Stored on this Mac only.</p>
-                                <div id="customItemsList" class="custom-items-list"></div>
-                                <details class="checklist-add-details">
-                                    <summary>Add a custom question</summary>
-                                    <div class="checklist-add-form">
-                                        <label class="checklist-field-label" for="newItemType">Question type</label>
-                                        <select id="newItemType" class="checklist-select">
-                                            <option value="yes_no">Yes / No</option>
-                                            <option value="choice">Multiple choice</option>
-                                            <option value="text">Short text</option>
-                                            <option value="scale">Scale (1–5)</option>
-                                            <option value="number">Number</option>
-                                        </select>
-                                        <label class="checklist-field-label" for="newItemQuestion">Question</label>
-                                        <input type="text" id="newItemQuestion" class="checklist-text-input" placeholder="e.g. Did you stretch today?" autocomplete="off">
-                                        <div id="choiceOptionsWrap" class="choice-options-wrap is-hidden">
-                                            <label class="checklist-field-label" for="newItemOptions">Options (one per line)</label>
-                                            <textarea id="newItemOptions" class="checklist-textarea" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea>
-                                            <label class="checklist-checkbox-label">
-                                                <input type="checkbox" id="newItemAllowOther"> Allow “Other” with text
-                                            </label>
-                                        </div>
-                                        <div id="trackDurationWrap" class="track-duration-wrap">
-                                            <label class="checklist-checkbox-label">
-                                                <input type="checkbox" id="newItemTrackDuration"> Ask for duration (minutes) after this question
-                                            </label>
-                                        </div>
-                                        <button type="button" id="addCustomItemBtn" class="btn-primary checklist-add-btn">Add question</button>
-                                    </div>
-                                </details>
-                            </div>
-
-                            <div class="panel checklist-recent">
-                                <div class="panel-header">
-                                    <h3>Recent submissions</h3>
-                                </div>
-                                <div id="checklistRecentList" class="checklist-recent-list"></div>
+                                <div id="workoutRecent" class="workout-recent-list"></div>
                             </div>
                         </aside>
                     </div>
                 </section>
 
-                <section id="reviewTab" class="tab-content" aria-label="Weekly review">
+                <section id="todoTab" class="tab-content" aria-label="To Do">
+                    <div class="work-layout">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Today’s To Do</h2>
+                                    <p class="panel-sub" id="todoSummary">Work you dated for today. Start a timer, then finish when it’s done.</p>
+                                </div>
+                            </div>
+                            <div class="work-add-row">
+                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="Meditate 15 mins" autocomplete="off">
+                                <button type="button" id="todoAddBtn" class="btn-primary">Add to today</button>
+                            </div>
+                            <label class="checklist-checkbox-label work-repeat-toggle">
+                                <input type="checkbox" id="todoRepeatToggle"> Repeat this to do
+                            </label>
+                            <div id="todoRepeatPanel" class="work-repeat-panel is-hidden">
+                                <div class="segmented" id="todoRepeatKind" role="group" aria-label="Repeat cadence">
+                                    <button type="button" data-value="daily" class="is-selected">Every day</button>
+                                    <button type="button" data-value="weekdays">Weekdays</button>
+                                    <button type="button" data-value="interval">Every other day</button>
+                                    <button type="button" data-value="custom">Custom days</button>
+                                </div>
+                                <div id="todoWeekdays" class="work-weekdays is-hidden" role="group" aria-label="Days of the week">
+                                    <button type="button" class="work-day-chip" data-day="0">Mon</button>
+                                    <button type="button" class="work-day-chip" data-day="1">Tue</button>
+                                    <button type="button" class="work-day-chip" data-day="2">Wed</button>
+                                    <button type="button" class="work-day-chip" data-day="3">Thu</button>
+                                    <button type="button" class="work-day-chip" data-day="4">Fri</button>
+                                    <button type="button" class="work-day-chip" data-day="5">Sat</button>
+                                    <button type="button" class="work-day-chip" data-day="6">Sun</button>
+                                </div>
+                                <label id="todoIntervalWrap" class="checklist-field-label work-interval-wrap is-hidden" for="todoEveryDays">
+                                    Every <input type="number" id="todoEveryDays" class="checklist-text-input work-interval-input" min="2" max="30" value="2"> days
+                                </label>
+                            </div>
+                            <div id="todoList" class="work-list"></div>
+                        </div>
+                        <aside class="work-aside">
+                            <div id="todoOverdue" class="panel work-side-panel is-hidden"></div>
+                            <div id="todoTomorrow" class="panel work-side-panel is-hidden"></div>
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <h3>How this works</h3>
+                                </div>
+                                <p class="checklist-hint small">Repeating to dos land on matching days and use the same start / finish timer. A missed day stays on that date for Analytics — it does not pile onto today. Park one-off work in All Work.</p>
+                            </div>
+                        </aside>
+                    </div>
+                </section>
+
+                <section id="allWorkTab" class="tab-content" aria-label="All Work">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <div>
+                                <h2>All Work</h2>
+                                <p class="panel-sub" id="allWorkSummary">Undated tasks. Assign them to today or tomorrow, or leave them here.</p>
+                            </div>
+                        </div>
+                        <div class="work-add-row">
+                            <input type="text" id="allWorkNewTitle" class="checklist-text-input" placeholder="A task without a date yet" autocomplete="off">
+                            <button type="button" id="allWorkAddBtn" class="btn-primary">Park in All Work</button>
+                        </div>
+                        <div id="allWorkList" class="work-list"></div>
+                    </div>
+                </section>
+
+                <section id="analyticsTab" class="tab-content" aria-label="Analytics">
                     <div class="panel review-section">
                         <div class="panel-header">
                             <div>
-                                <h2>Weekly review</h2>
-                                <p class="panel-sub">Last 7 days. Click a day to open it on Timeline.</p>
+                                <h2>Analytics</h2>
+                                <p class="panel-sub">Journal, workouts, and repeating to dos. Missed days stay on that date.</p>
                             </div>
-                            <button type="button" class="btn-secondary" data-export="week-markdown">Export this week</button>
+                            <div class="segmented" id="analyticsRange" role="group" aria-label="Analytics range">
+                                <button type="button" data-value="7">7 days</button>
+                                <button type="button" data-value="30" class="is-selected">30 days</button>
+                                <button type="button" data-value="90">90 days</button>
+                            </div>
                         </div>
-                        <div id="reviewWeekStrip" class="week-strip-host"></div>
-                        <div id="reviewContent" class="review-content"></div>
+                        <div id="analyticsWeekStrip" class="week-strip-host"></div>
+                        <div id="analyticsContent" class="review-content"></div>
                     </div>
                 </section>
 
@@ -257,7 +317,7 @@
                         <div class="panel-header">
                             <div>
                                 <h2>Timeline</h2>
-                                <p class="panel-sub">Checklist answers and journal entries for a single day.</p>
+                                <p class="panel-sub">Workouts, journal, and to dos for a single day.</p>
                             </div>
                         </div>
                         <div id="timelineWeekStrip" class="week-strip-host"></div>
@@ -376,11 +436,9 @@
                             <div class="settings-block">
                                 <h3>Shortcuts</h3>
                                 <ul class="shortcut-list">
-                                    <li><kbd>⌘</kbd><kbd>1</kbd>–<kbd>5</kbd> Switch tabs</li>
+                                    <li><kbd>⌘</kbd><kbd>1</kbd>–<kbd>7</kbd> Switch tabs</li>
                                     <li><kbd>⌘</kbd><kbd>Enter</kbd> Save journal entry</li>
                                     <li><kbd>Esc</kbd> Pause timer, then clear with confirm</li>
-                                    <li><kbd>Y</kbd> / <kbd>N</kbd> Yes / no checklist steps</li>
-                                    <li><kbd>1</kbd>–<kbd>9</kbd> Scale answers (<kbd>0</kbd> for 10)</li>
                                 </ul>
                             </div>
                         </div>
@@ -434,6 +492,12 @@
                                 <div class="checklist-add-form">
                                     <label class="checklist-field-label">SQLite database</label>
                                     <code id="checklistDbPath" class="checklist-db-path"></code>
+                                    <label class="checklist-field-label">Work database</label>
+                                    <code id="workDbPath" class="checklist-db-path"></code>
+                                    <label class="checklist-field-label">Workouts database</label>
+                                    <code id="workoutsDbPath" class="checklist-db-path"></code>
+                                    <label class="checklist-field-label">Widget snapshot</label>
+                                    <code id="widgetSnapshotPath" class="checklist-db-path"></code>
                                     <label class="checklist-field-label">Export folder</label>
                                     <code id="exportsPath" class="checklist-db-path"></code>
                                     <label class="checklist-field-label">Reminder launchd plist</label>
@@ -454,6 +518,18 @@
                     </div>
                 </section>
             </main>
+        </div>
+    </div>
+
+    <div id="workScopeModal" class="work-scope-modal is-hidden" hidden>
+        <div class="work-scope-card" role="dialog" aria-modal="true" aria-labelledby="workScopeTitle">
+            <h3 id="workScopeTitle">This day or the whole series?</h3>
+            <p class="panel-sub" id="workScopeCopy"></p>
+            <div class="work-item-actions">
+                <button type="button" class="btn-secondary" id="workScopeOccurrence">This day only</button>
+                <button type="button" class="btn-primary" id="workScopeSeries">Entire series</button>
+                <button type="button" class="btn-ghost" id="workScopeCancel">Cancel</button>
+            </div>
         </div>
     </div>
 

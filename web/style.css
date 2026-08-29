@@ -1198,6 +1198,34 @@ input[type='radio'] {
     grid-column: 1 / -1;
 }
 
+.analytics-miss-list {
+    list-style: none;
+}
+
+.analytics-miss-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: 6px 0;
+}
+
+.analytics-miss-btn span {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.review-card .btn-primary {
+    margin-top: 10px;
+}
+
 .review-stat {
     font-size: 2rem;
     font-weight: 700;
@@ -1701,6 +1729,267 @@ input[type='range'] {
     color: var(--text-primary);
 }
 
+/* ---------- Work (To Do + All Work) ---------- */
+
+.work-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.75fr);
+    gap: var(--space-lg);
+    align-items: start;
+}
+
+.work-add-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: var(--space-md);
+}
+
+.work-add-row .checklist-text-input {
+    flex: 1;
+}
+
+.work-repeat-toggle {
+    margin: 0 0 10px;
+}
+
+.work-repeat-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: var(--space-md);
+    padding: 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.work-weekdays {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.work-day-chip {
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-pill);
+    padding: 4px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.work-day-chip.is-selected {
+    background: var(--primary-muted);
+    color: var(--text-primary);
+    border-color: var(--primary);
+}
+
+.work-interval-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.work-interval-input {
+    width: 4.5rem;
+}
+
+/* ---------- Workout ---------- */
+
+.workout-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.workout-session-form {
+    display: grid;
+    gap: 8px;
+}
+
+.workout-recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    list-style: none;
+}
+
+.workout-recent-list strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.work-scope-modal {
+    position: fixed;
+    inset: 0;
+    background: hsl(0 0% 0% / 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    padding: 16px;
+}
+
+.work-scope-modal.is-hidden {
+    display: none;
+}
+
+.work-scope-card {
+    width: min(420px, 100%);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 18px;
+    box-shadow: var(--shadow-lg);
+}
+
+.work-scope-card h3 {
+    text-transform: none;
+    letter-spacing: var(--letter-tight);
+    margin-bottom: 6px;
+}
+
+.work-scope-card .work-item-actions {
+    margin-top: 14px;
+}
+
+.work-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.work-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+}
+
+.work-item.is-active {
+    border-color: color-mix(in srgb, var(--attention) 55%, var(--border-color));
+}
+
+.work-item.is-done {
+    opacity: 0.72;
+}
+
+.work-item.is-done h3 {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.work-item-main h3 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: var(--letter-tight);
+    text-transform: none;
+}
+
+.work-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.work-timer {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.work-item.is-active .work-timer {
+    color: var(--attention);
+}
+
+.work-flag {
+    color: var(--success);
+}
+
+.work-flag.is-live {
+    color: var(--attention);
+}
+
+.work-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.work-aside {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.work-side-panel h3 {
+    margin-bottom: 10px;
+}
+
+.work-already,
+.work-draft-list,
+.timeline-work-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.work-draft {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+}
+
+.work-pick-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 240px;
+    overflow: auto;
+}
+
+.work-pick {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    cursor: pointer;
+}
+
+.work-planner-lead {
+    margin-bottom: 12px;
+}
+
+.work-already-wrap {
+    margin-bottom: 12px;
+}
+
+.work-mini {
+    padding: 2px 8px;
+    font-size: 12px;
+}
+
 html[data-focus='on'] .app-shell {
     grid-template-columns: 1fr;
 }
@@ -1723,6 +2012,7 @@ html[data-focus='on'] .today-status {
 @media (max-width: 1080px) {
     .journal-layout,
     .checklist-layout,
+    .work-layout,
     .settings-row {
         grid-template-columns: 1fr;
     }
@@ -1778,6 +2068,15 @@ html[data-focus='on'] .today-status {
         margin-left: 0;
         width: 100%;
         order: 3;
+    }
+
+    .work-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .work-add-row {
+        flex-direction: column;
     }
 
     .journal-timer-container {

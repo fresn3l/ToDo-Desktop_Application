@@ -168,6 +168,8 @@ def build_app() -> None:
         "cluny_sync",
         "insights",
         "timeline",
+        "work",
+        "workouts",
         "export_data",
         "recovery",
         "reminders",

@@ -1,25 +1,31 @@
 /**
- * Tab navigation — journal, checklist, review, timeline, settings.
+ * Tab navigation — journal, workout, to do, all work, analytics, timeline, settings.
  */
 
 import { loadPastEntries, exitJournalFocus } from './journal.js';
-import { onChecklistTabShown, openChecklistTemplate } from './daily_checklist.js';
-import { onReviewTabShown } from './review.js';
+import { onAnalyticsTabShown } from './analytics.js';
 import { onTimelineTabShown } from './timeline.js';
 import { onSettingsTabShown } from './settings.js';
+import { onTodoTabShown } from './todo.js';
+import { onAllWorkTabShown } from './all_work.js';
+import { onWorkoutTabShown } from './workouts.js';
 
 const ID_MAP = {
     journal: 'journalTab',
-    checklist: 'checklistTab',
-    review: 'reviewTab',
+    workout: 'workoutTab',
+    todo: 'todoTab',
+    allwork: 'allWorkTab',
+    analytics: 'analyticsTab',
     timeline: 'timelineTab',
     settings: 'settingsTab',
 };
 
 const LABELS = {
     journal: 'Journal',
-    checklist: 'Checklist',
-    review: 'Review',
+    workout: 'Workout',
+    todo: 'To Do',
+    allwork: 'All Work',
+    analytics: 'Analytics',
     timeline: 'Timeline',
     settings: 'Settings',
 };
@@ -45,7 +51,15 @@ export function setupTabs() {
 
     document.addEventListener('keydown', (e) => {
         if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
-        const map = { 1: 'journal', 2: 'checklist', 3: 'review', 4: 'timeline', 5: 'settings' };
+        const map = {
+            1: 'journal',
+            2: 'workout',
+            3: 'todo',
+            4: 'allwork',
+            5: 'analytics',
+            6: 'timeline',
+            7: 'settings',
+        };
         const tab = map[e.key];
         if (!tab) return;
         e.preventDefault();
@@ -58,13 +72,6 @@ export function setupTabs() {
         const picker = document.getElementById('timelineDate');
         if (picker) picker.value = date;
         switchTab('timeline').catch((err) => console.error(err));
-    });
-
-    document.addEventListener('kosistenz:open-checklist', (e) => {
-        const stem = e.detail?.stem;
-        switchTab('checklist')
-            .then(() => (stem ? openChecklistTemplate(stem) : undefined))
-            .catch((err) => console.error(err));
     });
 
     document.addEventListener('kosistenz:open-tab', (e) => {
@@ -91,10 +98,14 @@ export async function switchTab(name) {
 
     if (name === 'journal') {
         await loadPastEntries();
-    } else if (name === 'checklist') {
-        await onChecklistTabShown();
-    } else if (name === 'review') {
-        await onReviewTabShown();
+    } else if (name === 'workout') {
+        await onWorkoutTabShown();
+    } else if (name === 'todo') {
+        await onTodoTabShown();
+    } else if (name === 'allwork') {
+        await onAllWorkTabShown();
+    } else if (name === 'analytics') {
+        await onAnalyticsTabShown();
     } else if (name === 'timeline') {
         await onTimelineTabShown();
     } else if (name === 'settings') {

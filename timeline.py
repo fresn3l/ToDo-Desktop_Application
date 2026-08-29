@@ -11,6 +11,8 @@ import eel
 
 import daily_checklist
 import journal
+import work
+import workouts
 
 
 def _parse_date(s: str) -> Optional[date]:
@@ -67,6 +69,9 @@ def get_timeline_day(local_date: str) -> Dict[str, Any]:
 
     entries.sort(key=lambda x: x.get("date", ""), reverse=True)
     submissions.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    work_items = work.list_work_for_date(target.isoformat())
+    total_work_seconds = sum(int(item.get("duration_seconds") or 0) for item in work_items)
+    workout = workouts.get_workout_day(target.isoformat())
 
     total_writing = sum(int(e.get("duration_seconds") or 0) for e in entries)
 
@@ -77,6 +82,11 @@ def get_timeline_day(local_date: str) -> Dict[str, Any]:
         "submission_count": len(submissions),
         "journal_count": len(entries),
         "total_writing_seconds": total_writing,
+        "work_items": work_items,
+        "work_count": len(work_items),
+        "total_work_seconds": total_work_seconds,
+        "workout": workout,
+        "workout_count": int(workout.get("session_count") or 0),
     }
 
 
@@ -86,6 +96,14 @@ def list_timeline_dates(limit: int = 60) -> List[str]:
     limit = max(1, min(int(limit or 60), 365))
     dates_set = set()
     for iso in daily_checklist.list_submission_dates():
+        d = _parse_date(iso)
+        if d:
+            dates_set.add(d.isoformat())
+    for iso in work.list_work_dates():
+        d = _parse_date(iso)
+        if d:
+            dates_set.add(d.isoformat())
+    for iso in workouts.list_workout_dates():
         d = _parse_date(iso)
         if d:
             dates_set.add(d.isoformat())
@@ -116,6 +134,8 @@ def get_week_overview(end_date: str = "") -> Dict[str, Any]:
         if iso:
             checklist_counts[iso] = checklist_counts.get(iso, 0) + 1
 
+    work_counts = work.count_work_by_date(start.isoformat(), end.isoformat())
+    workout_counts = workouts.count_workouts_by_date(start.isoformat(), end.isoformat())
     journal_counts: Dict[str, int] = {}
     span = max(14, (today - start).days + 1)
     for e in journal.get_recent_entries(days=span):
@@ -130,6 +150,8 @@ def get_week_overview(end_date: str = "") -> Dict[str, Any]:
         iso = d.isoformat()
         c_count = checklist_counts.get(iso, 0)
         j_count = journal_counts.get(iso, 0)
+        w_count = work_counts.get(iso, 0)
+        wo_count = workout_counts.get(iso, 0)
         days.append(
             {
                 "date": iso,
@@ -138,7 +160,9 @@ def get_week_overview(end_date: str = "") -> Dict[str, Any]:
                 "is_today": d == today,
                 "checklist_count": c_count,
                 "journal_count": j_count,
-                "filled": (c_count + j_count) > 0,
+                "work_count": w_count,
+                "workout_count": wo_count,
+                "filled": (c_count + j_count + w_count + wo_count) > 0,
             }
         )
 
@@ -171,10 +195,17 @@ def compute_streaks(today: Optional[date] = None) -> Dict[str, int]:
         if d:
             journal_dates.add(d)
 
+    workout_dates = set()
+    for iso in workouts.list_workout_dates():
+        d = _parse_date(iso)
+        if d:
+            workout_dates.add(d)
+
     return {
-        "show_up": _count_streak(checkin_dates | journal_dates, today),
+        "show_up": _count_streak(journal_dates | workout_dates | checkin_dates, today),
         "writing": _count_streak(journal_dates, today),
         "checkin": _count_streak(checkin_dates, today),
+        "workout": _count_streak(workout_dates, today),
     }
 
 

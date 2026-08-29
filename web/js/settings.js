@@ -175,4 +175,28 @@ async function loadAdvancedPaths() {
             exportsPath.textContent = 'Application Support/ToDo/exports';
         }
     }
+    const workDb = document.getElementById('workDbPath');
+    if (workDb && !workDb.textContent) {
+        try {
+            workDb.textContent = await eel.get_work_db_path_exposed()();
+        } catch (_) {
+            workDb.textContent = '';
+        }
+    }
+    const workoutsDb = document.getElementById('workoutsDbPath');
+    if (workoutsDb && !workoutsDb.textContent) {
+        try {
+            workoutsDb.textContent = await eel.get_workouts_db_path_exposed()();
+        } catch (_) {
+            workoutsDb.textContent = '';
+        }
+    }
+    const widgetPath = document.getElementById('widgetSnapshotPath');
+    if (widgetPath && !widgetPath.textContent) {
+        try {
+            widgetPath.textContent = await eel.get_widget_snapshot_path_exposed()();
+        } catch (_) {
+            widgetPath.textContent = '';
+        }
+    }
 }
