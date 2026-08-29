@@ -2265,6 +2265,10 @@ input[type='range'] {
     grid-column: 1 / -1;
 }
 
+html[data-today-layout='split'] .today-card[data-module='journal'] {
+    grid-column: 1 / -1;
+}
+
 .today-card-head {
     display: flex;
     align-items: baseline;
