@@ -69,6 +69,23 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
             except Exception:
                 pass
 
+    class NavigationDelegate(NSObject):
+        def webView_decidePolicyForNavigationAction_decisionHandler_(
+            self, _webView, navigationAction, decisionHandler
+        ):
+            allow = 1
+            cancel = 0
+            try:
+                url = navigationAction.request().URL()
+                host = str(url.host() or "").lower()
+                scheme = str(url.scheme() or "").lower()
+                if scheme in ("http", "https") and host in ("127.0.0.1", "localhost"):
+                    decisionHandler(allow)
+                    return
+            except Exception:
+                pass
+            decisionHandler(cancel)
+
     class WindowDelegate(NSObject):
         def windowWillClose_(self, _notification):
             try:
@@ -102,6 +119,8 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     win_delegate = WindowDelegate.alloc().init()
     window.setDelegate_(win_delegate)
 
+    nav_delegate = NavigationDelegate.alloc().init()
+
     config = WKWebViewConfiguration.alloc().init()
     script = None
     try:
@@ -129,12 +148,16 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
         config,
     )
     web.setAutoresizingMask_(NSViewWidthSizable | NSViewHeightSizable)
+    try:
+        web.setNavigationDelegate_(nav_delegate)
+    except Exception:
+        pass
     window.setContentView_(web)
 
     request = NSURLRequest.requestWithURL_(NSURL.URLWithString_(url))
     web.loadRequest_(request)
 
-    _KEEP.extend([app, app_delegate, window, win_delegate, config, web, script])
+    _KEEP.extend([app, app_delegate, window, win_delegate, nav_delegate, config, web, script])
 
     window.makeKeyAndOrderFront_(None)
     app.activateIgnoringOtherApps_(True)

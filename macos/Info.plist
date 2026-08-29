@@ -33,7 +33,7 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<false/>
 	</dict>
 </dict>
 </plist>

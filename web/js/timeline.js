@@ -35,19 +35,6 @@ export function setupTimeline() {
                 utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Import failed.');
             }
         });
-
-        document.getElementById('refreshScreenTimeBtn')?.addEventListener('click', async () => {
-            const status = document.getElementById('healthImportStatus');
-            try {
-                const result = await eel.refresh_screen_time_for_recent_days(7)();
-                if (status) status.textContent = result.note || `Updated ${result.updated} day(s).`;
-                if (result.ok) utils.showSuccessFeedback('Screen Time refresh attempted.');
-                else utils.showErrorFeedback(result.note || 'Screen Time refresh unavailable.');
-                await loadTimelineDay(document.getElementById('timelineDate')?.value || todayLocal());
-            } catch (e) {
-                utils.showErrorFeedback('Screen Time refresh failed.');
-            }
-        });
     }
 
     if (!timelineDateBound) {

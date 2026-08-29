@@ -162,8 +162,6 @@ def build_app() -> None:
         "gevent",
         "geventwebsocket",
         "setuptools",
-        "checkin_github",
-        "daily_checklist",
         "journal",
         "cluny_sync",
         "insights",
@@ -171,7 +169,7 @@ def build_app() -> None:
         "work",
         "workouts",
         "export_data",
-        "recovery",
+        "daily_checklist",
         "reminders",
         "health_import",
         "appearance",
@@ -255,7 +253,7 @@ def _patch_info_plist(app_path: str) -> None:
         info["NSPrincipalClass"] = "NSApplication"
         info["NSAppTransportSecurity"] = {
             "NSAllowsLocalNetworking": True,
-            "NSAllowsArbitraryLoads": True,
+            "NSAllowsArbitraryLoads": False,
         }
         with open(plist_path, "wb") as handle:
             plistlib.dump(info, handle)

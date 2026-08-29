@@ -6,7 +6,6 @@ Storage: Application Support/ToDo/workouts.sqlite
 
 from __future__ import annotations
 
-import os
 import sqlite3
 import uuid
 from datetime import date, datetime, timedelta
@@ -15,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 import eel
 
-import daily_checklist
+from paths import data_directory
 
 KINDS = ("running", "legs", "push", "pull", "other")
 KIND_LABELS = {
@@ -28,12 +27,7 @@ KIND_LABELS = {
 
 
 def _data_dir() -> Path:
-    override = os.environ.get("KOSISTENZ_DATA_DIR")
-    if override:
-        path = Path(override)
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-    return daily_checklist.get_data_directory()
+    return data_directory()
 
 
 def get_workouts_db_path() -> Path:
@@ -287,6 +281,30 @@ def count_workouts_by_date(start_date: str, end_date: str) -> Dict[str, int]:
     return {row["local_date"]: int(row["n"] or 0) for row in rows}
 
 
+def list_all_workout_sessions() -> List[Dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM workout_sessions ORDER BY local_date DESC, created_at DESC"
+        ).fetchall()
+        return [_session_dict(row) for row in rows]
+
+
+def list_all_workout_days() -> List[Dict[str, Any]]:
+    with _connect() as conn:
+        dates = [
+            row["local_date"]
+            for row in conn.execute(
+                """
+                SELECT local_date FROM workout_days
+                UNION
+                SELECT DISTINCT local_date FROM workout_sessions
+                ORDER BY 1 DESC
+                """
+            ).fetchall()
+        ]
+        return [_day_payload(day, conn) for day in dates]
+
+
 def list_workout_dates() -> List[str]:
     with _connect() as conn:
         rows = conn.execute(
@@ -295,7 +313,6 @@ def list_workout_dates() -> List[str]:
     return [row["local_date"] for row in rows]
 
 
-@eel.expose
 def workout_metrics(days: int = 30) -> Dict[str, Any]:
     days = max(1, min(int(days or 30), 3650))
     end = date.today()

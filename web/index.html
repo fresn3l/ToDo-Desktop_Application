@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Journal · Kosistenz</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script>
         (function () {
@@ -447,7 +444,7 @@
                             <div class="panel-header">
                                 <div>
                                     <h2>Reminders</h2>
-                                    <p class="panel-sub">Free offline notification via launchd — complements SMS.</p>
+                                    <p class="panel-sub">Free offline notification via launchd.</p>
                                 </div>
                             </div>
                             <div class="checklist-add-form">
@@ -479,10 +476,12 @@
                                 <h3>Export</h3>
                                 <p class="checklist-hint small">JSON, CSV, or a markdown recap of the last 7 days.</p>
                                 <div class="export-buttons">
-                                    <button type="button" class="btn-secondary" data-export="checklist-json">Checklist JSON</button>
-                                    <button type="button" class="btn-secondary" data-export="checklist-csv">Checklist CSV</button>
                                     <button type="button" class="btn-secondary" data-export="journal-json">Journal JSON</button>
                                     <button type="button" class="btn-secondary" data-export="journal-csv">Journal CSV</button>
+                                    <button type="button" class="btn-secondary" data-export="work-json">To Do JSON</button>
+                                    <button type="button" class="btn-secondary" data-export="work-csv">To Do CSV</button>
+                                    <button type="button" class="btn-secondary" data-export="workouts-json">Workout JSON</button>
+                                    <button type="button" class="btn-secondary" data-export="workouts-csv">Workout CSV</button>
                                     <button type="button" class="btn-secondary" data-export="week-markdown">Week markdown</button>
                                 </div>
                                 <p id="exportStatus" class="checklist-hint small"></p>
@@ -490,8 +489,8 @@
                             <details class="checklist-add-details settings-advanced">
                                 <summary>Advanced</summary>
                                 <div class="checklist-add-form">
-                                    <label class="checklist-field-label">SQLite database</label>
-                                    <code id="checklistDbPath" class="checklist-db-path"></code>
+                                    <label class="checklist-field-label">App data folder</label>
+                                    <code id="appDataPath" class="checklist-db-path"></code>
                                     <label class="checklist-field-label">Work database</label>
                                     <code id="workDbPath" class="checklist-db-path"></code>
                                     <label class="checklist-field-label">Workouts database</label>
@@ -503,13 +502,11 @@
                                     <label class="checklist-field-label">Reminder launchd plist</label>
                                     <code id="reminderPlistPath" class="checklist-db-path"></code>
                                     <h3>Apple Health / Screen Time import</h3>
-                                    <p class="checklist-hint small">Import from Apple Health “Export All Health Data” (export.xml). Sleep, steps, and workouts are supported.</p>
-                                    <p class="checklist-hint small checklist-empty">Screen Time is experimental and disabled on macOS — no reliable third-party API.</p>
+                                    <p class="checklist-hint small">Import from Apple Health “Export All Health Data”. The file must be named export.xml and live in your home folder.</p>
                                     <label class="checklist-field-label" for="healthExportPath">Path to export.xml</label>
-                                    <input type="text" id="healthExportPath" class="checklist-text-input" placeholder="/Users/you/Desktop/export.xml">
+                                    <input type="text" id="healthExportPath" class="checklist-text-input" placeholder="/Users/you/Downloads/export.xml">
                                     <div class="reminder-actions">
                                         <button type="button" id="importHealthBtn" class="btn-primary">Import Health export</button>
-                                        <button type="button" id="refreshScreenTimeBtn" class="btn-secondary" disabled title="Screen Time import is experimental and currently disabled">Screen Time (disabled)</button>
                                     </div>
                                     <p id="healthImportStatus" class="checklist-hint small"></p>
                                 </div>

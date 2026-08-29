@@ -16,27 +16,15 @@ import sys
 import uuid
 
 import cluny_sync
+from paths import data_directory
 
 # ============================================
 # JOURNAL STORAGE PATHS
 # ============================================
 
 def get_journal_directory():
-    """
-    Get the base directory for journal entries.
-    Uses Application Support folder for persistence.
-    
-    Returns:
-        Path: Base journal directory path
-    """
-    if sys.platform == 'win32':  # Windows
-        base_dir = Path.home() / 'AppData' / 'Local' / 'ToDo' / 'Journal'
-    elif sys.platform == 'darwin':  # macOS
-        base_dir = Path.home() / 'Library' / 'Application Support' / 'ToDo' / 'Journal'
-    else:  # Linux and others
-        base_dir = Path.home() / '.local' / 'share' / 'ToDo' / 'Journal'
-    
-    # Create directory if it doesn't exist
+    """Journal files live under the shared data directory / Journal."""
+    base_dir = data_directory() / "Journal"
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
 

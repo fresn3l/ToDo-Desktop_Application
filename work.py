@@ -18,18 +18,13 @@ from typing import Any, Dict, List, Optional
 
 import eel
 
-import daily_checklist
+from paths import data_directory
 
 STATUSES = ("open", "active", "done")
 
 
 def _data_dir() -> Path:
-    override = os.environ.get("KOSISTENZ_DATA_DIR")
-    if override:
-        path = Path(override)
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-    return daily_checklist.get_data_directory()
+    return data_directory()
 
 
 def get_work_db_path() -> Path:
@@ -870,6 +865,13 @@ def apply_evening_plan(answers: Dict[str, Any]) -> Dict[str, Any]:
             except ValueError:
                 continue
     return {"tomorrow": tomorrow, "created": created, "assigned": assigned}
+
+
+def list_all_work_items() -> List[Dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(_ITEM_SELECT + " ORDER BY created_at DESC").fetchall()
+    now = _now()
+    return [_row_to_dict(row, now) for row in rows]
 
 
 def list_work_dates() -> List[str]:

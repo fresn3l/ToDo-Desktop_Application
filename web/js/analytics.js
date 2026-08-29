@@ -16,10 +16,12 @@ function bindExportsOnce() {
             const status = document.getElementById('exportStatus');
             try {
                 let result;
-                if (kind === 'checklist-json') result = await eel.export_checklist_json()();
-                else if (kind === 'checklist-csv') result = await eel.export_checklist_csv()();
-                else if (kind === 'journal-json') result = await eel.export_journal_json()();
+                if (kind === 'journal-json') result = await eel.export_journal_json()();
                 else if (kind === 'journal-csv') result = await eel.export_journal_csv()();
+                else if (kind === 'work-json') result = await eel.export_work_json()();
+                else if (kind === 'work-csv') result = await eel.export_work_csv()();
+                else if (kind === 'workouts-json') result = await eel.export_workouts_json()();
+                else if (kind === 'workouts-csv') result = await eel.export_workouts_csv()();
                 else if (kind === 'week-markdown') result = await eel.export_week_markdown(7)();
                 else return;
                 if (status) {
@@ -101,7 +103,7 @@ function renderAnalytics(data) {
     const workout = data.workout || {};
     const work = data.work || {};
     const byKind = Object.entries(workout.by_kind || {})
-        .map(([k, v]) => `<li>${utils.escapeHtml(k)}: ${v}</li>`)
+        .map(([k, v]) => `<li>${utils.escapeHtml(k)}: ${utils.escapeHtml(String(v))}</li>`)
         .join('') || '<li class="checklist-empty">No sessions this period</li>';
     const series = (work.series || [])
         .filter((row) => row.expected || row.done || row.missed)

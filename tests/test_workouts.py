@@ -42,6 +42,8 @@ class WorkoutStoreTests(unittest.TestCase):
         self.assertEqual(metrics["by_kind_raw"]["push"], 1)
         self.assertEqual(metrics["by_kind_raw"]["running"], 1)
         self.assertEqual(metrics["miles"], 1)
+        days = workouts.list_all_workout_days()
+        self.assertGreaterEqual(len(days), 1)
 
     def test_lift_day_needs_no_miles(self) -> None:
         day = workouts.add_workout_session("2026-08-28", "legs")

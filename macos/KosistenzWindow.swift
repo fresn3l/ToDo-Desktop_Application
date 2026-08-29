@@ -41,6 +41,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         stopBridge()
     }
 
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.cancel)
+            return
+        }
+        let scheme = url.scheme?.lowercased() ?? ""
+        let host = url.host?.lowercased() ?? ""
+        if (scheme == "http" || scheme == "https"), host == "127.0.0.1" || host == "localhost" {
+            decisionHandler(.allow)
+            return
+        }
+        log("Blocked navigation to \(url.absoluteString)")
+        decisionHandler(.cancel)
+    }
+
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         log("Navigation failed: \(error.localizedDescription)")
     }

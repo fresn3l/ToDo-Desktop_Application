@@ -55,7 +55,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["checkin_github", "daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "recovery", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts"],
+    "includes": ["daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts"],
 }
 
 setup(

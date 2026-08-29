@@ -159,12 +159,12 @@ export function onSettingsTabShown() {
 }
 
 async function loadAdvancedPaths() {
-    const dbEl = document.getElementById('checklistDbPath');
-    if (dbEl && !dbEl.textContent) {
+    const dataDir = document.getElementById('appDataPath');
+    if (dataDir && !dataDir.textContent) {
         try {
-            dbEl.textContent = await eel.get_daily_checklist_db_path_exposed()();
+            dataDir.textContent = await eel.get_app_data_directory()();
         } catch (_) {
-            dbEl.textContent = '';
+            dataDir.textContent = '';
         }
     }
     const exportsPath = document.getElementById('exportsPath');
