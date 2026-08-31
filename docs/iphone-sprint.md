@@ -50,7 +50,12 @@ The Mac writes the pack after a Today / To Do / Workout / Journal change (when a
 
 ## Later sprints (not this one)
 
+**Sprint 2 (next):** [iphone-sprint-2.md](iphone-sprint-2.md) — same iCloud
+Drive folder on both devices, expected workout + miles, real journal, Mac
+auto-pull, Xcode project. Widget only after the folder is actually shared.
+
+After that, still out of scope until you ask:
+
 - CloudKit records (better conflicts than last-write-wins).
-- Full Journal / Analytics / All Work screens on iPhone.
-- Home Screen widget that reads the same pack.
+- Analytics / Timeline / Settings on iPhone.
 - App Store signing and a paid Apple Developer account (only if you want TestFlight or the store).

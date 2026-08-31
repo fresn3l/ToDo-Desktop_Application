@@ -35,3 +35,6 @@ Xcode project files go stale; the source of truth is the Swift files in `Kosiste
 ## Out of scope in this sprint
 
 Full Journal / Analytics / All Work, CloudKit records, App Store / TestFlight.
+
+**Next:** [docs/iphone-sprint-2.md](../docs/iphone-sprint-2.md) — shared iCloud
+Drive folder, expected workout + miles, real journal, Mac auto-pull.
