@@ -187,12 +187,18 @@ def _dump_work() -> Dict[str, Any]:
                 "source": item.get("source") or "manual",
                 "series_id": item.get("series_id"),
                 "occurrence_date": item.get("occurrence_date"),
+                "due_at": item.get("due_at"),
+                "estimate_minutes": item.get("estimate_minutes"),
+                "source_uid": item.get("source_uid"),
+                "source_calendar": item.get("source_calendar"),
+                "goal_id": item.get("goal_id"),
             }
         )
     with work._connect() as conn:
         series = [dict(row) for row in conn.execute("SELECT * FROM work_series")]
         exceptions = [dict(row) for row in conn.execute("SELECT * FROM work_exceptions")]
-    return {"items": slim, "series": series, "exceptions": exceptions}
+        goals = [dict(row) for row in conn.execute("SELECT * FROM goals")]
+    return {"items": slim, "series": series, "exceptions": exceptions, "goals": goals}
 
 
 def _dump_workouts() -> Dict[str, Any]:
@@ -210,8 +216,47 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
     items = payload.get("items") if isinstance(payload, dict) else None
     series = payload.get("series") if isinstance(payload, dict) else None
     exceptions = payload.get("exceptions") if isinstance(payload, dict) else None
+    goals = payload.get("goals") if isinstance(payload, dict) else None
     applied = 0
     with work._connect() as conn:
+        for row in list(goals or [])[:MAX_WORK_ITEMS]:
+            if not isinstance(row, dict) or not row.get("id"):
+                continue
+            existing = conn.execute("SELECT updated_at FROM goals WHERE id = ?", (row["id"],)).fetchone()
+            if existing and not _newer(row.get("updated_at"), existing["updated_at"]):
+                continue
+            conn.execute(
+                """
+                INSERT INTO goals (
+                    id, title, horizon, keyword, target_minutes, end_date, notes,
+                    archived, sort_order, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title,
+                    horizon = excluded.horizon,
+                    keyword = excluded.keyword,
+                    target_minutes = excluded.target_minutes,
+                    end_date = excluded.end_date,
+                    notes = excluded.notes,
+                    archived = excluded.archived,
+                    sort_order = excluded.sort_order,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    row["id"],
+                    _clip_title(row.get("title")),
+                    row.get("horizon") or "six_month",
+                    row.get("keyword") or "",
+                    row.get("target_minutes"),
+                    row.get("end_date"),
+                    row.get("notes") or "",
+                    int(row.get("archived") or 0),
+                    int(row.get("sort_order") or 0),
+                    _stamp_or_now(row.get("created_at")),
+                    _stamp_or_now(row.get("updated_at")),
+                ),
+            )
+            applied += 1
         for row in list(series or [])[:MAX_WORK_ITEMS]:
             if not isinstance(row, dict) or not row.get("id"):
                 continue
@@ -254,8 +299,9 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                 """
                 INSERT INTO work_items (
                     id, title, notes, scheduled_date, status, active_started_at, finished_at,
-                    duration_seconds, sort_order, created_at, updated_at, source, series_id, occurrence_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    duration_seconds, sort_order, created_at, updated_at, source, series_id, occurrence_date,
+                    due_at, estimate_minutes, source_uid, source_calendar, goal_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     notes = excluded.notes,
@@ -268,7 +314,12 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                     updated_at = excluded.updated_at,
                     source = excluded.source,
                     series_id = excluded.series_id,
-                    occurrence_date = excluded.occurrence_date
+                    occurrence_date = excluded.occurrence_date,
+                    due_at = excluded.due_at,
+                    estimate_minutes = excluded.estimate_minutes,
+                    source_uid = excluded.source_uid,
+                    source_calendar = excluded.source_calendar,
+                    goal_id = excluded.goal_id
                 """,
                 (
                     row["id"],
@@ -285,6 +336,11 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                     row.get("source") or "manual",
                     row.get("series_id"),
                     row.get("occurrence_date"),
+                    row.get("due_at"),
+                    row.get("estimate_minutes"),
+                    row.get("source_uid"),
+                    row.get("source_calendar"),
+                    row.get("goal_id"),
                 ),
             )
             applied += 1

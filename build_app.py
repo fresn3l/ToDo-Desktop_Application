@@ -99,6 +99,7 @@ def _install_swift_host(app_path: str) -> bool:
     host_sources = [
         os.path.join(src_dir, "KosistenzWindow.swift"),
         os.path.join(src_dir, "KosistenzChrome.swift"),
+        os.path.join(src_dir, "KosistenzCalendar.swift"),
     ]
     compiler = _swiftc()
     if compiler is None:
@@ -121,6 +122,7 @@ def _install_swift_host(app_path: str) -> bool:
         "-o", python_exe,
         "-framework", "Cocoa",
         "-framework", "WebKit",
+        "-framework", "EventKit",
         "-framework", "WidgetKit",
         "-framework", "SwiftUI",
         *host_sources,
@@ -242,6 +244,7 @@ def build_app() -> None:
         "timeline",
         "work",
         "workouts",
+        "goals",
         "export_data",
         "daily_checklist",
         "reminders",

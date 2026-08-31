@@ -4,6 +4,7 @@
 
 import * as utils from './utils.js';
 import { tomorrowISO } from './work.js';
+import { loadGoalOptions } from './goals.js';
 
 export async function refreshAllWork() {
     const list = document.getElementById('allWorkList');
@@ -30,7 +31,7 @@ export async function refreshAllWork() {
                 <article class="work-item" data-id="${utils.escapeHtml(item.id)}">
                     <div class="work-item-main">
                         <h3>${utils.escapeHtml(item.title)}</h3>
-                        <p class="work-meta">Not dated yet</p>
+                        <p class="work-meta">${item.due_at ? `Due ${utils.escapeHtml(String(item.due_at).slice(0, 16).replace('T', ' '))}` : 'Not dated yet'}${item.estimate_minutes ? ` · ${item.estimate_minutes} min` : ''}</p>
                     </div>
                     <div class="work-item-actions">
                         <button type="button" class="btn-primary" data-act="today">Today</button>
@@ -47,11 +48,23 @@ export async function refreshAllWork() {
                     const act = btn.getAttribute('data-act');
                     try {
                         if (act === 'today') {
-                            await eel.assign_work_item(id, utils.localISODate())();
-                            utils.showSuccessFeedback('Moved to today’s To Do.');
+                            const date = utils.localISODate();
+                            await eel.assign_work_item(id, date)();
+                            let message = 'Moved to today’s To Do.';
+                            if (typeof eel.place_work_item === 'function') {
+                                const placed = await eel.place_work_item(id, date)();
+                                if (placed?.placed) message = placed.message || message;
+                            }
+                            utils.showSuccessFeedback(message);
                         } else if (act === 'tomorrow') {
-                            await eel.assign_work_item(id, tomorrowISO())();
-                            utils.showSuccessFeedback('Queued for tomorrow.');
+                            const date = tomorrowISO();
+                            await eel.assign_work_item(id, date)();
+                            let message = 'Queued for tomorrow.';
+                            if (typeof eel.place_work_item === 'function') {
+                                const placed = await eel.place_work_item(id, date)();
+                                if (placed?.placed) message = placed.message || message;
+                            }
+                            utils.showSuccessFeedback(message);
                         } else if (act === 'delete') {
                             await eel.delete_work_item(id)();
                         }
@@ -77,8 +90,23 @@ async function addBacklogTask() {
         return;
     }
     try {
-        await eel.create_work_item(title, '', '', 'backlog')();
+        await eel.create_work_item(
+            title,
+            '',
+            '',
+            'backlog',
+            null,
+            document.getElementById('allWorkNewDue')?.value || '',
+            document.getElementById('allWorkNewEstimate')?.value || '',
+            document.getElementById('allWorkNewGoal')?.value || '',
+        )();
         if (input) input.value = '';
+        const est = document.getElementById('allWorkNewEstimate');
+        const dueEl = document.getElementById('allWorkNewDue');
+        const goalEl = document.getElementById('allWorkNewGoal');
+        if (est) est.value = '';
+        if (dueEl) dueEl.value = '';
+        if (goalEl) goalEl.value = '';
         utils.showSuccessFeedback('Saved in All Work.');
         utils.notifyDataChanged();
         await refreshAllWork();
@@ -103,8 +131,10 @@ export function setupAllWork() {
             void refreshAllWork();
         }
     });
+    void loadGoalOptions('allWorkNewGoal');
 }
 
 export async function onAllWorkTabShown() {
+    await loadGoalOptions('allWorkNewGoal');
     await refreshAllWork();
 }

@@ -105,6 +105,13 @@ def get_today_status() -> Dict[str, Any]:
     work_total = int(work_board.get("counts", {}).get("today_total") or 0)
     workout = workouts.get_workout_day(iso)
     expected = _expected_payload(today)
+    agenda = []
+    try:
+        import calclock
+
+        agenda = calclock.get_day_agenda(iso).get("items") or []
+    except Exception:
+        agenda = []
     return {
         "local_date": iso,
         "hour": datetime.now().hour,
@@ -121,6 +128,7 @@ def get_today_status() -> Dict[str, Any]:
             "done": work_done,
             "total": work_total,
         },
+        "agenda": agenda,
     }
 
 

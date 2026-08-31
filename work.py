@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import uuid
 from datetime import date, datetime, timedelta
@@ -101,6 +102,24 @@ def _connect() -> sqlite3.Connection:
         """
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_work_series_id ON work_items(series_id)")
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(work_items)")}
+    if "due_at" not in cols:
+        conn.execute("ALTER TABLE work_items ADD COLUMN due_at TEXT")
+    if "estimate_minutes" not in cols:
+        conn.execute("ALTER TABLE work_items ADD COLUMN estimate_minutes INTEGER")
+    if "source_uid" not in cols:
+        conn.execute("ALTER TABLE work_items ADD COLUMN source_uid TEXT")
+    if "source_calendar" not in cols:
+        conn.execute("ALTER TABLE work_items ADD COLUMN source_calendar TEXT")
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_work_source_uid
+        ON work_items(source_calendar, source_uid)
+        """
+    )
+    import goals as _goals
+
+    _goals.ensure_schema(conn)
     return conn
 
 
@@ -110,6 +129,109 @@ def _now() -> datetime:
 
 def _today() -> date:
     return date.today()
+
+
+def _parse_due_at(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if len(text) >= 10 and text[4] == "-" and text[7] == "-":
+        day = text[:10]
+        try:
+            date.fromisoformat(day)
+        except ValueError as exc:
+            raise ValueError("Due date must be YYYY-MM-DD") from exc
+        if len(text) == 10:
+            return f"{day}T23:59:00"
+        try:
+            parsed = datetime.fromisoformat(text.replace("Z", "+00:00")[:32])
+        except ValueError as exc:
+            raise ValueError("Due time must be ISO-8601") from exc
+        if parsed.tzinfo is not None:
+            parsed = parsed.astimezone().replace(tzinfo=None)
+        return parsed.replace(microsecond=0).isoformat(timespec="seconds")
+    raise ValueError("Due date must be YYYY-MM-DD")
+
+
+def _parse_estimate(value: Any) -> Optional[int]:
+    if value is None or value == "":
+        return None
+    try:
+        minutes = int(float(value))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Estimate must be minutes") from exc
+    if minutes < 0:
+        raise ValueError("Estimate cannot be negative")
+    if minutes > 24 * 60:
+        raise ValueError("Estimate is too long")
+    return minutes
+
+
+_TITLE_HOURS = re.compile(r"(?P<n>\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b", re.I)
+_TITLE_MINS = re.compile(r"(?P<n>\d+(?:\.\d+)?)\s*(?:minutes?|mins?|min|m)\b", re.I)
+
+
+def parse_minutes_from_title(title: str) -> Optional[int]:
+    """Read '45 mins calculus' or '1h reading' from the to-do text."""
+    text = str(title or "")
+    if not text.strip():
+        return None
+    hours = 0.0
+    mins = 0.0
+    found = False
+    for match in _TITLE_HOURS.finditer(text):
+        hours += float(match.group("n"))
+        found = True
+    rest = _TITLE_HOURS.sub(" ", text)
+    for match in _TITLE_MINS.finditer(rest):
+        mins += float(match.group("n"))
+        found = True
+    if not found:
+        return None
+    total = int(round(hours * 60 + mins))
+    if total <= 0:
+        return None
+    return min(total, 24 * 60)
+
+
+def date_for_weekday_this_week(weekday: Any) -> str:
+    """0=Mon … 6=Sun. Past days this week roll to next week."""
+    try:
+        day_i = int(weekday)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Weekday must be 0–6") from exc
+    if day_i < 0 or day_i > 6:
+        raise ValueError("Weekday must be 0–6")
+    today = _today()
+    monday = today - timedelta(days=today.weekday())
+    target = monday + timedelta(days=day_i)
+    if target < today:
+        target += timedelta(days=7)
+    return target.isoformat()
+
+
+@eel.expose
+def weekday_dates_this_week() -> List[Dict[str, Any]]:
+    today = _today()
+    monday = today - timedelta(days=today.weekday())
+    names = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    rows = []
+    for i in range(7):
+        day = monday + timedelta(days=i)
+        place = day if day >= today else day + timedelta(days=7)
+        rows.append(
+            {
+                "weekday": i,
+                "label": names[i],
+                "date": day.isoformat(),
+                "place_date": place.isoformat(),
+                "is_today": day == today,
+                "is_past": day < today,
+            }
+        )
+    return rows
 
 
 def _parse_date(value: Optional[str]) -> Optional[str]:
@@ -262,6 +384,13 @@ def _row_to_dict(row: sqlite3.Row, now: Optional[datetime] = None) -> Dict[str, 
             scheduled and scheduled < today and row["status"] != "done" and not series_id
         ),
         "is_backlog": scheduled is None,
+        "due_at": _col(row, "due_at"),
+        "estimate_minutes": (
+            None if _col(row, "estimate_minutes") is None else int(row["estimate_minutes"])
+        ),
+        "source_uid": _col(row, "source_uid"),
+        "source_calendar": _col(row, "source_calendar"),
+        "goal_id": _col(row, "goal_id"),
     }
 
 
@@ -317,13 +446,18 @@ def _insert_occurrence(
         return _fetch(conn, existing["id"])
     now = _now().isoformat()
     item_id = str(uuid.uuid4())
+    series_goal = None
+    try:
+        series_goal = series["goal_id"]
+    except (KeyError, IndexError, TypeError):
+        series_goal = None
     conn.execute(
         """
         INSERT INTO work_items (
             id, title, notes, scheduled_date, status,
             active_started_at, finished_at, duration_seconds, sort_order,
-            created_at, updated_at, source, series_id, occurrence_date
-        ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, ?, ?)
+            created_at, updated_at, source, series_id, occurrence_date, goal_id
+        ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             item_id,
@@ -336,6 +470,7 @@ def _insert_occurrence(
             source,
             series["id"],
             occurrence,
+            series_goal,
         ),
     )
     return _fetch(conn, item_id)
@@ -572,6 +707,9 @@ def create_work_item(
     notes: str = "",
     source: str = "manual",
     repeat: Any = None,
+    due_at: Optional[str] = None,
+    estimate_minutes: Any = None,
+    goal_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
@@ -581,6 +719,13 @@ def create_work_item(
     now = _now().isoformat()
     item_id = str(uuid.uuid4())
     src = (source or "manual").strip() or "manual"
+    due = _parse_due_at(due_at)
+    estimate = _parse_estimate(estimate_minutes)
+    if estimate is None:
+        estimate = parse_minutes_from_title(clean)
+    import goals as _goals
+
+    attached = _goals.resolve_goal_id(clean, goal_id or None)
     with _connect() as conn:
         if cadence:
             start = target or _today().isoformat()
@@ -589,8 +734,8 @@ def create_work_item(
                 """
                 INSERT INTO work_series (
                     id, title, notes, cadence_json, start_date, end_date,
-                    created_at, updated_at, archived
-                ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0)
+                    created_at, updated_at, archived, goal_id
+                ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, ?)
                 """,
                 (
                     series_id,
@@ -600,6 +745,7 @@ def create_work_item(
                     start,
                     now,
                     now,
+                    attached,
                 ),
             )
             series = conn.execute("SELECT * FROM work_series WHERE id = ?", (series_id,)).fetchone()
@@ -632,10 +778,11 @@ def create_work_item(
                 INSERT INTO work_items (
                     id, title, notes, scheduled_date, status,
                     active_started_at, finished_at, duration_seconds, sort_order,
-                    created_at, updated_at, source, series_id, occurrence_date
-                ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, NULL, NULL)
+                    created_at, updated_at, source, series_id, occurrence_date,
+                    due_at, estimate_minutes, source_uid, source_calendar, goal_id
+                ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, NULL, NULL, ?, ?, NULL, NULL, ?)
                 """,
-                (item_id, clean, (notes or "").strip(), target, sort_order, now, now, src),
+                (item_id, clean, (notes or "").strip(), target, sort_order, now, now, src, due, estimate, attached),
             )
             row = _fetch(conn, item_id)
     _write_widget_snapshot()
@@ -702,10 +849,18 @@ def get_work_board(local_date: str = "") -> Dict[str, Any]:
     target = _parse_date(local_date) or today.isoformat()
     tomorrow = (today + timedelta(days=1)).isoformat()
     today_items = list_work_for_date(target)
+    upcoming: List[Dict[str, Any]] = []
+    if target == today.isoformat():
+        for offset in range(1, 7):
+            day = (today + timedelta(days=offset)).isoformat()
+            for item in list_work_for_date(day):
+                if item["status"] != "done":
+                    upcoming.append(item)
     return {
         "local_date": target,
         "today": today_items,
         "tomorrow": list_work_for_date(tomorrow) if target == today.isoformat() else [],
+        "upcoming": upcoming,
         "overdue": list_overdue_work() if target == today.isoformat() else [],
         "backlog": list_backlog(),
         "tomorrow_date": tomorrow,
@@ -753,6 +908,110 @@ def assign_work_item(item_id: str, scheduled_date: Optional[str] = None) -> Dict
                 (target, now, _next_sort(conn, target), item_id),
             )
         row = _fetch(conn, item_id)
+    _write_widget_snapshot()
+    assert row is not None
+    return _row_to_dict(row)
+
+
+@eel.expose
+def update_work_plan(
+    item_id: str,
+    due_at: Optional[str] = None,
+    estimate_minutes: Any = None,
+) -> Dict[str, Any]:
+    """Set due time and estimate. Pass empty due_at to clear."""
+    now = _now().isoformat()
+    due = _parse_due_at(due_at)
+    estimate = _parse_estimate(estimate_minutes)
+    with _connect() as conn:
+        row = _fetch(conn, item_id)
+        if row is None:
+            raise ValueError("Work item not found")
+        conn.execute(
+            """
+            UPDATE work_items
+            SET due_at = ?, estimate_minutes = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (due, estimate, now, item_id),
+        )
+        row = _fetch(conn, item_id)
+    _write_widget_snapshot()
+    try:
+        import icloud_sync
+
+        icloud_sync.export_if_enabled()
+    except Exception:
+        pass
+    assert row is not None
+    return _row_to_dict(row)
+
+
+def upsert_imported_work(
+    *,
+    title: str,
+    due_at: str,
+    source_uid: str,
+    source_calendar: str,
+    estimate_minutes: Optional[int] = 60,
+    notes: str = "",
+) -> Dict[str, Any]:
+    """Insert or refresh a deadline-backed to-do. Does not reopen done items."""
+    clean = (title or "").strip()
+    if not clean:
+        raise ValueError("Title is required")
+    uid = (source_uid or "").strip()
+    calendar_key = (source_calendar or "").strip()
+    if not uid or not calendar_key:
+        raise ValueError("Imported work needs a calendar id and uid")
+    due = _parse_due_at(due_at)
+    if not due:
+        raise ValueError("Imported work needs a due time")
+    now = _now().isoformat()
+    with _connect() as conn:
+        existing = conn.execute(
+            """
+            SELECT * FROM work_items
+            WHERE source_calendar = ? AND source_uid = ?
+            LIMIT 1
+            """,
+            (calendar_key, uid),
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """
+                UPDATE work_items
+                SET title = ?, due_at = ?, notes = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (clean, due, (notes or existing["notes"] or "").strip(), now, existing["id"]),
+            )
+            row = _fetch(conn, existing["id"])
+        else:
+            item_id = str(uuid.uuid4())
+            conn.execute(
+                """
+                INSERT INTO work_items (
+                    id, title, notes, scheduled_date, status,
+                    active_started_at, finished_at, duration_seconds, sort_order,
+                    created_at, updated_at, source, series_id, occurrence_date,
+                    due_at, estimate_minutes, source_uid, source_calendar
+                ) VALUES (?, ?, ?, NULL, 'open', NULL, NULL, 0, ?, ?, ?, 'calendar', NULL, NULL, ?, ?, ?, ?)
+                """,
+                (
+                    item_id,
+                    clean,
+                    (notes or "").strip(),
+                    _next_sort(conn, None),
+                    now,
+                    now,
+                    due,
+                    _parse_estimate(estimate_minutes),
+                    uid,
+                    calendar_key,
+                ),
+            )
+            row = _fetch(conn, item_id)
     _write_widget_snapshot()
     assert row is not None
     return _row_to_dict(row)
@@ -912,6 +1171,16 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
             (elapsed, now.isoformat(), now.isoformat(), item_id),
         )
         row = _fetch(conn, item_id)
+        if row is not None and not _col(row, "goal_id"):
+            import goals as _goals
+
+            attached = _goals.resolve_goal_id(row["title"], conn=conn)
+            if attached:
+                conn.execute(
+                    "UPDATE work_items SET goal_id = ? WHERE id = ?",
+                    (attached, item_id),
+                )
+                row = _fetch(conn, item_id)
     _write_widget_snapshot()
     assert row is not None
     return _row_to_dict(row)

@@ -7,6 +7,7 @@ import * as utils from './utils.js';
 import { formatDuration, liveSeconds } from './work.js';
 import { logWorkoutKind, renderWorkoutChips } from './workout_chips.js';
 import { getAppearance, persistAppearance, onAppearanceChange } from './appearance.js';
+import { loadGoalOptions } from './goals.js';
 import {
     applyTodayOrder,
     moveTodayModule,
@@ -46,6 +47,25 @@ function mastheadParts(iso) {
         weekday: d.toLocaleDateString(undefined, { weekday: 'long' }),
         rest: d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }),
     };
+}
+
+function paintAgenda(items) {
+    const el = document.getElementById('todayAgenda');
+    if (!el) return;
+    if (!items.length) {
+        el.innerHTML = '';
+        return;
+    }
+    el.innerHTML = items
+        .map((item) => {
+            const start = new Date(item.start_at);
+            const hh = Number.isNaN(start.getTime())
+                ? ''
+                : start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+            const kind = item.kind === 'hard' ? 'Class' : item.kind === 'workout' ? 'Gym' : 'Work';
+            return `<li><span>${utils.escapeHtml(hh)}</span> ${utils.escapeHtml(item.title || '')} <em>${kind}</em></li>`;
+        })
+        .join('');
 }
 
 function paintPulse(data) {
@@ -279,14 +299,26 @@ async function addTodayTask() {
         return;
     }
     try {
-        await eel.create_work_item(title, utils.localISODate())();
+        const goal = document.getElementById('todayNewGoal')?.value || '';
+        const result = typeof eel.add_todo_to_calendar === 'function'
+            ? await eel.add_todo_to_calendar(title, utils.localISODate(), '', '', null, goal)()
+            : await eel.create_work_item(title, utils.localISODate())();
         if (input) input.value = '';
-        utils.showSuccessFeedback('Added to today.');
+        const goalEl = document.getElementById('todayNewGoal');
+        if (goalEl) goalEl.value = '';
+        const message = result?.message || 'Added to today.';
+        if (result?.placed) {
+            utils.showSuccessFeedback(message);
+        } else if (result?.message && result.placed === 0) {
+            utils.showErrorFeedback(message);
+        } else {
+            utils.showSuccessFeedback(message);
+        }
         utils.notifyDataChanged();
         await refreshTodayHome();
         input?.focus();
     } catch (e) {
-        utils.showErrorFeedback('Could not add that task.');
+        utils.showErrorFeedback(e?.message || 'Could not add that task.');
     }
 }
 
@@ -319,6 +351,7 @@ export async function refreshTodayHome() {
         if (heading) heading.textContent = parts.weekday;
         if (sub) sub.textContent = parts.rest;
         paintPulse(data);
+        paintAgenda(data.agenda || []);
         paintCustomize();
         const items = data.today || [];
         const active = items.find((item) => item.status === 'active');
@@ -457,6 +490,7 @@ export function setupToday() {
         void confirmTodaySpecial();
     });
     void refreshToday();
+    void loadGoalOptions('todayNewGoal');
     document.addEventListener('kosistenz:data-changed', () => {
         void refreshToday();
     });
@@ -467,5 +501,6 @@ export function setupToday() {
 }
 
 export async function onTodayTabShown() {
+    await loadGoalOptions('todayNewGoal');
     await refreshTodayHome();
 }

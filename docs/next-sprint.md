@@ -1,18 +1,19 @@
 # Next sprint
 
-**Current plan:** [docs/iphone-sprint-2.md](iphone-sprint-2.md)
+**Current plan:** [docs/calendar-home.md](calendar-home.md)
 
-Make the iPhone app actually usable away from the Mac: same iCloud Drive
-folder as the Mac, today’s to-dos, log the expected workout (including run
-miles), write a journal, and have that show up on the Mac without hunting
-Settings.
+Kosistenz is the calendar you carry (Mac week on a clock, later the iPhone
+agenda). The class due-date subscription is a **deadline feed** — all-day
+“Essay 2 due” and 11:59 events become to-dos with `due_at`, not busy time.
+You add lectures as hard events here. A packer fills study/gym into gaps.
+Nothing is written back to Apple Calendar.
 
-**Foundation (merge first):** [docs/iphone-sprint.md](iphone-sprint.md)
-and [PR #17](https://github.com/fresn3l/ToDo-Desktop_Application/pull/17)
-(`cursor/iphone-icloud-7484`) — `ios/` skeleton plus Settings → Phone.
+Mail, goals, and Cluny as inboxes come after a real week lands on that grid.
 
-The live SQLite database stays on the Mac.
-Sync is still a JSON pack on iCloud Drive, not CloudKit.
+**iPhone:** still need a shared iCloud Drive folder
+([iphone-sprint.md](iphone-sprint.md)). The companion’s job after the Mac
+clock exists is **today as blocks**, not only to-do chips
+([iphone-sprint-2.md](iphone-sprint-2.md)).
 
-The old checklist / wizard list is retired. Kosistenz on `main` is the Mac
-journal + Today + To Do + Workout app.
+The live SQLite database stays on the Mac. Sync stays a JSON pack on
+iCloud Drive, not CloudKit. Do not put the live DB in iCloud.

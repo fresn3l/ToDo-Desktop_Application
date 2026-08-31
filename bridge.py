@@ -10,13 +10,16 @@ import os
 import eel
 
 import appearance  # noqa: F401
+import calclock  # noqa: F401
 import export_data  # noqa: F401
+import goals  # noqa: F401
 import icloud_sync  # noqa: F401
 import health_import  # noqa: F401
 import insights  # noqa: F401
 import journal  # noqa: F401
 import local_api
 import reminders  # noqa: F401
+import schedule  # noqa: F401
 import timeline  # noqa: F401
 import work  # noqa: F401
 import workouts  # noqa: F401

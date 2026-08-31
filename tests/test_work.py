@@ -24,6 +24,55 @@ class WorkStoreTests(unittest.TestCase):
         self.patcher.stop()
         self._tmp.cleanup()
 
+    def test_due_and_estimate_stay_on_backlog_item(self) -> None:
+        item = self.work.create_work_item(
+            "Essay 2",
+            due_at="2026-09-04",
+            estimate_minutes=90,
+        )
+        self.assertTrue(item["is_backlog"])
+        self.assertEqual(item["due_at"], "2026-09-04T23:59:00")
+        self.assertEqual(item["estimate_minutes"], 90)
+        updated = self.work.update_work_plan(item["id"], "2026-09-04T23:59:00", 120)
+        self.assertEqual(updated["estimate_minutes"], 120)
+
+    def test_parse_minutes_from_title(self) -> None:
+        parse = self.work.parse_minutes_from_title
+        self.assertEqual(parse("45 mins calculus"), 45)
+        self.assertEqual(parse("spend 45 mins doing calculus"), 45)
+        self.assertEqual(parse("1h reading"), 60)
+        self.assertEqual(parse("1h 30 min"), 90)
+        self.assertEqual(parse("1.5 hours"), 90)
+        self.assertEqual(parse("45m"), 45)
+        self.assertIsNone(parse("calculus homework"))
+        self.assertIsNone(parse("chapter 45"))
+
+    def test_create_reads_minutes_from_title_unless_overridden(self) -> None:
+        item = self.work.create_work_item("spend 45 mins doing calculus")
+        self.assertEqual(item["estimate_minutes"], 45)
+        override = self.work.create_work_item("45 mins calculus", estimate_minutes=20)
+        self.assertEqual(override["estimate_minutes"], 20)
+
+    def test_past_weekday_this_week_rolls_forward(self) -> None:
+        wednesday = date(2026, 9, 2)
+        with mock.patch.object(self.work, "_today", return_value=wednesday):
+            self.assertEqual(self.work.date_for_weekday_this_week(2), "2026-09-02")
+            self.assertEqual(self.work.date_for_weekday_this_week(3), "2026-09-03")
+            self.assertEqual(self.work.date_for_weekday_this_week(0), "2026-09-07")
+            days = self.work.weekday_dates_this_week()
+            monday = next(row for row in days if row["weekday"] == 0)
+            self.assertTrue(monday["is_past"])
+            self.assertEqual(monday["place_date"], "2026-09-07")
+            today_row = next(row for row in days if row["is_today"])
+            self.assertEqual(today_row["place_date"], "2026-09-02")
+
+    def test_board_lists_upcoming_week_items(self) -> None:
+        today = date.today()
+        later = (today + timedelta(days=2)).isoformat()
+        self.work.create_work_item("45 mins calculus", scheduled_date=later)
+        board = self.work.get_work_board(today.isoformat())
+        self.assertEqual([row["title"] for row in board["upcoming"]], ["45 mins calculus"])
+
     def test_backlog_stays_undated_until_assigned(self) -> None:
         item = self.work.create_work_item("Pay electricity bill")
         self.assertIsNone(item["scheduled_date"])

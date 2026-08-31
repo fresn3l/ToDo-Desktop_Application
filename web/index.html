@@ -24,6 +24,10 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="5.5" width="15" height="14" rx="2"/><path d="M8 3.5v3M16 3.5v3M4.5 9.5h15"/></svg>
                     <span class="nav-label">Today</span>
                 </button>
+                <button type="button" class="nav-item" data-tab="calendar">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
+                    <span class="nav-label">Calendar</span>
+                </button>
                 <button type="button" class="nav-item" data-tab="journal">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 4.5h11.5A2.5 2.5 0 0 1 19 7v13.5H7.5A2.5 2.5 0 0 1 5 18V4.5Z"/><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19"/><path d="M9 9h6M9 13h6"/></svg>
                     <span class="nav-label">Journal</span>
@@ -35,6 +39,10 @@
                 <button type="button" class="nav-item" data-tab="todo">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><path d="m8 12 2.2 2.2L16 8.5"/></svg>
                     <span class="nav-label">To Do</span>
+                </button>
+                <button type="button" class="nav-item" data-tab="goals">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2"/></svg>
+                    <span class="nav-label">Goals</span>
                 </button>
                 <button type="button" class="nav-item" data-tab="allwork">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14l-1.2 12.2A2 2 0 0 1 15.8 21H8.2a2 2 0 0 1-2-1.8L5 7Z"/><path d="M9 7V5.8A2.8 2.8 0 0 1 11.8 3h.4A2.8 2.8 0 0 1 15 5.8V7"/></svg>
@@ -114,6 +122,7 @@
                                 <ul id="todayOrderList" class="today-order-list"></ul>
                             </div>
                         </div>
+                        <ol id="todayAgenda" class="today-agenda" aria-label="Today on the clock"></ol>
                         <div id="todayActiveTodo"></div>
                         <div class="today-board">
                             <section id="todayTodoModule" class="today-card" data-module="todo">
@@ -123,7 +132,10 @@
                                 </div>
                                 <div id="todayTodoList" class="work-list"></div>
                                 <div class="work-add-row">
-                                    <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="Add for today" autocomplete="off">
+                                    <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="45 mins calculus" autocomplete="off">
+                                    <select id="todayNewGoal" class="checklist-text-input today-goal-select" title="Attach to a goal">
+                                        <option value="">Goal</option>
+                                    </select>
                                     <button type="button" id="todayAddBtn" class="btn-primary">Add</button>
                                 </div>
                             </section>
@@ -157,6 +169,75 @@
                                 </div>
                             </section>
                         </div>
+                    </div>
+                </section>
+
+                <section id="calendarTab" class="tab-content" aria-label="Calendar">
+                    <div class="cal-layout">
+                        <div class="panel cal-main">
+                            <div class="panel-header cal-toolbar">
+                                <div>
+                                    <h2 id="calWeekLabel">This week</h2>
+                                    <p class="panel-sub">Hard events stay put. Fill week places study around them. Nothing is written to Apple Calendar.</p>
+                                </div>
+                                <div class="cal-toolbar-actions">
+                                    <button type="button" id="calPrevWeek" class="btn-secondary">Prev</button>
+                                    <button type="button" id="calThisWeek" class="btn-ghost">This week</button>
+                                    <button type="button" id="calNextWeek" class="btn-secondary">Next</button>
+                                    <button type="button" id="calFillWeek" class="btn-primary">Fill week</button>
+                                </div>
+                            </div>
+                            <div id="calGrid" class="cal-grid"></div>
+                        </div>
+                        <aside class="cal-aside">
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <h3>Add a lecture</h3>
+                                </div>
+                                <p class="checklist-hint small">Class meeting times live here. The due-date subscription is not lectures.</p>
+                                <label class="checklist-field-label" for="calEventTitle">Name</label>
+                                <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="CHEM 109" autocomplete="off">
+                                <div class="cal-time-row">
+                                    <label class="checklist-field-label" for="calEventStart">Starts</label>
+                                    <input type="datetime-local" id="calEventStart" class="checklist-text-input">
+                                </div>
+                                <div class="cal-time-row">
+                                    <label class="checklist-field-label" for="calEventEnd">Ends</label>
+                                    <input type="datetime-local" id="calEventEnd" class="checklist-text-input">
+                                </div>
+                                <p class="checklist-hint small">Repeat weekly</p>
+                                <div id="calEventWeekdays" class="work-weekdays" role="group" aria-label="Lecture days">
+                                    <button type="button" class="work-day-chip" data-day="0">Mon</button>
+                                    <button type="button" class="work-day-chip" data-day="1">Tue</button>
+                                    <button type="button" class="work-day-chip" data-day="2">Wed</button>
+                                    <button type="button" class="work-day-chip" data-day="3">Thu</button>
+                                    <button type="button" class="work-day-chip" data-day="4">Fri</button>
+                                    <button type="button" class="work-day-chip" data-day="5">Sat</button>
+                                    <button type="button" class="work-day-chip" data-day="6">Sun</button>
+                                </div>
+                                <button type="button" id="calAddEvent" class="btn-primary">Save event</button>
+                            </div>
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <h3>Unplaced</h3>
+                                </div>
+                                <p class="checklist-hint small">Needs an estimate to land on the clock. Due dates from class stay here until Fill week.</p>
+                                <div id="calUnplaced" class="cal-unplaced"></div>
+                            </div>
+                            <div class="panel">
+                                <div class="panel-header">
+                                    <h3>Class due dates</h3>
+                                </div>
+                                <p class="checklist-hint small">Paste the same ICS URL Apple Calendar already subscribes to, or import from Apple on this Mac. All-day and 11:59 events become to-dos, not busy bars.</p>
+                                <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
+                                <input type="url" id="calIcsUrl" class="checklist-text-input" placeholder="https://…" autocomplete="off">
+                                <div class="reminder-actions">
+                                    <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
+                                    <button type="button" id="calImportApple" class="btn-secondary">Import Apple calendars</button>
+                                </div>
+                                <p id="calImportStatus" class="checklist-hint small"></p>
+                            </div>
+                        </aside>
                     </div>
                 </section>
 
@@ -283,13 +364,22 @@
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
-                                    <h2>Today’s To Do</h2>
-                                    <p class="panel-sub" id="todoSummary">Work you dated for today. Start a timer, then finish when it’s done.</p>
+                                    <h2>To Do</h2>
+                                    <p class="panel-sub" id="todoSummary">Name the work and how long it takes. Pick a day this week — Kosistenz parks it in a free gap on the calendar.</p>
                                 </div>
                             </div>
                             <div class="work-add-row">
-                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="Meditate 15 mins" autocomplete="off">
-                                <button type="button" id="todoAddBtn" class="btn-primary">Add to today</button>
+                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="45 mins calculus" autocomplete="off">
+                                <button type="button" id="todoAddBtn" class="btn-primary">Add to calendar</button>
+                            </div>
+                            <div id="todoWhen" class="todo-when work-weekdays" role="radiogroup" aria-label="Do this week"></div>
+                            <p class="checklist-hint small todo-when-hint">Today is selected. The minutes can live in the title (45 mins, 1h). Optional due date if it is also an assignment.</p>
+                            <div class="work-add-row work-add-optional">
+                                <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="5" placeholder="Min" title="Override minutes if the title has none">
+                                <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date (optional)">
+                                <select id="todoNewGoal" class="checklist-text-input" title="Attach to a goal">
+                                    <option value="">Goal (optional)</option>
+                                </select>
                             </div>
                             <label class="checklist-checkbox-label work-repeat-toggle">
                                 <input type="checkbox" id="todoRepeatToggle"> Repeat this to do
@@ -323,10 +413,20 @@
                                 <div class="panel-header">
                                     <h3>How this works</h3>
                                 </div>
-                                <p class="checklist-hint small">Repeating to dos land on matching days and use the same start / finish timer. A missed day stays on that date for Analytics — it does not pile onto today. Park one-off work in All Work.</p>
+                                <p class="checklist-hint small">Type “45 mins calculus” and pick Thursday. Kosistenz places a 45-minute block on Thursday around lectures. Attach a goal, or put the goal’s keyword in the title. Park undated work in All Work.</p>
                             </div>
                         </aside>
                     </div>
+                </section>
+
+                <section id="goalsTab" class="tab-content" aria-label="Goals">
+                    <div class="panel-header goals-page-head">
+                        <div>
+                            <h2>Goals</h2>
+                            <p class="panel-sub" id="goalsSummary">6 months, a year, five years. Finished to-dos add minutes — timer time, or the calendar block if you only marked it done.</p>
+                        </div>
+                    </div>
+                    <div id="goalsBoard" class="goals-layout"></div>
                 </section>
 
                 <section id="allWorkTab" class="tab-content" aria-label="All Work">
@@ -339,6 +439,11 @@
                         </div>
                         <div class="work-add-row">
                             <input type="text" id="allWorkNewTitle" class="checklist-text-input" placeholder="A task without a date yet" autocomplete="off">
+                            <input type="number" id="allWorkNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Estimate in minutes">
+                            <input type="date" id="allWorkNewDue" class="checklist-text-input work-due-input" title="Due date">
+                            <select id="allWorkNewGoal" class="checklist-text-input" title="Attach to a goal">
+                                <option value="">Goal (optional)</option>
+                            </select>
                             <button type="button" id="allWorkAddBtn" class="btn-primary">Park in All Work</button>
                         </div>
                         <div id="allWorkList" class="work-list"></div>

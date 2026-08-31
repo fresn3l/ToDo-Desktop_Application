@@ -1,5 +1,5 @@
 /**
- * Tab navigation — today, journal, workout, to do, all work, analytics, timeline, settings.
+ * Tab navigation — today, calendar, journal, workout, to do, goals, all work, analytics, timeline, settings.
  */
 
 import { loadPastEntries, exitJournalFocus } from './journal.js';
@@ -10,13 +10,17 @@ import { onTodoTabShown } from './todo.js';
 import { onAllWorkTabShown } from './all_work.js';
 import { onWorkoutTabShown } from './workouts.js';
 import { onTodayTabShown } from './today.js';
+import { onCalendarTabShown } from './calendar.js';
+import { onGoalsTabShown } from './goals.js';
 import { notifyNativeTab } from './appearance.js';
 
 const ID_MAP = {
     today: 'todayTab',
+    calendar: 'calendarTab',
     journal: 'journalTab',
     workout: 'workoutTab',
     todo: 'todoTab',
+    goals: 'goalsTab',
     allwork: 'allWorkTab',
     analytics: 'analyticsTab',
     timeline: 'timelineTab',
@@ -25,9 +29,11 @@ const ID_MAP = {
 
 const LABELS = {
     today: 'Today',
+    calendar: 'Calendar',
     journal: 'Journal',
     workout: 'Workout',
     todo: 'To Do',
+    goals: 'Goals',
     allwork: 'All Work',
     analytics: 'Analytics',
     timeline: 'Timeline',
@@ -66,12 +72,14 @@ export function setupTabs() {
         if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
         const map = {
             1: 'today',
-            2: 'journal',
-            3: 'workout',
-            4: 'todo',
-            5: 'allwork',
-            6: 'analytics',
-            7: 'timeline',
+            2: 'calendar',
+            3: 'journal',
+            4: 'workout',
+            5: 'todo',
+            6: 'goals',
+            7: 'allwork',
+            8: 'analytics',
+            9: 'timeline',
         };
         const tab = map[e.key];
         if (!tab) return;
@@ -113,12 +121,16 @@ export async function switchTab(name) {
     try {
         if (name === 'today') {
             await onTodayTabShown();
+        } else if (name === 'calendar') {
+            await onCalendarTabShown();
         } else if (name === 'journal') {
             await loadPastEntries();
         } else if (name === 'workout') {
             await onWorkoutTabShown();
         } else if (name === 'todo') {
             await onTodoTabShown();
+        } else if (name === 'goals') {
+            await onGoalsTabShown();
         } else if (name === 'allwork') {
             await onAllWorkTabShown();
         } else if (name === 'analytics') {
