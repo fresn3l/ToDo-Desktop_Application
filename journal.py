@@ -14,6 +14,7 @@ from typing import List, Dict, Optional
 import fcntl
 import sys
 import uuid
+import re
 
 import cluny_sync
 from paths import data_directory
@@ -21,6 +22,10 @@ from paths import data_directory
 # ============================================
 # JOURNAL STORAGE PATHS
 # ============================================
+
+JOURNAL_TAG_PRESETS = ["work", "health", "relationships"]
+_SAFE_ENTRY_STEM = re.compile(r"^entry_[A-Za-z0-9._-]{1,120}$")
+MAX_JOURNAL_IMPORT_CHARS = 200_000
 
 def get_journal_directory():
     """Journal files live under the shared data directory / Journal."""
@@ -78,17 +83,21 @@ def import_journal_entry(entry: Dict) -> Optional[Dict]:
     if not isinstance(entry, dict):
         return None
     content = str(entry.get("content") or "").strip()
-    if not content:
+    if not content or len(content) > MAX_JOURNAL_IMPORT_CHARS:
         return None
     raw = entry.get("date") or entry.get("created_at")
     try:
         when = datetime.fromisoformat(str(raw)) if raw else datetime.now()
     except (TypeError, ValueError):
         when = datetime.now()
-    stem = str(entry.get("id") or "").strip()
-    if not stem.startswith("entry_"):
+    stem = Path(str(entry.get("id") or "").strip()).name
+    if not _SAFE_ENTRY_STEM.fullmatch(stem):
         stem = f"entry_{when.strftime('%Y-%m-%d_%H-%M-%S')}_{uuid.uuid4().hex[:8]}"
-    path = _entry_folder(when) / f"{stem}.json"
+    folder = _entry_folder(when).resolve()
+    path = (folder / f"{stem}.json").resolve()
+    root = get_journal_directory().resolve()
+    if not path.is_relative_to(root) or path.parent != folder:
+        return None
     if path.exists():
         return None
     record = {
@@ -111,9 +120,6 @@ def import_journal_entry(entry: Dict) -> Optional[Dict]:
 # ============================================
 # JOURNAL CRUD OPERATIONS
 # ============================================
-
-JOURNAL_TAG_PRESETS = ["work", "health", "relationships"]
-
 
 def _normalize_tags(tags) -> List[str]:
     if not tags:

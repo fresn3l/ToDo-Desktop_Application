@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import socket
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -24,16 +24,42 @@ from paths import data_directory
 
 SCHEMA = 1
 SETTINGS_NAME = "icloud_sync.json"
+MAX_PACK_FILE_BYTES = 8 * 1024 * 1024
+MAX_WORK_ITEMS = 20_000
+MAX_JOURNAL_ENTRIES = 20_000
+MAX_TITLE_CHARS = 500
+MAX_FUTURE_SKEW = timedelta(hours=24)
 
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _icloud_drive_dir() -> Path:
+    return Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "Kosistenz"
+
+
+def _allowed_sync_roots() -> List[Path]:
+    roots = [data_directory() / "iCloudPack", _icloud_drive_dir()]
+    return roots
+
+
+def _require_allowed_folder(raw: str) -> Path:
+    candidate = Path(str(raw or "")).expanduser().resolve()
+    for root in _allowed_sync_roots():
+        try:
+            base = root.expanduser().resolve()
+        except OSError:
+            base = root.expanduser()
+        if candidate == base or candidate.is_relative_to(base):
+            return candidate
+    raise ValueError("Sync folder must be iCloud Drive/Kosistenz or the local iCloudPack folder")
+
+
 def default_sync_dir() -> Path:
     if os.environ.get("KOSISTENZ_DATA_DIR"):
         return data_directory() / "iCloudPack"
-    icloud = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "Kosistenz"
+    icloud = _icloud_drive_dir()
     if icloud.parent.is_dir():
         return icloud
     return data_directory() / "iCloudPack"
@@ -53,7 +79,11 @@ def load_settings() -> Dict[str, Any]:
                 raw = loaded
         except (OSError, json.JSONDecodeError):
             raw = {}
-    folder = str(raw.get("folder") or default_sync_dir())
+    raw_folder = str(raw.get("folder") or default_sync_dir())
+    try:
+        folder = str(_require_allowed_folder(raw_folder))
+    except ValueError:
+        folder = str(default_sync_dir())
     return {
         "folder": folder,
         "auto": bool(raw.get("auto")) if "auto" in raw else False,
@@ -61,11 +91,12 @@ def load_settings() -> Dict[str, Any]:
     }
 
 
-def save_settings(partial: Dict[str, Any]) -> Dict[str, Any]:
+def save_settings(partial: Dict[str, Any], *, allow_folder: bool = False) -> Dict[str, Any]:
     current = load_settings()
-    folder = partial.get("folder")
-    if isinstance(folder, str) and folder.strip():
-        current["folder"] = str(Path(folder.strip()).expanduser())
+    if allow_folder:
+        folder = partial.get("folder")
+        if isinstance(folder, str) and folder.strip():
+            current["folder"] = str(_require_allowed_folder(folder.strip()))
     if "auto" in partial:
         current["auto"] = bool(partial["auto"])
     path = _settings_path()
@@ -78,7 +109,7 @@ def save_settings(partial: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def sync_dir() -> Path:
-    path = Path(load_settings()["folder"]).expanduser()
+    path = _require_allowed_folder(load_settings()["folder"])
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -95,20 +126,45 @@ def _read_json(path: Path, fallback: Any) -> Any:
     if not path.exists():
         return fallback
     try:
+        if path.stat().st_size > MAX_PACK_FILE_BYTES:
+            return fallback
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return fallback
     return data
 
 
+def _plausible_stamp(raw: Optional[str]) -> bool:
+    text = str(raw or "").strip()
+    if not text:
+        return False
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00")[:32])
+    except ValueError:
+        return False
+    if parsed.tzinfo is not None:
+        parsed = parsed.replace(tzinfo=None)
+    return parsed <= datetime.now() + MAX_FUTURE_SKEW
+
+
 def _newer(incoming: Optional[str], existing: Optional[str]) -> bool:
+    if not _plausible_stamp(incoming):
+        return False
     left = str(incoming or "")
     right = str(existing or "")
-    if not left:
-        return False
     if not right:
         return True
     return left > right
+
+
+def _stamp_or_now(raw: Optional[str]) -> str:
+    if _plausible_stamp(raw):
+        return str(raw)
+    return _now()
+
+
+def _clip_title(raw: Any) -> str:
+    return str(raw or "")[:MAX_TITLE_CHARS]
 
 
 def _dump_work() -> Dict[str, Any]:
@@ -156,7 +212,7 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
     exceptions = payload.get("exceptions") if isinstance(payload, dict) else None
     applied = 0
     with work._connect() as conn:
-        for row in series or []:
+        for row in list(series or [])[:MAX_WORK_ITEMS]:
             if not isinstance(row, dict) or not row.get("id"):
                 continue
             existing = conn.execute("SELECT updated_at FROM work_series WHERE id = ?", (row["id"],)).fetchone()
@@ -177,18 +233,18 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                 """,
                 (
                     row["id"],
-                    row.get("title") or "",
+                    _clip_title(row.get("title")),
                     row.get("notes") or "",
                     row.get("cadence_json") or "{}",
                     row.get("start_date") or datetime.now().date().isoformat(),
                     row.get("end_date"),
-                    row.get("created_at") or _now(),
-                    row.get("updated_at") or _now(),
+                    _stamp_or_now(row.get("created_at")),
+                    _stamp_or_now(row.get("updated_at")),
                     int(row.get("archived") or 0),
                 ),
             )
             applied += 1
-        for row in items or []:
+        for row in list(items or [])[:MAX_WORK_ITEMS]:
             if not isinstance(row, dict) or not row.get("id"):
                 continue
             existing = conn.execute("SELECT updated_at FROM work_items WHERE id = ?", (row["id"],)).fetchone()
@@ -216,7 +272,7 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                 """,
                 (
                     row["id"],
-                    row.get("title") or "",
+                    _clip_title(row.get("title")),
                     row.get("notes") or "",
                     row.get("scheduled_date"),
                     row.get("status") or "open",
@@ -224,15 +280,15 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                     row.get("finished_at"),
                     int(row.get("duration_seconds") or 0),
                     int(row.get("sort_order") or 0),
-                    row.get("created_at") or _now(),
-                    row.get("updated_at") or _now(),
+                    _stamp_or_now(row.get("created_at")),
+                    _stamp_or_now(row.get("updated_at")),
                     row.get("source") or "manual",
                     row.get("series_id"),
                     row.get("occurrence_date"),
                 ),
             )
             applied += 1
-        for row in exceptions or []:
+        for row in list(exceptions or [])[:MAX_WORK_ITEMS]:
             if not isinstance(row, dict) or not row.get("series_id") or not row.get("occurrence_date"):
                 continue
             conn.execute(
@@ -261,7 +317,7 @@ def _apply_workouts(payload: Dict[str, Any]) -> Dict[str, int]:
     sessions = payload.get("sessions") if isinstance(payload, dict) else None
     template = payload.get("template") if isinstance(payload, dict) else None
     with workouts._connect() as conn:
-        for row in days or []:
+        for row in list(days or [])[:MAX_WORK_ITEMS]:
             if not isinstance(row, dict) or not row.get("local_date"):
                 continue
             existing = conn.execute(
@@ -288,7 +344,7 @@ def _apply_workouts(payload: Dict[str, Any]) -> Dict[str, int]:
                 ),
             )
             applied += 1
-        for row in sessions or []:
+        for row in list(sessions or [])[:MAX_WORK_ITEMS]:
             if not isinstance(row, dict) or not row.get("id"):
                 continue
             exists = conn.execute("SELECT 1 FROM workout_sessions WHERE id = ?", (row["id"],)).fetchone()
@@ -320,7 +376,7 @@ def _apply_workouts(payload: Dict[str, Any]) -> Dict[str, int]:
 def _apply_journal(entries: List[Any]) -> Dict[str, int]:
     existing_ids = {entry.get("id") for entry in journal.get_all_entries()}
     applied = 0
-    for entry in entries or []:
+    for entry in list(entries or [])[:MAX_JOURNAL_ENTRIES]:
         if not isinstance(entry, dict) or not entry.get("content"):
             continue
         entry_id = entry.get("id")
@@ -355,7 +411,7 @@ def write_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
     _write_json(dest / "journal.json", pack["journal"])
     _write_json(dest / "appearance.json", pack["appearance"])
     if not _settings_path().exists():
-        save_settings({"folder": str(dest), "auto": True})
+        save_settings({"auto": True})
     return {"ok": True, "folder": str(dest), "exported_at": pack["manifest"]["exported_at"]}
 
 
@@ -433,7 +489,8 @@ def get_icloud_sync_status() -> Dict[str, Any]:
 
 @eel.expose
 def save_icloud_sync_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
-    saved = save_settings(settings if isinstance(settings, dict) else {})
+    incoming = settings if isinstance(settings, dict) else {}
+    saved = save_settings({"auto": incoming.get("auto")} if "auto" in incoming else {})
     status = get_icloud_sync_status()
     status.update(saved)
     return status

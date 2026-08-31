@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -65,7 +66,7 @@ class IcloudSyncTests(unittest.TestCase):
         pack = icloud_sync.read_pack(self.pack)
         incoming = next(row for row in pack["work"]["items"] if row["id"] == item["id"])
         incoming["title"] = "Keep from phone"
-        incoming["updated_at"] = "2099-01-01T00:00:00"
+        incoming["updated_at"] = (datetime.now() + timedelta(minutes=2)).isoformat(timespec="seconds")
         icloud_sync._write_json(self.pack / "work.json", pack["work"])
         icloud_sync.apply_pack(self.pack)
         titles = {row["id"]: row["title"] for row in work.list_all_work_items()}
@@ -77,3 +78,44 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertFalse(icloud_sync.load_settings()["auto"])
         work.create_work_item("Quiet", scheduled_date=None)
         self.assertFalse((icloud_sync.default_sync_dir() / "work.json").exists())
+
+    def test_journal_import_rejects_path_traversal(self):
+        self._use(self.src)
+        outside = self.root / "escaped.json"
+        journal.import_journal_entry(
+            {
+                "id": "entry_../../../escaped",
+                "content": "should not land outside Journal",
+                "date": datetime.now().isoformat(),
+            }
+        )
+        self.assertFalse(outside.exists())
+        root = journal.get_journal_directory().resolve()
+        for path in root.rglob("*.json"):
+            self.assertTrue(path.resolve().is_relative_to(root))
+            self.assertNotIn("..", path.name)
+
+    def test_future_timestamp_does_not_overwrite(self):
+        self._use(self.src)
+        item = work.create_work_item("Keep", scheduled_date=work._today().isoformat())
+        icloud_sync.write_pack(self.pack)
+        self._use(self.dst)
+        icloud_sync.apply_pack(self.pack)
+        pack = icloud_sync.read_pack(self.pack)
+        incoming = next(row for row in pack["work"]["items"] if row["id"] == item["id"])
+        incoming["title"] = "Poisoned"
+        incoming["updated_at"] = "2099-01-01T00:00:00"
+        icloud_sync._write_json(self.pack / "work.json", pack["work"])
+        icloud_sync.apply_pack(self.pack)
+        titles = {row["id"]: row["title"] for row in work.list_all_work_items()}
+        self.assertEqual(titles[item["id"]], "Keep")
+
+    def test_settings_rpc_ignores_folder(self):
+        self._use(self.src)
+        before = icloud_sync.load_settings()["folder"]
+        icloud_sync.save_icloud_sync_settings({"folder": "/tmp/kosistenz-evil", "auto": True})
+        after = icloud_sync.load_settings()
+        self.assertTrue(after["auto"])
+        self.assertEqual(after["folder"], before)
+        self.assertNotIn("kosistenz-evil", after["folder"])
+

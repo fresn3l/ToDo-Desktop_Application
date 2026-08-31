@@ -30,7 +30,7 @@ Pack files:
 | `journal.json` | Journal entries |
 | `appearance.json` | Theme and Today layout |
 
-Merge rule: **newer `updated_at` wins** for a given id. Workout sessions are append-only by id. Journal entries are append-only by id.
+Merge rule: **newer `updated_at` wins** for a given id, unless the stamp is more than a day in the future. Workout sessions are append-only by id. Journal entries are append-only by id. Import only writes under the journal folder; the Mac Settings RPC cannot point the pack at an arbitrary path.
 
 The Mac writes the pack after a Today / To Do / Workout / Journal change (when auto-sync is on). Settings also has **Push to iCloud** and **Pull from iPhone**.
 
