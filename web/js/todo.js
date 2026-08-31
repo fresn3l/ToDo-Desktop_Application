@@ -119,6 +119,8 @@ function itemRow(item, { showDate = false } = {}) {
                         data-started="${utils.escapeHtml(item.active_started_at || '')}"
                         data-stored="${item.stored_duration_seconds ?? item.duration_seconds ?? 0}">${formatDuration(seconds)}</span>
                     ${dateBit}
+                    ${item.due_at ? `<span class="work-date">Due ${utils.escapeHtml(String(item.due_at).slice(0, 10))}</span>` : ''}
+                    ${item.estimate_minutes ? `<span class="work-flag">${item.estimate_minutes} min</span>` : ''}
                     ${repeatBit}
                     ${done ? '<span class="work-flag">Done</span>' : running ? '<span class="work-flag is-live">In progress</span>' : ''}
                 </p>
@@ -267,13 +269,19 @@ async function addTodayTask() {
         return;
     }
     const repeat = currentRepeat();
+    const due = document.getElementById('todoNewDue')?.value || '';
+    const estimate = document.getElementById('todoNewEstimate')?.value || '';
     if (repeatKind === 'custom' && repeat && !(repeat.weekdays || []).length) {
         utils.showErrorFeedback('Pick at least one weekday.');
         return;
     }
     try {
-        await eel.create_work_item(title, utils.localISODate(), '', 'manual', repeat)();
+        await eel.create_work_item(title, utils.localISODate(), '', 'manual', repeat, due, estimate)();
         if (input) input.value = '';
+        const est = document.getElementById('todoNewEstimate');
+        const dueEl = document.getElementById('todoNewDue');
+        if (est) est.value = '';
+        if (dueEl) dueEl.value = '';
         utils.showSuccessFeedback(repeat ? 'Repeating to do saved.' : 'Added to today.');
         utils.notifyDataChanged();
         await refreshTodo();

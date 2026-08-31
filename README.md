@@ -68,6 +68,10 @@ That still opens the **native WebKit window**, not Chrome.
 - **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in All Work** in the Services menu
 - **Appearance**: Themes and type (San Francisco by default on Mac)
 - **Local storage**: SQLite + JSON under Application Support
+- **Calendar**: Week on a clock. Lectures you add stay hard. Class due-date
+  calendars (Apple subscription or ICS URL) become to-dos with due times, not
+  busy bars. **Fill week** places study around class. Nothing is written back
+  to Apple Calendar.
 - **iPhone (in progress)**: same Apple ID, JSON pack in iCloud Drive / Kosistenz — see `docs/iphone-sprint.md` and `ios/`
 
 ## Data Storage
@@ -77,6 +81,7 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 - **Journal**: `~/Library/Application Support/ToDo/Journal/`
 - **Daily checklist DB**: `~/Library/Application Support/ToDo/daily_checklist.sqlite`
 - **Work / To Do DB**: `~/Library/Application Support/ToDo/work_items.sqlite`
+- **Calendar**: `~/Library/Application Support/ToDo/calendar.sqlite` plus `calendar_feeds.json`
 - **Workouts DB**: `~/Library/Application Support/ToDo/workouts.sqlite`
 - **Week template**: `~/Library/Application Support/ToDo/workout_plan.json`
 - **Widget snapshot** (Today widget + menu bar): `~/Library/Application Support/ToDo/widget_snapshot.json`

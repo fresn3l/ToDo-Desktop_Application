@@ -24,6 +24,18 @@ class WorkStoreTests(unittest.TestCase):
         self.patcher.stop()
         self._tmp.cleanup()
 
+    def test_due_and_estimate_stay_on_backlog_item(self) -> None:
+        item = self.work.create_work_item(
+            "Essay 2",
+            due_at="2026-09-04",
+            estimate_minutes=90,
+        )
+        self.assertTrue(item["is_backlog"])
+        self.assertEqual(item["due_at"], "2026-09-04T23:59:00")
+        self.assertEqual(item["estimate_minutes"], 90)
+        updated = self.work.update_work_plan(item["id"], "2026-09-04T23:59:00", 120)
+        self.assertEqual(updated["estimate_minutes"], 120)
+
     def test_backlog_stays_undated_until_assigned(self) -> None:
         item = self.work.create_work_item("Pay electricity bill")
         self.assertIsNone(item["scheduled_date"])

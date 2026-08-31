@@ -22,6 +22,7 @@ import workouts
 API_PORT_START = 18741
 API_PORT_END = 18750
 MAX_BODY_BYTES = 64 * 1024
+MAX_CALENDAR_BODY_BYTES = 2 * 1024 * 1024
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 _bound_port: Optional[int] = None
@@ -196,6 +197,10 @@ def handle_request(method: str, path: str, body: Optional[Dict[str, Any]] = None
         if method == "POST" and route == "/api/work/park":
             title = payload.get("title") or (query.get("title") or [""])[0]
             return 200, park_in_all_work(str(title))
+        if method == "POST" and route == "/api/calendar/ingest":
+            import calclock
+
+            return 200, calclock.ingest_calendar_events(payload)
     except ValueError as exc:
         return 400, {"ok": False, "error": str(exc)}
     except Exception:
@@ -234,7 +239,12 @@ class _Handler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 self._write(400, {"ok": False, "error": "Invalid Content-Length"})
                 return
-            if length < 0 or length > MAX_BODY_BYTES:
+            if length < 0:
+                self._write(400, {"ok": False, "error": "Invalid Content-Length"})
+                return
+            route = urlparse(self.path).path.rstrip("/") or "/"
+            limit = MAX_CALENDAR_BODY_BYTES if route == "/api/calendar/ingest" else MAX_BODY_BYTES
+            if length > limit:
                 self._write(413, {"ok": False, "error": "Request too large"})
                 return
             raw = self.rfile.read(length) if length else b""

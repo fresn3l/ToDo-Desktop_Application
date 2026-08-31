@@ -10,6 +10,7 @@ import { setupAnalytics } from './js/analytics.js';
 import { setupTimeline } from './js/timeline.js';
 import { setupSettings } from './js/settings.js';
 import { setupToday } from './js/today.js';
+import { setupCalendar } from './js/calendar.js';
 import { setupTodo } from './js/todo.js';
 import { setupAllWork } from './js/all_work.js';
 import { setupWorkouts } from './js/workouts.js';
@@ -20,6 +21,7 @@ async function init() {
     setupTabs();
     setupSettings();
     setupToday();
+    setupCalendar();
     setupTodo();
     setupAllWork();
     setupWorkouts();

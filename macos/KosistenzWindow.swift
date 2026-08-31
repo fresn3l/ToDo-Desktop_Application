@@ -83,6 +83,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             window?.title = clipped
         } else if type == "status" {
             refreshToolbarStatus()
+        } else if type == "calendarImport" {
+            importAppleCalendars()
         }
     }
 

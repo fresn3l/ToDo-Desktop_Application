@@ -144,9 +144,9 @@ chunking without EventKit.
 
 ## Definition of done
 
-- [ ] Week view is the planning home on the Mac.
-- [ ] Class subscription dues are to-dos with due times, never all-day busy.
-- [ ] Lectures exist as hard events you added in Kosistenz.
-- [ ] Fill week places estimates around hard time; you can lock/skip.
-- [ ] Nothing is written to Apple Calendar.
-- [ ] iPhone/mail/goals/Cluny-scheduling are explicitly not in this slice.
+- [x] Week view is the planning home on the Mac.
+- [x] Class subscription dues are to-dos with due times, never all-day busy.
+- [x] Lectures exist as hard events you added in Kosistenz.
+- [x] Fill week places estimates around hard time; you can lock/skip.
+- [x] Nothing is written to Apple Calendar.
+- [x] iPhone/mail/goals/Cluny-scheduling are explicitly not in this slice.

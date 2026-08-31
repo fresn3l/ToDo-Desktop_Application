@@ -187,6 +187,10 @@ def _dump_work() -> Dict[str, Any]:
                 "source": item.get("source") or "manual",
                 "series_id": item.get("series_id"),
                 "occurrence_date": item.get("occurrence_date"),
+                "due_at": item.get("due_at"),
+                "estimate_minutes": item.get("estimate_minutes"),
+                "source_uid": item.get("source_uid"),
+                "source_calendar": item.get("source_calendar"),
             }
         )
     with work._connect() as conn:
@@ -254,8 +258,9 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                 """
                 INSERT INTO work_items (
                     id, title, notes, scheduled_date, status, active_started_at, finished_at,
-                    duration_seconds, sort_order, created_at, updated_at, source, series_id, occurrence_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    duration_seconds, sort_order, created_at, updated_at, source, series_id, occurrence_date,
+                    due_at, estimate_minutes, source_uid, source_calendar
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     notes = excluded.notes,
@@ -268,7 +273,11 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                     updated_at = excluded.updated_at,
                     source = excluded.source,
                     series_id = excluded.series_id,
-                    occurrence_date = excluded.occurrence_date
+                    occurrence_date = excluded.occurrence_date,
+                    due_at = excluded.due_at,
+                    estimate_minutes = excluded.estimate_minutes,
+                    source_uid = excluded.source_uid,
+                    source_calendar = excluded.source_calendar
                 """,
                 (
                     row["id"],
@@ -285,6 +294,10 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                     row.get("source") or "manual",
                     row.get("series_id"),
                     row.get("occurrence_date"),
+                    row.get("due_at"),
+                    row.get("estimate_minutes"),
+                    row.get("source_uid"),
+                    row.get("source_calendar"),
                 ),
             )
             applied += 1

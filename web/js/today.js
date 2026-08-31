@@ -48,6 +48,25 @@ function mastheadParts(iso) {
     };
 }
 
+function paintAgenda(items) {
+    const el = document.getElementById('todayAgenda');
+    if (!el) return;
+    if (!items.length) {
+        el.innerHTML = '';
+        return;
+    }
+    el.innerHTML = items
+        .map((item) => {
+            const start = new Date(item.start_at);
+            const hh = Number.isNaN(start.getTime())
+                ? ''
+                : start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+            const kind = item.kind === 'hard' ? 'Class' : item.kind === 'workout' ? 'Gym' : 'Work';
+            return `<li><span>${utils.escapeHtml(hh)}</span> ${utils.escapeHtml(item.title || '')} <em>${kind}</em></li>`;
+        })
+        .join('');
+}
+
 function paintPulse(data) {
     const el = document.getElementById('todayPulse');
     if (!el) return;
@@ -319,6 +338,7 @@ export async function refreshTodayHome() {
         if (heading) heading.textContent = parts.weekday;
         if (sub) sub.textContent = parts.rest;
         paintPulse(data);
+        paintAgenda(data.agenda || []);
         paintCustomize();
         const items = data.today || [];
         const active = items.find((item) => item.status === 'active');

@@ -30,7 +30,7 @@ export async function refreshAllWork() {
                 <article class="work-item" data-id="${utils.escapeHtml(item.id)}">
                     <div class="work-item-main">
                         <h3>${utils.escapeHtml(item.title)}</h3>
-                        <p class="work-meta">Not dated yet</p>
+                        <p class="work-meta">${item.due_at ? `Due ${utils.escapeHtml(String(item.due_at).slice(0, 16).replace('T', ' '))}` : 'Not dated yet'}${item.estimate_minutes ? ` · ${item.estimate_minutes} min` : ''}</p>
                     </div>
                     <div class="work-item-actions">
                         <button type="button" class="btn-primary" data-act="today">Today</button>
@@ -77,8 +77,20 @@ async function addBacklogTask() {
         return;
     }
     try {
-        await eel.create_work_item(title, '', '', 'backlog')();
+        await eel.create_work_item(
+            title,
+            '',
+            '',
+            'backlog',
+            null,
+            document.getElementById('allWorkNewDue')?.value || '',
+            document.getElementById('allWorkNewEstimate')?.value || '',
+        )();
         if (input) input.value = '';
+        const est = document.getElementById('allWorkNewEstimate');
+        const dueEl = document.getElementById('allWorkNewDue');
+        if (est) est.value = '';
+        if (dueEl) dueEl.value = '';
         utils.showSuccessFeedback('Saved in All Work.');
         utils.notifyDataChanged();
         await refreshAllWork();
