@@ -246,12 +246,12 @@ def ensure_weekly_goal_todos(today: Optional[date] = None) -> List[Dict[str, Any
         goal = _row_goal(row)
         end = goal.get("end_date") or ""
         for monday in weeks_to_assign(today):
-            if end and end < monday.isoformat():
-                continue
             uid = weekly_source_uid(goal["id"], monday)
             if uid in existing:
                 continue
             when = assignment_date_for_week(today, monday)
+            if end and (end < monday.isoformat() or end < when.isoformat()):
+                continue
             title = weekly_todo_title(goal)
             item = work.create_work_item(
                 title,

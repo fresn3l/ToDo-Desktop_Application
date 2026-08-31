@@ -173,8 +173,7 @@ class GoalsTests(unittest.TestCase):
                 end_date="2026-09-04",
             )
         items = [row for row in work.list_all_work_items() if row.get("source") == "weekly_goal"]
-        dates = sorted(row["scheduled_date"] for row in items)
-        self.assertEqual(dates, ["2026-09-06"])
+        self.assertEqual(items, [])
 
     def test_week_progress_only_counts_this_week(self) -> None:
         wednesday = date(2026, 9, 2)
