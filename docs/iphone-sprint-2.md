@@ -1,5 +1,10 @@
 # Sprint 2: iPhone you can actually use away from the Mac
 
+**Product direction:** Kosistenz is the calendar you carry —
+see [calendar-home.md](calendar-home.md). After the Mac week-on-a-clock
+slice, this companion should show **today’s blocks**, not only to-do chips.
+Shared iCloud folder is still the prerequisite.
+
 Sprint 1 ([iphone-sprint.md](iphone-sprint.md), PR #17) shipped a **companion
 skeleton**, not a daily phone app. This sprint is the one that makes Kosistenz
 worth putting on the Home Screen.
