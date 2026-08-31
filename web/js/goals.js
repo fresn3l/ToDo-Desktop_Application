@@ -1,5 +1,6 @@
 /**
- * Goals — 6 months, year, 5 years. Finished to-dos add minutes.
+ * Goals — 1 week, 6 months, year, 5 years. Finished to-dos add minutes.
+ * Weekly goals spawn a to-do each Sunday for the coming week.
  */
 
 import * as utils from './utils.js';
@@ -94,6 +95,10 @@ export async function refreshGoals() {
         const board = await eel.get_goals_board()();
         root.innerHTML = (board.horizons || [])
             .map((col) => {
+                const hint = col.hint || 'Optional end date. Hours only if you want a bar.';
+                const count = col.goals.length
+                    ? `${col.goals.length} goal${col.goals.length === 1 ? '' : 's'}. `
+                    : '';
                 const body = col.goals.length
                     ? col.goals.map(goalCard).join('')
                     : `<div class="empty-state empty-state--quiet"><p>No ${utils.escapeHtml(col.label.toLowerCase())} goals yet.</p></div>`;
@@ -102,7 +107,7 @@ export async function refreshGoals() {
                         <div class="panel-header">
                             <div>
                                 <h2>${utils.escapeHtml(col.label)}</h2>
-                                <p class="panel-sub">${col.goals.length ? `${col.goals.length} goal${col.goals.length === 1 ? '' : 's'}` : 'Optional end date. Hours only if you want a bar.'}</p>
+                                <p class="panel-sub">${utils.escapeHtml(count + hint)}</p>
                             </div>
                         </div>
                         ${addForm(col.id, col.label)}

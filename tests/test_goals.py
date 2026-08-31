@@ -61,7 +61,8 @@ class GoalsTests(unittest.TestCase):
         with mock.patch.object(work, "_now", return_value=t0 + timedelta(minutes=20)):
             work.finish_work_item(item_id)
         board = goals.get_goals_board()
-        row = board["horizons"][0]["goals"][0]
+        six = next(col for col in board["horizons"] if col["id"] == "six_month")
+        row = six["goals"][0]
         self.assertEqual(row["spent_minutes"], 20)
         self.assertEqual(row["percent"], 3)
         self.assertTrue(row["has_target"])
@@ -95,9 +96,9 @@ class GoalsTests(unittest.TestCase):
         goals.create_goal("Degree", "five_year")
         board = goals.get_goals_board()
         labels = [col["label"] for col in board["horizons"]]
-        self.assertEqual(labels, ["6 months", "Year", "5 years"])
-        self.assertEqual(len(board["horizons"][0]["goals"]), 1)
-        self.assertEqual(len(board["horizons"][2]["goals"]), 1)
+        self.assertEqual(labels, ["1 week", "6 months", "Year", "5 years"])
+        self.assertEqual(len(board["horizons"][1]["goals"]), 1)
+        self.assertEqual(len(board["horizons"][3]["goals"]), 1)
 
     def test_delete_goal_unlinks_todos(self) -> None:
         goal = goals.create_goal("Spanish", "six_month", "spanish")
@@ -107,3 +108,104 @@ class GoalsTests(unittest.TestCase):
         again = work.list_all_work_items()[0]
         self.assertIsNone(again["goal_id"])
         self.assertEqual(goals.list_goals(), [])
+
+    def _freeze(self, day: date, hour: int = 10):
+        now = datetime(day.year, day.month, day.day, hour, 0, 0)
+        return mock.patch.multiple(
+            work,
+            _today=lambda: day,
+            _now=lambda: now,
+        )
+
+    def test_weekly_goal_lands_on_today_midweek(self) -> None:
+        wednesday = date(2026, 9, 2)
+        with self._freeze(wednesday):
+            goal = goals.create_goal("Speak Spanish", "week", "spanish", target_hours=3)
+            items = work.list_all_work_items()
+        weekly = [row for row in items if row.get("source") == "weekly_goal"]
+        self.assertEqual(len(weekly), 1)
+        self.assertEqual(weekly[0]["scheduled_date"], "2026-09-02")
+        self.assertEqual(weekly[0]["goal_id"], goal["id"])
+        self.assertEqual(weekly[0]["title"], "3h spanish")
+        self.assertEqual(weekly[0]["source_uid"], f"weekly:{goal['id']}:2026-08-31")
+        self.assertFalse(weekly[0]["is_overdue"])
+
+    def test_sunday_assigns_upcoming_week_without_duplicating(self) -> None:
+        sunday = date(2026, 9, 6)
+        with self._freeze(sunday):
+            goal = goals.create_goal("Speak Spanish", "week", "spanish", target_hours=3)
+            again = goals.ensure_weekly_goal_todos()
+        self.assertEqual(again, [])
+        items = [
+            row
+            for row in work.list_all_work_items()
+            if row.get("source") == "weekly_goal"
+        ]
+        dates = sorted(row["scheduled_date"] for row in items)
+        self.assertEqual(dates, ["2026-09-06", "2026-09-07"])
+        uids = {row["source_uid"] for row in items}
+        self.assertEqual(
+            uids,
+            {
+                f"weekly:{goal['id']}:2026-08-31",
+                f"weekly:{goal['id']}:2026-09-07",
+            },
+        )
+
+    def test_monday_assigns_the_week_if_sunday_was_missed(self) -> None:
+        monday = date(2026, 9, 7)
+        with self._freeze(monday):
+            goal = goals.create_goal("Gym", "weekly")
+            work.get_work_board(monday.isoformat())
+        items = [row for row in work.list_all_work_items() if row.get("source") == "weekly_goal"]
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["scheduled_date"], "2026-09-07")
+        self.assertEqual(items[0]["source_uid"], f"weekly:{goal['id']}:2026-09-07")
+        self.assertEqual(items[0]["title"], "Gym")
+
+    def test_ended_weekly_goal_skips_future_weeks(self) -> None:
+        sunday = date(2026, 9, 6)
+        with self._freeze(sunday):
+            goals.create_goal(
+                "Wrap Spanish",
+                "week",
+                "spanish",
+                end_date="2026-09-04",
+            )
+        items = [row for row in work.list_all_work_items() if row.get("source") == "weekly_goal"]
+        dates = sorted(row["scheduled_date"] for row in items)
+        self.assertEqual(dates, ["2026-09-06"])
+
+    def test_week_progress_only_counts_this_week(self) -> None:
+        wednesday = date(2026, 9, 2)
+        with self._freeze(wednesday):
+            goal = goals.create_goal("Speak Spanish", "week", "spanish", target_hours=3)
+        last_week = work.create_work_item(
+            "45 mins spanish",
+            scheduled_date="2026-08-26",
+            goal_id=goal["id"],
+        )
+        this_week = work.create_work_item(
+            "30 mins spanish",
+            scheduled_date="2026-09-02",
+            goal_id=goal["id"],
+        )
+        t0 = datetime(2026, 8, 26, 9, 0, 0)
+        with mock.patch.object(work, "_now", return_value=t0):
+            work.start_work_item(last_week["id"])
+        with mock.patch.object(work, "_now", return_value=t0 + timedelta(minutes=45)):
+            work.finish_work_item(last_week["id"])
+        t1 = datetime(2026, 9, 2, 9, 0, 0)
+        with mock.patch.object(work, "_now", return_value=t1):
+            work.start_work_item(this_week["id"])
+        with mock.patch.object(work, "_now", return_value=t1 + timedelta(minutes=30)):
+            work.finish_work_item(this_week["id"])
+        with self._freeze(wednesday):
+            row = next(g for g in goals.list_goals() if g["id"] == goal["id"])
+        self.assertEqual(row["spent_minutes"], 30)
+        self.assertEqual(row["percent"], 17)
+
+    def test_horizon_aliases_include_week(self) -> None:
+        goal = goals.create_goal("Run", "1w")
+        self.assertEqual(goal["horizon"], "week")
+        self.assertEqual(goal["horizon_label"], "1 week")

@@ -1,9 +1,12 @@
 """
-Goals — 6 month, year, and 5 year.
+Goals — 1 week, 6 month, year, and 5 year.
 
 Finished to-dos that are attached (picked on add, or matched by keyword)
 count minutes toward the goal. Timer time wins; if you only marked it done,
 the calendar block minutes count instead.
+
+1-week goals spawn a to-do every Sunday for the upcoming week. If you add
+one mid-week, a to-do lands on today so it still shows on this week's board.
 """
 
 from __future__ import annotations
@@ -11,20 +14,28 @@ from __future__ import annotations
 import re
 import sqlite3
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import eel
 
 import work
 
-HORIZONS = ("six_month", "year", "five_year")
+HORIZONS = ("week", "six_month", "year", "five_year")
 HORIZON_LABELS = {
+    "week": "1 week",
     "six_month": "6 months",
     "year": "Year",
     "five_year": "5 years",
 }
-HORIZON_RANK = {"six_month": 0, "year": 1, "five_year": 2}
+HORIZON_HINTS = {
+    "week": "Every Sunday a to-do is added for next week. Add one now and it lands on today.",
+    "six_month": "Optional end date. Hours only if you want a bar.",
+    "year": "Optional end date. Hours only if you want a bar.",
+    "five_year": "Optional end date. Hours only if you want a bar.",
+}
+HORIZON_RANK = {"week": 0, "six_month": 1, "year": 2, "five_year": 3}
+WEEKLY_SOURCE = "weekly_goal"
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
@@ -57,6 +68,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
 def _horizon(value: Any) -> str:
     key = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
     aliases = {
+        "1w": "week",
+        "1_week": "week",
+        "1week": "week",
+        "weekly": "week",
+        "wk": "week",
         "6": "six_month",
         "6m": "six_month",
         "6_month": "six_month",
@@ -77,7 +93,7 @@ def _horizon(value: Any) -> str:
     }
     key = aliases.get(key, key)
     if key not in HORIZONS:
-        raise ValueError("Horizon must be 6 months, year, or 5 years")
+        raise ValueError("Horizon must be 1 week, 6 months, year, or 5 years")
     return key
 
 
@@ -160,6 +176,105 @@ def resolve_goal_id(title: str, explicit: Any = None, conn: Any = None) -> Optio
         return _run(db)
 
 
+def week_monday(day: date) -> date:
+    return day - timedelta(days=day.weekday())
+
+
+def weeks_to_assign(today: date) -> List[date]:
+    """This week always; on Sunday also the upcoming week."""
+    this_monday = week_monday(today)
+    weeks = [this_monday]
+    if today.weekday() == 6:
+        weeks.append(this_monday + timedelta(days=7))
+    return weeks
+
+
+def assignment_date_for_week(today: date, monday: date) -> date:
+    """Don't date a Sunday-spawned leftover onto last Monday (that would look overdue)."""
+    if monday < today:
+        return today
+    return monday
+
+
+def weekly_source_uid(goal_id: str, monday: date) -> str:
+    return f"weekly:{goal_id}:{monday.isoformat()}"
+
+
+def weekly_todo_title(goal: Dict[str, Any]) -> str:
+    label = (goal.get("keyword") or "").strip() or (goal.get("title") or "").strip() or "weekly goal"
+    minutes = int(goal.get("target_minutes") or 0)
+    if minutes <= 0:
+        return str(goal.get("title") or label)
+    hours, rem = divmod(minutes, 60)
+    if rem == 0:
+        prefix = f"{hours}h"
+    elif hours == 0:
+        prefix = f"{rem} mins"
+    else:
+        prefix = f"{hours}h {rem} min"
+    return f"{prefix} {label}"
+
+
+def _item_in_week(item: Dict[str, Any], monday: date, sunday: date) -> bool:
+    raw = str(item.get("scheduled_date") or item.get("finished_at") or "")[:10]
+    if not raw:
+        return False
+    try:
+        day = date.fromisoformat(raw)
+    except ValueError:
+        return False
+    return monday <= day <= sunday
+
+
+def ensure_weekly_goal_todos(today: Optional[date] = None) -> List[Dict[str, Any]]:
+    """Create this week's (and on Sunday, next week's) to-do for each 1-week goal."""
+    today = today or work._today()
+    created: List[Dict[str, Any]] = []
+    with work._connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM goals WHERE archived = 0 AND horizon = 'week'"
+        ).fetchall()
+        existing = {
+            row["source_uid"]
+            for row in conn.execute(
+                "SELECT source_uid FROM work_items WHERE source_calendar = ?",
+                (WEEKLY_SOURCE,),
+            ).fetchall()
+            if row["source_uid"]
+        }
+    for row in rows:
+        goal = _row_goal(row)
+        end = goal.get("end_date") or ""
+        for monday in weeks_to_assign(today):
+            if end and end < monday.isoformat():
+                continue
+            uid = weekly_source_uid(goal["id"], monday)
+            if uid in existing:
+                continue
+            when = assignment_date_for_week(today, monday)
+            title = weekly_todo_title(goal)
+            item = work.create_work_item(
+                title,
+                scheduled_date=when.isoformat(),
+                notes=f"1-week goal for the week of {monday.isoformat()}",
+                source=WEEKLY_SOURCE,
+                goal_id=goal["id"],
+                estimate_minutes=goal.get("target_minutes"),
+                source_uid=uid,
+                source_calendar=WEEKLY_SOURCE,
+            )
+            existing.add(uid)
+            created.append(item)
+            if item.get("estimate_minutes") or work.parse_minutes_from_title(item.get("title") or ""):
+                try:
+                    import schedule
+
+                    schedule.place_work_item(item["id"], on_date=when.isoformat())
+                except Exception:
+                    pass
+    return created
+
+
 def contributing_minutes(item: Dict[str, Any]) -> int:
     """Timer minutes if you worked it; otherwise the calendar block if you only finished it."""
     if item.get("status") != "done":
@@ -199,8 +314,13 @@ def _row_goal(row: sqlite3.Row) -> Dict[str, Any]:
 def _enrich(goal: Dict[str, Any], items: List[Dict[str, Any]]) -> Dict[str, Any]:
     contribs = []
     spent = 0
+    today = work._today()
+    monday = week_monday(today)
+    sunday = monday + timedelta(days=6)
     for item in items:
         if item.get("goal_id") != goal["id"]:
+            continue
+        if goal.get("horizon") == "week" and not _item_in_week(item, monday, sunday):
             continue
         minutes = contributing_minutes(item)
         if minutes <= 0:
@@ -244,7 +364,7 @@ def list_goals() -> List[Dict[str, Any]]:
             SELECT * FROM goals
             WHERE archived = 0
             ORDER BY CASE horizon
-                WHEN 'six_month' THEN 0 WHEN 'year' THEN 1 ELSE 2 END,
+                WHEN 'week' THEN 0 WHEN 'six_month' THEN 1 WHEN 'year' THEN 2 ELSE 3 END,
                 sort_order ASC, created_at ASC
             """
         ).fetchall()
@@ -254,6 +374,7 @@ def list_goals() -> List[Dict[str, Any]]:
 
 @eel.expose
 def get_goals_board() -> Dict[str, Any]:
+    ensure_weekly_goal_todos()
     goals = list_goals()
     groups = {key: [] for key in HORIZONS}
     for goal in goals:
@@ -263,6 +384,7 @@ def get_goals_board() -> Dict[str, Any]:
             {
                 "id": key,
                 "label": HORIZON_LABELS[key],
+                "hint": HORIZON_HINTS[key],
                 "goals": groups.get(key) or [],
             }
             for key in HORIZONS
@@ -324,6 +446,8 @@ def create_goal(
         )
         row = _fetch_goal(conn, goal_id)
     assert row is not None
+    if hz == "week":
+        ensure_weekly_goal_todos()
     return _enrich(_row_goal(row), work.list_all_work_items())
 
 
@@ -362,6 +486,8 @@ def update_goal(
         )
         row = _fetch_goal(conn, goal_id)
     assert row is not None
+    if hz == "week":
+        ensure_weekly_goal_todos()
     return _enrich(_row_goal(row), work.list_all_work_items())
 
 

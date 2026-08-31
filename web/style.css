@@ -1988,7 +1988,7 @@ input[type='range'] {
 
 .goals-layout {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(14rem, 1fr));
     gap: var(--space-lg);
     align-items: start;
 }
@@ -2076,7 +2076,13 @@ input[type='range'] {
     flex: 0 1 9rem;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1400px) {
+    .goals-layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 800px) {
     .goals-layout {
         grid-template-columns: 1fr;
     }

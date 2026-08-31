@@ -68,6 +68,8 @@ That still opens the **native WebKit window**, not Chrome.
 - **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in All Work** in the Services menu
 - **Appearance**: Themes and type (San Francisco by default on Mac)
 - **Local storage**: SQLite + JSON under Application Support
+- **Goals**: 1 week, 6 months, a year, 5 years. Attach a to-do (or match a
+  keyword). 1-week goals get a to-do every Sunday for the coming week.
 - **Calendar**: Week on a clock. Lectures you add stay hard. Class due-date
   calendars (Apple subscription or ICS URL) become to-dos with due times, not
   busy bars. **Fill week** places study around class. Nothing is written back

@@ -710,6 +710,8 @@ def create_work_item(
     due_at: Optional[str] = None,
     estimate_minutes: Any = None,
     goal_id: Optional[str] = None,
+    source_uid: Optional[str] = None,
+    source_calendar: Optional[str] = None,
 ) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
@@ -723,10 +725,24 @@ def create_work_item(
     estimate = _parse_estimate(estimate_minutes)
     if estimate is None:
         estimate = parse_minutes_from_title(clean)
+    src_uid = (source_uid or "").strip() or None
+    src_cal = (source_calendar or "").strip() or None
     import goals as _goals
 
     attached = _goals.resolve_goal_id(clean, goal_id or None)
     with _connect() as conn:
+        if src_uid and src_cal:
+            existing = conn.execute(
+                """
+                SELECT * FROM work_items
+                WHERE source_calendar = ? AND source_uid = ?
+                LIMIT 1
+                """,
+                (src_cal, src_uid),
+            ).fetchone()
+            if existing:
+                fetched = _fetch(conn, existing["id"])
+                return _row_to_dict(fetched or existing)
         if cadence:
             start = target or _today().isoformat()
             series_id = str(uuid.uuid4())
@@ -780,9 +796,23 @@ def create_work_item(
                     active_started_at, finished_at, duration_seconds, sort_order,
                     created_at, updated_at, source, series_id, occurrence_date,
                     due_at, estimate_minutes, source_uid, source_calendar, goal_id
-                ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, NULL, NULL, ?, ?, NULL, NULL, ?)
+                ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?)
                 """,
-                (item_id, clean, (notes or "").strip(), target, sort_order, now, now, src, due, estimate, attached),
+                (
+                    item_id,
+                    clean,
+                    (notes or "").strip(),
+                    target,
+                    sort_order,
+                    now,
+                    now,
+                    src,
+                    due,
+                    estimate,
+                    src_uid,
+                    src_cal,
+                    attached,
+                ),
             )
             row = _fetch(conn, item_id)
     _write_widget_snapshot()
@@ -845,6 +875,12 @@ def list_overdue_work() -> List[Dict[str, Any]]:
 
 @eel.expose
 def get_work_board(local_date: str = "") -> Dict[str, Any]:
+    try:
+        import goals as _goals
+
+        _goals.ensure_weekly_goal_todos()
+    except Exception:
+        pass
     today = _today()
     target = _parse_date(local_date) or today.isoformat()
     tomorrow = (today + timedelta(days=1)).isoformat()
