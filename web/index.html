@@ -40,6 +40,10 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><path d="m8 12 2.2 2.2L16 8.5"/></svg>
                     <span class="nav-label">To Do</span>
                 </button>
+                <button type="button" class="nav-item" data-tab="goals">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2"/></svg>
+                    <span class="nav-label">Goals</span>
+                </button>
                 <button type="button" class="nav-item" data-tab="allwork">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14l-1.2 12.2A2 2 0 0 1 15.8 21H8.2a2 2 0 0 1-2-1.8L5 7Z"/><path d="M9 7V5.8A2.8 2.8 0 0 1 11.8 3h.4A2.8 2.8 0 0 1 15 5.8V7"/></svg>
                     <span class="nav-label">All Work</span>
@@ -129,6 +133,9 @@
                                 <div id="todayTodoList" class="work-list"></div>
                                 <div class="work-add-row">
                                     <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="45 mins calculus" autocomplete="off">
+                                    <select id="todayNewGoal" class="checklist-text-input today-goal-select" title="Attach to a goal">
+                                        <option value="">Goal</option>
+                                    </select>
                                     <button type="button" id="todayAddBtn" class="btn-primary">Add</button>
                                 </div>
                             </section>
@@ -370,6 +377,9 @@
                             <div class="work-add-row work-add-optional">
                                 <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="5" placeholder="Min" title="Override minutes if the title has none">
                                 <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date (optional)">
+                                <select id="todoNewGoal" class="checklist-text-input" title="Attach to a goal">
+                                    <option value="">Goal (optional)</option>
+                                </select>
                             </div>
                             <label class="checklist-checkbox-label work-repeat-toggle">
                                 <input type="checkbox" id="todoRepeatToggle"> Repeat this to do
@@ -403,10 +413,20 @@
                                 <div class="panel-header">
                                     <h3>How this works</h3>
                                 </div>
-                                <p class="checklist-hint small">Type “45 mins calculus” and pick Thursday. Kosistenz places a 45-minute block on Thursday around lectures. Repeating to-dos still use the timer below. Park undated work in All Work.</p>
+                                <p class="checklist-hint small">Type “45 mins calculus” and pick Thursday. Kosistenz places a 45-minute block on Thursday around lectures. Attach a goal, or put the goal’s keyword in the title. Park undated work in All Work.</p>
                             </div>
                         </aside>
                     </div>
+                </section>
+
+                <section id="goalsTab" class="tab-content" aria-label="Goals">
+                    <div class="panel-header goals-page-head">
+                        <div>
+                            <h2>Goals</h2>
+                            <p class="panel-sub" id="goalsSummary">6 months, a year, five years. Finished to-dos add minutes — timer time, or the calendar block if you only marked it done.</p>
+                        </div>
+                    </div>
+                    <div id="goalsBoard" class="goals-layout"></div>
                 </section>
 
                 <section id="allWorkTab" class="tab-content" aria-label="All Work">
@@ -421,6 +441,9 @@
                             <input type="text" id="allWorkNewTitle" class="checklist-text-input" placeholder="A task without a date yet" autocomplete="off">
                             <input type="number" id="allWorkNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Estimate in minutes">
                             <input type="date" id="allWorkNewDue" class="checklist-text-input work-due-input" title="Due date">
+                            <select id="allWorkNewGoal" class="checklist-text-input" title="Attach to a goal">
+                                <option value="">Goal (optional)</option>
+                            </select>
                             <button type="button" id="allWorkAddBtn" class="btn-primary">Park in All Work</button>
                         </div>
                         <div id="allWorkList" class="work-list"></div>

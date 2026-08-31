@@ -4,6 +4,7 @@
 
 import * as utils from './utils.js';
 import { tomorrowISO } from './work.js';
+import { loadGoalOptions } from './goals.js';
 
 export async function refreshAllWork() {
     const list = document.getElementById('allWorkList');
@@ -97,12 +98,15 @@ async function addBacklogTask() {
             null,
             document.getElementById('allWorkNewDue')?.value || '',
             document.getElementById('allWorkNewEstimate')?.value || '',
+            document.getElementById('allWorkNewGoal')?.value || '',
         )();
         if (input) input.value = '';
         const est = document.getElementById('allWorkNewEstimate');
         const dueEl = document.getElementById('allWorkNewDue');
+        const goalEl = document.getElementById('allWorkNewGoal');
         if (est) est.value = '';
         if (dueEl) dueEl.value = '';
+        if (goalEl) goalEl.value = '';
         utils.showSuccessFeedback('Saved in All Work.');
         utils.notifyDataChanged();
         await refreshAllWork();
@@ -127,8 +131,10 @@ export function setupAllWork() {
             void refreshAllWork();
         }
     });
+    void loadGoalOptions('allWorkNewGoal');
 }
 
 export async function onAllWorkTabShown() {
+    await loadGoalOptions('allWorkNewGoal');
     await refreshAllWork();
 }

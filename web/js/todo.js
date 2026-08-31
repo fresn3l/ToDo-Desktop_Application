@@ -4,6 +4,7 @@
 
 import * as utils from './utils.js';
 import { formatDuration, liveSeconds, tomorrowISO } from './work.js';
+import { loadGoalOptions } from './goals.js';
 
 let tickTimer = null;
 let repeatKind = 'daily';
@@ -356,18 +357,21 @@ async function addTodayTask() {
     const repeat = currentRepeat();
     const due = document.getElementById('todoNewDue')?.value || '';
     const estimate = document.getElementById('todoNewEstimate')?.value || '';
+    const goal = document.getElementById('todoNewGoal')?.value || '';
     if (repeatKind === 'custom' && repeat && !(repeat.weekdays || []).length) {
         utils.showErrorFeedback('Pick at least one weekday.');
         return;
     }
     try {
         const onDate = selectedWhenDate();
-        const result = await eel.add_todo_to_calendar(title, onDate, due, estimate, repeat)();
+        const result = await eel.add_todo_to_calendar(title, onDate, due, estimate, repeat, goal)();
         if (input) input.value = '';
         const est = document.getElementById('todoNewEstimate');
         const dueEl = document.getElementById('todoNewDue');
+        const goalEl = document.getElementById('todoNewGoal');
         if (est) est.value = '';
         if (dueEl) dueEl.value = '';
+        if (goalEl) goalEl.value = '';
         const message = result?.message || (repeat ? 'Repeating to do saved.' : 'Added to the calendar.');
         if (result?.placed || repeat || result?.item?.is_repeating) {
             utils.showSuccessFeedback(message);
@@ -428,11 +432,12 @@ export function setupTodo() {
         }
     });
     syncRepeatPanel();
-    void loadWhenChips();
+    void loadGoalOptions('todoNewGoal');
 }
 
 export async function onTodoTabShown() {
     await loadWhenChips();
+    await loadGoalOptions('todoNewGoal');
     await refreshTodo();
 }
 

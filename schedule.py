@@ -264,6 +264,7 @@ def add_todo_to_calendar(
     due_at: str = "",
     estimate_minutes: Any = None,
     repeat: Any = None,
+    goal_id: str = "",
 ) -> Dict[str, Any]:
     target = work._parse_date(on_date) or work._today().isoformat()
     item = work.create_work_item(
@@ -273,6 +274,7 @@ def add_todo_to_calendar(
         repeat=repeat,
         due_at=due_at or None,
         estimate_minutes=estimate_minutes,
+        goal_id=goal_id or None,
     )
     if item.get("is_repeating") or item.get("pending_first_occurrence"):
         return {"ok": True, "placed": 0, "item": item, "message": "Repeating to do saved."}

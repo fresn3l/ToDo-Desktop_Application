@@ -7,6 +7,7 @@ import * as utils from './utils.js';
 import { formatDuration, liveSeconds } from './work.js';
 import { logWorkoutKind, renderWorkoutChips } from './workout_chips.js';
 import { getAppearance, persistAppearance, onAppearanceChange } from './appearance.js';
+import { loadGoalOptions } from './goals.js';
 import {
     applyTodayOrder,
     moveTodayModule,
@@ -298,10 +299,13 @@ async function addTodayTask() {
         return;
     }
     try {
+        const goal = document.getElementById('todayNewGoal')?.value || '';
         const result = typeof eel.add_todo_to_calendar === 'function'
-            ? await eel.add_todo_to_calendar(title, utils.localISODate())()
+            ? await eel.add_todo_to_calendar(title, utils.localISODate(), '', '', null, goal)()
             : await eel.create_work_item(title, utils.localISODate())();
         if (input) input.value = '';
+        const goalEl = document.getElementById('todayNewGoal');
+        if (goalEl) goalEl.value = '';
         const message = result?.message || 'Added to today.';
         if (result?.placed) {
             utils.showSuccessFeedback(message);
@@ -486,6 +490,7 @@ export function setupToday() {
         void confirmTodaySpecial();
     });
     void refreshToday();
+    void loadGoalOptions('todayNewGoal');
     document.addEventListener('kosistenz:data-changed', () => {
         void refreshToday();
     });
@@ -496,5 +501,6 @@ export function setupToday() {
 }
 
 export async function onTodayTabShown() {
+    await loadGoalOptions('todayNewGoal');
     await refreshTodayHome();
 }

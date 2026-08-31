@@ -1980,6 +1980,108 @@ input[type='range'] {
     margin: 0 0 var(--space-md);
 }
 
+/* ---------- Goals ---------- */
+
+.goals-page-head {
+    margin-bottom: var(--space-lg);
+}
+
+.goals-layout {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-lg);
+    align-items: start;
+}
+
+.goal-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: var(--space-md);
+}
+
+.goal-add .checklist-text-input {
+    flex: 1 1 8rem;
+    min-width: 0;
+}
+
+.goal-keyword,
+.goal-hours {
+    max-width: 7.5rem;
+    flex: 0 1 7rem;
+}
+
+.goal-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.goal-card {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    background: var(--bg-elevated);
+}
+
+.goal-card.is-overdue {
+    border-color: var(--warning, #c9a227);
+}
+
+.goal-card-head h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+}
+
+.goal-progress {
+    margin: 10px 0 8px;
+}
+
+.goal-progress-meta,
+.goal-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 6px;
+}
+
+.goal-progress-track {
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-app, var(--bg));
+    overflow: hidden;
+}
+
+.goal-progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: inherit;
+}
+
+.goal-contribs {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.goal-contribs li {
+    padding: 2px 0;
+}
+
+.today-goal-select {
+    max-width: 9rem;
+    flex: 0 1 9rem;
+}
+
+@media (max-width: 1100px) {
+    .goals-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
 .work-repeat-toggle {
     margin: 0 0 10px;
 }

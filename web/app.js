@@ -14,6 +14,7 @@ import { setupCalendar } from './js/calendar.js';
 import { setupTodo } from './js/todo.js';
 import { setupAllWork } from './js/all_work.js';
 import { setupWorkouts } from './js/workouts.js';
+import { setupGoals } from './js/goals.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -23,6 +24,7 @@ async function init() {
     setupToday();
     setupCalendar();
     setupTodo();
+    setupGoals();
     setupAllWork();
     setupWorkouts();
     setupJournal();

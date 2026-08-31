@@ -117,6 +117,9 @@ def _connect() -> sqlite3.Connection:
         ON work_items(source_calendar, source_uid)
         """
     )
+    import goals as _goals
+
+    _goals.ensure_schema(conn)
     return conn
 
 
@@ -387,6 +390,7 @@ def _row_to_dict(row: sqlite3.Row, now: Optional[datetime] = None) -> Dict[str, 
         ),
         "source_uid": _col(row, "source_uid"),
         "source_calendar": _col(row, "source_calendar"),
+        "goal_id": _col(row, "goal_id"),
     }
 
 
@@ -442,13 +446,18 @@ def _insert_occurrence(
         return _fetch(conn, existing["id"])
     now = _now().isoformat()
     item_id = str(uuid.uuid4())
+    series_goal = None
+    try:
+        series_goal = series["goal_id"]
+    except (KeyError, IndexError, TypeError):
+        series_goal = None
     conn.execute(
         """
         INSERT INTO work_items (
             id, title, notes, scheduled_date, status,
             active_started_at, finished_at, duration_seconds, sort_order,
-            created_at, updated_at, source, series_id, occurrence_date
-        ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, ?, ?)
+            created_at, updated_at, source, series_id, occurrence_date, goal_id
+        ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             item_id,
@@ -461,6 +470,7 @@ def _insert_occurrence(
             source,
             series["id"],
             occurrence,
+            series_goal,
         ),
     )
     return _fetch(conn, item_id)
@@ -699,6 +709,7 @@ def create_work_item(
     repeat: Any = None,
     due_at: Optional[str] = None,
     estimate_minutes: Any = None,
+    goal_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
@@ -712,6 +723,9 @@ def create_work_item(
     estimate = _parse_estimate(estimate_minutes)
     if estimate is None:
         estimate = parse_minutes_from_title(clean)
+    import goals as _goals
+
+    attached = _goals.resolve_goal_id(clean, goal_id or None)
     with _connect() as conn:
         if cadence:
             start = target or _today().isoformat()
@@ -720,8 +734,8 @@ def create_work_item(
                 """
                 INSERT INTO work_series (
                     id, title, notes, cadence_json, start_date, end_date,
-                    created_at, updated_at, archived
-                ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0)
+                    created_at, updated_at, archived, goal_id
+                ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, ?)
                 """,
                 (
                     series_id,
@@ -731,6 +745,7 @@ def create_work_item(
                     start,
                     now,
                     now,
+                    attached,
                 ),
             )
             series = conn.execute("SELECT * FROM work_series WHERE id = ?", (series_id,)).fetchone()
@@ -764,10 +779,10 @@ def create_work_item(
                     id, title, notes, scheduled_date, status,
                     active_started_at, finished_at, duration_seconds, sort_order,
                     created_at, updated_at, source, series_id, occurrence_date,
-                    due_at, estimate_minutes, source_uid, source_calendar
-                ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, NULL, NULL, ?, ?, NULL, NULL)
+                    due_at, estimate_minutes, source_uid, source_calendar, goal_id
+                ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, ?, NULL, NULL, ?, ?, NULL, NULL, ?)
                 """,
-                (item_id, clean, (notes or "").strip(), target, sort_order, now, now, src, due, estimate),
+                (item_id, clean, (notes or "").strip(), target, sort_order, now, now, src, due, estimate, attached),
             )
             row = _fetch(conn, item_id)
     _write_widget_snapshot()
@@ -1156,6 +1171,16 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
             (elapsed, now.isoformat(), now.isoformat(), item_id),
         )
         row = _fetch(conn, item_id)
+        if row is not None and not _col(row, "goal_id"):
+            import goals as _goals
+
+            attached = _goals.resolve_goal_id(row["title"], conn=conn)
+            if attached:
+                conn.execute(
+                    "UPDATE work_items SET goal_id = ? WHERE id = ?",
+                    (attached, item_id),
+                )
+                row = _fetch(conn, item_id)
     _write_widget_snapshot()
     assert row is not None
     return _row_to_dict(row)

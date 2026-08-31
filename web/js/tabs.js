@@ -1,5 +1,5 @@
 /**
- * Tab navigation — today, calendar, journal, workout, to do, all work, analytics, timeline, settings.
+ * Tab navigation — today, calendar, journal, workout, to do, goals, all work, analytics, timeline, settings.
  */
 
 import { loadPastEntries, exitJournalFocus } from './journal.js';
@@ -11,6 +11,7 @@ import { onAllWorkTabShown } from './all_work.js';
 import { onWorkoutTabShown } from './workouts.js';
 import { onTodayTabShown } from './today.js';
 import { onCalendarTabShown } from './calendar.js';
+import { onGoalsTabShown } from './goals.js';
 import { notifyNativeTab } from './appearance.js';
 
 const ID_MAP = {
@@ -19,6 +20,7 @@ const ID_MAP = {
     journal: 'journalTab',
     workout: 'workoutTab',
     todo: 'todoTab',
+    goals: 'goalsTab',
     allwork: 'allWorkTab',
     analytics: 'analyticsTab',
     timeline: 'timelineTab',
@@ -31,6 +33,7 @@ const LABELS = {
     journal: 'Journal',
     workout: 'Workout',
     todo: 'To Do',
+    goals: 'Goals',
     allwork: 'All Work',
     analytics: 'Analytics',
     timeline: 'Timeline',
@@ -73,9 +76,10 @@ export function setupTabs() {
             3: 'journal',
             4: 'workout',
             5: 'todo',
-            6: 'allwork',
-            7: 'analytics',
-            8: 'timeline',
+            6: 'goals',
+            7: 'allwork',
+            8: 'analytics',
+            9: 'timeline',
         };
         const tab = map[e.key];
         if (!tab) return;
@@ -125,6 +129,8 @@ export async function switchTab(name) {
             await onWorkoutTabShown();
         } else if (name === 'todo') {
             await onTodoTabShown();
+        } else if (name === 'goals') {
+            await onGoalsTabShown();
         } else if (name === 'allwork') {
             await onAllWorkTabShown();
         } else if (name === 'analytics') {
