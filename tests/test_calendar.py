@@ -152,6 +152,76 @@ END:VCALENDAR
         self.assertEqual(len(locked), 1)
         self.assertEqual(locked[0]["id"], block_id)
 
+    def test_todo_title_duration_lands_on_chosen_day_around_lecture(self) -> None:
+        thursday = date(2026, 9, 3)
+        calclock.create_calendar_event(
+            "CHEM 109",
+            "2026-09-03T09:30:00",
+            "2026-09-03T10:20:00",
+            weekdays=[3],
+        )
+        with mock.patch.object(schedule, "_now", return_value=datetime(2026, 9, 3, 9, 0, 0)):
+            result = schedule.add_todo_to_calendar(
+                "spend 45 mins doing calculus",
+                on_date=thursday.isoformat(),
+            )
+        self.assertEqual(result["placed"], 1)
+        self.assertEqual(result["date"], "2026-09-03")
+        self.assertEqual(result["item"]["estimate_minutes"], 45)
+        self.assertEqual(result["item"]["scheduled_date"], "2026-09-03")
+        start = calclock.parse_datetime(result["start_at"])
+        self.assertEqual(start, datetime(2026, 9, 3, 10, 20, 0))
+        lecture_start = datetime(2026, 9, 3, 9, 30, 0)
+        lecture_end = datetime(2026, 9, 3, 10, 20, 0)
+        end = start + timedelta(minutes=45)
+        self.assertFalse(start < lecture_end and end > lecture_start)
+        week = calclock.get_week("2026-08-31")
+        work_blocks = [b for day in week["days"] for b in day["blocks"] if b["kind"] == "work"]
+        self.assertEqual(len(work_blocks), 1)
+        self.assertEqual(work_blocks[0]["local_date"], "2026-09-03")
+        self.assertEqual(work_blocks[0]["minutes"], 45)
+
+    def test_add_todo_without_minutes_stays_on_todo(self) -> None:
+        with mock.patch.object(schedule, "_now", return_value=datetime(2026, 9, 3, 8, 0, 0)):
+            result = schedule.add_todo_to_calendar("Read the chapter", on_date="2026-09-03")
+        self.assertEqual(result["placed"], 0)
+        self.assertEqual(result["item"]["scheduled_date"], "2026-09-03")
+        self.assertIsNone(result["item"]["estimate_minutes"])
+        self.assertEqual(calclock.list_blocks(date(2026, 9, 3), date(2026, 9, 3)), [])
+
+    def test_repeating_todo_is_not_auto_placed(self) -> None:
+        result = schedule.add_todo_to_calendar(
+            "15 mins meditate",
+            on_date="2026-09-03",
+            repeat={"kind": "daily"},
+        )
+        self.assertEqual(result["placed"], 0)
+        self.assertTrue(result["item"]["is_repeating"])
+        self.assertEqual(calclock.list_blocks(date(2026, 9, 3), date(2026, 9, 3)), [])
+
+    def test_fill_week_keeps_scheduled_item_on_that_day(self) -> None:
+        monday = date(2026, 9, 7)
+        work.create_work_item("45 mins calculus", scheduled_date="2026-09-10")
+        week = self._fill(monday.isoformat(), datetime(2026, 9, 7, 8, 0, 0))
+        work_blocks = [b for day in week["days"] for b in day["blocks"] if b["kind"] == "work"]
+        self.assertEqual(len(work_blocks), 1)
+        self.assertEqual(work_blocks[0]["local_date"], "2026-09-10")
+        self.assertEqual(work_blocks[0]["minutes"], 45)
+
+    def test_place_parses_title_without_clearing_due(self) -> None:
+        item = work.create_work_item(
+            "calculus",
+            scheduled_date="2026-09-03",
+            due_at="2026-09-04",
+        )
+        self.assertIsNone(item["estimate_minutes"])
+        work.update_work_item(item["id"], "45 mins calculus")
+        with mock.patch.object(schedule, "_now", return_value=datetime(2026, 9, 3, 8, 0, 0)):
+            result = schedule.place_work_item(item["id"], "2026-09-03")
+        self.assertEqual(result["placed"], 1)
+        self.assertEqual(result["item"]["due_at"], "2026-09-04T23:59:00")
+        self.assertEqual(result["item"]["estimate_minutes"], 45)
+
 
 if __name__ == "__main__":
     unittest.main()

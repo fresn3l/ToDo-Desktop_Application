@@ -298,14 +298,23 @@ async function addTodayTask() {
         return;
     }
     try {
-        await eel.create_work_item(title, utils.localISODate())();
+        const result = typeof eel.add_todo_to_calendar === 'function'
+            ? await eel.add_todo_to_calendar(title, utils.localISODate())()
+            : await eel.create_work_item(title, utils.localISODate())();
         if (input) input.value = '';
-        utils.showSuccessFeedback('Added to today.');
+        const message = result?.message || 'Added to today.';
+        if (result?.placed) {
+            utils.showSuccessFeedback(message);
+        } else if (result?.message && result.placed === 0) {
+            utils.showErrorFeedback(message);
+        } else {
+            utils.showSuccessFeedback(message);
+        }
         utils.notifyDataChanged();
         await refreshTodayHome();
         input?.focus();
     } catch (e) {
-        utils.showErrorFeedback('Could not add that task.');
+        utils.showErrorFeedback(e?.message || 'Could not add that task.');
     }
 }
 

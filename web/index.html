@@ -128,7 +128,7 @@
                                 </div>
                                 <div id="todayTodoList" class="work-list"></div>
                                 <div class="work-add-row">
-                                    <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="Add for today" autocomplete="off">
+                                    <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="45 mins calculus" autocomplete="off">
                                     <button type="button" id="todayAddBtn" class="btn-primary">Add</button>
                                 </div>
                             </section>
@@ -357,15 +357,19 @@
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
-                                    <h2>Today’s To Do</h2>
-                                    <p class="panel-sub" id="todoSummary">Work you dated for today. Start a timer, then finish when it’s done.</p>
+                                    <h2>To Do</h2>
+                                    <p class="panel-sub" id="todoSummary">Name the work and how long it takes. Pick a day this week — Kosistenz parks it in a free gap on the calendar.</p>
                                 </div>
                             </div>
                             <div class="work-add-row">
-                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="Meditate 15 mins" autocomplete="off">
-                                <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Estimate in minutes">
-                                <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date">
-                                <button type="button" id="todoAddBtn" class="btn-primary">Add to today</button>
+                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="45 mins calculus" autocomplete="off">
+                                <button type="button" id="todoAddBtn" class="btn-primary">Add to calendar</button>
+                            </div>
+                            <div id="todoWhen" class="todo-when work-weekdays" role="group" aria-label="Do this week"></div>
+                            <p class="checklist-hint small todo-when-hint">Today is selected. The minutes can live in the title (45 mins, 1h). Optional due date if it is also an assignment.</p>
+                            <div class="work-add-row work-add-optional">
+                                <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="5" placeholder="Min" title="Override minutes if the title has none">
+                                <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date (optional)">
                             </div>
                             <label class="checklist-checkbox-label work-repeat-toggle">
                                 <input type="checkbox" id="todoRepeatToggle"> Repeat this to do
@@ -399,7 +403,7 @@
                                 <div class="panel-header">
                                     <h3>How this works</h3>
                                 </div>
-                                <p class="checklist-hint small">Repeating to dos land on matching days and use the same start / finish timer. A missed day stays on that date for Analytics — it does not pile onto today. Park one-off work in All Work.</p>
+                                <p class="checklist-hint small">Type “45 mins calculus” and pick Thursday. Kosistenz places a 45-minute block on Thursday around lectures. Repeating to-dos still use the timer below. Park undated work in All Work.</p>
                             </div>
                         </aside>
                     </div>

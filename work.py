@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import uuid
 from datetime import date, datetime, timedelta
@@ -163,6 +164,71 @@ def _parse_estimate(value: Any) -> Optional[int]:
     if minutes > 24 * 60:
         raise ValueError("Estimate is too long")
     return minutes
+
+
+_TITLE_HOURS = re.compile(r"(?P<n>\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b", re.I)
+_TITLE_MINS = re.compile(r"(?P<n>\d+(?:\.\d+)?)\s*(?:minutes?|mins?|min|m)\b", re.I)
+
+
+def parse_minutes_from_title(title: str) -> Optional[int]:
+    """Read '45 mins calculus' or '1h reading' from the to-do text."""
+    text = str(title or "")
+    if not text.strip():
+        return None
+    hours = 0.0
+    mins = 0.0
+    found = False
+    for match in _TITLE_HOURS.finditer(text):
+        hours += float(match.group("n"))
+        found = True
+    rest = _TITLE_HOURS.sub(" ", text)
+    for match in _TITLE_MINS.finditer(rest):
+        mins += float(match.group("n"))
+        found = True
+    if not found:
+        return None
+    total = int(round(hours * 60 + mins))
+    if total <= 0:
+        return None
+    return min(total, 24 * 60)
+
+
+def date_for_weekday_this_week(weekday: Any) -> str:
+    """0=Mon … 6=Sun. Past days this week roll to next week."""
+    try:
+        day_i = int(weekday)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Weekday must be 0–6") from exc
+    if day_i < 0 or day_i > 6:
+        raise ValueError("Weekday must be 0–6")
+    today = _today()
+    monday = today - timedelta(days=today.weekday())
+    target = monday + timedelta(days=day_i)
+    if target < today:
+        target += timedelta(days=7)
+    return target.isoformat()
+
+
+@eel.expose
+def weekday_dates_this_week() -> List[Dict[str, Any]]:
+    today = _today()
+    monday = today - timedelta(days=today.weekday())
+    names = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    rows = []
+    for i in range(7):
+        day = monday + timedelta(days=i)
+        place = day if day >= today else day + timedelta(days=7)
+        rows.append(
+            {
+                "weekday": i,
+                "label": names[i],
+                "date": day.isoformat(),
+                "place_date": place.isoformat(),
+                "is_today": day == today,
+                "is_past": day < today,
+            }
+        )
+    return rows
 
 
 def _parse_date(value: Optional[str]) -> Optional[str]:
@@ -644,6 +710,8 @@ def create_work_item(
     src = (source or "manual").strip() or "manual"
     due = _parse_due_at(due_at)
     estimate = _parse_estimate(estimate_minutes)
+    if estimate is None:
+        estimate = parse_minutes_from_title(clean)
     with _connect() as conn:
         if cadence:
             start = target or _today().isoformat()
@@ -766,10 +834,18 @@ def get_work_board(local_date: str = "") -> Dict[str, Any]:
     target = _parse_date(local_date) or today.isoformat()
     tomorrow = (today + timedelta(days=1)).isoformat()
     today_items = list_work_for_date(target)
+    upcoming: List[Dict[str, Any]] = []
+    if target == today.isoformat():
+        for offset in range(1, 7):
+            day = (today + timedelta(days=offset)).isoformat()
+            for item in list_work_for_date(day):
+                if item["status"] != "done":
+                    upcoming.append(item)
     return {
         "local_date": target,
         "today": today_items,
         "tomorrow": list_work_for_date(tomorrow) if target == today.isoformat() else [],
+        "upcoming": upcoming,
         "overdue": list_overdue_work() if target == today.isoformat() else [],
         "backlog": list_backlog(),
         "tomorrow_date": tomorrow,

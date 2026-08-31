@@ -8,6 +8,8 @@ import { formatDuration, liveSeconds, tomorrowISO } from './work.js';
 let tickTimer = null;
 let repeatKind = 'daily';
 let scopeResolver = null;
+let selectedDoDate = null;
+let whenDays = [];
 
 function stopTick() {
     if (tickTimer) {
@@ -60,6 +62,82 @@ function selectedWeekdays() {
     return [...document.querySelectorAll('#todoWeekdays .work-day-chip.is-selected')].map((btn) =>
         Number(btn.getAttribute('data-day')),
     );
+}
+
+function fallbackWhenDays() {
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const today = new Date();
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const offset = (monday.getDay() + 6) % 7;
+    monday.setDate(monday.getDate() - offset);
+    const todayIso = utils.localISODate();
+    return names.map((label, i) => {
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + i);
+        const iso = utils.localISODate(day);
+        const isPast = iso < todayIso;
+        const place = new Date(day);
+        if (isPast) place.setDate(place.getDate() + 7);
+        return {
+            weekday: i,
+            label,
+            date: iso,
+            place_date: utils.localISODate(place),
+            is_today: iso === todayIso,
+            is_past: isPast,
+        };
+    });
+}
+
+function selectedWhenDate() {
+    const chip = document.querySelector('#todoWhen .work-day-chip.is-selected');
+    return chip?.getAttribute('data-date') || selectedDoDate || utils.localISODate();
+}
+
+function updateWhenHint() {
+    const hint = document.querySelector('.todo-when-hint');
+    if (!hint) return;
+    const day = whenDays.find((row) => row.place_date === selectedDoDate);
+    if (!day) {
+        hint.textContent =
+            'Pick a day this week. Minutes can live in the title (45 mins, 1h). Optional due date if it is also an assignment.';
+        return;
+    }
+    const when = day.is_today ? 'today' : day.is_past ? `next ${day.label}` : day.label;
+    hint.textContent = `Places on ${when}. Minutes can live in the title (45 mins, 1h). Optional due date if it is also an assignment.`;
+}
+
+function paintWhenChips() {
+    const root = document.getElementById('todoWhen');
+    if (!root) return;
+    const current = selectedDoDate;
+    root.innerHTML = whenDays
+        .map((day) => {
+            const date = day.place_date;
+            const selected = current ? date === current : day.is_today;
+            const classes = ['work-day-chip'];
+            if (selected) classes.push('is-selected');
+            if (day.is_past) classes.push('is-past');
+            if (day.is_today) classes.push('is-today');
+            const title = day.is_today ? 'Today' : day.is_past ? `Next ${day.label}` : day.label;
+            return `<button type="button" class="${classes.join(' ')}" data-date="${utils.escapeHtml(date)}" data-weekday="${day.weekday}" title="${utils.escapeHtml(title)}">${utils.escapeHtml(day.label)}</button>`;
+        })
+        .join('');
+    const selected = root.querySelector('.is-selected');
+    selectedDoDate = selected?.getAttribute('data-date') || whenDays.find((row) => row.is_today)?.place_date;
+    updateWhenHint();
+}
+
+async function loadWhenChips() {
+    try {
+        whenDays = typeof eel !== 'undefined' && eel.weekday_dates_this_week
+            ? await eel.weekday_dates_this_week()()
+            : fallbackWhenDays();
+    } catch (e) {
+        whenDays = fallbackWhenDays();
+    }
+    if (!Array.isArray(whenDays) || !whenDays.length) whenDays = fallbackWhenDays();
+    paintWhenChips();
 }
 
 function currentRepeat() {
@@ -215,7 +293,7 @@ export async function refreshTodo() {
             parts.push(`
                 <div class="empty-state">
                     <h3>No tasks for today</h3>
-                    <p>Add a one-off or a repeating to do. Missed repeats stay on that past day for Analytics.</p>
+                    <p>Type “45 mins calculus” and pick a day. Kosistenz parks it in a free gap on the calendar.</p>
                 </div>`);
         } else if (rest.length) {
             parts.push(rest.map((item) => itemRow(item)).join(''));
@@ -238,12 +316,18 @@ export async function refreshTodo() {
         }
 
         if (tomorrowEl) {
-            if (board.tomorrow.length) {
+            const upcoming = board.upcoming?.length ? board.upcoming : board.tomorrow || [];
+            if (upcoming.length) {
                 tomorrowEl.classList.remove('is-hidden');
                 tomorrowEl.innerHTML = `
-                    <h3>Already set for tomorrow</h3>
-                    <ul class="work-already">${board.tomorrow
-                        .map((item) => `<li>${utils.escapeHtml(item.title)}${item.cadence_label ? ` · ${utils.escapeHtml(item.cadence_label)}` : ''}</li>`)
+                    <h3>Coming up this week</h3>
+                    <ul class="work-already">${upcoming
+                        .map((item) => {
+                            const when = item.scheduled_date ? utils.escapeHtml(item.scheduled_date.slice(5)) : '';
+                            const mins = item.estimate_minutes ? ` · ${item.estimate_minutes} min` : '';
+                            const cadence = item.cadence_label ? ` · ${utils.escapeHtml(item.cadence_label)}` : '';
+                            return `<li>${when ? `<span class="work-date">${when}</span> ` : ''}${utils.escapeHtml(item.title)}${mins}${cadence}</li>`;
+                        })
                         .join('')}</ul>
                 `;
             } else {
@@ -276,18 +360,24 @@ async function addTodayTask() {
         return;
     }
     try {
-        await eel.create_work_item(title, utils.localISODate(), '', 'manual', repeat, due, estimate)();
+        const onDate = selectedWhenDate();
+        const result = await eel.add_todo_to_calendar(title, onDate, due, estimate, repeat)();
         if (input) input.value = '';
         const est = document.getElementById('todoNewEstimate');
         const dueEl = document.getElementById('todoNewDue');
         if (est) est.value = '';
         if (dueEl) dueEl.value = '';
-        utils.showSuccessFeedback(repeat ? 'Repeating to do saved.' : 'Added to today.');
+        const message = result?.message || (repeat ? 'Repeating to do saved.' : 'Added to the calendar.');
+        if (result?.placed || repeat || result?.item?.is_repeating) {
+            utils.showSuccessFeedback(message);
+        } else {
+            utils.showErrorFeedback(message);
+        }
         utils.notifyDataChanged();
         await refreshTodo();
         input?.focus();
     } catch (e) {
-        utils.showErrorFeedback('Could not add that task.');
+        utils.showErrorFeedback(e?.message || 'Could not add that task.');
     }
 }
 
@@ -310,6 +400,12 @@ export function setupTodo() {
         repeatKind = btn.getAttribute('data-value') || 'daily';
         syncRepeatPanel();
     });
+    document.getElementById('todoWhen')?.addEventListener('click', (e) => {
+        const chip = e.target.closest('.work-day-chip');
+        if (!chip) return;
+        selectedDoDate = chip.getAttribute('data-date');
+        paintWhenChips();
+    });
     document.getElementById('todoWeekdays')?.addEventListener('click', (e) => {
         const chip = e.target.closest('.work-day-chip');
         if (!chip) return;
@@ -324,9 +420,11 @@ export function setupTodo() {
         }
     });
     syncRepeatPanel();
+    void loadWhenChips();
 }
 
 export async function onTodoTabShown() {
+    await loadWhenChips();
     await refreshTodo();
 }
 

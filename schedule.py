@@ -145,6 +145,140 @@ def _clear_proposed(week_start: date, week_end: date) -> None:
         conn.commit()
 
 
+def _place_item_chunks(
+    item: Dict[str, Any],
+    *,
+    leftover: int,
+    from_dt: datetime,
+    until: datetime,
+    hard: List[Dict[str, Any]],
+    blocks: List[Dict[str, Any]],
+    settings: Dict[str, Any],
+) -> Tuple[int, bool, Optional[datetime]]:
+    placed = 0
+    first_start: Optional[datetime] = None
+    chunk_max = int(settings["chunk_max"])
+    chunk_min = int(settings["chunk_min"])
+    if leftover <= chunk_max:
+        chunks = [leftover]
+    else:
+        chunks = chunk_minutes(leftover, chunk_min, chunk_max)
+    for chunk in chunks:
+        slot = find_slot(
+            minutes=chunk,
+            from_dt=from_dt,
+            until_dt=until,
+            hard=hard,
+            blocks=blocks,
+            day_start=settings["day_start"],
+            day_end=settings["day_end"],
+        )
+        if slot is None:
+            return placed, False, first_start
+        block = calclock.add_block(
+            title=item["title"],
+            start=slot[0],
+            end=slot[1],
+            work_item_id=item["id"],
+            kind="work",
+            status="proposed",
+        )
+        blocks.append(block)
+        if first_start is None:
+            first_start = slot[0]
+        placed += 1
+    return placed, True, first_start
+
+
+@eel.expose
+def place_work_item(item_id: str, on_date: str = "") -> Dict[str, Any]:
+    """Put this to-do on the clock for one day (first free gap)."""
+    settings = calclock.load_settings()
+    with work._connect() as conn:
+        row = work._fetch(conn, item_id)
+    if row is None:
+        raise ValueError("Work item not found")
+    item = work._row_to_dict(row)
+    if item.get("status") == "done":
+        return {"ok": True, "placed": 0, "item": item, "message": "Already done"}
+    estimate = item.get("estimate_minutes")
+    if not estimate:
+        parsed = work.parse_minutes_from_title(item["title"])
+        if parsed:
+            item = work.update_work_plan(item_id, item.get("due_at"), parsed)
+            estimate = parsed
+    leftover = calclock.remaining_minutes(item)
+    if leftover <= 0:
+        return {
+            "ok": True,
+            "placed": 0,
+            "item": item,
+            "message": "Add a time like 45 mins in the title so it can land on the calendar.",
+        }
+    target = work._parse_date(on_date) or item.get("scheduled_date") or work._today().isoformat()
+    day = date.fromisoformat(target)
+    if item.get("scheduled_date") != target:
+        item = work.assign_work_item(item_id, target)
+    now = _now()
+    start_bound = _as_dt(day, settings["day_start"])
+    end_bound = _as_dt(day, settings["day_end"])
+    from_dt = max(start_bound, now) if day == now.date() else start_bound
+    until = end_bound
+    due_raw = item.get("due_at")
+    if due_raw:
+        until = min(until, calclock.parse_datetime(due_raw))
+    hard = calclock.expand_hard_events(day, day)
+    blocks = calclock.list_blocks(day, day)
+    placed, ok, first_start = _place_item_chunks(
+        item,
+        leftover=leftover,
+        from_dt=from_dt,
+        until=until,
+        hard=hard,
+        blocks=blocks,
+        settings=settings,
+    )
+    start_at = first_start.isoformat(timespec="seconds") if first_start else None
+    if ok and placed:
+        clock = f" at {first_start.strftime('%H:%M')}" if first_start else ""
+        message = f"Placed {leftover} min {day.strftime('%a')}{clock}."
+    else:
+        message = f"No free gap on {day.strftime('%a')} — it's on To Do but not on the clock."
+    with work._connect() as conn:
+        fetched = work._fetch(conn, item_id)
+        latest = work._row_to_dict(fetched) if fetched else item
+    return {
+        "ok": ok,
+        "placed": placed,
+        "item": latest,
+        "date": target,
+        "start_at": start_at,
+        "message": message,
+    }
+
+
+@eel.expose
+def add_todo_to_calendar(
+    title: str,
+    on_date: str = "",
+    due_at: str = "",
+    estimate_minutes: Any = None,
+    repeat: Any = None,
+) -> Dict[str, Any]:
+    target = work._parse_date(on_date) or work._today().isoformat()
+    item = work.create_work_item(
+        title,
+        scheduled_date=target,
+        source="manual",
+        repeat=repeat,
+        due_at=due_at or None,
+        estimate_minutes=estimate_minutes,
+    )
+    if item.get("is_repeating") or item.get("pending_first_occurrence"):
+        return {"ok": True, "placed": 0, "item": item, "message": "Repeating to do saved."}
+    return place_work_item(item["id"], target)
+
+
 @eel.expose
 def fill_week(week_start: str = "") -> Dict[str, Any]:
     settings = calclock.load_settings()
@@ -166,31 +300,32 @@ def fill_week(week_start: str = "") -> Dict[str, Any]:
             continue
         due_raw = item.get("due_at")
         until = datetime.combine(end, datetime.min.time()).replace(hour=23, minute=59)
+        from_dt = window_begin
+        scheduled = item.get("scheduled_date")
+        if scheduled:
+            try:
+                pinned = date.fromisoformat(str(scheduled)[:10])
+            except ValueError:
+                pinned = None
+            if pinned is not None:
+                if pinned < start or pinned > end:
+                    continue
+                from_dt = max(window_begin, datetime.combine(pinned, datetime.min.time()))
+                until = min(until, _as_dt(pinned, settings["day_end"]))
         if due_raw:
             until = min(until, calclock.parse_datetime(due_raw))
-        for chunk in chunk_minutes(leftover, settings["chunk_min"], settings["chunk_max"]):
-            slot = find_slot(
-                minutes=chunk,
-                from_dt=window_begin,
-                until_dt=until,
-                hard=hard,
-                blocks=blocks,
-                day_start=settings["day_start"],
-                day_end=settings["day_end"],
-            )
-            if slot is None:
-                at_risk.append(item["id"])
-                break
-            block = calclock.add_block(
-                title=item["title"],
-                start=slot[0],
-                end=slot[1],
-                work_item_id=item["id"],
-                kind="work",
-                status="proposed",
-            )
-            blocks.append(block)
-            placed += 1
+        count, ok, _first = _place_item_chunks(
+            item,
+            leftover=leftover,
+            from_dt=from_dt,
+            until=until,
+            hard=hard,
+            blocks=blocks,
+            settings=settings,
+        )
+        placed += count
+        if not ok:
+            at_risk.append(item["id"])
 
     for offset in range(7):
         day = start + timedelta(days=offset)

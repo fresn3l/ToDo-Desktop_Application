@@ -1952,6 +1952,31 @@ input[type='range'] {
     flex: 1;
 }
 
+.work-add-row.work-add-optional {
+    margin-bottom: 8px;
+}
+
+.work-add-row.work-add-optional .checklist-text-input {
+    flex: 0 1 auto;
+    max-width: 8.5rem;
+}
+
+.todo-when {
+    margin: -4px 0 8px;
+}
+
+.todo-when .work-day-chip.is-past {
+    opacity: 0.65;
+}
+
+.todo-when .work-day-chip.is-today {
+    font-weight: 600;
+}
+
+.todo-when-hint {
+    margin: 0 0 var(--space-md);
+}
+
 .work-repeat-toggle {
     margin: 0 0 10px;
 }

@@ -47,11 +47,23 @@ export async function refreshAllWork() {
                     const act = btn.getAttribute('data-act');
                     try {
                         if (act === 'today') {
-                            await eel.assign_work_item(id, utils.localISODate())();
-                            utils.showSuccessFeedback('Moved to today’s To Do.');
+                            const date = utils.localISODate();
+                            await eel.assign_work_item(id, date)();
+                            let message = 'Moved to today’s To Do.';
+                            if (typeof eel.place_work_item === 'function') {
+                                const placed = await eel.place_work_item(id, date)();
+                                if (placed?.placed) message = placed.message || message;
+                            }
+                            utils.showSuccessFeedback(message);
                         } else if (act === 'tomorrow') {
-                            await eel.assign_work_item(id, tomorrowISO())();
-                            utils.showSuccessFeedback('Queued for tomorrow.');
+                            const date = tomorrowISO();
+                            await eel.assign_work_item(id, date)();
+                            let message = 'Queued for tomorrow.';
+                            if (typeof eel.place_work_item === 'function') {
+                                const placed = await eel.place_work_item(id, date)();
+                                if (placed?.placed) message = placed.message || message;
+                            }
+                            utils.showSuccessFeedback(message);
                         } else if (act === 'delete') {
                             await eel.delete_work_item(id)();
                         }
