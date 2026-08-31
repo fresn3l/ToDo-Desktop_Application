@@ -119,8 +119,9 @@ function paintWhenChips() {
             if (selected) classes.push('is-selected');
             if (day.is_past) classes.push('is-past');
             if (day.is_today) classes.push('is-today');
+            const label = day.is_today ? 'Today' : day.label;
             const title = day.is_today ? 'Today' : day.is_past ? `Next ${day.label}` : day.label;
-            return `<button type="button" class="${classes.join(' ')}" data-date="${utils.escapeHtml(date)}" data-weekday="${day.weekday}" title="${utils.escapeHtml(title)}">${utils.escapeHtml(day.label)}</button>`;
+            return `<button type="button" class="${classes.join(' ')}" role="radio" aria-checked="${selected ? 'true' : 'false'}" data-date="${utils.escapeHtml(date)}" data-weekday="${day.weekday}" title="${utils.escapeHtml(title)}">${utils.escapeHtml(label)}</button>`;
         })
         .join('');
     const selected = root.querySelector('.is-selected');
@@ -401,10 +402,17 @@ export function setupTodo() {
         syncRepeatPanel();
     });
     document.getElementById('todoWhen')?.addEventListener('click', (e) => {
-        const chip = e.target.closest('.work-day-chip');
-        if (!chip) return;
+        const root = document.getElementById('todoWhen');
+        const chip = e.target.closest('#todoWhen .work-day-chip');
+        if (!root || !chip) return;
+        e.preventDefault();
         selectedDoDate = chip.getAttribute('data-date');
-        paintWhenChips();
+        root.querySelectorAll('.work-day-chip').forEach((btn) => {
+            const on = btn === chip;
+            btn.classList.toggle('is-selected', on);
+            btn.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        updateWhenHint();
     });
     document.getElementById('todoWeekdays')?.addEventListener('click', (e) => {
         const chip = e.target.closest('.work-day-chip');

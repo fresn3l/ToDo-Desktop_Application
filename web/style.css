@@ -1969,7 +1969,14 @@ input[type='range'] {
     opacity: 0.65;
 }
 
-.todo-when .work-day-chip.is-today {
+.todo-when .work-day-chip.is-today:not(.is-selected) {
+    font-weight: 600;
+}
+
+.todo-when .work-day-chip.is-selected {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
     font-weight: 600;
 }
 
