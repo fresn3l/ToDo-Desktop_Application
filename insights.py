@@ -8,7 +8,7 @@ import json
 import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Set
+from typing import Any, Dict, Optional, Set
 
 import eel
 
@@ -203,4 +203,78 @@ def get_analytics(days: int = 30) -> Dict[str, Any]:
         "capacity": capacity,
         "pattern_prompt": "What pattern do you notice?",
         "pattern_note": pattern_notes.get(week_key, ""),
+    }
+
+
+ALLOCATION_LABELS = {
+    "hard": "Busy",
+    "work": "Work",
+    "workout": "Gym",
+    "other": "Other",
+}
+
+
+def _minutes_between(start_at: Any, end_at: Any) -> int:
+    try:
+        start = datetime.fromisoformat(str(start_at))
+        end = datetime.fromisoformat(str(end_at))
+    except (TypeError, ValueError):
+        return 0
+    return max(0, int((end - start).total_seconds() // 60))
+
+
+def allocation_range(period: str = "week", today: Optional[date] = None) -> tuple:
+    today = today or date.today()
+    key = "month" if str(period or "").strip().lower() == "month" else "week"
+    if key == "month":
+        from calendar import monthrange
+
+        last = monthrange(today.year, today.month)[1]
+        return key, today.replace(day=1), date(today.year, today.month, last)
+    this_monday = today - timedelta(days=today.weekday())
+    start = this_monday - timedelta(days=7)
+    end = this_monday - timedelta(days=1)
+    return key, start, end
+
+
+@eel.expose
+def get_time_allocation(period: str = "week") -> Dict[str, Any]:
+    """Last ISO week's calendar minutes by category, or the current month."""
+    import calclock
+
+    today = date.today()
+    key, start, end = allocation_range(period, today)
+    totals = {"hard": 0, "work": 0, "workout": 0, "other": 0}
+    for item in calclock.expand_hard_events(start, end):
+        totals["hard"] += _minutes_between(item.get("start_at"), item.get("end_at"))
+    for block in calclock.list_blocks(start, end):
+        if block.get("status") == "skipped":
+            continue
+        kind = str(block.get("kind") or "work")
+        if kind not in ("work", "workout"):
+            kind = "other"
+        totals[kind] += int(block.get("minutes") or _minutes_between(block.get("start_at"), block.get("end_at")))
+    total = sum(totals.values())
+    rows = []
+    for cat in ("hard", "work", "workout", "other"):
+        minutes = totals[cat]
+        if minutes <= 0 and cat == "other":
+            continue
+        rows.append(
+            {
+                "id": cat,
+                "label": ALLOCATION_LABELS[cat],
+                "minutes": minutes,
+                "hours": round(minutes / 60, 1),
+                "pct": round((minutes / total) * 100) if total else 0,
+            }
+        )
+    return {
+        "period": key,
+        "period_label": "Last week" if key == "week" else today.strftime("%B %Y"),
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "total_minutes": total,
+        "total_hours": round(total / 60, 1),
+        "categories": rows,
     }

@@ -392,6 +392,7 @@
                             </div>
                         </div>
                         <div id="analyticsWeekStrip" class="week-strip-host"></div>
+                        <div id="timeAllocation" class="review-content time-allocation-host"></div>
                         <div id="analyticsContent" class="review-content"></div>
                     </div>
                 </section>
@@ -434,6 +435,7 @@
                             <button type="button" class="btn-ghost" data-filter="journal">Journal</button>
                             <button type="button" class="btn-ghost" data-filter="morning_brief">Morning</button>
                             <button type="button" class="btn-ghost" data-filter="evening_review">Evening</button>
+                            <button type="button" class="btn-ghost" data-filter="reading">Reading</button>
                         </div>
                         <div id="heatmapGrid" class="heatmap-grid" role="img" aria-label="Activity heatmap"></div>
                         <p id="heatmapHint" class="checklist-hint small"></p>
@@ -453,6 +455,54 @@
                             </div>
                         </div>
                         <div id="dayBriefBody"></div>
+                    </div>
+                </section>
+
+                <section id="countersSource" class="widget-source" aria-label="Counters">
+                    <div class="compact-widget counters-widget">
+                        <div class="panel-header compact-widget-head">
+                            <div>
+                                <h2>Counters</h2>
+                                <p class="panel-sub" id="countersSummary">Tap anything you want to count today.</p>
+                            </div>
+                        </div>
+                        <div id="countersList" class="counters-list"></div>
+                        <form id="countersForm" class="counters-form">
+                            <input type="text" id="counterName" class="checklist-text-input" placeholder="Water, coffee, smokes…" maxlength="40" autocomplete="off">
+                            <select id="counterIcon" class="checklist-select" aria-label="Icon"></select>
+                            <input type="number" id="counterTarget" class="checklist-text-input" min="1" max="999" placeholder="Target (optional)">
+                            <button type="submit" class="btn-primary">Add</button>
+                        </form>
+                    </div>
+                </section>
+
+                <section id="readingSource" class="widget-source" aria-label="Reading">
+                    <div class="compact-widget reading-widget">
+                        <div class="panel-header compact-widget-head">
+                            <div>
+                                <h2>Currently reading</h2>
+                                <p class="panel-sub" id="readingSummary">Book, page, and pages today.</p>
+                            </div>
+                        </div>
+                        <form id="readingBookForm" class="reading-book-form">
+                            <input type="text" id="readingTitle" class="checklist-text-input" placeholder="Book title" maxlength="160" autocomplete="off">
+                            <input type="number" id="readingPage" class="checklist-text-input" min="0" placeholder="Page">
+                            <button type="submit" class="btn-primary">Save book</button>
+                        </form>
+                        <div class="reading-today">
+                            <p id="readingPagesToday" class="review-stat">0</p>
+                            <p class="review-detail">pages today</p>
+                            <div class="reading-page-btns">
+                                <button type="button" class="btn-secondary" data-pages="1">+1 page</button>
+                                <button type="button" class="btn-secondary" data-pages="5">+5 pages</button>
+                                <button type="button" class="btn-secondary" data-pages="10">+10 pages</button>
+                            </div>
+                        </div>
+                        <form id="readingJournalForm" class="day-brief-form">
+                            <label class="checklist-field-label" for="readingNote">What did you learn?</label>
+                            <textarea id="readingNote" class="checklist-textarea" rows="3" placeholder="A note from today’s reading…"></textarea>
+                            <button type="submit" class="btn-primary">Save reading journal</button>
+                        </form>
                     </div>
                 </section>
 

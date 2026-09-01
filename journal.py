@@ -24,7 +24,7 @@ from paths import data_directory
 # ============================================
 
 JOURNAL_TAG_PRESETS = ["work", "health", "relationships"]
-JOURNAL_KINDS = ("journal", "morning_brief", "evening_review")
+JOURNAL_KINDS = ("journal", "morning_brief", "evening_review", "reading")
 _SAFE_ENTRY_STEM = re.compile(r"^entry_[A-Za-z0-9._-]{1,120}$")
 MAX_JOURNAL_IMPORT_CHARS = 200_000
 
@@ -35,6 +35,8 @@ def normalize_journal_kind(raw) -> str:
         return "morning_brief"
     if key in ("evening", "review", "evening_review"):
         return "evening_review"
+    if key in ("reading", "reading_note", "book"):
+        return "reading"
     return "journal"
 
 def get_journal_directory():
@@ -265,6 +267,7 @@ def save_journal_entry(
     continued: bool = False,
     tags=None,
     kind=None,
+    extra: Optional[Dict] = None,
 ):
     """Save a new journal entry (free-write defaults to kind journal)."""
     text = str(content or "").strip()
@@ -282,6 +285,8 @@ def save_journal_entry(
         "tags": _normalize_tags(tags),
         "kind": normalize_journal_kind(kind),
     }
+    if isinstance(extra, dict):
+        entry["brief"] = extra
     _write_entry_file(entry_path, entry)
     _after_save(entry)
     return entry
