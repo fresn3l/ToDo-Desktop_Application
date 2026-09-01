@@ -11,6 +11,11 @@ TABS = (ROOT / "web" / "js" / "tabs.js").read_text(encoding="utf-8")
 HOME_JS = (ROOT / "web" / "js" / "home_layout.js").read_text(encoding="utf-8")
 HOME_RUNTIME = (ROOT / "web" / "js" / "home.js").read_text(encoding="utf-8")
 CAL_JS = (ROOT / "web" / "js" / "calendar.js").read_text(encoding="utf-8")
+UTILS = (ROOT / "web" / "js" / "utils.js").read_text(encoding="utf-8")
+SETTINGS_JS = (ROOT / "web" / "js" / "settings.js").read_text(encoding="utf-8")
+STYLE = (ROOT / "web" / "style.css").read_text(encoding="utf-8")
+SWIFT = (ROOT / "macos" / "KosistenzWindow.swift").read_text(encoding="utf-8")
+NATIVE_MAC = (ROOT / "native_mac.py").read_text(encoding="utf-8")
 
 
 class HomeUiTests(unittest.TestCase):
@@ -137,3 +142,28 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("await run(refreshWeather)", refresh)
         self.assertIn("await run(refreshDayBrief)", refresh)
         self.assertIn("await run(onWordTabShown)", refresh)
+
+    def test_native_prompts_use_in_app_dialog(self) -> None:
+        self.assertIn('id="appDialog"', INDEX)
+        self.assertIn("export function askText", UTILS)
+        self.assertIn("export function askConfirm", UTILS)
+        self.assertIn("utils.askText", HOME_RUNTIME)
+        self.assertIn("utils.askConfirm", HOME_RUNTIME)
+        self.assertNotIn("window.prompt", HOME_RUNTIME)
+        self.assertNotIn("window.confirm", HOME_RUNTIME)
+        self.assertIn("utils.askText", SETTINGS_JS)
+        self.assertIn("utils.askConfirm", SETTINGS_JS)
+        self.assertNotIn("window.prompt", SETTINGS_JS)
+        self.assertNotIn("window.confirm", SETTINGS_JS)
+
+    def test_webkit_hosts_implement_js_dialogs(self) -> None:
+        self.assertIn("webView.uiDelegate = self", SWIFT)
+        self.assertIn("runJavaScriptTextInputPanelWithPrompt", SWIFT)
+        self.assertIn("setUIDelegate_", NATIVE_MAC)
+        self.assertIn("runJavaScriptTextInputPanelWithPrompt", NATIVE_MAC)
+
+    def test_calendar_tab_uses_full_width_and_taller_cells(self) -> None:
+        self.assertIn("html[data-page='calendar'] .tab-content.active", STYLE)
+        self.assertIn("max-width: none", STYLE)
+        self.assertIn("min-height: 6.5rem", STYLE)
+        self.assertIn("minmax(0, 1fr) minmax(220px, 260px)", STYLE)

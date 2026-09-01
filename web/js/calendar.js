@@ -309,7 +309,12 @@ function bindGrid() {
     document.querySelectorAll('.cal-block[data-kind="hard"]').forEach((btn) => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (!window.confirm('Remove this lecture / hard event?')) return;
+            if (!(await utils.askConfirm({
+                title: 'Remove lecture',
+                message: 'Remove this lecture / hard event?',
+                ok: 'Remove',
+                danger: true,
+            }))) return;
             try {
                 await eel.delete_calendar_event(btn.getAttribute('data-id'))();
                 utils.notifyDataChanged();

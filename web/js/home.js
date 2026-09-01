@@ -223,27 +223,43 @@ function bindHome() {
         void run(() => eel.set_active_home_page(btn.getAttribute('data-page'))());
     });
 
-    document.getElementById('homeAddPageBtn')?.addEventListener('click', () => {
-        const name = window.prompt('Name this page', `Page ${(layout?.pages.length || 0) + 1}`);
+    document.getElementById('homeAddPageBtn')?.addEventListener('click', async () => {
+        const name = await utils.askText({
+            title: 'New page',
+            message: 'Name this Home page.',
+            value: `Page ${(layout?.pages.length || 0) + 1}`,
+            ok: 'Add page',
+        });
         if (name == null) return;
         void run(() => eel.add_home_page(name.trim())());
     });
 
-    document.getElementById('homeRenamePageBtn')?.addEventListener('click', () => {
+    document.getElementById('homeRenamePageBtn')?.addEventListener('click', async () => {
         const page = activePage();
         if (!page) return;
-        const name = window.prompt('Rename page', page.name);
+        const name = await utils.askText({
+            title: 'Rename page',
+            message: 'New name for this Home page.',
+            value: page.name,
+            ok: 'Rename',
+        });
         if (name == null) return;
         void run(() => eel.rename_home_page(page.id, name.trim())());
     });
 
-    document.getElementById('homeDeletePageBtn')?.addEventListener('click', () => {
+    document.getElementById('homeDeletePageBtn')?.addEventListener('click', async () => {
         const page = activePage();
         if (!page || (layout?.pages.length || 0) <= 1) {
             utils.showErrorFeedback('Keep at least one Home page.');
             return;
         }
-        if (!window.confirm(`Delete “${page.name}”? Widgets on it go away.`)) return;
+        const ok = await utils.askConfirm({
+            title: 'Delete page',
+            message: `Delete “${page.name}”? Widgets on it go away.`,
+            ok: 'Delete',
+            danger: true,
+        });
+        if (!ok) return;
         void run(() => eel.delete_home_page(page.id)());
     });
 

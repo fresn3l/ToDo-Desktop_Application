@@ -229,8 +229,13 @@ function bindList(root, onChange) {
                     else if (act === 'reopen') await eel.reopen_work_item(id)();
                     else if (act === 'park') await eel.assign_work_item(id, '')();
                     else if (act === 'rename') {
-                        const next = window.prompt('New name');
-                        if (!next || !next.trim()) return;
+                        const next = await utils.askText({
+                            title: 'Rename task',
+                            message: 'New name for this to-do.',
+                            value: row.querySelector('h3')?.textContent || '',
+                            ok: 'Rename',
+                        });
+                        if (next == null || !next.trim()) return;
                         const scope = repeating
                             ? await askScope('Rename only this day, or every future day in the series?')
                             : 'occurrence';

@@ -177,7 +177,12 @@ async function saveCurrentPreset() {
 async function createPreset(snapshot) {
     const current = getAppearance();
     const snap = snapshot || snapshotPresetFrom(current);
-    const name = window.prompt('Name this palette', 'My palette');
+    const name = await utils.askText({
+        title: 'New palette',
+        message: 'Name this color palette.',
+        value: 'My palette',
+        ok: 'Save palette',
+    });
     if (name == null) return current;
     const label = name.trim();
     if (!label) {
@@ -200,7 +205,13 @@ async function deleteActivePreset() {
     if (!current.activePresetId) return current;
     const preset = (current.userPresets || []).find((p) => p.id === current.activePresetId);
     if (!preset) return current;
-    if (!window.confirm(`Delete “${preset.name}”?`)) return current;
+    const ok = await utils.askConfirm({
+        title: 'Delete palette',
+        message: `Delete “${preset.name}”?`,
+        ok: 'Delete',
+        danger: true,
+    });
+    if (!ok) return current;
     const userPresets = current.userPresets.filter((p) => p.id !== preset.id);
     const next = await update({
         userPresets,

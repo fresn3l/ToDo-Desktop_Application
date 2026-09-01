@@ -47,9 +47,12 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     from urllib.parse import urlparse
 
     from AppKit import (
+        NSAlert,
+        NSAlertFirstButtonReturn,
         NSApplication,
         NSApplicationActivationPolicyRegular,
         NSBackingStoreBuffered,
+        NSTextField,
         NSViewHeightSizable,
         NSViewWidthSizable,
         NSWindow,
@@ -100,6 +103,47 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
                 pass
             decisionHandler(cancel)
 
+    class UIDelegate(NSObject):
+        def webView_runJavaScriptAlertPanelWithMessage_initiatedByFrame_completionHandler_(
+            self, _webView, message, _frame, completionHandler
+        ):
+            alert = NSAlert.alloc().init()
+            alert.setMessageText_("Kosistenz")
+            alert.setInformativeText_(str(message or ""))
+            alert.addButtonWithTitle_("OK")
+            alert.runModal()
+            completionHandler()
+
+        def webView_runJavaScriptConfirmPanelWithMessage_initiatedByFrame_completionHandler_(
+            self, _webView, message, _frame, completionHandler
+        ):
+            alert = NSAlert.alloc().init()
+            alert.setMessageText_("Kosistenz")
+            alert.setInformativeText_(str(message or ""))
+            alert.addButtonWithTitle_("OK")
+            alert.addButtonWithTitle_("Cancel")
+            completionHandler(alert.runModal() == NSAlertFirstButtonReturn)
+
+        def webView_runJavaScriptTextInputPanelWithPrompt_defaultText_initiatedByFrame_completionHandler_(
+            self, _webView, prompt, defaultText, _frame, completionHandler
+        ):
+            alert = NSAlert.alloc().init()
+            alert.setMessageText_("Kosistenz")
+            alert.setInformativeText_(str(prompt or ""))
+            alert.addButtonWithTitle_("OK")
+            alert.addButtonWithTitle_("Cancel")
+            field = NSTextField.alloc().initWithFrame_(_rect(0, 0, 280, 24))
+            field.setStringValue_(str(defaultText or ""))
+            alert.setAccessoryView_(field)
+            try:
+                alert.window().setInitialFirstResponder_(field)
+            except Exception:
+                pass
+            if alert.runModal() == NSAlertFirstButtonReturn:
+                completionHandler(field.stringValue())
+            else:
+                completionHandler(None)
+
     class WindowDelegate(NSObject):
         def windowWillClose_(self, _notification):
             try:
@@ -139,6 +183,7 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     window.setDelegate_(win_delegate)
 
     nav_delegate = NavigationDelegate.alloc().init()
+    ui_delegate = UIDelegate.alloc().init()
 
     config = WKWebViewConfiguration.alloc().init()
     script = None
@@ -177,6 +222,10 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     except Exception:
         pass
     try:
+        web.setUIDelegate_(ui_delegate)
+    except Exception:
+        pass
+    try:
         web.setValue_forKey_(True, "drawsBackground")
     except Exception:
         pass
@@ -185,7 +234,9 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     request = NSURLRequest.requestWithURL_(NSURL.URLWithString_(url))
     web.loadRequest_(request)
 
-    _KEEP.extend([app, app_delegate, window, win_delegate, nav_delegate, config, web, script])
+    _KEEP.extend(
+        [app, app_delegate, window, win_delegate, nav_delegate, ui_delegate, config, web, script]
+    )
 
     window.makeKeyAndOrderFront_(None)
     app.activateIgnoringOtherApps_(True)

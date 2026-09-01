@@ -64,10 +64,16 @@ export function setupJournal() {
     if (saveBtn) {
         saveBtn.addEventListener('click', saveJournalEntry);
     }
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            if (hasJournalDraft() && !window.confirm('Clear this journal entry and reset the timer?')) {
-                return;
+        if (clearBtn) {
+        clearBtn.addEventListener('click', async () => {
+            if (hasJournalDraft()) {
+                const ok = await utils.askConfirm({
+                    title: 'Clear journal',
+                    message: 'Clear this journal entry and reset the timer?',
+                    ok: 'Clear',
+                    danger: true,
+                });
+                if (!ok) return;
             }
             clearJournalEntry();
         });
@@ -374,9 +380,10 @@ export function exitJournalFocus() {
 function setupJournalKeys() {
     if (document.body.dataset.journalKeys === '1') return;
     document.body.dataset.journalKeys = '1';
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', async (e) => {
         const tab = document.getElementById('journalTab');
         if (!tab || !tab.classList.contains('active')) return;
+        if (utils.dialogIsOpen()) return;
 
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
             e.preventDefault();
@@ -393,9 +400,13 @@ function setupJournalKeys() {
         const id = e.target && e.target.id;
         if (id === 'journalSearch' || id === 'journalTagFilter') return;
         if (hasJournalDraft()) {
-            if (window.confirm('Clear this journal entry and reset the timer?')) {
-                clearJournalEntry();
-            }
+            const ok = await utils.askConfirm({
+                title: 'Clear journal',
+                message: 'Clear this journal entry and reset the timer?',
+                ok: 'Clear',
+                danger: true,
+            });
+            if (ok) clearJournalEntry();
         }
     });
 }

@@ -715,6 +715,21 @@ html[data-page='home'] .tab-content.active {
     max-width: none;
 }
 
+html[data-page='calendar'] .app-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+html[data-page='calendar'] .tab-content.active {
+    max-width: none;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
 @keyframes rise {
     from {
         opacity: 0;
@@ -808,7 +823,8 @@ button {
 
 .btn-primary,
 .btn-secondary,
-.btn-ghost {
+.btn-ghost,
+.btn-danger {
     font: inherit;
     font-size: 14px;
     font-weight: 600;
@@ -828,6 +844,16 @@ button {
 
 .btn-primary:hover:not(:disabled) {
     background: var(--primary-hover);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+    border: 1px solid transparent;
+}
+
+.btn-danger:hover:not(:disabled) {
+    filter: brightness(1.06);
 }
 
 .btn-primary:disabled,
@@ -2299,6 +2325,48 @@ input[type='range'] {
     display: none;
 }
 
+.app-dialog {
+    position: fixed;
+    inset: 0;
+    background: hsl(0 0% 0% / 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3100;
+    padding: 16px;
+}
+
+.app-dialog.is-hidden {
+    display: none;
+}
+
+.app-dialog-card {
+    width: min(420px, 100%);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 18px;
+    box-shadow: var(--shadow-lg);
+}
+
+.app-dialog-card h3 {
+    text-transform: none;
+    letter-spacing: var(--letter-tight);
+    margin-bottom: 6px;
+}
+
+.app-dialog-card .checklist-text-input {
+    width: 100%;
+    margin: 12px 0 0;
+}
+
+.app-dialog-card .work-item-actions {
+    margin-top: 14px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .work-scope-card {
     width: min(420px, 100%);
     background: var(--bg-panel);
@@ -3623,9 +3691,17 @@ html[data-motion='reduce'] *::after {
 
 .cal-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.7fr);
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
     gap: var(--space-lg);
-    align-items: start;
+    align-items: stretch;
+    flex: 1;
+    min-height: calc(100vh - 36px);
+}
+
+.cal-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .cal-toolbar {
@@ -3642,7 +3718,8 @@ html[data-motion='reduce'] *::after {
     display: grid;
     grid-template-columns: 52px minmax(0, 1fr);
     gap: 0 8px;
-    min-height: 560px;
+    flex: 1;
+    min-height: min(720px, calc(100vh - 180px));
 }
 
 .cal-hours {
@@ -3681,7 +3758,8 @@ html[data-motion='reduce'] *::after {
 
 .cal-day-body {
     position: relative;
-    height: 520px;
+    height: min(720px, calc(100vh - 220px));
+    min-height: 560px;
     margin: 0 4px 8px;
     background: repeating-linear-gradient(
         to bottom,
@@ -3750,7 +3828,9 @@ html[data-motion='reduce'] *::after {
 .cal-year-grid {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
 }
 
 .cal-month-grid.is-hidden,
@@ -3763,7 +3843,12 @@ html[data-motion='reduce'] *::after {
 .cal-month-week {
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 4px;
+    gap: 6px;
+}
+
+.cal-month-grid > .cal-month-week {
+    flex: 1;
+    min-height: 6.5rem;
 }
 
 .cal-month-dow {
@@ -3777,7 +3862,8 @@ html[data-motion='reduce'] *::after {
 }
 
 .cal-month-cell {
-    min-height: 4.4rem;
+    min-height: 6.5rem;
+    height: 100%;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     background: var(--bg-elevated);
@@ -3830,8 +3916,8 @@ html[data-motion='reduce'] *::after {
 
 .cal-year-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px;
 }
 
 .cal-year-month h3 {
@@ -3846,9 +3932,9 @@ html[data-motion='reduce'] *::after {
 .cal-month-week.is-compact .cal-month-cell,
 .cal-month-cell.is-compact,
 .cal-year-month .cal-month-cell {
-    min-height: 1.6rem;
-    padding: 2px 4px;
-    font-size: 11px;
+    min-height: 2.1rem;
+    padding: 4px 6px;
+    font-size: 12px;
 }
 
 .cal-month-head.is-compact .cal-month-dow {
@@ -3868,6 +3954,7 @@ html[data-motion='reduce'] *::after {
 @media (max-width: 960px) {
     .cal-layout {
         grid-template-columns: 1fr;
+        min-height: 0;
     }
 }
 
