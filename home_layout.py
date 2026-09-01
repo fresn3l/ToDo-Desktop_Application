@@ -67,7 +67,7 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "weather": {
         "label": "Weather",
         "sizes": ((2, 2), (2, 3), (4, 2), (4, 3)),
-        "default": (2, 2),
+        "default": (2, 3),
     },
     "focus": {
         "label": "Focus",
@@ -82,7 +82,7 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "habits": {
         "label": "Habits",
         "sizes": ((2, 2), (2, 3), (4, 2)),
-        "default": (2, 2),
+        "default": (2, 3),
     },
 }
 

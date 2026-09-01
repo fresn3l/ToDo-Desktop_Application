@@ -2336,9 +2336,11 @@ input[type='range'] {
 }
 
 .home-widget-body > .widget-source {
-    display: block;
+    display: flex;
+    flex-direction: column;
     height: 100%;
     min-height: 0;
+    flex: 1;
 }
 
 .widget-source-rack {
@@ -2476,6 +2478,8 @@ input[type='range'] {
     min-height: 0;
     overflow: auto;
     padding: 10px 12px 12px;
+    display: flex;
+    flex-direction: column;
 }
 
 .home-widget-body .panel-header,
@@ -2505,7 +2509,8 @@ input[type='range'] {
 
 .home-widget[data-kind="weather"][data-h="2"][data-w="2"] .weather-hourly,
 .home-widget[data-kind="weather"][data-h="2"][data-w="2"] .weather-meta,
-.home-widget[data-kind="weather"][data-h="2"][data-w="2"] .weather-next {
+.home-widget[data-kind="weather"][data-h="2"][data-w="2"] .weather-next,
+.home-widget[data-kind="weather"][data-h="2"][data-w="2"] .today-date-sub {
     display: none;
 }
 
@@ -2513,7 +2518,8 @@ input[type='range'] {
     display: none;
 }
 
-.home-widget[data-kind="habits"][data-h="2"] .habits-widget .today-date-sub {
+.home-widget[data-kind="habits"][data-h="2"] .habits-widget .today-date-sub,
+.home-widget[data-kind="habits"][data-h="2"] .today-kicker {
     display: none;
 }
 
@@ -2675,11 +2681,24 @@ input[type='range'] {
     text-align: right;
 }
 
+.weather-current:empty,
+.weather-hourly:empty,
+.weather-daily:empty,
+.weather-place-results:empty,
+#weatherStatus:empty {
+    display: none;
+}
+
 .weather-place-form {
     display: flex;
     flex-direction: column;
     gap: 8px;
     margin-top: auto;
+    flex-shrink: 0;
+}
+
+.weather-place-form .checklist-field-label {
+    display: none;
 }
 
 .weather-place-form.is-collapsed .weather-place-search,
@@ -2767,6 +2786,13 @@ input[type='range'] {
     flex-wrap: wrap;
     gap: 6px;
     margin-top: auto;
+    flex-shrink: 0;
+}
+
+.glance-add .btn-secondary,
+.weather-place-search .btn-secondary {
+    padding: 8px 12px;
+    font-size: 13px;
 }
 
 .glance-add .checklist-text-input {
