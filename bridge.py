@@ -10,6 +10,7 @@ import os
 import eel
 
 import appearance  # noqa: F401
+import cluny_sync  # noqa: F401
 import calclock  # noqa: F401
 import daily_checklist  # noqa: F401
 import day_brief  # noqa: F401

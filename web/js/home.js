@@ -4,7 +4,7 @@
 
 import * as utils from './utils.js';
 import { WIDGET_CATALOG, catalogList, canPlace, snapCell } from './home_layout.js';
-import { getAppearance, persistAppearance, onAppearanceChange, resolveColors } from './appearance.js';
+import { getAppearance, persistAppearance, onAppearanceChange, resolveColors, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { onTodayTabShown, refreshToday } from './today.js';
 import { onTodoTabShown } from './todo.js';
 import { onAllWorkTabShown } from './all_work.js';
@@ -119,6 +119,9 @@ async function refreshKinds(kinds) {
     await run(refreshToday);
 }
 
+const HOME_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>';
+const PAGE_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="4.5" width="14" height="15" rx="1.5"/><path d="M8 9h8M8 12.5h8M8 16h5"/></svg>';
+
 function paintPages() {
     const el = document.getElementById('homePages');
     if (!el || !layout) return;
@@ -128,6 +131,47 @@ function paintPages() {
             return `<button type="button" class="home-page-chip${on ? ' is-selected' : ''}" data-page="${utils.escapeHtml(page.id)}">${utils.escapeHtml(page.name)}</button>`;
         })
         .join('');
+    paintSidebar();
+    paintTitle();
+    syncPageColors();
+}
+
+function paintTitle() {
+    const page = activePage();
+    const name = page?.name || 'Home';
+    const titleEl = document.getElementById('homePageTitle');
+    if (titleEl) titleEl.textContent = name;
+    document.documentElement.setAttribute('data-home-page', page?.id || '');
+    if (document.documentElement.getAttribute('data-page') === 'home' || document.getElementById('homeTab')?.classList.contains('active')) {
+        document.title = `${name} · Kosistenz`;
+        const crumb = document.getElementById('pageCrumb');
+        if (crumb) crumb.textContent = name;
+        notifyNativeTab('home', name);
+    }
+}
+
+function paintSidebar() {
+    const el = document.getElementById('homeNavPages');
+    if (!el || !layout) return;
+    const onHome = document.documentElement.getAttribute('data-page') !== 'calendar'
+        && document.documentElement.getAttribute('data-page') !== 'settings';
+    el.innerHTML = layout.pages
+        .map((page, index) => {
+            const selected = onHome && page.id === layout.active_page_id;
+            const icon = index === 0 ? HOME_NAV_ICON : PAGE_NAV_ICON;
+            return `<button type="button" class="nav-item${selected ? ' active' : ''}" data-tab="home" data-home-page="${utils.escapeHtml(page.id)}" aria-current="${selected ? 'page' : 'false'}">${icon}<span class="nav-label">${utils.escapeHtml(page.name)}</span></button>`;
+        })
+        .join('');
+}
+
+function syncPageColors() {
+    const onHome = document.getElementById('homeTab')?.classList.contains('active');
+    if (!onHome) return;
+    applyAppearanceOverlay(activePage()?.colors || {});
+}
+
+export function clearHomePageColors() {
+    applyAppearance(getAppearance());
 }
 
 function paintCatalog() {
@@ -391,7 +435,12 @@ function bindHome() {
 export function setupHome() {
     bindHome();
     paintBorderControls();
-    onAppearanceChange(() => paintBorderControls());
+    onAppearanceChange(() => {
+        paintBorderControls();
+        if (document.getElementById('homeTab')?.classList.contains('active')) {
+            syncPageColors();
+        }
+    });
     void renderHome();
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
@@ -413,8 +462,15 @@ export function setupHome() {
     });
 }
 
-export async function onHomeTabShown() {
+export async function onHomeTabShown(pageId) {
     await loadLayout();
+    if (pageId && pageId !== layout.active_page_id && typeof eel !== 'undefined' && eel.set_active_home_page) {
+        try {
+            layout = await eel.set_active_home_page(pageId)();
+        } catch (err) {
+            console.error(err);
+        }
+    }
     setEditing(false);
     await renderHome();
 }

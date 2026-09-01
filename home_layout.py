@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import eel
 
+from appearance import COLOR_SLOTS, _as_hex
 from paths import data_directory
 
 GRID_COLUMNS = 4
@@ -260,6 +261,18 @@ def _clip_name(raw: Any, fallback: str) -> str:
     return text[:MAX_PAGE_NAME]
 
 
+def sanitize_colors(raw: Any) -> Dict[str, str]:
+    """Keep only known color slots with valid hex values."""
+    if not isinstance(raw, dict):
+        return {}
+    out: Dict[str, str] = {}
+    for slot in COLOR_SLOTS:
+        hx = _as_hex(str(raw.get(slot) or ""), "")
+        if hx:
+            out[slot] = hx
+    return out
+
+
 def _as_int(raw: Any, default: int, lo: int, hi: int) -> int:
     try:
         n = int(raw)
@@ -309,7 +322,11 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
                 widget["x"], widget["y"] = spot
             seen_kinds.add(kind)
             widgets.append(widget)
-        pages.append({"id": page_id, "name": name, "widgets": widgets})
+        packed_page: Dict[str, Any] = {"id": page_id, "name": name, "widgets": widgets}
+        colors = sanitize_colors(page.get("colors") or page.get("colorOverrides"))
+        if colors:
+            packed_page["colors"] = colors
+        pages.append(packed_page)
     if not pages:
         return default_layout()
     active = str(raw.get("active_page_id") or "").strip()
@@ -365,6 +382,19 @@ def set_active_page(layout: Dict[str, Any], page_id: str) -> Dict[str, Any]:
     if _page(packed, page_id) is None:
         raise ValueError("Page not found")
     packed["active_page_id"] = page_id
+    return packed
+
+
+def set_page_colors(layout: Dict[str, Any], page_id: str, colors: Any) -> Dict[str, Any]:
+    packed = sanitize_layout(layout)
+    page = _page(packed, page_id)
+    if page is None:
+        raise ValueError("Page not found")
+    cleaned = sanitize_colors(colors)
+    if cleaned:
+        page["colors"] = cleaned
+    else:
+        page.pop("colors", None)
     return packed
 
 
@@ -506,6 +536,11 @@ def delete_home_page(page_id: str) -> Dict[str, Any]:
 @eel.expose
 def set_active_home_page(page_id: str) -> Dict[str, Any]:
     return _write(set_active_page(get_home_layout(), page_id))
+
+
+@eel.expose
+def set_home_page_colors(page_id: str, colors: Any) -> Dict[str, Any]:
+    return _write(set_page_colors(get_home_layout(), page_id, colors))
 
 
 @eel.expose

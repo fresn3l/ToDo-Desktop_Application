@@ -5,7 +5,7 @@
 import { exitJournalFocus } from './journal.js';
 import { onSettingsTabShown } from './settings.js';
 import { onCalendarTabShown } from './calendar.js';
-import { onHomeTabShown } from './home.js';
+import { onHomeTabShown, clearHomePageColors } from './home.js';
 import { notifyNativeTab } from './appearance.js';
 
 const ID_MAP = {
@@ -45,7 +45,8 @@ function openTabFromEvent(e) {
     const tab = btn.getAttribute('data-tab');
     if (!tab) return;
     e.preventDefault();
-    switchTab(tab).catch((err) => console.error(err));
+    const pageId = btn.getAttribute('data-home-page');
+    switchTab(tab, pageId ? { homePageId: pageId } : {}).catch((err) => console.error(err));
 }
 
 export function setupTabs() {
@@ -82,10 +83,17 @@ export function setupTabs() {
     });
 }
 
-export async function switchTab(name) {
+export async function switchTab(name, opts = {}) {
     const key = canonicalTab(name);
+    if (opts.homePageId) {
+        document.documentElement.setAttribute('data-home-page', opts.homePageId);
+    }
+    const homePage = document.documentElement.getAttribute('data-home-page');
     document.querySelectorAll('.nav-item').forEach((b) => {
-        const on = b.getAttribute('data-tab') === key;
+        const pageId = b.getAttribute('data-home-page');
+        const on = pageId
+            ? key === 'home' && pageId === homePage
+            : b.getAttribute('data-tab') === key;
         b.classList.toggle('active', on);
         b.setAttribute('aria-current', on ? 'page' : 'false');
     });
@@ -98,11 +106,12 @@ export async function switchTab(name) {
 
     if (key !== 'home') {
         exitJournalFocus();
+        clearHomePageColors();
     }
 
     try {
         if (key === 'home') {
-            await onHomeTabShown();
+            await onHomeTabShown(opts.homePageId);
         } else if (key === 'calendar') {
             await onCalendarTabShown();
         } else if (key === 'settings') {

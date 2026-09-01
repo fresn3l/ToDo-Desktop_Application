@@ -15,7 +15,13 @@ import {
     resolveInk,
     snapshotPresetFrom,
     normalizeHex,
+    applyAppearanceOverlay,
 } from './appearance.js';
+
+let colorScope = 'global';
+let colorPageId = '';
+let homeLayoutCache = null;
+const SETTINGS_COLS_KEY = 'kosistenz-settings-cols';
 
 function bindSegmented(name, current, onPick) {
     const group = document.querySelector(`[data-setting-group="${name}"]`);
@@ -67,14 +73,59 @@ function paintSettings(settings) {
     paintColorSlots(settings);
     paintPresetSelect(settings);
     paintInk(settings);
+    paintColorScope();
+}
+
+function mergedColorSettings(settings) {
+    if (colorScope !== 'page') return settings;
+    const page = (homeLayoutCache?.pages || []).find((p) => p.id === colorPageId);
+    return {
+        ...settings,
+        colorOverrides: { ...(settings.colorOverrides || {}), ...(page?.colors || {}) },
+    };
 }
 
 function paintColorSlots(settings) {
-    const colors = resolveColors(settings);
+    const colors = resolveColors(mergedColorSettings(settings));
     COLOR_SLOTS.forEach(({ id }) => {
         const input = document.querySelector(`[data-color-slot="${id}"]`);
         if (input) input.value = colors[id];
     });
+}
+
+function paintColorScope() {
+    document.querySelectorAll('[data-color-scope]').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-color-scope') === colorScope);
+    });
+    const select = document.getElementById('colorPageSelect');
+    const label = document.getElementById('colorPageSelectLabel');
+    const clearBtn = document.getElementById('clearPageColorsBtn');
+    const note = document.getElementById('colorScopeNote');
+    const pages = homeLayoutCache?.pages || [];
+    if (select) {
+        const current = colorPageId || homeLayoutCache?.active_page_id || pages[0]?.id || '';
+        colorPageId = current;
+        select.innerHTML = pages
+            .map((page) => `<option value="${utils.escapeHtml(page.id)}"${page.id === current ? ' selected' : ''}>${utils.escapeHtml(page.name)}</option>`)
+            .join('');
+        select.hidden = colorScope !== 'page';
+    }
+    if (label) label.hidden = colorScope !== 'page';
+    if (clearBtn) clearBtn.hidden = colorScope !== 'page';
+    if (note) {
+        if (colorScope === 'page') {
+            const page = pages.find((p) => p.id === colorPageId);
+            const n = Object.keys(page?.colors || {}).length;
+            note.textContent = page
+                ? `Editing “${page.name}”. ${n ? `${n} color${n === 1 ? '' : 's'} override the palette on this page.` : 'No overrides yet — pick a slot to color only this page.'}`
+                : 'Add a Home page first.';
+        } else {
+            note.textContent = 'These colors apply to every Home page that does not set its own.';
+        }
+    }
+    if (colorScope === 'page') {
+        applyAppearanceOverlay((pages.find((p) => p.id === colorPageId) || {}).colors || {});
+    }
 }
 
 function paintInk(settings) {
@@ -148,6 +199,9 @@ async function applyUserPreset(preset) {
 async function setColorSlot(slot, hex) {
     const value = normalizeHex(hex, '');
     if (!value) return;
+    if (colorScope === 'page') {
+        return setPageColorSlot(slot, value);
+    }
     const current = getAppearance();
     const colorOverrides = { ...(current.colorOverrides || {}), [slot]: value };
     const patch = { colorOverrides };
@@ -155,10 +209,51 @@ async function setColorSlot(slot, hex) {
         patch.accent = 'custom';
         patch.customAccent = value;
     }
-    if (slot === 'widgetBorder') {
-        /* width stays; color is the slot */
-    }
     return update(patch);
+}
+
+async function setPageColorSlot(slot, value) {
+    if (typeof eel === 'undefined' || !eel.set_home_page_colors || !eel.get_home_layout) return;
+    const pageId = colorPageId || homeLayoutCache?.active_page_id;
+    if (!pageId) return;
+    try {
+        if (!homeLayoutCache) homeLayoutCache = await eel.get_home_layout()();
+        const page = (homeLayoutCache.pages || []).find((p) => p.id === pageId);
+        const colors = { ...(page?.colors || {}), [slot]: value };
+        homeLayoutCache = await eel.set_home_page_colors(pageId, colors)();
+        applyAppearanceOverlay((homeLayoutCache.pages.find((p) => p.id === pageId) || {}).colors || {});
+        paintColorSlots(getAppearance());
+        paintColorScope();
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not save page colors.');
+    }
+}
+
+async function clearPageColors() {
+    if (typeof eel === 'undefined' || !eel.set_home_page_colors) return;
+    const pageId = colorPageId || homeLayoutCache?.active_page_id;
+    if (!pageId) return;
+    try {
+        homeLayoutCache = await eel.set_home_page_colors(pageId, {})();
+        applyAppearanceOverlay({});
+        paintColorSlots(getAppearance());
+        paintColorScope();
+        utils.showSuccessFeedback('This page uses the shared palette again.');
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not clear page colors.');
+    }
+}
+
+async function loadHomeLayoutForColors() {
+    if (typeof eel === 'undefined' || !eel.get_home_layout) return;
+    try {
+        homeLayoutCache = await eel.get_home_layout()();
+        if (!colorPageId) colorPageId = homeLayoutCache.active_page_id || '';
+        paintColorScope();
+        paintColorSlots(getAppearance());
+    } catch (_) {
+        /* eel not ready */
+    }
 }
 
 async function saveCurrentPreset() {
@@ -236,6 +331,8 @@ export function setupSettings() {
     if (document.body.dataset.settingsReady === '1') {
         paintSettings(getAppearance());
         void loadAdvancedPaths();
+        void loadHomeLayoutForColors();
+        void loadClunySettings();
         return;
     }
     document.body.dataset.settingsReady = '1';
@@ -363,6 +460,28 @@ export function setupSettings() {
         update({ sidebar: next });
     });
 
+    document.getElementById('colorScopeGroup')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-color-scope]');
+        if (!btn) return;
+        colorScope = btn.getAttribute('data-color-scope') === 'page' ? 'page' : 'global';
+        if (colorScope === 'global') {
+            applyAppearance(getAppearance());
+        }
+        paintColorScope();
+        paintColorSlots(getAppearance());
+    });
+    document.getElementById('colorPageSelect')?.addEventListener('change', (e) => {
+        colorPageId = e.target.value;
+        paintColorScope();
+        paintColorSlots(getAppearance());
+    });
+    document.getElementById('clearPageColorsBtn')?.addEventListener('click', () => {
+        void clearPageColors();
+    });
+    document.getElementById('clunySaveBtn')?.addEventListener('click', () => {
+        void saveClunySettings();
+    });
+
     document.getElementById('icloudAutoToggle')?.addEventListener('change', async (e) => {
         if (typeof eel === 'undefined' || !eel.save_icloud_sync_settings) return;
         try {
@@ -402,12 +521,17 @@ export function setupSettings() {
     paintSettings(getAppearance());
     void loadAdvancedPaths();
     void loadIcloudSync();
+    void loadHomeLayoutForColors();
+    void loadClunySettings();
+    setupSettingsResize();
 }
 
 export function onSettingsTabShown() {
     paintSettings(getAppearance());
     void loadAdvancedPaths();
     void loadIcloudSync();
+    void loadHomeLayoutForColors();
+    void loadClunySettings();
 }
 
 function paintIcloudStatus(status) {
@@ -477,5 +601,118 @@ async function loadAdvancedPaths() {
         } catch (_) {
             widgetPath.textContent = '';
         }
+    }
+}
+
+function setupSettingsResize() {
+    const board = document.getElementById('settingsBoard');
+    if (!board || board.dataset.resizeReady === '1') return;
+    board.dataset.resizeReady = '1';
+    const cols = () => [...board.querySelectorAll('.settings-col')];
+    try {
+        const saved = JSON.parse(localStorage.getItem(SETTINGS_COLS_KEY) || 'null');
+        if (Array.isArray(saved) && saved.length === cols().length) {
+            cols().forEach((col, i) => {
+                const fr = Number(saved[i]);
+                if (Number.isFinite(fr) && fr > 0) col.style.flex = `${fr} 1 0`;
+            });
+        }
+    } catch (_) {
+        /* ignore */
+    }
+    board.querySelectorAll('.settings-resize').forEach((handle) => {
+        handle.addEventListener('pointerdown', (e) => {
+            if (e.button != null && e.button !== 0) return;
+            e.preventDefault();
+            const index = Number(handle.getAttribute('data-resize'));
+            const list = cols();
+            const left = list[index];
+            const right = list[index + 1];
+            if (!left || !right) return;
+            const startX = e.clientX;
+            const leftW = left.getBoundingClientRect().width;
+            const rightW = right.getBoundingClientRect().width;
+            try {
+                handle.setPointerCapture(e.pointerId);
+            } catch (_) {
+                /* still track on the handle */
+            }
+            const move = (ev) => {
+                const dx = ev.clientX - startX;
+                left.style.flex = `0 0 ${Math.max(200, leftW + dx)}px`;
+                right.style.flex = `0 0 ${Math.max(200, rightW - dx)}px`;
+            };
+            const up = () => {
+                handle.removeEventListener('pointermove', move);
+                handle.removeEventListener('pointerup', up);
+                const widths = cols().map((col) => col.getBoundingClientRect().width);
+                const total = widths.reduce((sum, n) => sum + n, 0) || 1;
+                try {
+                    localStorage.setItem(SETTINGS_COLS_KEY, JSON.stringify(widths.map((n) => n / total)));
+                } catch (_) {
+                    /* quota */
+                }
+                cols().forEach((col, i) => {
+                    col.style.flex = `${widths[i] / total} 1 0`;
+                });
+            };
+            handle.addEventListener('pointermove', move);
+            handle.addEventListener('pointerup', up);
+        });
+    });
+}
+
+function paintClunySettings(cfg) {
+    const sqlite = document.getElementById('clunySqlitePath');
+    const url = document.getElementById('clunyIngestUrl');
+    const key = document.getElementById('clunyApiKey');
+    const journal = document.getElementById('clunyJournalToggle');
+    const checklist = document.getElementById('clunyChecklistToggle');
+    const status = document.getElementById('clunyStatus');
+    const envNote = document.getElementById('clunyEnvNote');
+    if (sqlite) {
+        sqlite.value = cfg.sqlite_path || '';
+        sqlite.readOnly = !!cfg.env_overrides?.sqlite_path;
+    }
+    if (url) {
+        url.value = cfg.ingest_url || '';
+        url.readOnly = !!cfg.env_overrides?.ingest_url;
+    }
+    if (key) {
+        key.value = cfg.api_key || '';
+        key.readOnly = !!cfg.env_overrides?.api_key;
+    }
+    if (journal) journal.checked = cfg.journal_enabled !== false;
+    if (checklist) checklist.checked = cfg.checklist_enabled !== false;
+    if (status) status.textContent = cfg.status_note || '';
+    if (envNote) {
+        envNote.textContent = cfg.env_note || '';
+    }
+}
+
+async function loadClunySettings() {
+    if (typeof eel === 'undefined' || !eel.get_cluny_settings) return;
+    try {
+        paintClunySettings(await eel.get_cluny_settings()());
+    } catch (_) {
+        /* eel not ready */
+    }
+}
+
+async function saveClunySettings() {
+    if (typeof eel === 'undefined' || !eel.save_cluny_settings) return;
+    const payload = {
+        sqlite_path: document.getElementById('clunySqlitePath')?.value || '',
+        ingest_url: document.getElementById('clunyIngestUrl')?.value || '',
+        api_key: document.getElementById('clunyApiKey')?.value || '',
+        journal_enabled: !!document.getElementById('clunyJournalToggle')?.checked,
+        checklist_enabled: !!document.getElementById('clunyChecklistToggle')?.checked,
+    };
+    try {
+        const saved = await eel.save_cluny_settings(payload)();
+        paintClunySettings(saved);
+        utils.showSuccessFeedback('Cluny settings saved.');
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not save Cluny settings.');
     }
 }

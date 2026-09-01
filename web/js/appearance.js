@@ -287,6 +287,14 @@ function applyResolvedVars(root, settings) {
     root.style.setProperty('--primary-ink', ink);
 }
 
+export function applyAppearanceOverlay(extraOverrides) {
+    const merged = {
+        ...current,
+        colorOverrides: { ...(current.colorOverrides || {}), ...(extraOverrides || {}) },
+    };
+    applyResolvedVars(document.documentElement, merged);
+}
+
 export function applyAppearance(settings) {
     current = mergeSettings(settings);
     const root = document.documentElement;

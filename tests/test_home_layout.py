@@ -182,6 +182,34 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.rename_home_page(page_id, "x" * 80)
         self.assertEqual(len(layout["pages"][0]["name"]), 40)
 
+    def test_page_colors_are_optional_and_sanitized(self) -> None:
+        layout = home_layout.get_home_layout()
+        page_id = layout["pages"][0]["id"]
+        self.assertNotIn("colors", layout["pages"][0])
+        layout = home_layout.set_home_page_colors(
+            page_id,
+            {
+                "pageBg": "#112233",
+                "titles": "abc",
+                "nope": "#ffffff",
+                "widgetBorder": "not-a-color",
+            },
+        )
+        self.assertEqual(layout["pages"][0]["colors"]["pageBg"], "#112233")
+        self.assertEqual(layout["pages"][0]["colors"]["titles"], "#aabbcc")
+        self.assertNotIn("nope", layout["pages"][0]["colors"])
+        self.assertNotIn("widgetBorder", layout["pages"][0]["colors"])
+        extra = home_layout.add_home_page("Studio")
+        extra_id = extra["pages"][1]["id"]
+        extra = home_layout.set_home_page_colors(extra_id, {"accent": "#4f8fcf"})
+        home_colors = next(page["colors"] for page in extra["pages"] if page["id"] == page_id)
+        self.assertEqual(home_colors["pageBg"], "#112233")
+        studio = next(page for page in extra["pages"] if page["id"] == extra_id)
+        self.assertEqual(studio["colors"]["accent"], "#4f8fcf")
+        cleared = home_layout.set_home_page_colors(page_id, {})
+        home = next(page for page in cleared["pages"] if page["id"] == page_id)
+        self.assertNotIn("colors", home)
+
     def test_new_home_widgets_can_be_added(self) -> None:
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]

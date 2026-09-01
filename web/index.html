@@ -20,10 +20,12 @@
             </div>
 
             <nav class="app-nav" aria-label="Sections">
-                <button type="button" class="nav-item active" data-tab="home" aria-current="page">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>
-                    <span class="nav-label">Home</span>
-                </button>
+                <div id="homeNavPages" class="home-nav-pages">
+                    <button type="button" class="nav-item active" data-tab="home" aria-current="page">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>
+                        <span class="nav-label">Home</span>
+                    </button>
+                </div>
                 <button type="button" class="nav-item" data-tab="calendar">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
                     <span class="nav-label">Calendar</span>
@@ -55,6 +57,9 @@
             <main class="app-content">
                 <section id="homeTab" class="tab-content active" aria-label="Home">
                     <div id="homeShell" class="home-shell">
+                        <div class="home-title-strip">
+                            <h1 id="homePageTitle" class="home-page-title">Home</h1>
+                        </div>
                         <header class="home-toolbar">
                             <div id="homePages" class="home-pages" role="tablist" aria-label="Home pages"></div>
                             <div class="home-toolbar-actions">
@@ -64,7 +69,7 @@
                         </header>
                         <p class="home-live-copy">Drag a widget’s title bar to move it. Edit Home to add, resize, or remove.</p>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
-                            <p class="home-edit-copy">Size cycles the allowed shapes. Add another page for a second board. Widget borders apply to every Home page. Drag still uses the title bar so you do not grab a to-do.</p>
+                            <p class="home-edit-copy">Size cycles the allowed shapes. Add another page for a second board. These widget borders apply to every page unless a page has its own colors in Settings. Drag still uses the title bar so you do not grab a to-do.</p>
                             <div class="home-border-controls">
                                 <label class="home-border-field" for="homeBorderWidth">
                                     Widget border
@@ -658,7 +663,8 @@
                 </section>
 
                 <section id="settingsTab" class="tab-content" aria-label="Settings">
-                    <div class="settings-grid">
+                    <div class="settings-board" id="settingsBoard">
+                        <div class="settings-col" data-settings-col="appearance">
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
@@ -684,6 +690,14 @@
 
                             <div class="settings-block">
                                 <h3>Colors</h3>
+                                <div class="segmented" id="colorScopeGroup" role="group" aria-label="Color scope">
+                                    <button type="button" data-color-scope="global" class="is-selected">All pages</button>
+                                    <button type="button" data-color-scope="page">This page</button>
+                                </div>
+                                <label class="checklist-field-label" id="colorPageSelectLabel" for="colorPageSelect">Home page</label>
+                                <select id="colorPageSelect" class="checklist-select" hidden></select>
+                                <p id="colorScopeNote" class="checklist-hint small"></p>
+                                <button type="button" id="clearPageColorsBtn" class="btn-ghost" hidden>Clear this page’s colors</button>
                                 <div class="ink-row">
                                     <label>
                                         <input type="checkbox" id="inkAutoToggle" checked>
@@ -749,10 +763,14 @@
                             </div>
                             <div class="settings-block">
                                 <h3>Home</h3>
-                                <p class="checklist-hint small">Widgets, sizes, extra pages, and widget borders live on Home. Open Home and click Edit Home.</p>
+                                <p class="checklist-hint small">Widgets, sizes, extra pages, and widget borders live on Home. Open Home and click Edit Home. Colors above can be for every page or just the one you pick.</p>
                             </div>
                         </div>
+                        </div>
 
+                        <div class="settings-resize" data-resize="0" role="separator" aria-orientation="vertical" aria-label="Resize Appearance column"></div>
+
+                        <div class="settings-col" data-settings-col="writing">
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
@@ -797,7 +815,11 @@
                                 </ul>
                             </div>
                         </div>
+                        </div>
 
+                        <div class="settings-resize" data-resize="1" role="separator" aria-orientation="vertical" aria-label="Resize Writing column"></div>
+
+                        <div class="settings-col" data-settings-col="reminders">
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
@@ -889,6 +911,50 @@
                                     <p id="healthImportStatus" class="checklist-hint small"></p>
                                 </div>
                             </details>
+                        </div>
+                        </div>
+
+                        <div class="settings-resize" data-resize="2" role="separator" aria-orientation="vertical" aria-label="Resize Reminders column"></div>
+
+                        <div class="settings-col" data-settings-col="cluny">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Cluny</h2>
+                                    <p class="panel-sub">The local brain. Kosistenz stays the planner. Cluny only gets copies to index.</p>
+                                </div>
+                            </div>
+                            <p class="checklist-hint small">After you save a journal entry or check-in, Kosistenz can push a copy into Cluny’s SQLite or an ingest URL. Cluny does not schedule, and it does not own the live to-do list.</p>
+                            <div class="settings-block">
+                                <label class="checklist-checkbox-label">
+                                    <input type="checkbox" id="clunyJournalToggle" checked>
+                                    Push journal entries after save
+                                </label>
+                                <label class="checklist-checkbox-label">
+                                    <input type="checkbox" id="clunyChecklistToggle" checked>
+                                    Push check-in submissions after save
+                                </label>
+                            </div>
+                            <div class="settings-block">
+                                <label class="checklist-field-label" for="clunySqlitePath">Cluny SQLite path</label>
+                                <input type="text" id="clunySqlitePath" class="checklist-text-input" placeholder="/Users/you/.cluny/cluny.sqlite" autocomplete="off">
+                                <p class="checklist-hint small">Must stay inside your home folder. Same as CLUNY_SQLITE_PATH.</p>
+                            </div>
+                            <div class="settings-block">
+                                <label class="checklist-field-label" for="clunyIngestUrl">Ingest URL</label>
+                                <input type="url" id="clunyIngestUrl" class="checklist-text-input" placeholder="https://… or http://127.0.0.1:…" autocomplete="off">
+                                <p class="checklist-hint small">HTTPS, or HTTP on localhost. Same as CLUNY_INGEST_URL.</p>
+                            </div>
+                            <div class="settings-block">
+                                <label class="checklist-field-label" for="clunyApiKey">API key (optional)</label>
+                                <input type="password" id="clunyApiKey" class="checklist-text-input" placeholder="Bearer token" autocomplete="off">
+                            </div>
+                            <div class="reminder-actions">
+                                <button type="button" id="clunySaveBtn" class="btn-primary">Save Cluny</button>
+                            </div>
+                            <p id="clunyStatus" class="checklist-hint small"></p>
+                            <p id="clunyEnvNote" class="checklist-hint small"></p>
+                        </div>
                         </div>
                     </div>
                 </section>
