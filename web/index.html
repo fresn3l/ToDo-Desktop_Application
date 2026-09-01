@@ -428,6 +428,8 @@
                             <div class="settings-block">
                                 <h3>Theme</h3>
                                 <p class="checklist-hint small">Ocean, Paper, and the others stay as built-ins. Override a color, then save or create a palette.</p>
+                                <div id="themeGrid" class="theme-grid"></div>
+                                <h3 class="preset-heading">Saved palettes</h3>
                                 <div class="preset-toolbar">
                                     <div id="userPresetChips" class="preset-chips" role="list" aria-label="Saved palettes"></div>
                                     <button type="button" id="savePresetBtn" class="btn-ghost">Save</button>
@@ -435,17 +437,10 @@
                                     <button type="button" id="deletePresetBtn" class="btn-ghost">Delete</button>
                                 </div>
                                 <p id="presetNote" class="checklist-hint small"></p>
-                                <div id="themeGrid" class="theme-grid"></div>
                             </div>
 
                             <div class="settings-block">
                                 <h3>Colors</h3>
-                                <div id="colorSlotList" class="color-slot-list"></div>
-                                <div id="accentGrid" class="accent-grid"></div>
-                                <div id="customAccentWrap" class="custom-accent-wrap is-hidden">
-                                    <label class="checklist-field-label" for="customAccentInput">Custom color</label>
-                                    <input type="color" id="customAccentInput" class="color-input" value="#4F8FCF">
-                                </div>
                                 <div class="ink-row">
                                     <label>
                                         <input type="checkbox" id="inkAutoToggle" checked>
@@ -455,6 +450,12 @@
                                         Button ink
                                         <input type="color" id="inkColorInput" class="color-input" value="#f7fafc">
                                     </label>
+                                </div>
+                                <div id="colorSlotList" class="color-slot-list"></div>
+                                <div id="accentGrid" class="accent-grid"></div>
+                                <div id="customAccentWrap" class="custom-accent-wrap is-hidden">
+                                    <label class="checklist-field-label" for="customAccentInput">Custom color</label>
+                                    <input type="color" id="customAccentInput" class="color-input" value="#4F8FCF">
                                 </div>
                             </div>
 

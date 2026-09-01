@@ -1676,6 +1676,10 @@ input[type='radio'] {
     color: var(--text-secondary);
 }
 
+.preset-heading {
+    margin-top: 14px;
+}
+
 .preset-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -1688,7 +1692,7 @@ input[type='radio'] {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    flex: 1 1 100%;
+    align-items: center;
     min-height: 28px;
 }
 

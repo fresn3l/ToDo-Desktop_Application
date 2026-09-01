@@ -51,6 +51,8 @@ class HomeUiTests(unittest.TestCase):
     def test_appearance_color_slots_exist(self) -> None:
         self.assertIn('id="colorSlotList"', INDEX)
         self.assertIn('id="userPresetChips"', INDEX)
+        self.assertIn("Saved palettes", INDEX)
+        self.assertEqual(INDEX.count('id="inkAutoToggle"'), 1)
         self.assertIn('id="savePresetBtn"', INDEX)
         self.assertIn('id="newPresetBtn"', INDEX)
         self.assertIn('id="inkAutoToggle"', INDEX)
