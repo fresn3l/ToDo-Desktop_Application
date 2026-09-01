@@ -1582,6 +1582,10 @@ input[type='radio'] {
     gap: 8px;
 }
 
+.accent-grid {
+    margin-top: 12px;
+}
+
 .theme-swatch,
 .accent-swatch {
     display: flex;
@@ -1654,9 +1658,9 @@ input[type='radio'] {
 }
 
 .color-slot-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
 }
 
 .color-slot {

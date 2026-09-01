@@ -91,10 +91,20 @@ function paintPresetSelect(settings) {
     if (select) {
         const presets = settings.userPresets || [];
         const currentId = settings.activePresetId || '';
-        select.innerHTML = `<option value="">Built-in theme</option>` + presets
-            .map((p) => `<option value="${utils.escapeHtml(p.id)}"${p.id === currentId ? ' selected' : ''}>${utils.escapeHtml(p.name)}</option>`)
-            .join('');
-        select.value = currentId;
+        const signature = presets.map((p) => `${p.id}:${p.name}`).join('|');
+        if (select.dataset.signature !== signature) {
+            select.dataset.signature = signature;
+            select.dataset.painting = '1';
+            select.innerHTML = `<option value="">Built-in theme</option>` + presets
+                .map((p) => `<option value="${utils.escapeHtml(p.id)}">${utils.escapeHtml(p.name)}</option>`)
+                .join('');
+            select.dataset.painting = '';
+        }
+        if (select.value !== currentId) {
+            select.dataset.painting = '1';
+            select.value = currentId;
+            select.dataset.painting = '';
+        }
     }
     const del = document.getElementById('deletePresetBtn');
     if (del) del.disabled = !settings.activePresetId;
@@ -265,6 +275,7 @@ export function setupSettings() {
     });
 
     document.getElementById('userPresetSelect')?.addEventListener('change', (e) => {
+        if (e.currentTarget.dataset.painting === '1') return;
         const id = e.target.value;
         if (!id) {
             applyBuiltinTheme(getAppearance().theme);
