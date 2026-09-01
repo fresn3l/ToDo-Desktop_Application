@@ -11,7 +11,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import eel
 
@@ -329,6 +329,17 @@ def resolve_ink(settings: Dict[str, Any]) -> str:
         return ink_for_hex(resolve_accent_hex(settings))
     hx = _as_hex(settings.get("ink"), "")
     return hx or ink_for_hex(resolve_accent_hex(settings))
+
+
+def resolved_snapshot(settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Flat colors the iPhone (and first paint) can apply without a theme picker."""
+    raw = _sanitize(settings) if settings is not None else get_appearance_settings()
+    return {
+        "theme": raw["theme"],
+        "colors": resolve_colors(raw),
+        "ink": resolve_ink(raw),
+        "widgetBorderWidth": raw["widgetBorderWidth"],
+    }
 
 
 def _sanitize(raw: Any) -> Dict[str, Any]:

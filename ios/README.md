@@ -2,7 +2,7 @@
 
 Companion to the Mac app. Same Apple ID. Data moves through **iCloud Drive / Kosistenz**, not a Kosistenz server.
 
-The Mac writes a JSON pack (`work.json`, `workouts.json`, `journal.json`, `appearance.json`). This iOS app reads and writes those files.
+The Mac writes a JSON pack (`work.json`, `workouts.json`, `journal.json`, `appearance.json`). This iOS app reads and writes those files. Appearance comes from the Mac pack — there is no second theme picker on the phone.
 
 ## What you need
 
@@ -23,6 +23,7 @@ Xcode project files go stale; the source of truth is the Swift files in `Kosiste
    - `Kosistenz/KosistenzApp.swift`
    - `Kosistenz/TodayScreen.swift`
    - `Kosistenz/SyncPack.swift`
+   - `Kosistenz/Appearance.swift`
 7. Signing & Capabilities → your Personal Team. Add **iCloud** with **iCloud Documents** (default container is enough for iCloud Drive).
 8. Run on your iPhone.
 

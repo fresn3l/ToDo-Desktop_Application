@@ -5,12 +5,156 @@
 import * as utils from './utils.js';
 
 let weekStart = null;
+let calView = 'month';
+let monthCursor = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+let yearCursor = new Date().getFullYear();
 
 function mondayISO(d = new Date()) {
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const offset = (day.getDay() + 6) % 7;
     day.setDate(day.getDate() - offset);
     return utils.localISODate(day);
+}
+
+function setCalView(next) {
+    calView = next === 'week' || next === 'year' ? next : 'month';
+    document.getElementById('calGrid')?.classList.toggle('is-hidden', calView !== 'week');
+    document.getElementById('calMonthGrid')?.classList.toggle('is-hidden', calView !== 'month');
+    document.getElementById('calYearGrid')?.classList.toggle('is-hidden', calView !== 'year');
+    document.getElementById('calFillWeek')?.classList.toggle('is-hidden', calView !== 'week');
+    document.querySelectorAll('#calViewGroup [data-cal-view]').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-cal-view') === calView);
+    });
+}
+
+function openWeekForDate(iso) {
+    const [y, m, d] = String(iso || '').split('-').map(Number);
+    if (!y) return;
+    weekStart = mondayISO(new Date(y, m - 1, d));
+    setCalView('week');
+    void loadWeek();
+}
+
+function weekdayHeads() {
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        .map((name) => `<span class="cal-month-dow">${name}</span>`)
+        .join('');
+}
+
+function renderMonthCell(cell, compact) {
+    const extra = [];
+    if (cell.event_count) extra.push('lecture');
+    if (cell.block_count) extra.push('block');
+    if (cell.due_count) extra.push('due');
+    const marks = extra.length
+        ? `<span class="cal-month-dots">${extra.map((kind) => `<i class="is-${kind}"></i>`).join('')}</span>`
+        : '';
+    return `<button type="button" class="cal-month-cell${compact ? ' is-compact' : ''}${cell.in_month ? '' : ' is-out'}${cell.is_today ? ' is-today' : ''}${cell.has_items ? ' has-items' : ''}" data-date="${utils.escapeHtml(cell.date)}">
+        <span class="cal-month-num">${cell.day}</span>${marks}
+    </button>`;
+}
+
+function renderMonthGrid(payload) {
+    const root = document.getElementById('calMonthGrid');
+    const label = document.getElementById('calWeekLabel');
+    if (label) label.textContent = payload.label || 'This month';
+    if (!root) return;
+    const weeks = payload.weeks || [];
+    root.innerHTML = `<div class="cal-month-head">${weekdayHeads()}</div>` + weeks
+        .map((week) => `<div class="cal-month-week">${week.map((cell) => renderMonthCell(cell, false)).join('')}</div>`)
+        .join('');
+}
+
+function renderYearGrid(payload) {
+    const root = document.getElementById('calYearGrid');
+    const label = document.getElementById('calWeekLabel');
+    if (label) label.textContent = payload.label || String(yearCursor);
+    if (!root) return;
+    root.innerHTML = (payload.months || [])
+        .map((month) => {
+            const weeks = (month.weeks || [])
+                .map((week) => `<div class="cal-month-week is-compact">${week.map((cell) => renderMonthCell(cell, true)).join('')}</div>`)
+                .join('');
+            return `<section class="cal-year-month" data-month="${month.month}">
+                <h3 data-jump-month="${month.month}">${utils.escapeHtml(month.label)}</h3>
+                <div class="cal-month-head is-compact">${weekdayHeads()}</div>
+                ${weeks}
+            </section>`;
+        })
+        .join('');
+}
+
+async function loadMonth() {
+    if (typeof eel === 'undefined' || !eel.get_month) return;
+    try {
+        const payload = await eel.get_month(monthCursor.year, monthCursor.month)();
+        monthCursor = { year: payload.year, month: payload.month };
+        renderMonthGrid(payload);
+        renderUnplaced(payload.unplaced || []);
+    } catch (e) {
+        console.error(e);
+        const root = document.getElementById('calMonthGrid');
+        if (root) root.innerHTML = '<p class="checklist-error">Could not load the month.</p>';
+    }
+}
+
+async function loadYear() {
+    if (typeof eel === 'undefined' || !eel.get_year) return;
+    try {
+        const payload = await eel.get_year(yearCursor)();
+        yearCursor = payload.year;
+        renderYearGrid(payload);
+        renderUnplaced(payload.unplaced || []);
+    } catch (e) {
+        console.error(e);
+        const root = document.getElementById('calYearGrid');
+        if (root) root.innerHTML = '<p class="checklist-error">Could not load the year.</p>';
+    }
+}
+
+async function loadCalendar() {
+    setCalView(calView);
+    if (calView === 'year') {
+        await loadYear();
+        return;
+    }
+    if (calView === 'month') {
+        await loadMonth();
+        return;
+    }
+    await loadWeek();
+}
+
+function shiftCalendar(dir) {
+    if (calView === 'year') {
+        yearCursor += dir;
+        void loadYear();
+        return;
+    }
+    if (calView === 'month') {
+        let month = monthCursor.month + dir;
+        let year = monthCursor.year;
+        if (month < 1) {
+            month = 12;
+            year -= 1;
+        } else if (month > 12) {
+            month = 1;
+            year += 1;
+        }
+        monthCursor = { year, month };
+        void loadMonth();
+        return;
+    }
+    weekStart = shiftWeek(dir * 7);
+    void loadWeek();
+}
+
+function jumpToday() {
+    const now = new Date();
+    weekStart = mondayISO(now);
+    monthCursor = { year: now.getFullYear(), month: now.getMonth() + 1 };
+    yearCursor = now.getFullYear();
+    void loadCalendar();
 }
 
 function shiftWeek(days) {
@@ -156,7 +300,7 @@ function bindGrid() {
                 else if (e.altKey) await eel.set_block_status(id, 'done')();
                 else await eel.set_block_status(id, next)();
                 utils.notifyDataChanged();
-                await loadWeek();
+                await loadCalendar();
             } catch (err) {
                 utils.showErrorFeedback(err?.message || 'Could not update that block.');
             }
@@ -169,7 +313,7 @@ function bindGrid() {
             try {
                 await eel.delete_calendar_event(btn.getAttribute('data-id'))();
                 utils.notifyDataChanged();
-                await loadWeek();
+                await loadCalendar();
             } catch (err) {
                 utils.showErrorFeedback(err?.message || 'Could not delete that event.');
             }
@@ -195,7 +339,7 @@ async function addLecture() {
         if (titleEl) titleEl.value = '';
         utils.showSuccessFeedback('Saved on the clock.');
         utils.notifyDataChanged();
-        await loadWeek();
+        await loadCalendar();
     } catch (e) {
         utils.showErrorFeedback(e?.message || 'Could not save that event.');
     }
@@ -216,7 +360,7 @@ async function importIcs() {
         }
         utils.showSuccessFeedback('Due dates are in the unplaced list.');
         utils.notifyDataChanged();
-        await loadWeek();
+        await loadCalendar();
     } catch (e) {
         if (status) status.textContent = '';
         utils.showErrorFeedback(e?.message || 'Could not import that calendar.');
@@ -246,24 +390,28 @@ function defaultEventTimes() {
 }
 
 export function setupCalendar() {
+    setCalView(calView);
+    document.getElementById('calViewGroup')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-cal-view]');
+        if (!btn) return;
+        setCalView(btn.getAttribute('data-cal-view'));
+        void loadCalendar();
+    });
     document.getElementById('calPrevWeek')?.addEventListener('click', () => {
-        weekStart = shiftWeek(-7);
-        void loadWeek();
+        shiftCalendar(-1);
     });
     document.getElementById('calNextWeek')?.addEventListener('click', () => {
-        weekStart = shiftWeek(7);
-        void loadWeek();
+        shiftCalendar(1);
     });
     document.getElementById('calThisWeek')?.addEventListener('click', () => {
-        weekStart = mondayISO();
-        void loadWeek();
+        jumpToday();
     });
     document.getElementById('calFillWeek')?.addEventListener('click', async () => {
         try {
             await eel.fill_week(weekStart || mondayISO())();
             utils.showSuccessFeedback('Placed what fit before each due date.');
             utils.notifyDataChanged();
-            await loadWeek();
+            await loadCalendar();
         } catch (e) {
             utils.showErrorFeedback(e?.message || 'Could not fill the week.');
         }
@@ -280,6 +428,21 @@ export function setupCalendar() {
         if (!chip) return;
         chip.classList.toggle('is-selected');
     });
+    document.getElementById('calMonthGrid')?.addEventListener('click', (e) => {
+        const cell = e.target.closest('[data-date]');
+        if (cell) openWeekForDate(cell.getAttribute('data-date'));
+    });
+    document.getElementById('calYearGrid')?.addEventListener('click', (e) => {
+        const monthHead = e.target.closest('[data-jump-month]');
+        if (monthHead) {
+            monthCursor = { year: yearCursor, month: Number(monthHead.getAttribute('data-jump-month')) };
+            setCalView('month');
+            void loadMonth();
+            return;
+        }
+        const cell = e.target.closest('[data-date]');
+        if (cell) openWeekForDate(cell.getAttribute('data-date'));
+    });
     document.addEventListener('kosistenz:calendar-imported', (e) => {
         const status = document.getElementById('calImportStatus');
         const detail = e.detail || {};
@@ -288,11 +451,11 @@ export function setupCalendar() {
                 ? detail.error
                 : `Apple calendars: ${detail.created || 0} new, ${detail.updated || 0} updated.`;
         }
-        void loadWeek();
+        void loadCalendar();
     });
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('calendarTab')?.classList.contains('active')) {
-            void loadWeek();
+            void loadCalendar();
         }
     });
 }
@@ -300,5 +463,5 @@ export function setupCalendar() {
 export async function onCalendarTabShown() {
     if (!weekStart) weekStart = mondayISO();
     defaultEventTimes();
-    await loadWeek();
+    await loadCalendar();
 }

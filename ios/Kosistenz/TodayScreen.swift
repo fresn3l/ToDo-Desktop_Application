@@ -6,6 +6,7 @@ struct TodayScreen: View {
     @State private var draftTodo = ""
     @State private var draftJournal = ""
     @State private var usingCloud = false
+    @State private var palette = KosistenzPalette.ocean
 
     private var today: String {
         let formatter = DateFormatter()
@@ -42,33 +43,40 @@ struct TodayScreen: View {
                 } header: {
                     Text("Today")
                 }
+                .listRowBackground(palette.widgetBg)
 
                 Section("To Do") {
                     if todayItems.isEmpty {
                         Text("Nothing dated for today.")
                             .foregroundStyle(.secondary)
+                            .listRowBackground(palette.widgetBg)
                     }
                     ForEach(todayItems) { item in
                         Button {
                             toggle(item)
                         } label: {
                             Label(item.title, systemImage: item.status == "done" ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(item.status == "done" ? palette.done : palette.openNext)
                         }
+                        .listRowBackground(palette.widgetBg)
                     }
                     HStack {
                         TextField("Add for today", text: $draftTodo)
                         Button("Add") { addTodo() }
                             .disabled(draftTodo.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
+                    .listRowBackground(palette.widgetBg)
                 }
 
                 Section("Workout") {
                     if todaySessions.isEmpty {
                         Text("No session yet")
                             .foregroundStyle(.secondary)
+                            .listRowBackground(palette.widgetBg)
                     } else {
                         ForEach(todaySessions) { session in
                             Text(session.other_label?.isEmpty == false ? session.other_label! : session.kind.capitalized)
+                                .listRowBackground(palette.widgetBg)
                         }
                     }
                     HStack {
@@ -78,22 +86,31 @@ struct TodayScreen: View {
                         }
                     }
                     .font(.caption)
+                    .listRowBackground(palette.widgetBg)
                 }
 
                 Section("Journal") {
                     TextField("What happened today?", text: $draftJournal, axis: .vertical)
                         .lineLimit(3...8)
+                        .listRowBackground(palette.widgetBg)
                     Button("Save") { saveJournal() }
                         .disabled(draftJournal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .listRowBackground(palette.widgetBg)
                 }
 
                 if let error {
                     Section {
                         Text(error).foregroundStyle(.red)
+                            .listRowBackground(palette.widgetBg)
                     }
                 }
             }
             .navigationTitle(heading)
+            .toolbarBackground(palette.sidebar, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .scrollContentBackground(.hidden)
+            .background(palette.pageBg)
+            .tint(palette.accent)
             .refreshable { reload() }
             .onAppear { reload() }
         }
@@ -109,6 +126,7 @@ struct TodayScreen: View {
         usingCloud = SyncPack.usingiCloudDrive()
         do {
             pack = try SyncPack.load()
+            palette = KosistenzPalette.from(appearance: pack?.appearance)
             error = nil
         } catch {
             self.error = error.localizedDescription

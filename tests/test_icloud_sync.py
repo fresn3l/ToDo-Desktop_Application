@@ -119,3 +119,26 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertEqual(after["folder"], before)
         self.assertNotIn("kosistenz-evil", after["folder"])
 
+    def test_pack_includes_resolved_appearance_colors(self):
+        import appearance
+
+        self._use(self.src)
+        appearance.save_appearance_settings(
+            {
+                "theme": "paper",
+                "colorOverrides": {"accent": "#c45c6a", "pageBg": "#f4e8c8"},
+                "widgetBorderWidth": 2,
+            }
+        )
+        pack = icloud_sync.build_pack()
+        resolved = pack["appearance"]["resolved"]
+        self.assertEqual(set(resolved["colors"]), set(appearance.COLOR_SLOTS))
+        self.assertEqual(resolved["colors"]["accent"], "#c45c6a")
+        self.assertEqual(resolved["colors"]["pageBg"], "#f4e8c8")
+        self.assertIn("ink", resolved)
+        self.assertEqual(resolved["widgetBorderWidth"], 2)
+        exported = icloud_sync.write_pack(self.pack)
+        self.assertTrue(exported["ok"])
+        on_disk = icloud_sync._read_json(self.pack / "appearance.json", {})
+        self.assertEqual(on_disk["resolved"]["colors"]["accent"], "#c45c6a")
+

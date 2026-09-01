@@ -453,7 +453,10 @@ def build_pack() -> Dict[str, Any]:
         "work": _dump_work(),
         "workouts": _dump_workouts(),
         "journal": journal.get_all_entries(),
-        "appearance": appearance.get_appearance_settings(),
+        "appearance": {
+            **appearance.get_appearance_settings(),
+            "resolved": appearance.resolved_snapshot(),
+        },
     }
 
 

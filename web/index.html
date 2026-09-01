@@ -62,8 +62,9 @@
                                 <button type="button" id="homeEditBtn" class="btn-primary">Edit Home</button>
                             </div>
                         </header>
+                        <p class="home-live-copy">Drag a widget’s title bar to move it. Edit Home to add, resize, or remove.</p>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
-                            <p class="home-edit-copy">Drag a widget title to snap it. Size cycles the allowed shapes. Add another page for a second board. Widget borders apply to every Home page.</p>
+                            <p class="home-edit-copy">Size cycles the allowed shapes. Add another page for a second board. Widget borders apply to every Home page. Drag still uses the title bar so you do not grab a to-do.</p>
                             <div class="home-border-controls">
                                 <label class="home-border-field" for="homeBorderWidth">
                                     Widget border
@@ -91,17 +92,24 @@
                         <div class="panel cal-main">
                             <div class="panel-header cal-toolbar">
                                 <div>
-                                    <h2 id="calWeekLabel">This week</h2>
-                                    <p class="panel-sub">Hard events stay put. Fill week places study around them. Nothing is written to Apple Calendar.</p>
+                                    <h2 id="calWeekLabel">This month</h2>
+                                    <p class="panel-sub">Month and year for the long view. Open a day for the week clock. Fill week still places study around lectures. Nothing is written to Apple Calendar.</p>
                                 </div>
                                 <div class="cal-toolbar-actions">
+                                    <div class="segmented" id="calViewGroup" role="group" aria-label="Calendar view">
+                                        <button type="button" data-cal-view="week">Week</button>
+                                        <button type="button" data-cal-view="month" class="is-selected">Month</button>
+                                        <button type="button" data-cal-view="year">Year</button>
+                                    </div>
                                     <button type="button" id="calPrevWeek" class="btn-secondary">Prev</button>
-                                    <button type="button" id="calThisWeek" class="btn-ghost">This week</button>
+                                    <button type="button" id="calThisWeek" class="btn-ghost">Today</button>
                                     <button type="button" id="calNextWeek" class="btn-secondary">Next</button>
-                                    <button type="button" id="calFillWeek" class="btn-primary">Fill week</button>
+                                    <button type="button" id="calFillWeek" class="btn-primary is-hidden">Fill week</button>
                                 </div>
                             </div>
-                            <div id="calGrid" class="cal-grid"></div>
+                            <div id="calGrid" class="cal-grid is-hidden"></div>
+                            <div id="calMonthGrid" class="cal-month-grid"></div>
+                            <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
                             <div class="panel">
