@@ -611,6 +611,119 @@ def get_week(week_start: str = "") -> Dict[str, Any]:
     }
 
 
+def _due_dates() -> List[str]:
+    dates: List[str] = []
+    for item in work.list_all_work_items():
+        due = str(item.get("due_at") or "")[:10]
+        if len(due) == 10:
+            dates.append(due)
+            continue
+        sched = str(item.get("scheduled_date") or "")[:10]
+        if len(sched) == 10:
+            dates.append(sched)
+    return dates
+
+
+def _month_weeks(
+    year: int,
+    month: int,
+    hard: List[Dict[str, Any]],
+    blocks: List[Dict[str, Any]],
+    due_dates: List[str],
+) -> List[List[Dict[str, Any]]]:
+    first = date(year, month, 1)
+    cursor = monday_of(first)
+    weeks: List[List[Dict[str, Any]]] = []
+    today = date.today().isoformat()
+    for _ in range(6):
+        week: List[Dict[str, Any]] = []
+        for _day in range(7):
+            iso = cursor.isoformat()
+            events = [item for item in hard if item.get("occurrence_date") == iso]
+            day_blocks = [item for item in blocks if item.get("local_date") == iso]
+            dues = sum(1 for stamp in due_dates if stamp == iso)
+            week.append(
+                {
+                    "date": iso,
+                    "day": cursor.day,
+                    "in_month": cursor.month == month,
+                    "is_today": iso == today,
+                    "event_count": len(events),
+                    "block_count": len(day_blocks),
+                    "due_count": dues,
+                    "has_items": bool(events or day_blocks or dues),
+                }
+            )
+            cursor += timedelta(days=1)
+        weeks.append(week)
+    return weeks
+
+
+def _clamp_year_month(year: Any, month: Any) -> Tuple[int, int]:
+    today = date.today()
+    try:
+        y = int(year) if year else today.year
+    except (TypeError, ValueError):
+        y = today.year
+    try:
+        m = int(month) if month else today.month
+    except (TypeError, ValueError):
+        m = today.month
+    if y < 1970 or y > 2100:
+        y = today.year
+    if m < 1 or m > 12:
+        m = today.month
+    return y, m
+
+
+@eel.expose
+def get_month(year: int = 0, month: int = 0) -> Dict[str, Any]:
+    y, m = _clamp_year_month(year, month)
+    first = date(y, m, 1)
+    grid_start = monday_of(first)
+    grid_end = grid_start + timedelta(days=41)
+    hard = expand_hard_events(grid_start, grid_end)
+    blocks = list_blocks(grid_start, grid_end)
+    due_dates = _due_dates()
+    return {
+        "year": y,
+        "month": m,
+        "label": first.strftime("%B %Y"),
+        "weeks": _month_weeks(y, m, hard, blocks, due_dates),
+        "settings": load_settings(),
+        "unplaced": unplaced_work(),
+    }
+
+
+@eel.expose
+def get_year(year: int = 0) -> Dict[str, Any]:
+    y, _ = _clamp_year_month(year, 1)
+    start = date(y, 1, 1)
+    grid_start = monday_of(start)
+    grid_end = monday_of(date(y, 12, 1)) + timedelta(days=41)
+    hard = expand_hard_events(grid_start, grid_end)
+    blocks = list_blocks(grid_start, grid_end)
+    due_dates = _due_dates()
+    months = []
+    for month in range(1, 13):
+        first = date(y, month, 1)
+        months.append(
+            {
+                "year": y,
+                "month": month,
+                "label": first.strftime("%b"),
+                "weeks": _month_weeks(y, month, hard, blocks, due_dates),
+            }
+        )
+    return {
+        "year": y,
+        "label": str(y),
+        "months": months,
+        "settings": load_settings(),
+        "unplaced": unplaced_work(),
+    }
+
+
 @eel.expose
 def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
     iso = work._parse_date(local_date) or date.today().isoformat()

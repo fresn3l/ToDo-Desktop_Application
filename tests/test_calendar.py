@@ -222,6 +222,82 @@ END:VCALENDAR
         self.assertEqual(result["item"]["due_at"], "2026-09-04T23:59:00")
         self.assertEqual(result["item"]["estimate_minutes"], 45)
 
+    def test_get_month_is_six_weeks_of_seven(self) -> None:
+        payload = calclock.get_month(2026, 9)
+        self.assertEqual(payload["year"], 2026)
+        self.assertEqual(payload["month"], 9)
+        self.assertEqual(payload["label"], "September 2026")
+        self.assertEqual(len(payload["weeks"]), 6)
+        for week in payload["weeks"]:
+            self.assertEqual(len(week), 7)
+        first = payload["weeks"][0][0]
+        self.assertEqual(first["date"], "2026-08-31")
+        self.assertFalse(first["in_month"])
+        sept1 = payload["weeks"][0][1]
+        self.assertEqual(sept1["date"], "2026-09-01")
+        self.assertTrue(sept1["in_month"])
+        sept30 = next(
+            cell
+            for week in payload["weeks"]
+            for cell in week
+            if cell["date"] == "2026-09-30"
+        )
+        self.assertTrue(sept30["in_month"])
+
+    def test_get_month_marks_today_and_counts_items(self) -> None:
+        today = date.today()
+        payload = calclock.get_month(today.year, today.month)
+        flagged = [cell for week in payload["weeks"] for cell in week if cell["is_today"]]
+        self.assertEqual(len(flagged), 1)
+        self.assertEqual(flagged[0]["date"], today.isoformat())
+        self.assertTrue(flagged[0]["in_month"])
+
+        calclock.create_calendar_event(
+            "CHEM 109",
+            "2026-09-07T09:30:00",
+            "2026-09-07T10:20:00",
+            weekdays=[0],
+        )
+        work.create_work_item("Essay 2", due_at="2026-09-11T23:59:00")
+        work.create_work_item("45 mins calculus", scheduled_date="2026-09-10")
+        with mock.patch.object(schedule, "_now", return_value=datetime(2026, 9, 7, 8, 0, 0)):
+            schedule.fill_week("2026-09-07")
+        month = calclock.get_month(2026, 9)
+        lecture = next(
+            cell for week in month["weeks"] for cell in week if cell["date"] == "2026-09-07"
+        )
+        due = next(
+            cell for week in month["weeks"] for cell in week if cell["date"] == "2026-09-11"
+        )
+        placed = next(
+            cell for week in month["weeks"] for cell in week if cell["date"] == "2026-09-10"
+        )
+        self.assertGreaterEqual(lecture["event_count"], 1)
+        self.assertGreaterEqual(due["due_count"], 1)
+        self.assertGreaterEqual(placed["block_count"], 1)
+        self.assertTrue(lecture["has_items"])
+
+    def test_get_month_clamps_junk_year_and_month(self) -> None:
+        today = date.today()
+        junk = calclock.get_month("nope", 99)
+        self.assertEqual(junk["year"], today.year)
+        self.assertEqual(junk["month"], today.month)
+        far = calclock.get_month(3000, 0)
+        self.assertEqual(far["year"], today.year)
+        self.assertEqual(far["month"], today.month)
+
+    def test_get_year_has_twelve_month_grids(self) -> None:
+        payload = calclock.get_year(2026)
+        self.assertEqual(payload["year"], 2026)
+        self.assertEqual(payload["label"], "2026")
+        self.assertEqual(len(payload["months"]), 12)
+        self.assertEqual([row["month"] for row in payload["months"]], list(range(1, 13)))
+        for month in payload["months"]:
+            self.assertEqual(len(month["weeks"]), 6)
+            self.assertEqual(len(month["weeks"][0]), 7)
+        junk = calclock.get_year("later")
+        self.assertEqual(junk["year"], date.today().year)
+
 
 if __name__ == "__main__":
     unittest.main()
