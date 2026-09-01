@@ -13,7 +13,22 @@ import { onAnalyticsTabShown } from './analytics.js';
 import { onTimelineTabShown } from './timeline.js';
 import { loadPastEntries } from './journal.js';
 
-let layout = null;
+const FALLBACK_LAYOUT = {
+    columns: 4,
+    active_page_id: 'local-home',
+    pages: [
+        {
+            id: 'local-home',
+            name: 'Home',
+            widgets: [
+                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 3 },
+                { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2 },
+            ],
+        },
+    ],
+};
+
+let layout = FALLBACK_LAYOUT;
 let editing = false;
 let drag = null;
 
@@ -36,24 +51,17 @@ async function persist(next) {
 }
 
 async function loadLayout() {
-    if (typeof eel === 'undefined' || !eel.get_home_layout) {
-        layout = {
-            columns: 4,
-            active_page_id: 'local-home',
-            pages: [
-                {
-                    id: 'local-home',
-                    name: 'Home',
-                    widgets: [
-                        { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 3 },
-                        { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2 },
-                    ],
-                },
-            ],
-        };
-        return layout;
+    try {
+        if (typeof eel !== 'undefined' && eel.get_home_layout) {
+            layout = await eel.get_home_layout()();
+            return layout;
+        }
+    } catch (err) {
+        console.warn(err);
     }
-    layout = await eel.get_home_layout()();
+    if (!layout || !layout.pages?.length) {
+        layout = structuredClone(FALLBACK_LAYOUT);
+    }
     return layout;
 }
 
@@ -299,6 +307,7 @@ function bindHome() {
 
 export function setupHome() {
     bindHome();
+    void renderHome();
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
             const page = activePage();
