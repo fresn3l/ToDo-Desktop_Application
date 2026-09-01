@@ -270,9 +270,8 @@ function bindHome() {
     });
 
     document.getElementById('homeGrid')?.addEventListener('pointerdown', (e) => {
-        if (!editing) return;
         if (e.target.closest('[data-act]')) return;
-        const handle = e.target.closest('.home-widget-handle, .home-widget-chrome');
+        const handle = e.target.closest('.home-widget-handle');
         const card = e.target.closest('.home-widget');
         if (!handle || !card) return;
         const page = activePage();

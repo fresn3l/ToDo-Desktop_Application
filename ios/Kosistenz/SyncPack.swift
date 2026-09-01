@@ -29,6 +29,7 @@ enum SyncPack {
             workouts: decode(WorkoutsFile.self, at: folder.appendingPathComponent("workouts.json"))
                 ?? WorkoutsFile(days: [], sessions: [], template: nil),
             journal: decode([JournalEntry].self, at: folder.appendingPathComponent("journal.json")) ?? [],
+            appearance: jsonObject(at: folder.appendingPathComponent("appearance.json")),
             folder: folder
         )
     }
@@ -46,6 +47,13 @@ enum SyncPack {
     static func saveJournal(_ entries: [JournalEntry]) throws {
         try encode(entries, to: try folderURL().appendingPathComponent("journal.json"))
         try touchManifest()
+    }
+
+    private static func jsonObject(at url: URL) -> [String: Any] {
+        guard let data = try? Data(contentsOf: url),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [:] }
+        return object
     }
 
     private static func decode<T: Decodable>(_ type: T.Type, at url: URL) -> T? {
@@ -74,6 +82,7 @@ struct Pack {
     var work: WorkFile
     var workouts: WorkoutsFile
     var journal: [JournalEntry]
+    var appearance: [String: Any]
     var folder: URL
 }
 

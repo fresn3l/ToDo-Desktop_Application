@@ -134,7 +134,39 @@ class AppearancePaletteTests(unittest.TestCase):
             for hex_color in palette.values():
                 self.assertIn(hex_color, js)
 
+    def test_resolved_snapshot_has_every_slot_and_ink(self):
+        saved = appearance.save_appearance_settings(
+            {
+                "theme": "paper",
+                "colorOverrides": {"accent": "#c45c6a"},
+                "widgetBorderWidth": 3,
+                "inkAuto": False,
+                "ink": "#112233",
+            }
+        )
+        snap = appearance.resolved_snapshot(saved)
+        self.assertEqual(tuple(snap["colors"].keys()), appearance.COLOR_SLOTS)
+        self.assertEqual(snap["theme"], "paper")
+        self.assertEqual(snap["colors"]["accent"], "#c45c6a")
+        self.assertEqual(snap["colors"]["pageBg"], appearance.THEME_PALETTES["paper"]["pageBg"])
+        self.assertEqual(snap["ink"], "#112233")
+        self.assertEqual(snap["widgetBorderWidth"], 3)
+        live = appearance.resolved_snapshot()
+        self.assertEqual(live["colors"]["accent"], "#c45c6a")
+
     def test_futuresprints_notes_iphone_appearance(self):
         text = Path(__file__).resolve().parents[1].joinpath("docs", "futuresprints.md").read_text(encoding="utf-8")
         self.assertIn("iPhone appearance", text)
         self.assertIn("appearance.json", text)
+        self.assertIn("resolved", text)
+        self.assertIn("shipped", text.lower())
+        swift = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "Appearance.swift").read_text(
+            encoding="utf-8"
+        )
+        today = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "TodayScreen.swift").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("KosistenzPalette", swift)
+        self.assertIn('json?["resolved"]', swift)
+        self.assertIn("KosistenzPalette.from", today)
+        self.assertIn("No iPhone theme picker", swift)

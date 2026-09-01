@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
 TABS = (ROOT / "web" / "js" / "tabs.js").read_text(encoding="utf-8")
 HOME_JS = (ROOT / "web" / "js" / "home_layout.js").read_text(encoding="utf-8")
+HOME_RUNTIME = (ROOT / "web" / "js" / "home.js").read_text(encoding="utf-8")
+CAL_JS = (ROOT / "web" / "js" / "calendar.js").read_text(encoding="utf-8")
 
 
 class HomeUiTests(unittest.TestCase):
@@ -80,3 +82,24 @@ class HomeUiTests(unittest.TestCase):
         ):
             self.assertIn(f"{kind}:", HOME_JS)
         self.assertNotIn("settings:", HOME_JS)
+
+    def test_calendar_month_year_markup(self) -> None:
+        for needle in ("calViewGroup", "calMonthGrid", "calYearGrid", "calFillWeek", "calPrevWeek"):
+            self.assertIn(f'id="{needle}"', INDEX)
+        self.assertIn('data-cal-view="week"', INDEX)
+        self.assertIn('data-cal-view="month"', INDEX)
+        self.assertIn('data-cal-view="year"', INDEX)
+        self.assertIn('id="calFillWeek" class="btn-primary is-hidden"', INDEX)
+        self.assertIn("calView = 'month'", CAL_JS)
+        self.assertIn("openWeekForDate", CAL_JS)
+        self.assertIn("eel.get_month", CAL_JS)
+        self.assertIn("eel.get_year", CAL_JS)
+
+    def test_live_home_drags_from_title_without_edit(self) -> None:
+        self.assertIn("home-live-copy", INDEX)
+        self.assertIn("home-widget-handle", HOME_RUNTIME)
+        self.assertIn("closest('.home-widget-handle')", HOME_RUNTIME)
+        pointer = HOME_RUNTIME.split("addEventListener('pointerdown'")[1].split("addEventListener('pointermove'")[0]
+        self.assertNotIn("if (!editing)", pointer)
+        click = HOME_RUNTIME.split("addEventListener('click'")[-1].split("addEventListener('pointerdown'")[0]
+        self.assertIn("if (!editing) return;", click)
