@@ -80,10 +80,11 @@ function paintColorSlots(settings) {
 function paintInk(settings) {
     const auto = document.getElementById('inkAutoToggle');
     if (auto) auto.checked = settings.inkAuto !== false;
-    const wrap = document.getElementById('inkCustomWrap');
-    if (wrap) wrap.classList.toggle('is-hidden', settings.inkAuto !== false);
     const inkInput = document.getElementById('inkColorInput');
-    if (inkInput) inkInput.value = resolveInk(settings);
+    if (inkInput) {
+        inkInput.value = resolveInk(settings);
+        inkInput.title = settings.inkAuto !== false ? 'Auto from accent — click to override' : 'Custom button ink';
+    }
 }
 
 function paintPresetSelect(settings) {

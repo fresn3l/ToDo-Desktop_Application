@@ -57,6 +57,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn('id="newPresetBtn"', INDEX)
         self.assertIn('id="inkAutoToggle"', INDEX)
         self.assertIn('id="inkColorInput"', INDEX)
+        self.assertNotIn('id="inkCustomWrap"', INDEX)
         self.assertIn('id="accentGrid"', INDEX)
         self.assertIn('data-preset-id', Path(__file__).resolve().parents[1].joinpath("web", "js", "settings.js").read_text(encoding="utf-8"))
 
