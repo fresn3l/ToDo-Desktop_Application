@@ -15,6 +15,10 @@ import { onTimelineTabShown } from './timeline.js';
 import { loadPastEntries } from './journal.js';
 import { refreshWeather } from './weather.js';
 import { refreshFocus, refreshCountdown, refreshHabits } from './glance.js';
+import { refreshHeatmap } from './heatmap.js';
+import { refreshDayBrief } from './day_brief.js';
+import { refreshCounters } from './counters.js';
+import { refreshReading } from './reading.js';
 
 const FALLBACK_LAYOUT = {
     columns: 4,
@@ -98,6 +102,10 @@ async function refreshKinds(kinds) {
         if (set.has('focus')) await refreshFocus();
         if (set.has('countdown')) await refreshCountdown();
         if (set.has('habits')) await refreshHabits();
+        if (set.has('heatmap')) await refreshHeatmap();
+        if (set.has('day_brief')) await refreshDayBrief();
+        if (set.has('counters')) await refreshCounters();
+        if (set.has('reading')) await refreshReading();
         await refreshToday();
     } catch (err) {
         console.error(err);

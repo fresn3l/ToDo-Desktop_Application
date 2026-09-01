@@ -11,8 +11,12 @@ import eel
 
 import appearance  # noqa: F401
 import calclock  # noqa: F401
+import day_brief  # noqa: F401
 import glance  # noqa: F401
+import heatmap  # noqa: F401
 import home_layout  # noqa: F401
+import reading  # noqa: F401
+import tap_counters  # noqa: F401
 import weather  # noqa: F401
 import export_data  # noqa: F401
 import goals  # noqa: F401

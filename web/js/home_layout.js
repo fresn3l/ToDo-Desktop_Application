@@ -18,6 +18,10 @@ export const WIDGET_CATALOG = {
     focus: { label: 'Focus', sizes: [[2, 2], [4, 2]], default: [2, 2], source: 'focusSource' },
     countdown: { label: 'Countdown', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'countdownSource' },
     habits: { label: 'Habits', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 3], source: 'habitsSource' },
+    heatmap: { label: 'Heatmap', sizes: [[4, 2], [4, 3]], default: [4, 2], source: 'heatmapSource' },
+    day_brief: { label: 'Day', sizes: [[2, 3], [4, 3], [4, 4]], default: [2, 3], source: 'dayBriefSource' },
+    counters: { label: 'Counters', sizes: [[2, 2], [2, 3], [4, 2], [4, 3]], default: [2, 2], source: 'countersSource' },
+    reading: { label: 'Reading', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'readingSource' },
 };
 
 export function catalogList() {

@@ -36,6 +36,10 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("focus", kinds)
         self.assertIn("countdown", kinds)
         self.assertIn("habits", kinds)
+        self.assertIn("heatmap", kinds)
+        self.assertIn("day_brief", kinds)
+        self.assertIn("counters", kinds)
+        self.assertIn("reading", kinds)
         self.assertNotIn("settings", kinds)
         self.assertNotIn("calendar", kinds)
 
@@ -165,6 +169,30 @@ class HomeLayoutTests(unittest.TestCase):
         page_id = layout["pages"][0]["id"]
         layout = home_layout.rename_home_page(page_id, "x" * 80)
         self.assertEqual(len(layout["pages"][0]["name"]), 40)
+
+    def test_new_home_widgets_can_be_added(self) -> None:
+        layout = home_layout.get_home_layout()
+        page_id = layout["pages"][0]["id"]
+        layout = home_layout.add_home_widget(page_id, "weather")
+        layout = home_layout.add_home_widget(page_id, "focus")
+        layout = home_layout.add_home_widget(page_id, "countdown")
+        layout = home_layout.add_home_widget(page_id, "habits")
+        layout = home_layout.add_home_widget(page_id, "heatmap")
+        layout = home_layout.add_home_widget(page_id, "day_brief")
+        layout = home_layout.add_home_widget(page_id, "counters")
+        layout = home_layout.add_home_widget(page_id, "reading")
+        kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
+        self.assertIn("weather", kinds)
+        self.assertIn("focus", kinds)
+        self.assertIn("countdown", kinds)
+        self.assertIn("habits", kinds)
+        self.assertIn("heatmap", kinds)
+        self.assertIn("day_brief", kinds)
+        self.assertIn("counters", kinds)
+        self.assertIn("reading", kinds)
+        self.assertEqual(home_layout.coerce_size("countdown", 4, 2), (4, 2))
+        self.assertEqual(home_layout.coerce_size("heatmap", 2, 2), (4, 2))
+        self.assertEqual(home_layout.coerce_size("day_brief", 2, 3), (2, 3))
 
     def test_reset_restores_first_install(self) -> None:
         layout = home_layout.get_home_layout()

@@ -84,6 +84,26 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((2, 2), (2, 3), (4, 2)),
         "default": (2, 3),
     },
+    "heatmap": {
+        "label": "Heatmap",
+        "sizes": ((4, 2), (4, 3)),
+        "default": (4, 2),
+    },
+    "day_brief": {
+        "label": "Day",
+        "sizes": ((2, 3), (4, 3), (4, 4)),
+        "default": (2, 3),
+    },
+    "counters": {
+        "label": "Counters",
+        "sizes": ((2, 2), (2, 3), (4, 2), (4, 3)),
+        "default": (2, 2),
+    },
+    "reading": {
+        "label": "Reading",
+        "sizes": ((2, 2), (2, 3), (4, 2)),
+        "default": (2, 2),
+    },
 }
 
 SOURCE_TAB = {
@@ -99,6 +119,10 @@ SOURCE_TAB = {
     "focus": "focusSource",
     "countdown": "countdownSource",
     "habits": "habitsSource",
+    "heatmap": "heatmapSource",
+    "day_brief": "dayBriefSource",
+    "counters": "countersSource",
+    "reading": "readingSource",
 }
 
 
