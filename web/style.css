@@ -2723,6 +2723,7 @@ html.native-shell .home-title-strip {
     background: linear-gradient(to bottom, color-mix(in srgb, var(--bg-elevated) 72%, transparent) 0%, transparent 100%);
     z-index: 2;
     cursor: grab;
+    pointer-events: none;
 }
 
 .home-widget-size,
@@ -2762,6 +2763,7 @@ html.native-shell .home-title-strip {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+    pointer-events: auto;
 }
 
 .home-widget-grip {
@@ -2784,6 +2786,7 @@ html.native-shell .home-title-strip {
 .home-widget-btn,
 .home-widget-size {
     cursor: pointer;
+    pointer-events: auto;
 }
 
 .home-widget-handle:active {
@@ -2798,7 +2801,7 @@ html.native-shell .home-title-strip {
 .home-widget-body {
     flex: 1;
     min-height: 0;
-    overflow: hidden;
+    overflow: auto;
     padding: 1.35rem 10px 8px;
     display: flex;
     flex-direction: column;
@@ -2854,7 +2857,10 @@ html.native-shell .home-title-strip {
     padding: 0;
     border-radius: 0;
     min-height: 0;
-    height: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
 }
 
 .home-widget-body .work-layout,
@@ -2869,6 +2875,24 @@ html.native-shell .home-title-strip {
 .home-widget-body .checklist-hint.small {
     font-size: 12px;
     margin-bottom: 6px;
+}
+
+.home-widget[data-h="1"] .panel-sub,
+.home-widget[data-h="2"] .panel-sub,
+.home-widget[data-w="2"] .panel-sub {
+    display: none;
+}
+
+.home-widget #journalEntry,
+.home-widget .journal-paper #journalEntry {
+    min-height: 0;
+    height: 100%;
+    resize: none;
+}
+
+.home-widget .journal-text-container {
+    flex: 1;
+    min-height: 0;
 }
 
 .home-widget-body .work-item {
@@ -2894,7 +2918,6 @@ html.native-shell .home-title-strip {
 
 .home-widget[data-kind="weather"][data-h="1"] .weather-hourly,
 .home-widget[data-kind="weather"][data-h="1"] .weather-daily,
-.home-widget[data-kind="weather"][data-h="1"] .weather-place-form,
 .home-widget[data-kind="weather"][data-h="1"] .weather-units,
 .home-widget[data-kind="weather"][data-h="1"] .weather-meta,
 .home-widget[data-kind="weather"][data-h="1"] .weather-next,
@@ -2902,13 +2925,15 @@ html.native-shell .home-title-strip {
 .home-widget[data-kind="weather"][data-h="1"] .today-date-sub,
 .home-widget[data-kind="weather"][data-w="1"] .weather-hourly,
 .home-widget[data-kind="weather"][data-w="1"] .weather-daily,
-.home-widget[data-kind="weather"][data-w="1"] .weather-place-form,
 .home-widget[data-kind="weather"][data-w="1"] .weather-units,
 .home-widget[data-kind="weather"][data-w="1"] .weather-meta,
 .home-widget[data-kind="weather"][data-w="1"] .weather-next,
 .home-widget[data-kind="weather"][data-w="1"] .today-date-sub,
 .home-widget[data-kind="weather"][data-w="2"][data-h="2"] .weather-daily,
-.home-widget[data-kind="weather"][data-w="1"][data-h="1"] .glance-head,
+.home-widget[data-kind="weather"][data-h="1"] .weather-place-form.is-collapsed,
+.home-widget[data-kind="weather"][data-w="1"] .weather-place-form.is-collapsed,
+.home-widget[data-kind="weather"][data-w="1"][data-h="1"]:has(.weather-current:not(:empty)) .glance-head,
+.home-widget[data-kind="weather"][data-w="1"][data-h="1"]:has(.weather-place-form:not(.is-collapsed)) .glance-head,
 .home-widget[data-kind="weather"][data-w="1"][data-h="1"] .weather-current-copy,
 .home-widget[data-kind="weather"][data-w="1"][data-h="1"] #weatherStatus {
     display: none;
@@ -2944,9 +2969,20 @@ html.native-shell .home-title-strip {
     letter-spacing: -0.06em;
 }
 
+.home-widget[data-kind="weather"][data-h="1"] .weather-place-form,
+.home-widget[data-kind="weather"][data-w="1"] .weather-place-form {
+    margin-top: 2px;
+    gap: 4px;
+}
+
+.home-widget[data-kind="weather"][data-w="1"] .weather-place-form .btn-secondary {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
 .home-widget[data-kind="habits"][data-h="1"] .today-date-sub,
-.home-widget[data-kind="habits"][data-h="1"] .glance-add,
-.home-widget[data-kind="habits"][data-w="1"] .glance-add,
+.home-widget[data-kind="habits"][data-h="1"]:has(.habit-tick) .glance-add,
+.home-widget[data-kind="habits"][data-w="1"]:has(.habit-tick) .glance-add,
 .home-widget[data-kind="habits"][data-h="2"] .today-date-sub {
     display: none;
 }
@@ -3018,8 +3054,8 @@ html.native-shell .home-title-strip {
     box-shadow: none;
 }
 
-.home-widget[data-kind="countdown"][data-h="1"] .glance-add,
-.home-widget[data-kind="countdown"][data-w="1"] .glance-add,
+.home-widget[data-kind="countdown"][data-h="1"]:has(.countdown-item) .glance-add,
+.home-widget[data-kind="countdown"][data-w="1"]:has(.countdown-item) .glance-add,
 .home-widget[data-kind="countdown"][data-h="1"] #countdownList li:nth-child(n+2),
 .home-widget[data-kind="countdown"][data-w="1"] #countdownList li:nth-child(n+3),
 .home-widget[data-kind="countdown"][data-h="1"] .countdown-item:nth-child(n+2),
@@ -3062,8 +3098,8 @@ html.native-shell .home-title-strip {
     font-size: 1.05rem;
 }
 
-.home-widget[data-kind="counters"][data-h="1"] .counters-form,
-.home-widget[data-kind="counters"][data-w="1"] .counters-form,
+.home-widget[data-kind="counters"][data-h="1"]:has(.counter-card) .counters-form,
+.home-widget[data-kind="counters"][data-w="1"]:has(.counter-card) .counters-form,
 .home-widget[data-kind="counters"][data-h="1"] .panel-sub,
 .home-widget[data-kind="counters"][data-h="1"] .compact-widget-head,
 .home-widget[data-kind="counters"][data-h="1"] .counters-list > :nth-child(n+2) {
@@ -3072,7 +3108,6 @@ html.native-shell .home-title-strip {
 
 .home-widget[data-kind="reading"][data-h="1"] .reading-journal-form,
 .home-widget[data-kind="reading"][data-h="1"] .day-brief-form,
-.home-widget[data-kind="reading"][data-h="1"] .reading-book-form,
 .home-widget[data-kind="reading"][data-h="1"] .reading-page-btns,
 .home-widget[data-kind="reading"][data-h="1"] .panel-sub,
 .home-widget[data-kind="reading"][data-h="1"] .compact-widget-head,

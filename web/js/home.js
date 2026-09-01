@@ -84,9 +84,13 @@ function returnSources() {
 
 function mountWidget(kind, body) {
     const spec = WIDGET_CATALOG[kind];
-    if (!spec) return;
+    if (!spec || !body) return;
     const source = document.getElementById(spec.source);
-    if (source && body) body.appendChild(source);
+    if (source) {
+        body.appendChild(source);
+        return;
+    }
+    body.innerHTML = `<p class="checklist-error">Could not load ${spec.label}.</p>`;
 }
 
 async function refreshKinds(kinds) {
@@ -506,7 +510,7 @@ export function setupHome() {
             syncPageColors();
         }
     });
-    void renderHome();
+    void loadLayout().then(() => renderHome());
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
             const page = activePage();

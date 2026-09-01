@@ -308,7 +308,7 @@ async function saveTodayJournal() {
 }
 
 export async function refreshTodayHome() {
-    const root = document.getElementById('todayHome');
+    const root = document.getElementById('todayCalendarSource') || document.getElementById('todayDateTitle');
     if (!root) return;
     try {
         const data = await eel.get_today_home()();
@@ -319,7 +319,6 @@ export async function refreshTodayHome() {
         if (sub) sub.textContent = parts.rest;
         paintPulse(data);
         paintAgenda(data.agenda || []);
-        paintCustomize();
         const items = data.today || [];
         const active = items.find((item) => item.status === 'active');
         const rest = items.filter((item) => item.id !== active?.id);
@@ -380,6 +379,8 @@ export async function refreshTodayHome() {
         else stopHomeTick();
     } catch (e) {
         console.error(e);
+        const sub = document.getElementById('todayDateSub');
+        if (sub) sub.textContent = 'Could not load today.';
         const list = document.getElementById('todayTodoList');
         if (list) list.innerHTML = '<p class="checklist-error">Could not load today.</p>';
     }
