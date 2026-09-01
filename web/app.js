@@ -22,6 +22,8 @@ import { setupHeatmap } from './js/heatmap.js';
 import { setupDayBrief } from './js/day_brief.js';
 import { setupCounters } from './js/counters.js';
 import { setupReading } from './js/reading.js';
+import { setupWord } from './js/word.js';
+import { setupDailyChecklist } from './js/daily_checklist.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -35,6 +37,8 @@ async function init() {
     setupCalendar();
     setupTodo();
     setupGoals();
+    setupWord();
+    await setupDailyChecklist();
     setupAllWork();
     setupWorkouts();
     setupJournal();

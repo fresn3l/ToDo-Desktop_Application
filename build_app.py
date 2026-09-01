@@ -252,6 +252,7 @@ def build_app() -> None:
         "day_brief",
         "reading",
         "tap_counters",
+        "word_of_the_day",
         "export_data",
         "daily_checklist",
         "reminders",

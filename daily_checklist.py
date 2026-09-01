@@ -17,6 +17,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import eel
+
 from paths import data_directory
 
 
@@ -113,11 +115,13 @@ def _slug_option(label: str, idx: int) -> str:
     return s or f"option_{idx}"
 
 
+@eel.expose
 def get_custom_checklist_items() -> List[Dict[str, Any]]:
     """User-defined extra questions (yes/no or choice), stored locally."""
     return _load_custom_items_raw()
 
 
+@eel.expose
 def add_custom_checklist_item(item: Dict[str, Any]) -> Dict[str, Any]:
     """
     Append a validated item. choice.options must be a list of non-empty strings (min 2).
@@ -184,6 +188,7 @@ def add_custom_checklist_item(item: Dict[str, Any]) -> Dict[str, Any]:
     return row
 
 
+@eel.expose
 def remove_custom_checklist_item(item_id: str) -> bool:
     item_id = (item_id or "").strip()
     if not item_id:
@@ -226,15 +231,23 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+@eel.expose
 def get_daily_checklist() -> Dict[str, Any]:
-    """Return the active checklist flow definition."""
+    """Return the active checklist flow definition, with today’s word filled in."""
     path = get_checklist_definition_path()
     if not path.exists():
         raise FileNotFoundError(f"Missing checklist definition: {path}")
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    try:
+        import word_of_the_day
+
+        return word_of_the_day.decorate_flow(data)
+    except Exception:
+        return data
 
 
+@eel.expose
 def list_bundled_checklists() -> List[Dict[str, str]]:
     """JSON files in the bundled checklists/ folder (valid flow definitions only)."""
     out: List[Dict[str, str]] = []
@@ -255,14 +268,17 @@ def list_bundled_checklists() -> List[Dict[str, str]]:
     return out
 
 
+@eel.expose
 def get_active_checklist_stem() -> str:
     return get_selected_checklist_stem()
 
 
+@eel.expose
 def set_active_checklist_stem(stem: str) -> None:
     set_selected_checklist_stem(stem)
 
 
+@eel.expose
 def get_daily_checklist_db_path_exposed() -> str:
     """Absolute path to the SQLite file (for Cluny / agents)."""
     return str(get_daily_checklist_db_path().resolve())
@@ -382,7 +398,7 @@ def format_submission_answers(
     custom_items = custom_items if custom_items is not None else _load_custom_items_raw()
     for key, val in answers.items():
         node = _node_for_key(checklist_id, key, defs=defs, custom_items=custom_items)
-        label = str(node.get("question") or _humanize_key(key))
+        label = str(node.get("history_label") or node.get("question") or _humanize_key(key))
         formatted.append(
             {
                 "key": str(key),
@@ -424,6 +440,7 @@ def decorate_submission(
     return out
 
 
+@eel.expose
 def submit_daily_checklist_response(
     checklist_id: str, flow_version: int, answers: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -452,6 +469,18 @@ def submit_daily_checklist_response(
         "flow_version": flow_version,
         "answers": answers,
     }
+    try:
+        import work
+
+        work.apply_evening_plan(answers)
+    except Exception:
+        pass
+    try:
+        import cluny_sync
+
+        cluny_sync.sync_checklist_submission_safe(result)
+    except Exception:
+        pass
     return result
 
 
@@ -521,6 +550,7 @@ def list_submission_dates() -> List[str]:
     return [r["local_date"] for r in rows if r["local_date"]]
 
 
+@eel.expose
 def list_daily_checklist_submissions(limit: int = 30) -> List[Dict[str, Any]]:
     """Recent submissions for the checklist history panel only."""
     limit = max(1, min(int(limit or 30), 100))

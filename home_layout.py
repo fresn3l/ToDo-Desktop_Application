@@ -104,6 +104,16 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((2, 2), (2, 3), (4, 2)),
         "default": (2, 2),
     },
+    "word": {
+        "label": "Word",
+        "sizes": ((2, 2), (2, 3), (4, 2)),
+        "default": (2, 2),
+    },
+    "checklist": {
+        "label": "Check-in",
+        "sizes": ((2, 3), (4, 3), (4, 4)),
+        "default": (2, 3),
+    },
 }
 
 SOURCE_TAB = {
@@ -123,6 +133,8 @@ SOURCE_TAB = {
     "day_brief": "dayBriefSource",
     "counters": "countersSource",
     "reading": "readingSource",
+    "word": "wordTab",
+    "checklist": "checklistTab",
 }
 
 

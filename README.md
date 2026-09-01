@@ -58,7 +58,8 @@ That still opens the **native WebKit window**, not Chrome.
 
 ## Features
 
-- **Home**: Snap-to-grid widgets (To Do, Today, Workout, Journal, Goals, All Work, Analytics, Timeline, Weather, Focus, Countdown, Habits). Extra pages, Edit Home to place and resize. First install shows To Do and a mini Today calendar.
+- **Home**: Snap-to-grid widgets (To Do, Today, Workout, Journal, Goals, All Work, Analytics, Timeline, Weather, Focus, Countdown, Habits, Heatmap, Day, Counters, Reading, Word, Check-in). Extra pages, Edit Home to place and resize. First install shows To Do and a mini Today calendar.
+- **Word of the day**: German or precise English on a Home widget; Evening check-in asks you to use it
 - **Journal**: Timed entries (Home widget)
 - **To Do**: Dated tasks with start / finish timers (Home widget)
 - **All Work**: Undated backlog you assign to a day later (Home widget)
@@ -99,6 +100,7 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 - **Focus**: `~/Library/Application Support/ToDo/focus.json`
 - **Countdowns**: `~/Library/Application Support/ToDo/countdowns.json`
 - **Habits**: `~/Library/Application Support/ToDo/habits.json`
+- **Word of the day**: `~/Library/Application Support/ToDo/word_of_the_day.json`
 
 Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_sync.py`).
 Cluny is the local brain, not the scheduler — [docs/cluny-integration.md](docs/cluny-integration.md).

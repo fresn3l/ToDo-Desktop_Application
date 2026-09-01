@@ -41,9 +41,13 @@ class HomeUiTests(unittest.TestCase):
             "dayBriefSource",
             "countersSource",
             "readingSource",
+            "wordTab",
+            "checklistTab",
         ):
             self.assertIn(f'id="{source_id}"', INDEX)
             self.assertIn("widget-source", INDEX)
+        self.assertIn('id="wordCard"', INDEX)
+        self.assertIn('id="checklistWizard"', INDEX)
 
     def test_edit_home_controls_exist(self) -> None:
         for needle in (
@@ -95,6 +99,8 @@ class HomeUiTests(unittest.TestCase):
             "day_brief",
             "counters",
             "reading",
+            "word",
+            "checklist",
         ):
             self.assertIn(f"{kind}:", HOME_JS)
         self.assertNotIn("settings:", HOME_JS)

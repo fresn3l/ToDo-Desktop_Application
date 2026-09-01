@@ -587,6 +587,76 @@
                     </div>
                 </section>
 
+                <section id="wordTab" class="widget-source" aria-label="Word of the day">
+                    <div id="wordCard" class="word-card">
+                        <p class="today-kicker">Word of the day</p>
+                        <p class="checklist-hint small">Loading…</p>
+                    </div>
+                </section>
+
+                <section id="checklistTab" class="widget-source" aria-label="Check-in">
+                    <div class="checklist-layout">
+                        <div class="panel checklist-main">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Check-in</h2>
+                                    <p class="panel-sub">Morning or evening flow. Evening asks you to use today’s word.</p>
+                                </div>
+                                <button type="button" id="restartChecklist" class="btn-secondary">Start over</button>
+                            </div>
+                            <div class="checklist-template-row">
+                                <label class="checklist-field-label" for="checklistTemplateSelect">Template</label>
+                                <select id="checklistTemplateSelect" class="checklist-select checklist-template-select" title="Bundled checklist"></select>
+                            </div>
+                            <div id="recoveryPanel" class="recovery-panel is-hidden"></div>
+                            <div id="checklistWizard" class="checklist-wizard"></div>
+                        </div>
+                        <aside class="checklist-aside">
+                            <div class="panel checklist-custom-panel">
+                                <div class="panel-header">
+                                    <h3>Your extra questions</h3>
+                                </div>
+                                <p class="checklist-hint small">These run after the built-in flow. Stored on this Mac only.</p>
+                                <div id="customItemsList" class="custom-items-list"></div>
+                                <details class="checklist-add-details">
+                                    <summary>Add a custom question</summary>
+                                    <div class="checklist-add-form">
+                                        <label class="checklist-field-label" for="newItemType">Question type</label>
+                                        <select id="newItemType" class="checklist-select">
+                                            <option value="yes_no">Yes / No</option>
+                                            <option value="choice">Multiple choice</option>
+                                            <option value="text">Short text</option>
+                                            <option value="scale">Scale (1–5)</option>
+                                            <option value="number">Number</option>
+                                        </select>
+                                        <label class="checklist-field-label" for="newItemQuestion">Question</label>
+                                        <input type="text" id="newItemQuestion" class="checklist-text-input" placeholder="e.g. Did you stretch today?" autocomplete="off">
+                                        <div id="choiceOptionsWrap" class="choice-options-wrap is-hidden">
+                                            <label class="checklist-field-label" for="newItemOptions">Options (one per line)</label>
+                                            <textarea id="newItemOptions" class="checklist-textarea" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea>
+                                            <label class="checklist-checkbox-label">
+                                                <input type="checkbox" id="newItemAllowOther"> Allow “Other” with text
+                                            </label>
+                                        </div>
+                                        <div id="trackDurationWrap" class="track-duration-wrap">
+                                            <label class="checklist-checkbox-label">
+                                                <input type="checkbox" id="newItemTrackDuration"> Ask for duration (minutes) after this question
+                                            </label>
+                                        </div>
+                                        <button type="button" id="addCustomItemBtn" class="btn-primary checklist-add-btn">Add question</button>
+                                    </div>
+                                </details>
+                            </div>
+                            <div class="panel checklist-recent">
+                                <div class="panel-header">
+                                    <h3>Recent</h3>
+                                </div>
+                                <div id="checklistRecentList" class="checklist-recent-list"></div>
+                            </div>
+                        </aside>
+                    </div>
+                </section>
+
                 <section id="settingsTab" class="tab-content" aria-label="Settings">
                     <div class="settings-grid">
                         <div class="panel">

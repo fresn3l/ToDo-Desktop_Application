@@ -1,6 +1,6 @@
 {
   "id": "evening",
-  "version": 2,
+  "version": 3,
   "title": "Evening check-in",
   "start": "day_recap",
   "nodes": {
@@ -40,6 +40,13 @@
       "type": "text",
       "question": "Journal prompt: What are you grateful for, or what did you learn today?",
       "placeholder": "A few sentences…",
+      "next": "word_use"
+    },
+    "word_use": {
+      "type": "text",
+      "question": "Today’s word is {display} ({language}): {meaning}. Use it in a sentence or a short note about today.",
+      "placeholder": "A sentence with {word}…",
+      "history_label": "Today’s word",
       "next": "tomorrow_prep"
     },
     "tomorrow_prep": {

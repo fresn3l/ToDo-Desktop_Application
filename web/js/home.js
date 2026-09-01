@@ -19,6 +19,8 @@ import { refreshHeatmap } from './heatmap.js';
 import { refreshDayBrief } from './day_brief.js';
 import { refreshCounters } from './counters.js';
 import { refreshReading } from './reading.js';
+import { onWordTabShown } from './word.js';
+import { onChecklistTabShown, openChecklistTemplate } from './daily_checklist.js';
 
 const FALLBACK_LAYOUT = {
     columns: 4,
@@ -106,6 +108,8 @@ async function refreshKinds(kinds) {
         if (set.has('day_brief')) await refreshDayBrief();
         if (set.has('counters')) await refreshCounters();
         if (set.has('reading')) await refreshReading();
+        if (set.has('word')) await onWordTabShown();
+        if (set.has('checklist')) await onChecklistTabShown();
         await refreshToday();
     } catch (err) {
         console.error(err);
@@ -356,6 +360,16 @@ export function setupHome() {
         } else {
             void refreshToday();
         }
+    });
+    document.addEventListener('kosistenz:open-evening-checkin', () => {
+        void (async () => {
+            await ensureHomeWidget('checklist');
+            try {
+                await openChecklistTemplate('evening');
+            } catch (err) {
+                console.error(err);
+            }
+        })();
     });
 }
 
