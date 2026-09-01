@@ -529,7 +529,9 @@ function renderJournalHistory() {
                 ? '<span class="journal-badge">Morning</span>'
                 : kind === 'evening_review'
                     ? '<span class="journal-badge">Evening</span>'
-                    : '';
+                    : kind === 'reading'
+                        ? '<span class="journal-badge">Reading</span>'
+                        : '';
             html += `
                 <article class="journal-entry-item ${open ? 'is-open' : ''}" data-entry-id="${utils.escapeHtml(id)}">
                     <button type="button" class="journal-entry-toggle">

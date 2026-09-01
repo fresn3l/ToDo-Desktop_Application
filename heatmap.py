@@ -16,7 +16,7 @@ import workouts
 from paths import data_directory
 
 SOURCES = ("show_up", "writing", "workout", "checkin", "journal", "series")
-JOURNAL_FILTERS = ("all", "journal", "morning_brief", "evening_review")
+JOURNAL_FILTERS = ("all", "journal", "morning_brief", "evening_review", "reading")
 SOURCE_LABELS = {
     "show_up": "Show up",
     "writing": "Writing streak",

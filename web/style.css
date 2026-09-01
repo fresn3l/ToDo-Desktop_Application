@@ -3448,3 +3448,118 @@ html[data-motion='reduce'] *::after {
 .home-widget[data-kind="heatmap"][data-h="2"] .heatmap-filters {
     display: none;
 }
+
+.counters-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: 8px;
+}
+
+.counter-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    overflow: hidden;
+}
+
+.counter-card.is-met {
+    border-color: var(--accent, #4F8FCF);
+}
+
+.counter-tap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 8px 8px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.counter-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.counter-count {
+    font-size: 18px;
+    font-weight: 650;
+}
+
+.counter-actions {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 6px 6px;
+}
+
+.counters-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.counters-form .checklist-text-input,
+.counters-form .checklist-select {
+    flex: 1 1 6rem;
+}
+
+.reading-book-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.reading-book-form .checklist-text-input:first-child {
+    flex: 2 1 10rem;
+}
+
+.reading-today {
+    text-align: center;
+}
+
+.reading-page-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.alloc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.alloc-row-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.alloc-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-secondary) 18%, var(--bg));
+    overflow: hidden;
+}
+
+.alloc-bar span {
+    display: block;
+    height: 100%;
+    background: var(--accent, #4F8FCF);
+}
+
+.home-widget[data-kind="counters"][data-w="2"] .counters-form {
+    display: none;
+}
+
+.home-widget[data-kind="reading"][data-w="2"] .reading-page-btns .btn-secondary:nth-child(n+3) {
+    display: none;
+}

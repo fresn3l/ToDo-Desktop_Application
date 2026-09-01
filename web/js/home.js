@@ -16,6 +16,8 @@ import { loadPastEntries } from './journal.js';
 import { refreshCountdowns } from './countdown.js';
 import { refreshHeatmap } from './heatmap.js';
 import { refreshDayBrief } from './day_brief.js';
+import { refreshCounters } from './counters.js';
+import { refreshReading } from './reading.js';
 
 const FALLBACK_LAYOUT = {
     columns: 4,
@@ -98,6 +100,8 @@ async function refreshKinds(kinds) {
         if (set.has('countdown')) await refreshCountdowns();
         if (set.has('heatmap')) await refreshHeatmap();
         if (set.has('day_brief')) await refreshDayBrief();
+        if (set.has('counters')) await refreshCounters();
+        if (set.has('reading')) await refreshReading();
         await refreshToday();
     } catch (err) {
         console.error(err);

@@ -6,6 +6,7 @@ import * as utils from './utils.js';
 import { mountWeekStrip, requestOpenTimelineDate } from './weekstrip.js';
 
 let analyticsRange = 30;
+let allocationPeriod = 'week';
 
 function bindExportsOnce() {
     if (document.body.dataset.analyticsExports === '1') return;
@@ -75,6 +76,7 @@ export async function onAnalyticsTabShown() {
     try {
         const data = await eel.get_analytics(analyticsRange)();
         el.innerHTML = renderAnalytics(data);
+        await paintTimeAllocation();
         document.getElementById('savePatternNote')?.addEventListener('click', async () => {
             const ta = document.getElementById('patternNoteInput');
             try {
@@ -97,6 +99,53 @@ export async function onAnalyticsTabShown() {
 }
 
 export const onReviewTabShown = onAnalyticsTabShown;
+
+async function paintTimeAllocation() {
+    const host = document.getElementById('timeAllocation');
+    if (!host || typeof eel === 'undefined' || !eel.get_time_allocation) return;
+    try {
+        const data = await eel.get_time_allocation(allocationPeriod)();
+        host.innerHTML = renderTimeAllocation(data);
+        host.querySelectorAll('[data-alloc]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                allocationPeriod = btn.getAttribute('data-alloc') || 'week';
+                void paintTimeAllocation();
+            });
+        });
+    } catch (err) {
+        console.error(err);
+        host.innerHTML = '<p class="checklist-error">Could not load time allocation.</p>';
+    }
+}
+
+function renderTimeAllocation(data) {
+    const rows = data.categories || [];
+    const bars = rows
+        .map((row) => `
+            <li class="alloc-row">
+                <div class="alloc-row-head">
+                    <strong>${utils.escapeHtml(row.label)}</strong>
+                    <span>${row.hours}h · ${row.pct}%</span>
+                </div>
+                <div class="alloc-bar" aria-hidden="true"><span style="width:${Math.max(row.pct || 0, row.minutes ? 2 : 0)}%"></span></div>
+            </li>`)
+        .join('') || '<li class="checklist-empty">Nothing on the calendar for this stretch.</li>';
+    return `
+        <div class="review-card review-card--wide">
+            <div class="panel-header compact-widget-head">
+                <div>
+                    <h3>Time allocation</h3>
+                    <p class="review-detail">${utils.escapeHtml(data.period_label || '')} · ${utils.escapeHtml(data.start || '')} → ${utils.escapeHtml(data.end || '')} · ${data.total_hours || 0}h on the clock</p>
+                </div>
+                <div class="segmented" role="group" aria-label="Week or month">
+                    <button type="button" data-alloc="week" class="${data.period === 'week' ? 'is-selected' : ''}">Last week</button>
+                    <button type="button" data-alloc="month" class="${data.period === 'month' ? 'is-selected' : ''}">This month</button>
+                </div>
+            </div>
+            <ul class="review-list alloc-list">${bars}</ul>
+        </div>
+    `;
+}
 
 function renderAnalytics(data) {
     const journal = data.journal || {};
