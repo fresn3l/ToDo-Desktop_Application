@@ -6,6 +6,83 @@
 
 const STORAGE_KEY = 'kosistenz-appearance';
 
+export const COLOR_SLOTS = [
+    { id: 'pageBg', label: 'Page background' },
+    { id: 'widgetBg', label: 'Widget background' },
+    { id: 'widgetBorder', label: 'Widget borders' },
+    { id: 'titles', label: 'Titles' },
+    { id: 'accent', label: 'Accent' },
+    { id: 'done', label: 'Done' },
+    { id: 'openNext', label: 'Open / next' },
+    { id: 'sidebar', label: 'Sidebar' },
+];
+
+export const INK_LIGHT = '#f7fafc';
+export const INK_DARK = '#1a1814';
+
+export const THEME_PALETTES = {
+    ocean: {
+        pageBg: '#121c26',
+        widgetBg: '#1d2c3b',
+        widgetBorder: '#2c3d4e',
+        titles: '#eef3f7',
+        accent: '#4f8fcf',
+        done: '#5ebb8e',
+        openNext: '#d4a054',
+        sidebar: '#0e1620',
+    },
+    midnight: {
+        pageBg: '#111113',
+        widgetBg: '#1f1f23',
+        widgetBorder: '#2a2a30',
+        titles: '#f4f4f5',
+        accent: '#4f8fcf',
+        done: '#5ebb8e',
+        openNext: '#d4a054',
+        sidebar: '#0c0c0e',
+    },
+    slate: {
+        pageBg: '#171e2b',
+        widgetBg: '#243044',
+        widgetBorder: '#2c3848',
+        titles: '#eef2f6',
+        accent: '#4f8fcf',
+        done: '#5ebb8e',
+        openNext: '#d4a054',
+        sidebar: '#121824',
+    },
+    paper: {
+        pageBg: '#f7f3eb',
+        widgetBg: '#f1ebe0',
+        widgetBorder: '#d8d0c2',
+        titles: '#1b1814',
+        accent: '#4f8fcf',
+        done: '#2f7d57',
+        openNext: '#b5791f',
+        sidebar: '#f3eee4',
+    },
+    forest: {
+        pageBg: '#141e1a',
+        widgetBg: '#20312b',
+        widgetBorder: '#2a3c36',
+        titles: '#eef4f0',
+        accent: '#4f8fcf',
+        done: '#6bc49a',
+        openNext: '#d4a054',
+        sidebar: '#101816',
+    },
+    dusk: {
+        pageBg: '#1b1824',
+        widgetBg: '#2b2738',
+        widgetBorder: '#3a3548',
+        titles: '#f2eef6',
+        accent: '#4f8fcf',
+        done: '#5ebb8e',
+        openNext: '#d4a054',
+        sidebar: '#16131e',
+    },
+};
+
 export const DEFAULTS = {
     theme: 'ocean',
     accent: 'sky',
@@ -25,6 +102,12 @@ export const DEFAULTS = {
     autoFocus: false,
     reducedMotion: false,
     highContrast: false,
+    colorOverrides: {},
+    widgetBorderWidth: 1,
+    inkAuto: true,
+    ink: '',
+    activePresetId: '',
+    userPresets: [],
 };
 
 export const THEMES = [
@@ -46,7 +129,7 @@ export const ACCENTS = [
     { id: 'custom', label: 'Custom', hex: null },
 ];
 
-let current = { ...DEFAULTS };
+let current = { ...DEFAULTS, colorOverrides: {}, userPresets: [] };
 const listeners = new Set();
 
 function readLocal() {
@@ -68,17 +151,22 @@ function writeLocal(settings) {
     }
 }
 
+export function normalizeHex(hex, fallback = '') {
+    let h = String(hex || '').trim();
+    if (!h) return fallback;
+    if (h[0] !== '#') h = `#${h}`;
+    if (h.length === 4 && /^#[0-9a-fA-F]{3}$/.test(h)) {
+        h = `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}`;
+    }
+    if (!/^#[0-9a-fA-F]{6}$/.test(h)) return fallback;
+    return h.toLowerCase();
+}
+
 function hexToHsl(hex) {
-    let h = String(hex || '').replace('#', '').trim();
-    if (h.length === 3) {
-        h = h.split('').map((c) => c + c).join('');
-    }
-    if (!/^[0-9a-fA-F]{6}$/.test(h)) {
-        return { h: 210, s: 56, l: 56 };
-    }
-    const r = parseInt(h.slice(0, 2), 16) / 255;
-    const g = parseInt(h.slice(2, 4), 16) / 255;
-    const b = parseInt(h.slice(4, 6), 16) / 255;
+    const normalized = normalizeHex(hex, '#4f8fcf').slice(1);
+    const r = parseInt(normalized.slice(0, 2), 16) / 255;
+    const g = parseInt(normalized.slice(2, 4), 16) / 255;
+    const b = parseInt(normalized.slice(4, 6), 16) / 255;
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     let hue = 0;
@@ -107,16 +195,100 @@ function hexToHsl(hex) {
     };
 }
 
-function accentHsl(settings) {
-    const preset = ACCENTS.find((a) => a.id === settings.accent);
-    if (settings.accent === 'custom' || !preset || !preset.hex) {
-        return hexToHsl(settings.customAccent);
+function srgbToLinear(channel) {
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+export function relativeLuminance(hex) {
+    const n = normalizeHex(hex, '');
+    if (!n) return 0;
+    const r = parseInt(n.slice(1, 3), 16) / 255;
+    const g = parseInt(n.slice(3, 5), 16) / 255;
+    const b = parseInt(n.slice(5, 7), 16) / 255;
+    return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
+}
+
+export function inkForHex(hex) {
+    return relativeLuminance(hex) > 0.45 ? INK_DARK : INK_LIGHT;
+}
+
+export function paletteFor(theme) {
+    return { ...(THEME_PALETTES[theme] || THEME_PALETTES.ocean) };
+}
+
+export function resolveAccentHex(settings) {
+    const overrides = settings.colorOverrides || {};
+    const fromOverride = normalizeHex(overrides.accent, '');
+    if (fromOverride) return fromOverride;
+    if (settings.accent === 'custom') {
+        const custom = normalizeHex(settings.customAccent, '');
+        if (custom) return custom;
     }
-    return hexToHsl(preset.hex);
+    const preset = ACCENTS.find((a) => a.id === settings.accent);
+    if (preset?.hex) return normalizeHex(preset.hex, paletteFor(settings.theme).accent);
+    return paletteFor(settings.theme).accent;
+}
+
+export function resolveColors(settings) {
+    const out = paletteFor(settings.theme);
+    const overrides = settings.colorOverrides || {};
+    COLOR_SLOTS.forEach(({ id }) => {
+        if (id === 'accent') return;
+        const hx = normalizeHex(overrides[id], '');
+        if (hx) out[id] = hx;
+    });
+    out.accent = resolveAccentHex(settings);
+    return out;
+}
+
+export function resolveInk(settings) {
+    if (settings.inkAuto !== false) return inkForHex(resolveAccentHex(settings));
+    return normalizeHex(settings.ink, '') || inkForHex(resolveAccentHex(settings));
+}
+
+function mergeSettings(partial) {
+    const next = {
+        ...DEFAULTS,
+        ...current,
+        ...partial,
+    };
+    next.colorOverrides = { ...(partial.colorOverrides ?? current.colorOverrides ?? {}) };
+    next.userPresets = Array.isArray(partial.userPresets)
+        ? partial.userPresets
+        : [...(current.userPresets || [])];
+    return next;
+}
+
+function setOrClear(root, prop, value, enabled) {
+    if (enabled && value) root.style.setProperty(prop, value);
+    else root.style.removeProperty(prop);
+}
+
+function applyResolvedVars(root, settings) {
+    const colors = resolveColors(settings);
+    const overrides = settings.colorOverrides || {};
+    const ink = resolveInk(settings);
+    const hsl = hexToHsl(colors.accent);
+    const width = Math.max(0, Math.min(8, Number(settings.widgetBorderWidth) || 0));
+    root.style.setProperty('--accent-h', String(hsl.h));
+    root.style.setProperty('--accent-s', `${hsl.s}%`);
+    root.style.setProperty('--accent-l', `${hsl.l}%`);
+    setOrClear(root, '--bg-canvas', colors.pageBg, !!overrides.pageBg);
+    setOrClear(root, '--bg-main', colors.pageBg, !!overrides.pageBg);
+    setOrClear(root, '--bg-elevated', colors.widgetBg, !!overrides.widgetBg);
+    setOrClear(root, '--bg-panel', colors.widgetBg, !!overrides.widgetBg);
+    setOrClear(root, '--bg-sidebar', colors.sidebar, !!overrides.sidebar);
+    setOrClear(root, '--text-title', colors.titles, !!overrides.titles);
+    setOrClear(root, '--success', colors.done, !!overrides.done);
+    setOrClear(root, '--attention', colors.openNext, !!overrides.openNext);
+    root.style.setProperty('--home-widget-border-width', `${width}px`);
+    setOrClear(root, '--home-widget-border-color', colors.widgetBorder, !!overrides.widgetBorder);
+    root.style.setProperty('--on-primary', ink);
+    root.style.setProperty('--primary-ink', ink);
 }
 
 export function applyAppearance(settings) {
-    current = { ...DEFAULTS, ...settings };
+    current = mergeSettings(settings);
     const root = document.documentElement;
     root.setAttribute('data-theme', current.theme);
     root.setAttribute('data-density', current.density);
@@ -131,10 +303,7 @@ export function applyAppearance(settings) {
     root.setAttribute('data-today-journal', current.todayJournal === false ? 'off' : 'on');
     root.setAttribute('data-contrast', current.highContrast ? 'high' : 'normal');
     root.setAttribute('data-motion', current.reducedMotion ? 'reduce' : 'full');
-    const hsl = accentHsl(current);
-    root.style.setProperty('--accent-h', String(hsl.h));
-    root.style.setProperty('--accent-s', `${hsl.s}%`);
-    root.style.setProperty('--accent-l', `${hsl.l}%`);
+    applyResolvedVars(root, current);
     root.style.setProperty('--journal-font-size', `${current.journalFontSize}px`);
     notifyNativeShell(current);
     listeners.forEach((fn) => {
@@ -164,7 +333,11 @@ export function notifyNativeTab(tab, title) {
 }
 
 export function getAppearance() {
-    return { ...current };
+    return {
+        ...current,
+        colorOverrides: { ...(current.colorOverrides || {}) },
+        userPresets: [...(current.userPresets || [])],
+    };
 }
 
 export function onAppearanceChange(fn) {
@@ -172,8 +345,18 @@ export function onAppearanceChange(fn) {
     return () => listeners.delete(fn);
 }
 
+export function snapshotPresetFrom(settings) {
+    return {
+        baseTheme: settings.theme || 'ocean',
+        colors: resolveColors(settings),
+        widgetBorderWidth: Math.max(0, Math.min(8, Number(settings.widgetBorderWidth) || 0)),
+        inkAuto: settings.inkAuto !== false,
+        ink: normalizeHex(settings.ink, ''),
+    };
+}
+
 export async function persistAppearance(settings) {
-    const next = { ...DEFAULTS, ...current, ...settings };
+    const next = mergeSettings(settings);
     applyAppearance(next);
     writeLocal(next);
     if (typeof eel !== 'undefined' && eel.save_appearance_settings) {
@@ -186,12 +369,14 @@ export async function persistAppearance(settings) {
             console.warn('Could not persist appearance to disk', e);
         }
     }
-    return next;
+    return getAppearance();
 }
 
 export async function resetAppearance() {
-    applyAppearance(DEFAULTS);
-    writeLocal(DEFAULTS);
+    const kept = [...(current.userPresets || [])];
+    const next = { ...DEFAULTS, colorOverrides: {}, userPresets: kept, activePresetId: '' };
+    applyAppearance(next);
+    writeLocal(next);
     if (typeof eel !== 'undefined' && eel.reset_appearance_settings) {
         try {
             const saved = await eel.reset_appearance_settings()();
@@ -202,16 +387,16 @@ export async function resetAppearance() {
             console.warn(e);
         }
     }
-    return { ...DEFAULTS };
+    return getAppearance();
 }
 
 export async function initAppearance() {
-    const local = { ...DEFAULTS, ...readLocal() };
+    const local = mergeSettings(readLocal());
     applyAppearance(local);
     if (typeof eel !== 'undefined' && eel.get_appearance_settings) {
         try {
             const remote = await eel.get_appearance_settings()();
-            const merged = { ...local, ...remote };
+            const merged = mergeSettings({ ...local, ...remote });
             applyAppearance(merged);
             writeLocal(merged);
             return merged;
@@ -219,5 +404,5 @@ export async function initAppearance() {
             console.warn('Could not load appearance from disk', e);
         }
     }
-    return local;
+    return getAppearance();
 }

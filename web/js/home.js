@@ -4,6 +4,7 @@
 
 import * as utils from './utils.js';
 import { WIDGET_CATALOG, catalogList, canPlace, snapCell } from './home_layout.js';
+import { getAppearance, persistAppearance, onAppearanceChange, resolveColors } from './appearance.js';
 import { onTodayTabShown, refreshToday } from './today.js';
 import { onTodoTabShown } from './todo.js';
 import { onAllWorkTabShown } from './all_work.js';
@@ -148,13 +149,27 @@ function paintGrid() {
     });
 }
 
+function paintBorderControls() {
+    const settings = getAppearance();
+    const colors = resolveColors(settings);
+    const width = document.getElementById('homeBorderWidth');
+    const widthVal = document.getElementById('homeBorderWidthValue');
+    const color = document.getElementById('homeBorderColor');
+    if (width) width.value = String(settings.widgetBorderWidth ?? 1);
+    if (widthVal) widthVal.textContent = `${settings.widgetBorderWidth ?? 1}px`;
+    if (color) color.value = colors.widgetBorder;
+}
+
 function setEditing(on) {
     editing = !!on;
     document.getElementById('homeShell')?.classList.toggle('is-editing', editing);
     document.getElementById('homeEditBar')?.classList.toggle('is-hidden', !editing);
     const editBtn = document.getElementById('homeEditBtn');
     if (editBtn) editBtn.textContent = editing ? 'Done' : 'Edit Home';
-    if (editing) paintCatalog();
+    if (editing) {
+        paintCatalog();
+        paintBorderControls();
+    }
 }
 
 async function renderHome() {
@@ -216,6 +231,17 @@ function bindHome() {
     });
     document.getElementById('homeDoneEditBtn')?.addEventListener('click', () => {
         setEditing(false);
+    });
+
+    document.getElementById('homeBorderWidth')?.addEventListener('input', (e) => {
+        const n = parseInt(e.target.value, 10);
+        const label = document.getElementById('homeBorderWidthValue');
+        if (label) label.textContent = `${n}px`;
+        void persistAppearance({ widgetBorderWidth: n });
+    });
+    document.getElementById('homeBorderColor')?.addEventListener('input', (e) => {
+        const colorOverrides = { ...(getAppearance().colorOverrides || {}), widgetBorder: e.target.value };
+        void persistAppearance({ colorOverrides });
     });
 
     document.getElementById('homeCatalog')?.addEventListener('click', (e) => {
@@ -307,6 +333,8 @@ function bindHome() {
 
 export function setupHome() {
     bindHome();
+    paintBorderControls();
+    onAppearanceChange(() => paintBorderControls());
     void renderHome();
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {

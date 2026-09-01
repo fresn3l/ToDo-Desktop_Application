@@ -63,7 +63,18 @@
                             </div>
                         </header>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
-                            <p class="home-edit-copy">Drag a widget title to snap it. Size cycles the allowed shapes. Add another page for a second board.</p>
+                            <p class="home-edit-copy">Drag a widget title to snap it. Size cycles the allowed shapes. Add another page for a second board. Widget borders apply to every Home page.</p>
+                            <div class="home-border-controls">
+                                <label class="home-border-field" for="homeBorderWidth">
+                                    Widget border
+                                    <input type="range" id="homeBorderWidth" min="0" max="8" step="1" value="1">
+                                    <span id="homeBorderWidthValue">1px</span>
+                                </label>
+                                <label class="home-border-field" for="homeBorderColor">
+                                    Color
+                                    <input type="color" id="homeBorderColor" class="color-input" value="#2c3d4e">
+                                </label>
+                            </div>
                             <div id="homeCatalog" class="home-catalog"></div>
                             <div class="home-edit-actions">
                                 <button type="button" id="homeRenamePageBtn" class="btn-ghost">Rename page</button>
@@ -409,18 +420,38 @@
                             <div class="panel-header">
                                 <div>
                                     <h2>Appearance</h2>
-                                    <p class="panel-sub">Quiet neutrals. Blue for action, green for done, ochre for what’s next.</p>
+                                    <p class="panel-sub">Built-in themes plus your own colors. Mac only for now — palettes will follow to iPhone later.</p>
                                 </div>
                                 <button type="button" id="resetAppearanceBtn" class="btn-ghost">Reset defaults</button>
                             </div>
 
                             <div class="settings-block">
                                 <h3>Theme</h3>
+                                <p class="checklist-hint small">Ocean, Paper, and the others stay as built-ins. Override a color, then save or create a palette.</p>
                                 <div id="themeGrid" class="theme-grid"></div>
+                                <h3 class="preset-heading">Saved palettes</h3>
+                                <div class="preset-toolbar">
+                                    <div id="userPresetChips" class="preset-chips" role="list" aria-label="Saved palettes"></div>
+                                    <button type="button" id="savePresetBtn" class="btn-ghost">Save</button>
+                                    <button type="button" id="newPresetBtn" class="btn-ghost">New palette</button>
+                                    <button type="button" id="deletePresetBtn" class="btn-ghost">Delete</button>
+                                </div>
+                                <p id="presetNote" class="checklist-hint small"></p>
                             </div>
 
                             <div class="settings-block">
-                                <h3>Accent</h3>
+                                <h3>Colors</h3>
+                                <div class="ink-row">
+                                    <label>
+                                        <input type="checkbox" id="inkAutoToggle" checked>
+                                        Auto-pick button ink
+                                    </label>
+                                    <label for="inkColorInput">
+                                        Button ink
+                                        <input type="color" id="inkColorInput" class="color-input" value="#f7fafc">
+                                    </label>
+                                </div>
+                                <div id="colorSlotList" class="color-slot-list"></div>
                                 <div id="accentGrid" class="accent-grid"></div>
                                 <div id="customAccentWrap" class="custom-accent-wrap is-hidden">
                                     <label class="checklist-field-label" for="customAccentInput">Custom color</label>
@@ -475,7 +506,7 @@
                             </div>
                             <div class="settings-block">
                                 <h3>Home</h3>
-                                <p class="checklist-hint small">Widgets, sizes, and extra pages live on Home. Open Home and click Edit Home.</p>
+                                <p class="checklist-hint small">Widgets, sizes, extra pages, and widget borders live on Home. Open Home and click Edit Home.</p>
                             </div>
                         </div>
 
