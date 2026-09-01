@@ -2624,9 +2624,64 @@ html.native-shell .home-title-strip {
     overflow: hidden;
 }
 
-.home-widget.is-dragging {
+.home-widget.is-dragging,
+.home-widget.is-resizing {
     opacity: 0.86;
     box-shadow: 0 8px 24px color-mix(in srgb, #000 18%, transparent);
+    z-index: 3;
+}
+
+.home-widget-resize {
+    position: absolute;
+    z-index: 4;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    -webkit-app-region: no-drag;
+    touch-action: none;
+}
+
+.home-widget-resize[data-resize="e"] {
+    top: 2.2rem;
+    right: 0;
+    width: 10px;
+    bottom: 16px;
+    cursor: ew-resize;
+}
+
+.home-widget-resize[data-resize="s"] {
+    left: 10px;
+    right: 16px;
+    bottom: 0;
+    height: 10px;
+    cursor: ns-resize;
+}
+
+.home-widget-resize[data-resize="se"] {
+    right: 0;
+    bottom: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+}
+
+.home-widget-resize[data-resize="se"]::after {
+    content: "";
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 9px;
+    height: 9px;
+    border-right: 2px solid var(--text-muted);
+    border-bottom: 2px solid var(--text-muted);
+    border-radius: 1px;
+    opacity: 0.7;
+}
+
+.home-widget-resize:hover::after,
+.home-widget.is-resizing .home-widget-resize[data-resize="se"]::after {
+    border-color: var(--primary);
+    opacity: 1;
 }
 
 .home-widget-chrome {
@@ -2647,7 +2702,8 @@ html.native-shell .home-title-strip {
 }
 
 .home-shell.is-editing .home-widget-size,
-.home-shell.is-editing .home-widget-btn {
+.home-shell.is-editing .home-widget-btn,
+.home-widget.is-resizing .home-widget-size {
     display: inline-flex;
 }
 

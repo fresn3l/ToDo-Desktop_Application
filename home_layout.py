@@ -210,6 +210,28 @@ def coerce_size(kind: str, w: Any, h: Any) -> Tuple[int, int]:
     return spec_default(kind)
 
 
+def nearest_size(kind: str, w: Any, h: Any) -> Tuple[int, int]:
+    """Closest catalog size to a dragged width/height, not a cycle."""
+    sizes = allowed_sizes(kind)
+    if not sizes:
+        return (2, 2)
+    try:
+        want = (int(w), int(h))
+    except (TypeError, ValueError):
+        return spec_default(kind)
+    if want in sizes:
+        return want
+    return min(
+        sizes,
+        key=lambda size: (
+            abs(size[0] - want[0]) + abs(size[1] - want[1]),
+            abs(size[0] - want[0]),
+            abs(size[1] - want[1]),
+            size[0] * size[1],
+        ),
+    )
+
+
 def spec_default(kind: str) -> Tuple[int, int]:
     spec = WIDGET_CATALOG.get(kind)
     if not spec:
@@ -453,13 +475,20 @@ def resize_widget(
         raise ValueError("Widget not found")
     if w is None or h is None:
         nw, nh = next_size(widget["kind"], widget["w"], widget["h"])
+        may_relocate = True
     else:
-        nw, nh = coerce_size(widget["kind"], w, h)
+        nw, nh = nearest_size(widget["kind"], w, h)
+        may_relocate = False
     trial = dict(widget, w=nw, h=nh)
-    trial["x"] = min(widget["x"], GRID_COLUMNS - nw)
+    if may_relocate:
+        trial["x"] = min(widget["x"], GRID_COLUMNS - nw)
+    elif widget["x"] + nw > GRID_COLUMNS:
+        raise ValueError("That size does not fit here")
     if any(
         other["id"] != widget_id and boxes_overlap(trial, other) for other in page["widgets"]
     ):
+        if not may_relocate:
+            raise ValueError("That size does not fit here")
         spot = first_fit(page["widgets"], nw, nh, ignore_id=widget_id)
         if spot is None:
             raise ValueError("No room for that size")

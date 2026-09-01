@@ -3,7 +3,7 @@
  */
 
 import * as utils from './utils.js';
-import { WIDGET_CATALOG, catalogList, canPlace, snapCell } from './home_layout.js';
+import { WIDGET_CATALOG, catalogList, canPlace, snapCell, pickResize } from './home_layout.js';
 import { getAppearance, persistAppearance, onAppearanceChange, resolveColors, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { onTodayTabShown, refreshToday } from './today.js';
 import { onTodoTabShown } from './todo.js';
@@ -201,10 +201,12 @@ function paintGrid() {
                     <div class="home-widget-chrome">
                         <span class="home-widget-handle"><span class="home-widget-grip" aria-hidden="true"></span>${utils.escapeHtml(spec.label)}</span>
                         <span class="home-widget-size">${item.w}×${item.h}</span>
-                        <button type="button" class="btn-ghost home-widget-btn" data-act="resize">Size</button>
                         <button type="button" class="btn-ghost home-widget-btn" data-act="remove">Remove</button>
                     </div>
                     <div class="home-widget-body"></div>
+                    <button type="button" class="home-widget-resize" data-resize="e" aria-label="Resize width"></button>
+                    <button type="button" class="home-widget-resize" data-resize="s" aria-label="Resize height"></button>
+                    <button type="button" class="home-widget-resize" data-resize="se" aria-label="Resize"></button>
                 </article>`;
         })
         .join('');
@@ -343,16 +345,23 @@ function bindHome() {
         const id = card.getAttribute('data-id');
         if (btn.getAttribute('data-act') === 'remove') {
             void run(() => eel.remove_home_widget(page.id, id)());
-            return;
-        }
-        if (btn.getAttribute('data-act') === 'resize') {
-            void run(() => eel.resize_home_widget(page.id, id)());
         }
     });
+
+    const paintWidgetBox = (card, x, y, w, h) => {
+        if (!card) return;
+        card.style.gridColumn = `${x + 1} / span ${w}`;
+        card.style.gridRow = `${y + 1} / span ${h}`;
+        card.dataset.w = String(w);
+        card.dataset.h = String(h);
+        const label = card.querySelector('.home-widget-size');
+        if (label) label.textContent = `${w}×${h}`;
+    };
 
     const beginDrag = (e) => {
         if (e.button != null && e.button !== 0) return;
         if (e.target.closest('[data-act]')) return;
+        if (e.target.closest('[data-resize]')) return;
         if (e.target.closest('.home-widget-body')) return;
         const chrome = e.target.closest('.home-widget-chrome');
         const card = e.target.closest('.home-widget');
@@ -363,6 +372,7 @@ function bindHome() {
         e.preventDefault();
         e.stopPropagation();
         drag = {
+            type: 'move',
             id: widget.id,
             originX: widget.x,
             originY: widget.y,
@@ -378,6 +388,36 @@ function bindHome() {
         }
     };
 
+    const beginResize = (e) => {
+        if (e.button != null && e.button !== 0) return;
+        const handle = e.target.closest('[data-resize]');
+        const card = e.target.closest('.home-widget');
+        if (!handle || !card) return;
+        const page = activePage();
+        const widget = page?.widgets.find((item) => item.id === card.getAttribute('data-id'));
+        if (!widget) return;
+        const axisRaw = handle.getAttribute('data-resize');
+        const axis = axisRaw === 'e' ? 'x' : axisRaw === 's' ? 'y' : 'both';
+        e.preventDefault();
+        e.stopPropagation();
+        drag = {
+            type: 'resize',
+            id: widget.id,
+            originW: widget.w,
+            originH: widget.h,
+            axis,
+        };
+        card.classList.add('is-resizing');
+        card.draggable = false;
+        card.dataset.dropW = String(widget.w);
+        card.dataset.dropH = String(widget.h);
+        try {
+            handle.setPointerCapture?.(e.pointerId);
+        } catch (_) {
+            /* window listeners still track the drag if capture is unavailable */
+        }
+    };
+
     const moveDrag = (e) => {
         if (!drag) return;
         if (!Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return;
@@ -385,14 +425,22 @@ function bindHome() {
         const page = activePage();
         const widget = page?.widgets.find((item) => item.id === drag.id);
         if (!grid || !widget) return;
-        const cell = snapCell(e.clientX, e.clientY, grid);
-        const x = Math.max(0, Math.min(4 - widget.w, cell.x));
-        const y = Math.max(0, cell.y);
         const card = grid.querySelector(`.home-widget[data-id="${drag.id}"]`);
         if (!card) return;
+        const cell = snapCell(e.clientX, e.clientY, grid);
+        if (drag.type === 'resize') {
+            const wantW = drag.axis === 'y' ? widget.w : Math.max(1, cell.x - widget.x + 1);
+            const wantH = drag.axis === 'x' ? widget.h : Math.max(1, cell.y - widget.y + 1);
+            const next = pickResize(widget.kind, widget, wantW, wantH, page.widgets, drag.axis);
+            paintWidgetBox(card, widget.x, widget.y, next.w, next.h);
+            card.dataset.dropW = String(next.w);
+            card.dataset.dropH = String(next.h);
+            return;
+        }
+        const x = Math.max(0, Math.min(4 - widget.w, cell.x));
+        const y = Math.max(0, cell.y);
         if (canPlace(page.widgets, widget, x, y)) {
-            card.style.gridColumn = `${x + 1} / span ${widget.w}`;
-            card.style.gridRow = `${y + 1} / span ${widget.h}`;
+            paintWidgetBox(card, x, y, widget.w, widget.h);
             card.dataset.dropX = String(x);
             card.dataset.dropY = String(y);
         }
@@ -403,28 +451,45 @@ function bindHome() {
         const page = activePage();
         const grid = document.getElementById('homeGrid');
         const card = grid?.querySelector(`.home-widget[data-id="${drag.id}"]`);
-        const x = Number(card?.dataset.dropX);
-        const y = Number(card?.dataset.dropY);
         const id = drag.id;
+        const type = drag.type;
         const originX = drag.originX;
         const originY = drag.originY;
+        const originW = drag.originW;
+        const originH = drag.originH;
+        const x = Number(card?.dataset.dropX);
+        const y = Number(card?.dataset.dropY);
+        const w = Number(card?.dataset.dropW);
+        const h = Number(card?.dataset.dropH);
         drag = null;
         card?.classList.remove('is-dragging');
-        if (!page || Number.isNaN(x) || Number.isNaN(y) || (x === originX && y === originY)) {
-            if (card && page) {
-                const widget = page.widgets.find((item) => item.id === id);
-                if (widget) {
-                    card.style.gridColumn = `${widget.x + 1} / span ${widget.w}`;
-                    card.style.gridRow = `${widget.y + 1} / span ${widget.h}`;
-                }
+        card?.classList.remove('is-resizing');
+        const widget = page?.widgets.find((item) => item.id === id);
+        if (type === 'resize') {
+            if (!page || !widget || Number.isNaN(w) || Number.isNaN(h) || (w === originW && h === originH)) {
+                if (widget) paintWidgetBox(card, widget.x, widget.y, widget.w, widget.h);
+                return;
             }
+            void run(() => eel.resize_home_widget(page.id, id, w | 0, h | 0)());
+            return;
+        }
+        if (!page || Number.isNaN(x) || Number.isNaN(y) || (x === originX && y === originY)) {
+            if (card && widget) paintWidgetBox(card, widget.x, widget.y, widget.w, widget.h);
             return;
         }
         void run(() => eel.move_home_widget(page.id, id, x | 0, y | 0)());
     };
 
+    const onPointerDown = (e) => {
+        if (e.target.closest('[data-resize]')) {
+            beginResize(e);
+            return;
+        }
+        beginDrag(e);
+    };
+
     const grid = document.getElementById('homeGrid');
-    grid?.addEventListener('pointerdown', beginDrag);
+    grid?.addEventListener('pointerdown', onPointerDown);
     grid?.addEventListener('dragstart', (e) => e.preventDefault());
     window.addEventListener('pointermove', moveDrag);
     window.addEventListener('pointerup', endDrag);

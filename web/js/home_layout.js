@@ -72,10 +72,35 @@ function parseCssPx(value, fallback) {
     return n;
 }
 
-export function canPlace(occupied, widget, x, y) {
-    const trial = { ...widget, x, y };
+export function canPlace(occupied, widget, x, y, w = widget.w, h = widget.h) {
+    const trial = { ...widget, x, y, w, h };
     if (trial.x < 0 || trial.y < 0 || trial.x + trial.w > GRID_COLUMNS) return false;
+    if (trial.w < 1 || trial.h < 1) return false;
     return (occupied || []).every((other) => other.id === widget.id || !boxesOverlap(trial, other));
+}
+
+export function allowedSizes(kind) {
+    return (WIDGET_CATALOG[kind]?.sizes || []).map((size) => [...size]);
+}
+
+export function pickResize(kind, widget, wantW, wantH, occupied, axis = 'both') {
+    const sizes = allowedSizes(kind);
+    if (!sizes.length) return { w: widget.w, h: widget.h };
+    const scored = sizes
+        .map(([w, h]) => {
+            let dist;
+            if (axis === 'x') dist = Math.abs(w - wantW) * 4 + Math.abs(h - widget.h);
+            else if (axis === 'y') dist = Math.abs(h - wantH) * 4 + Math.abs(w - widget.w);
+            else dist = Math.abs(w - wantW) + Math.abs(h - wantH);
+            return { w, h, dist, area: w * h };
+        })
+        .sort((a, b) => a.dist - b.dist || a.area - b.area || a.w - b.w);
+    for (const size of scored) {
+        if (canPlace(occupied, widget, widget.x, widget.y, size.w, size.h)) {
+            return { w: size.w, h: size.h };
+        }
+    }
+    return { w: widget.w, h: widget.h };
 }
 
 export function pageById(layout, pageId) {

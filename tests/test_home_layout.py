@@ -158,6 +158,22 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn((todo["w"], todo["h"]), home_layout.allowed_sizes("todo"))
         self.assertNotEqual((todo["w"], todo["h"]), (2, 3))
 
+    def test_resize_snaps_to_nearest_allowed_size(self) -> None:
+        self.assertEqual(home_layout.nearest_size("todo", 2, 2), (2, 2))
+        self.assertEqual(home_layout.nearest_size("todo", 4, 3), (4, 2))
+        self.assertEqual(home_layout.nearest_size("analytics", 2, 2), (4, 3))
+        layout = home_layout.get_home_layout()
+        page_id = layout["pages"][0]["id"]
+        todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
+        with self.assertRaises(ValueError):
+            home_layout.resize_widget(layout, page_id, todo["id"], 4, 2)
+        today = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "today_calendar")
+        layout = home_layout.remove_home_widget(page_id, today["id"])
+        todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
+        layout = home_layout.resize_home_widget(page_id, todo["id"], 4, 3)
+        todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
+        self.assertEqual((todo["w"], todo["h"], todo["x"], todo["y"]), (4, 2, 0, 0))
+
     def test_remove_widget(self) -> None:
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]

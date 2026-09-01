@@ -134,6 +134,18 @@ class HomeUiTests(unittest.TestCase):
         click = HOME_RUNTIME.split("addEventListener('click'")[-1].split("const beginDrag")[0]
         self.assertIn("if (!editing) return;", click)
 
+    def test_home_widgets_resize_by_dragging_handles(self) -> None:
+        self.assertIn("export function pickResize", HOME_JS)
+        self.assertIn('data-resize="se"', HOME_RUNTIME)
+        self.assertIn('data-resize="e"', HOME_RUNTIME)
+        self.assertIn('data-resize="s"', HOME_RUNTIME)
+        self.assertNotIn('data-act="resize"', HOME_RUNTIME)
+        self.assertNotIn(">Size</button>", HOME_RUNTIME)
+        self.assertIn("eel.resize_home_widget(page.id, id, w | 0, h | 0)", HOME_RUNTIME)
+        self.assertIn("beginResize", HOME_RUNTIME)
+        self.assertIn("cursor: nwse-resize", STYLE)
+        self.assertIn("Drag a corner or edge", INDEX)
+
     def test_home_widget_refresh_continues_after_one_failure(self) -> None:
         refresh = HOME_RUNTIME.split("async function refreshKinds")[1].split("function paintPages")[0]
         self.assertIn("const run = async (fn)", refresh)
