@@ -120,7 +120,8 @@ class HomeUiTests(unittest.TestCase):
     def test_live_home_drags_from_title_without_edit(self) -> None:
         self.assertIn("home-live-copy", INDEX)
         self.assertIn("home-widget-handle", HOME_RUNTIME)
-        self.assertIn("closest('.home-widget-handle')", HOME_RUNTIME)
+        self.assertIn("closest('.home-widget-chrome')", HOME_RUNTIME)
+        self.assertIn("closest('.home-widget-body')", HOME_RUNTIME)
         self.assertIn("window.addEventListener('pointermove', moveDrag)", HOME_RUNTIME)
         self.assertIn("window.addEventListener('mousemove', moveDrag)", HOME_RUNTIME)
         begin = HOME_RUNTIME.split("const beginDrag")[1].split("const moveDrag")[0]

@@ -56,12 +56,20 @@ export function snapCell(clientX, clientY, gridEl) {
     if (!gridEl) return { x: 0, y: 0 };
     const rect = gridEl.getBoundingClientRect();
     const styles = window.getComputedStyle(gridEl);
-    const gap = parseFloat(styles.columnGap || styles.gap || '12') || 12;
+    const gap = parseCssPx(styles.columnGap || styles.gap, 12);
     const colW = (rect.width - gap * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
-    const rowH = parseFloat(styles.gridAutoRows) || 136;
+    const rowH = parseCssPx(styles.gridAutoRows, 136);
     const x = Math.max(0, Math.min(GRID_COLUMNS - 1, Math.floor((clientX - rect.left) / (colW + gap))));
     const y = Math.max(0, Math.floor((clientY - rect.top) / (rowH + gap)));
     return { x, y };
+}
+
+function parseCssPx(value, fallback) {
+    const raw = String(value || '').trim();
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n) || n <= 0) return fallback;
+    if (raw.endsWith('rem')) return n * 16;
+    return n;
 }
 
 export function canPlace(occupied, widget, x, y) {

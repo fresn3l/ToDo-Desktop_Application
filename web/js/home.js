@@ -155,7 +155,7 @@ function paintGrid() {
             return `
                 <article class="home-widget" data-id="${utils.escapeHtml(item.id)}" data-kind="${utils.escapeHtml(item.kind)}" data-w="${item.w}" data-h="${item.h}" style="grid-column:${item.x + 1} / span ${item.w};grid-row:${item.y + 1} / span ${item.h}">
                     <div class="home-widget-chrome">
-                        <span class="home-widget-handle">${utils.escapeHtml(spec.label)}</span>
+                        <span class="home-widget-handle"><span class="home-widget-grip" aria-hidden="true"></span>${utils.escapeHtml(spec.label)}</span>
                         <span class="home-widget-size">${item.w}×${item.h}</span>
                         <button type="button" class="btn-ghost home-widget-btn" data-act="resize">Size</button>
                         <button type="button" class="btn-ghost home-widget-btn" data-act="remove">Remove</button>
@@ -293,9 +293,10 @@ function bindHome() {
     const beginDrag = (e) => {
         if (e.button != null && e.button !== 0) return;
         if (e.target.closest('[data-act]')) return;
-        const handle = e.target.closest('.home-widget-handle');
+        if (e.target.closest('.home-widget-body')) return;
+        const chrome = e.target.closest('.home-widget-chrome');
         const card = e.target.closest('.home-widget');
-        if (!handle || !card) return;
+        if (!chrome || !card) return;
         const page = activePage();
         const widget = page?.widgets.find((item) => item.id === card.getAttribute('data-id'));
         if (!widget) return;
@@ -305,13 +306,17 @@ function bindHome() {
             id: widget.id,
             originX: widget.x,
             originY: widget.y,
+            ignoreUp: true,
         };
+        window.setTimeout(() => {
+            if (drag) drag.ignoreUp = false;
+        }, 0);
         card.classList.add('is-dragging');
         card.draggable = false;
         card.dataset.dropX = String(widget.x);
         card.dataset.dropY = String(widget.y);
         try {
-            handle.setPointerCapture?.(e.pointerId);
+            chrome.setPointerCapture?.(e.pointerId);
         } catch (_) {
             /* window listeners still track the drag if capture is unavailable */
         }
@@ -338,7 +343,7 @@ function bindHome() {
     };
 
     const endDrag = () => {
-        if (!drag) return;
+        if (!drag || drag.ignoreUp) return;
         const page = activePage();
         const grid = document.getElementById('homeGrid');
         const card = grid?.querySelector(`.home-widget[data-id="${drag.id}"]`);
@@ -364,6 +369,7 @@ function bindHome() {
 
     const grid = document.getElementById('homeGrid');
     grid?.addEventListener('pointerdown', beginDrag);
+    grid?.addEventListener('mousedown', beginDrag);
     grid?.addEventListener('dragstart', (e) => e.preventDefault());
     window.addEventListener('pointermove', moveDrag);
     window.addEventListener('pointerup', endDrag);
