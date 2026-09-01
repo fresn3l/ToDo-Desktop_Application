@@ -9,6 +9,8 @@ You add lectures as hard events here. A packer fills study/gym into gaps.
 Nothing is written back to Apple Calendar.
 
 Mail, goals, and Cluny as inboxes come after a real week lands on that grid.
+The week is on `main`. Cluny integration (brain + proposals, not a second
+calendar) is specified in [cluny-integration.md](cluny-integration.md).
 
 **iPhone:** still need a shared iCloud Drive folder
 ([iphone-sprint.md](iphone-sprint.md)). The companion’s job after the Mac
