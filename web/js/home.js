@@ -300,17 +300,18 @@ function bindHome() {
         const widget = page?.widgets.find((item) => item.id === card.getAttribute('data-id'));
         if (!widget) return;
         e.preventDefault();
+        e.stopPropagation();
         drag = {
             id: widget.id,
             originX: widget.x,
             originY: widget.y,
-            pointerId: e.pointerId,
         };
         card.classList.add('is-dragging');
+        card.draggable = false;
         card.dataset.dropX = String(widget.x);
         card.dataset.dropY = String(widget.y);
         try {
-            card.setPointerCapture?.(e.pointerId);
+            handle.setPointerCapture?.(e.pointerId);
         } catch (_) {
             /* window listeners still track the drag if capture is unavailable */
         }
@@ -318,7 +319,7 @@ function bindHome() {
 
     const moveDrag = (e) => {
         if (!drag) return;
-        if (drag.pointerId != null && e.pointerId != null && e.pointerId !== drag.pointerId) return;
+        if (!Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return;
         const grid = document.getElementById('homeGrid');
         const page = activePage();
         const widget = page?.widgets.find((item) => item.id === drag.id);
@@ -349,16 +350,26 @@ function bindHome() {
         drag = null;
         card?.classList.remove('is-dragging');
         if (!page || Number.isNaN(x) || Number.isNaN(y) || (x === originX && y === originY)) {
-            void renderHome();
+            if (card && page) {
+                const widget = page.widgets.find((item) => item.id === id);
+                if (widget) {
+                    card.style.gridColumn = `${widget.x + 1} / span ${widget.w}`;
+                    card.style.gridRow = `${widget.y + 1} / span ${widget.h}`;
+                }
+            }
             return;
         }
-        void run(() => eel.move_home_widget(page.id, id, x, y)());
+        void run(() => eel.move_home_widget(page.id, id, x | 0, y | 0)());
     };
 
-    document.getElementById('homeGrid')?.addEventListener('pointerdown', beginDrag);
+    const grid = document.getElementById('homeGrid');
+    grid?.addEventListener('pointerdown', beginDrag);
+    grid?.addEventListener('dragstart', (e) => e.preventDefault());
     window.addEventListener('pointermove', moveDrag);
     window.addEventListener('pointerup', endDrag);
     window.addEventListener('pointercancel', endDrag);
+    window.addEventListener('mousemove', moveDrag);
+    window.addEventListener('mouseup', endDrag);
 }
 
 export function setupHome() {

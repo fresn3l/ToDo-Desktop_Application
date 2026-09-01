@@ -166,6 +166,16 @@ class HomeLayoutTests(unittest.TestCase):
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
         self.assertEqual(kinds, ["todo"])
 
+    def test_today_can_move_down_without_hitting_todo(self) -> None:
+        layout = home_layout.get_home_layout()
+        page_id = layout["pages"][0]["id"]
+        today = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "today_calendar")
+        moved = home_layout.move_home_widget(page_id, today["id"], 2, 3)
+        row = next(item for item in moved["pages"][0]["widgets"] if item["id"] == today["id"])
+        self.assertEqual((row["x"], row["y"]), (2, 3))
+        todo = next(item for item in moved["pages"][0]["widgets"] if item["kind"] == "todo")
+        self.assertEqual((todo["x"], todo["y"]), (0, 0))
+
     def test_page_name_is_clipped(self) -> None:
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]

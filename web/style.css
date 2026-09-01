@@ -2485,6 +2485,7 @@ input[type='range'] {
     cursor: grab;
     color: var(--text-title);
     user-select: none;
+    -webkit-user-drag: none;
     touch-action: none;
     padding: 4px 6px;
     margin: -4px -6px;

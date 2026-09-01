@@ -122,6 +122,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("home-widget-handle", HOME_RUNTIME)
         self.assertIn("closest('.home-widget-handle')", HOME_RUNTIME)
         self.assertIn("window.addEventListener('pointermove', moveDrag)", HOME_RUNTIME)
+        self.assertIn("window.addEventListener('mousemove', moveDrag)", HOME_RUNTIME)
         begin = HOME_RUNTIME.split("const beginDrag")[1].split("const moveDrag")[0]
         self.assertNotIn("if (!editing)", begin)
         click = HOME_RUNTIME.split("addEventListener('click'")[-1].split("const beginDrag")[0]
