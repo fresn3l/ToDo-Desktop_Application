@@ -15,7 +15,8 @@ Locked from the current conversation:
 - Mail, goals, and Cluny are later inboxes. They do not place times.
 
 Cluny stays the local brain (syllabus PDF → proposed tasks). It does not
-own a second task list and it does not pick 2:15 vs 2:40.
+own a second task list and it does not pick 2:15 vs 2:40. Ownership and
+phased integration: [cluny-integration.md](cluny-integration.md).
 
 ---
 

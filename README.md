@@ -93,6 +93,7 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 - **Appearance**: `~/Library/Application Support/ToDo/appearance.json`
 
 Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_sync.py`).
+Cluny is the local brain, not the scheduler — [docs/cluny-integration.md](docs/cluny-integration.md).
 
 ## Technologies
 
