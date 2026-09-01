@@ -19,101 +19,101 @@ from paths import data_directory
 
 GRID_COLUMNS = 4
 MAX_PAGES = 12
-MAX_WIDGETS_PER_PAGE = 24
+MAX_WIDGETS_PER_PAGE = 32
 MAX_PAGE_NAME = 40
 MAX_SCAN_ROWS = 32
 
-# Allowed (width, height) in cells. macOS-style few sizes per kind.
+# Allowed (width, height) in cells. 1-wide tiles are glance chips; 4-wide is the full board.
 WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "todo": {
         "label": "To Do",
-        "sizes": ((2, 2), (2, 3), (4, 2), (4, 4)),
-        "default": (2, 3),
+        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "default": (2, 2),
     },
     "today_calendar": {
         "label": "Today",
-        "sizes": ((2, 2), (2, 3), (4, 2)),
+        "sizes": ((1, 1), (2, 1), (2, 2), (2, 3), (4, 2)),
         "default": (2, 2),
     },
     "workout": {
         "label": "Workout",
-        "sizes": ((2, 2), (2, 3), (4, 3), (4, 4)),
+        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
         "default": (2, 2),
     },
     "journal": {
         "label": "Journal",
-        "sizes": ((2, 2), (4, 2), (4, 4)),
+        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
         "default": (2, 2),
     },
     "goals": {
         "label": "Goals",
-        "sizes": ((2, 2), (4, 3), (4, 4)),
-        "default": (4, 3),
+        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "default": (2, 2),
     },
     "allwork": {
         "label": "All Work",
-        "sizes": ((2, 2), (2, 3), (4, 2)),
+        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3)),
         "default": (2, 2),
     },
     "analytics": {
         "label": "Analytics",
-        "sizes": ((4, 3), (4, 4)),
-        "default": (4, 3),
+        "sizes": ((2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "default": (2, 2),
     },
     "timeline": {
         "label": "Timeline",
-        "sizes": ((4, 2), (4, 3), (4, 4)),
-        "default": (4, 3),
+        "sizes": ((2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "default": (2, 2),
     },
     "weather": {
         "label": "Weather",
-        "sizes": ((2, 2), (2, 3), (4, 2), (4, 3)),
-        "default": (2, 3),
+        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2), (4, 3)),
+        "default": (2, 1),
     },
     "focus": {
         "label": "Focus",
-        "sizes": ((2, 2), (4, 2)),
-        "default": (2, 2),
+        "sizes": ((1, 1), (2, 1), (2, 2), (4, 1), (4, 2)),
+        "default": (2, 1),
     },
     "countdown": {
         "label": "Countdown",
-        "sizes": ((2, 2), (2, 3), (4, 2)),
-        "default": (2, 2),
+        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2)),
+        "default": (2, 1),
     },
     "habits": {
         "label": "Habits",
-        "sizes": ((2, 2), (2, 3), (4, 2)),
-        "default": (2, 3),
+        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2)),
+        "default": (2, 2),
     },
     "heatmap": {
         "label": "Heatmap",
-        "sizes": ((4, 2), (4, 3)),
-        "default": (4, 2),
+        "sizes": ((2, 1), (4, 1), (2, 2), (4, 2), (4, 3)),
+        "default": (4, 1),
     },
     "day_brief": {
         "label": "Day",
-        "sizes": ((2, 3), (4, 3), (4, 4)),
-        "default": (2, 3),
+        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "default": (2, 2),
     },
     "counters": {
         "label": "Counters",
-        "sizes": ((2, 2), (2, 3), (4, 2), (4, 3)),
-        "default": (2, 2),
+        "sizes": ((1, 1), (2, 1), (2, 2), (4, 2), (4, 3)),
+        "default": (2, 1),
     },
     "reading": {
         "label": "Reading",
-        "sizes": ((2, 2), (2, 3), (4, 2)),
-        "default": (2, 2),
+        "sizes": ((1, 1), (2, 1), (2, 2), (2, 3), (4, 2)),
+        "default": (2, 1),
     },
     "word": {
         "label": "Word",
-        "sizes": ((2, 2), (2, 3), (4, 2)),
-        "default": (2, 2),
+        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2)),
+        "default": (1, 1),
     },
     "checklist": {
         "label": "Check-in",
-        "sizes": ((2, 3), (4, 3), (4, 4)),
-        "default": (2, 3),
+        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "default": (2, 2),
     },
 }
 
@@ -159,7 +159,7 @@ def default_layout() -> Dict[str, Any]:
                         "x": 0,
                         "y": 0,
                         "w": 2,
-                        "h": 3,
+                        "h": 2,
                     },
                     {
                         "id": _new_id(),

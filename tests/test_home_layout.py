@@ -53,7 +53,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertEqual(kinds, ["todo", "today_calendar"])
         todo = layout["pages"][0]["widgets"][0]
         today = layout["pages"][0]["widgets"][1]
-        self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 2, 3))
+        self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 2, 2))
         self.assertEqual((today["x"], today["y"], today["w"], today["h"]), (2, 0, 2, 2))
         self.assertFalse(home_layout.boxes_overlap(todo, today))
 
@@ -65,14 +65,19 @@ class HomeLayoutTests(unittest.TestCase):
     def test_each_kind_has_a_few_allowed_sizes(self) -> None:
         for kind, spec in home_layout.WIDGET_CATALOG.items():
             sizes = spec["sizes"]
-            self.assertGreaterEqual(len(sizes), 2, kind)
-            self.assertLessEqual(len(sizes), 4, kind)
+            self.assertGreaterEqual(len(sizes), 4, kind)
+            self.assertLessEqual(len(sizes), 8, kind)
             self.assertIn(spec["default"], sizes)
             self.assertEqual(home_layout.coerce_size(kind, 99, 99), spec["default"])
 
-    def test_analytics_cannot_be_tiny(self) -> None:
-        self.assertNotIn((2, 2), home_layout.allowed_sizes("analytics"))
-        self.assertEqual(home_layout.coerce_size("analytics", 2, 2), (4, 3))
+    def test_glance_widgets_can_be_one_by_one(self) -> None:
+        self.assertIn((1, 1), home_layout.allowed_sizes("weather"))
+        self.assertIn((1, 1), home_layout.allowed_sizes("word"))
+        self.assertIn((1, 1), home_layout.allowed_sizes("focus"))
+        self.assertEqual(home_layout.spec_default("weather"), (2, 1))
+        self.assertEqual(home_layout.spec_default("word"), (1, 1))
+        self.assertIn((2, 2), home_layout.allowed_sizes("analytics"))
+        self.assertEqual(home_layout.coerce_size("analytics", 2, 2), (2, 2))
 
     def test_first_fit_skips_occupied_cells(self) -> None:
         occupied = [{"id": "a", "x": 0, "y": 0, "w": 2, "h": 2}]
@@ -156,12 +161,13 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.resize_home_widget(page_id, todo["id"])
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
         self.assertIn((todo["w"], todo["h"]), home_layout.allowed_sizes("todo"))
-        self.assertNotEqual((todo["w"], todo["h"]), (2, 3))
+        self.assertNotEqual((todo["w"], todo["h"]), (2, 2))
 
     def test_resize_snaps_to_nearest_allowed_size(self) -> None:
         self.assertEqual(home_layout.nearest_size("todo", 2, 2), (2, 2))
-        self.assertEqual(home_layout.nearest_size("todo", 4, 3), (4, 2))
-        self.assertEqual(home_layout.nearest_size("analytics", 2, 2), (4, 3))
+        self.assertEqual(home_layout.nearest_size("todo", 4, 3), (4, 3))
+        self.assertEqual(home_layout.nearest_size("analytics", 5, 5), (4, 4))
+        self.assertEqual(home_layout.nearest_size("weather", 1, 1), (1, 1))
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
@@ -172,7 +178,7 @@ class HomeLayoutTests(unittest.TestCase):
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
         layout = home_layout.resize_home_widget(page_id, todo["id"], 4, 3)
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
-        self.assertEqual((todo["w"], todo["h"], todo["x"], todo["y"]), (4, 2, 0, 0))
+        self.assertEqual((todo["w"], todo["h"], todo["x"], todo["y"]), (4, 3, 0, 0))
 
     def test_remove_widget(self) -> None:
         layout = home_layout.get_home_layout()
@@ -251,7 +257,8 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("word", kinds)
         self.assertIn("checklist", kinds)
         self.assertEqual(home_layout.coerce_size("countdown", 4, 2), (4, 2))
-        self.assertEqual(home_layout.coerce_size("heatmap", 2, 2), (4, 2))
+        self.assertEqual(home_layout.coerce_size("heatmap", 2, 2), (2, 2))
+        self.assertEqual(home_layout.coerce_size("heatmap", 3, 1), (4, 1))
         self.assertEqual(home_layout.coerce_size("day_brief", 2, 3), (2, 3))
 
     def test_reset_restores_first_install(self) -> None:

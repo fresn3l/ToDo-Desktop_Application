@@ -45,15 +45,19 @@ export function paintCountdowns(items) {
         return;
     }
     el.innerHTML = rows
-        .map(
-            (row) => `<li data-id="${utils.escapeHtml(row.id)}">
+        .map((row) => {
+            const state = row.state === 'today' ? ' is-today' : row.state === 'past' ? ' is-past' : '';
+            const days = Number(row.days);
+            const count = Number.isFinite(days) ? String(Math.abs(days)) : '—';
+            return `<li class="countdown-item${state}" data-id="${utils.escapeHtml(row.id)}">
                 <div>
                     <strong>${utils.escapeHtml(row.title)}</strong>
-                    <span>${utils.escapeHtml(row.phrase)}</span>
+                    <span class="countdown-date">${utils.escapeHtml(row.phrase)}</span>
                 </div>
+                <em class="countdown-days">${utils.escapeHtml(count)}</em>
                 <button type="button" class="btn-ghost" data-act="remove" aria-label="Remove">Remove</button>
-            </li>`,
-        )
+            </li>`;
+        })
         .join('');
 }
 

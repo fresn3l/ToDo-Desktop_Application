@@ -30,7 +30,7 @@ const FALLBACK_LAYOUT = {
             id: 'local-home',
             name: 'Home',
             widgets: [
-                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 3 },
+                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2 },
                 { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2 },
             ],
         },
@@ -437,7 +437,7 @@ function bindHome() {
             card.dataset.dropH = String(next.h);
             return;
         }
-        const x = Math.max(0, Math.min(4 - widget.w, cell.x));
+        const x = Math.max(0, Math.min(GRID_COLUMNS - widget.w, cell.x));
         const y = Math.max(0, cell.y);
         if (canPlace(page.widgets, widget, x, y)) {
             paintWidgetBox(card, x, y, widget.w, widget.h);

@@ -6,24 +6,24 @@
 export const GRID_COLUMNS = 4;
 
 export const WIDGET_CATALOG = {
-    todo: { label: 'To Do', sizes: [[2, 2], [2, 3], [4, 2], [4, 4]], default: [2, 3], source: 'todoTab' },
-    today_calendar: { label: 'Today', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'todayCalendarSource' },
-    workout: { label: 'Workout', sizes: [[2, 2], [2, 3], [4, 3], [4, 4]], default: [2, 2], source: 'workoutTab' },
-    journal: { label: 'Journal', sizes: [[2, 2], [4, 2], [4, 4]], default: [2, 2], source: 'journalTab' },
-    goals: { label: 'Goals', sizes: [[2, 2], [4, 3], [4, 4]], default: [4, 3], source: 'goalsTab' },
-    allwork: { label: 'All Work', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'allWorkTab' },
-    analytics: { label: 'Analytics', sizes: [[4, 3], [4, 4]], default: [4, 3], source: 'analyticsTab' },
-    timeline: { label: 'Timeline', sizes: [[4, 2], [4, 3], [4, 4]], default: [4, 3], source: 'timelineTab' },
-    weather: { label: 'Weather', sizes: [[2, 2], [2, 3], [4, 2], [4, 3]], default: [2, 3], source: 'weatherSource' },
-    focus: { label: 'Focus', sizes: [[2, 2], [4, 2]], default: [2, 2], source: 'focusSource' },
-    countdown: { label: 'Countdown', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'countdownSource' },
-    habits: { label: 'Habits', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 3], source: 'habitsSource' },
-    heatmap: { label: 'Heatmap', sizes: [[4, 2], [4, 3]], default: [4, 2], source: 'heatmapSource' },
-    day_brief: { label: 'Day', sizes: [[2, 3], [4, 3], [4, 4]], default: [2, 3], source: 'dayBriefSource' },
-    counters: { label: 'Counters', sizes: [[2, 2], [2, 3], [4, 2], [4, 3]], default: [2, 2], source: 'countersSource' },
-    reading: { label: 'Reading', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'readingSource' },
-    word: { label: 'Word', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'wordTab' },
-    checklist: { label: 'Check-in', sizes: [[2, 3], [4, 3], [4, 4]], default: [2, 3], source: 'checklistTab' },
+    todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'todoTab' },
+    today_calendar: { label: 'Today', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'todayCalendarSource' },
+    workout: { label: 'Workout', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'workoutTab' },
+    journal: { label: 'Journal', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'journalTab' },
+    goals: { label: 'Goals', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'goalsTab' },
+    allwork: { label: 'All Work', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3]], default: [2, 2], source: 'allWorkTab' },
+    analytics: { label: 'Analytics', sizes: [[2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'analyticsTab' },
+    timeline: { label: 'Timeline', sizes: [[2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'timelineTab' },
+    weather: { label: 'Weather', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [4, 2], [4, 3]], default: [2, 1], source: 'weatherSource' },
+    focus: { label: 'Focus', sizes: [[1, 1], [2, 1], [2, 2], [4, 1], [4, 2]], default: [2, 1], source: 'focusSource' },
+    countdown: { label: 'Countdown', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [4, 2]], default: [2, 1], source: 'countdownSource' },
+    habits: { label: 'Habits', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'habitsSource' },
+    heatmap: { label: 'Heatmap', sizes: [[2, 1], [4, 1], [2, 2], [4, 2], [4, 3]], default: [4, 1], source: 'heatmapSource' },
+    day_brief: { label: 'Day', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'dayBriefSource' },
+    counters: { label: 'Counters', sizes: [[1, 1], [2, 1], [2, 2], [4, 2], [4, 3]], default: [2, 1], source: 'countersSource' },
+    reading: { label: 'Reading', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [4, 2]], default: [2, 1], source: 'readingSource' },
+    word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [4, 2]], default: [1, 1], source: 'wordTab' },
+    checklist: { label: 'Check-in', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'checklistTab' },
 };
 
 export function catalogList() {
@@ -58,7 +58,7 @@ export function snapCell(clientX, clientY, gridEl) {
     const styles = window.getComputedStyle(gridEl);
     const gap = parseCssPx(styles.columnGap || styles.gap, 12);
     const colW = (rect.width - gap * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
-    const rowH = parseCssPx(styles.gridAutoRows, 136);
+    const rowH = parseCssPx(styles.gridAutoRows, 92);
     const x = Math.max(0, Math.min(GRID_COLUMNS - 1, Math.floor((clientX - rect.left) / (colW + gap))));
     const y = Math.max(0, Math.floor((clientY - rect.top) / (rowH + gap)));
     return { x, y };
