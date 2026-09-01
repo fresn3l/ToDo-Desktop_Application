@@ -121,9 +121,10 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("home-live-copy", INDEX)
         self.assertIn("home-widget-handle", HOME_RUNTIME)
         self.assertIn("closest('.home-widget-handle')", HOME_RUNTIME)
-        pointer = HOME_RUNTIME.split("addEventListener('pointerdown'")[1].split("addEventListener('pointermove'")[0]
-        self.assertNotIn("if (!editing)", pointer)
-        click = HOME_RUNTIME.split("addEventListener('click'")[-1].split("addEventListener('pointerdown'")[0]
+        self.assertIn("window.addEventListener('pointermove', moveDrag)", HOME_RUNTIME)
+        begin = HOME_RUNTIME.split("const beginDrag")[1].split("const moveDrag")[0]
+        self.assertNotIn("if (!editing)", begin)
+        click = HOME_RUNTIME.split("addEventListener('click'")[-1].split("const beginDrag")[0]
         self.assertIn("if (!editing) return;", click)
 
     def test_home_widget_refresh_continues_after_one_failure(self) -> None:

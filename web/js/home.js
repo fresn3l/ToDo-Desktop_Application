@@ -290,7 +290,8 @@ function bindHome() {
         }
     });
 
-    document.getElementById('homeGrid')?.addEventListener('pointerdown', (e) => {
+    const beginDrag = (e) => {
+        if (e.button != null && e.button !== 0) return;
         if (e.target.closest('[data-act]')) return;
         const handle = e.target.closest('.home-widget-handle');
         const card = e.target.closest('.home-widget');
@@ -306,11 +307,18 @@ function bindHome() {
             pointerId: e.pointerId,
         };
         card.classList.add('is-dragging');
-        card.setPointerCapture?.(e.pointerId);
-    });
+        card.dataset.dropX = String(widget.x);
+        card.dataset.dropY = String(widget.y);
+        try {
+            card.setPointerCapture?.(e.pointerId);
+        } catch (_) {
+            /* window listeners still track the drag if capture is unavailable */
+        }
+    };
 
-    document.getElementById('homeGrid')?.addEventListener('pointermove', (e) => {
+    const moveDrag = (e) => {
         if (!drag) return;
+        if (drag.pointerId != null && e.pointerId != null && e.pointerId !== drag.pointerId) return;
         const grid = document.getElementById('homeGrid');
         const page = activePage();
         const widget = page?.widgets.find((item) => item.id === drag.id);
@@ -326,9 +334,9 @@ function bindHome() {
             card.dataset.dropX = String(x);
             card.dataset.dropY = String(y);
         }
-    });
+    };
 
-    const endDrag = (e) => {
+    const endDrag = () => {
         if (!drag) return;
         const page = activePage();
         const grid = document.getElementById('homeGrid');
@@ -336,19 +344,21 @@ function bindHome() {
         const x = Number(card?.dataset.dropX);
         const y = Number(card?.dataset.dropY);
         const id = drag.id;
+        const originX = drag.originX;
+        const originY = drag.originY;
         drag = null;
         card?.classList.remove('is-dragging');
-        if (!page || Number.isNaN(x) || Number.isNaN(y)) {
+        if (!page || Number.isNaN(x) || Number.isNaN(y) || (x === originX && y === originY)) {
             void renderHome();
             return;
         }
-        void run(() => eel.move_home_widget(page.id, id, x, y)()).then(() => {
-            if (e) {/* keep */}
-        });
+        void run(() => eel.move_home_widget(page.id, id, x, y)());
     };
 
-    document.getElementById('homeGrid')?.addEventListener('pointerup', endDrag);
-    document.getElementById('homeGrid')?.addEventListener('pointercancel', endDrag);
+    document.getElementById('homeGrid')?.addEventListener('pointerdown', beginDrag);
+    window.addEventListener('pointermove', moveDrag);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
 }
 
 export function setupHome() {
