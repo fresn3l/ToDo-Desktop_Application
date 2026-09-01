@@ -2503,7 +2503,8 @@ input[type='range'] {
     grid-template-columns: 1fr;
 }
 
-.home-widget[data-kind="weather"][data-h="2"] .weather-daily {
+.home-widget[data-kind="weather"][data-h="2"] .weather-daily,
+.home-widget[data-kind="weather"][data-w="2"] .weather-daily {
     display: none;
 }
 
