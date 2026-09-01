@@ -13,6 +13,9 @@ import { onGoalsTabShown } from './goals.js';
 import { onAnalyticsTabShown } from './analytics.js';
 import { onTimelineTabShown } from './timeline.js';
 import { loadPastEntries } from './journal.js';
+import { refreshCountdowns } from './countdown.js';
+import { refreshHeatmap } from './heatmap.js';
+import { refreshDayBrief } from './day_brief.js';
 
 const FALLBACK_LAYOUT = {
     columns: 4,
@@ -92,6 +95,9 @@ async function refreshKinds(kinds) {
         if (set.has('journal')) await loadPastEntries();
         if (set.has('analytics')) await onAnalyticsTabShown();
         if (set.has('timeline')) await onTimelineTabShown();
+        if (set.has('countdown')) await refreshCountdowns();
+        if (set.has('heatmap')) await refreshHeatmap();
+        if (set.has('day_brief')) await refreshDayBrief();
         await refreshToday();
     } catch (err) {
         console.error(err);

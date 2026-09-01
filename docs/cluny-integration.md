@@ -329,10 +329,11 @@ Phases are ownership-shaped, not week estimates. Each phase must preserve the ha
 **Goal:** Cluny can answer questions about what you wrote, without touching the week.
 
 - Keep `cluny_sync.py` journal + checklist push (or replace the SQLite dump with `POST /ingest/text` **without** making Cluny the file owner).
+- Journal ingest now includes `kind` (`journal` | `morning_brief` | `evening_review`) and, for briefs, a `brief` object (`slot`, `local_date`, focus/done/rolled ids). Cluny should keep those fields in metadata so morning intentions and evening recaps stay separate streams. Kosistenz still owns the files and the `day_briefs.sqlite` snapshot used for capacity analytics.
 - Optional: `cluny watch` on the Kosistenz Journal folder.
 - Syllabi and PDFs live in Cluny’s library (`cluny add`), not in Kosistenz.
 
-**Done when:** you can `cluny ask` about yesterday’s journal and a syllabus PDF, while Kosistenz is the only place you *write* the journal.
+**Done when:** you can `cluny ask` about yesterday’s journal and a syllabus PDF, while Kosistenz is the only place you *write* the journal. Morning and evening briefs remain Kosistenz journal kinds plus a local brief DB — not a second Cluny checklist product. Cluny must not create tasks from leftover evening items.
 
 ### Phase 2 — Read-only life context
 
@@ -374,6 +375,7 @@ Examples Cluny *may* say:
 
 - “1-week Spanish has 0 minutes logged and no block this week.”
 - “Essay 2 is due Friday and has no remaining estimate placed.”
+- “You planned five morning-focus tasks and finished two, three days running.” (from ingested brief metadata + a future read snapshot — never by writing the week)
 
 Examples Cluny *may not* do:
 

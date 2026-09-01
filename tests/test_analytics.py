@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +18,7 @@ class AnalyticsApiTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         path = Path(self._tmp.name)
         self.patches = [
+            mock.patch.dict(os.environ, {"KOSISTENZ_DATA_DIR": str(path)}),
             mock.patch.object(work, "_data_dir", lambda: path),
             mock.patch.object(workouts, "_data_dir", lambda: path),
             mock.patch.object(insights, "_journal_entries_in_range", return_value=[]),
@@ -39,6 +41,8 @@ class AnalyticsApiTests(unittest.TestCase):
         self.assertIn("workout_plan", data)
         self.assertIn("misses", data["workout_plan"])
         self.assertIn("weight_log", data["workout"])
+        self.assertIn("capacity", data)
+        self.assertEqual(data["capacity"]["days_planned"], 0)
 
 
 if __name__ == "__main__":

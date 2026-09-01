@@ -841,6 +841,94 @@ def list_work_for_date(local_date: str) -> List[Dict[str, Any]]:
 
 
 @eel.expose
+def list_repeating_series() -> List[Dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, title, cadence_json
+            FROM work_series
+            WHERE archived = 0
+            ORDER BY title ASC
+            """
+        ).fetchall()
+    return [
+        {
+            "id": row["id"],
+            "title": row["title"],
+            "cadence_label": cadence_label(row["cadence_json"]),
+        }
+        for row in rows
+    ]
+
+
+def get_work_items_by_ids(ids: List[str]) -> List[Dict[str, Any]]:
+    now = _now()
+    out: List[Dict[str, Any]] = []
+    seen = set()
+    with _connect() as conn:
+        for raw in ids:
+            item_id = str(raw or "").strip()
+            if not item_id or item_id in seen:
+                continue
+            seen.add(item_id)
+            row = _fetch(conn, item_id)
+            if row is not None:
+                out.append(_row_to_dict(row, now))
+    return out
+
+
+def series_heatmap_days(
+    series_id: str,
+    start: date,
+    end: date,
+    today: Optional[date] = None,
+) -> List[Dict[str, Any]]:
+    """Expected-vs-done cells for one repeating series (misses do not carry over)."""
+    today = today or _today()
+    key = str(series_id or "").strip()
+    if not key:
+        return []
+    with _connect() as conn:
+        series_row = conn.execute(
+            "SELECT * FROM work_series WHERE id = ? AND archived = 0",
+            (key,),
+        ).fetchone()
+        if series_row is None:
+            return []
+        series_d = dict(series_row)
+        rows: List[Dict[str, Any]] = []
+        cursor = start
+        while cursor <= end:
+            iso = cursor.isoformat()
+            if not _occurs_on(series_d, cursor):
+                rows.append({"date": iso, "state": "none", "value": 0})
+                cursor += timedelta(days=1)
+                continue
+            exception = _exception_for(conn, key, iso)
+            if exception and exception["action"] == "skip":
+                rows.append({"date": iso, "state": "skip", "value": 0})
+                cursor += timedelta(days=1)
+                continue
+            item = conn.execute(
+                """
+                SELECT status FROM work_items
+                WHERE series_id = ? AND occurrence_date = ?
+                """,
+                (key, iso),
+            ).fetchone()
+            if item and item["status"] == "done":
+                rows.append({"date": iso, "state": "hit", "value": 1})
+            elif cursor == today:
+                rows.append({"date": iso, "state": "pending", "value": 0})
+            elif cursor < today:
+                rows.append({"date": iso, "state": "miss", "value": 0})
+            else:
+                rows.append({"date": iso, "state": "none", "value": 0})
+            cursor += timedelta(days=1)
+    return rows
+
+
+@eel.expose
 def list_backlog() -> List[Dict[str, Any]]:
     with _connect() as conn:
         rows = conn.execute(

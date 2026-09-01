@@ -14,6 +14,9 @@ export const WIDGET_CATALOG = {
     allwork: { label: 'All Work', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'allWorkTab' },
     analytics: { label: 'Analytics', sizes: [[4, 3], [4, 4]], default: [4, 3], source: 'analyticsTab' },
     timeline: { label: 'Timeline', sizes: [[4, 2], [4, 3], [4, 4]], default: [4, 3], source: 'timelineTab' },
+    countdown: { label: 'Countdown', sizes: [[2, 2], [4, 2]], default: [2, 2], source: 'countdownSource' },
+    heatmap: { label: 'Heatmap', sizes: [[4, 2], [4, 3]], default: [4, 2], source: 'heatmapSource' },
+    day_brief: { label: 'Day', sizes: [[2, 3], [4, 3], [4, 4]], default: [2, 3], source: 'dayBriefSource' },
 };
 
 export function catalogList() {

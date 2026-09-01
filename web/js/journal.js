@@ -451,7 +451,7 @@ function filteredJournalEntries() {
     return journalCache.filter((entry) => {
         if (journalTagFilter && !(entry.tags || []).includes(journalTagFilter)) return false;
         if (!journalSearchQuery) return true;
-        const hay = `${entry.content || ''} ${(entry.tags || []).join(' ')}`.toLowerCase();
+        const hay = `${entry.content || ''} ${(entry.tags || []).join(' ')} ${entry.kind || ''}`.toLowerCase();
         return hay.includes(journalSearchQuery);
     });
 }
@@ -524,12 +524,19 @@ function renderJournalHistory() {
             const preview = (entry.content || '').trim().replace(/\s+/g, ' ');
             const previewText = preview.length > 140 ? `${preview.slice(0, 137)}…` : preview;
             const open = expandedEntryId === id;
+            const kind = entry.kind || 'journal';
+            const kindBadge = kind === 'morning_brief'
+                ? '<span class="journal-badge">Morning</span>'
+                : kind === 'evening_review'
+                    ? '<span class="journal-badge">Evening</span>'
+                    : '';
             html += `
                 <article class="journal-entry-item ${open ? 'is-open' : ''}" data-entry-id="${utils.escapeHtml(id)}">
                     <button type="button" class="journal-entry-toggle">
                         <div class="journal-entry-header">
                             <time class="journal-entry-date">${utils.escapeHtml(timeStr)}</time>
                             ${durationStr ? `<span class="journal-entry-duration">${utils.escapeHtml(durationStr)}</span>` : ''}
+                            ${kindBadge}
                             ${continuedBadge}
                         </div>
                         ${tagsHtml ? `<div class="journal-entry-tags">${tagsHtml}</div>` : ''}

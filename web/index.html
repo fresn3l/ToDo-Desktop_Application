@@ -396,6 +396,66 @@
                     </div>
                 </section>
 
+                <section id="countdownSource" class="widget-source" aria-label="Countdown">
+                    <div class="compact-widget countdown-widget">
+                        <div class="panel-header compact-widget-head">
+                            <div>
+                                <h2>Countdown</h2>
+                                <p class="panel-sub" id="countdownSummary">Pin a trip, deadline, or birthday.</p>
+                            </div>
+                        </div>
+                        <ul id="countdownList" class="countdown-list"></ul>
+                        <form id="countdownForm" class="countdown-form">
+                            <input type="text" id="countdownTitle" class="checklist-text-input" placeholder="Trip, deadline, birthday" maxlength="80" autocomplete="off">
+                            <input type="date" id="countdownDate" class="checklist-text-input" required>
+                            <label class="checklist-checkbox-label">
+                                <input type="checkbox" id="countdownYearly"> Yearly
+                            </label>
+                            <button type="submit" class="btn-primary">Pin date</button>
+                        </form>
+                    </div>
+                </section>
+
+                <section id="heatmapSource" class="widget-source" aria-label="Heatmap">
+                    <div class="compact-widget heatmap-widget">
+                        <div class="panel-header compact-widget-head">
+                            <div>
+                                <h2>Heatmap</h2>
+                                <p class="panel-sub" id="heatmapSummary">Year of activity</p>
+                            </div>
+                            <div class="heatmap-controls">
+                                <label class="visually-hidden" for="heatmapSourceSelect">Source</label>
+                                <select id="heatmapSourceSelect" class="checklist-select" aria-label="Heatmap source"></select>
+                                <select id="heatmapSeriesSelect" class="checklist-select is-hidden" aria-label="Repeating to do"></select>
+                            </div>
+                        </div>
+                        <div id="heatmapJournalFilters" class="heatmap-filters is-hidden" role="group" aria-label="Journal filter">
+                            <button type="button" class="btn-ghost is-selected" data-filter="all">All</button>
+                            <button type="button" class="btn-ghost" data-filter="journal">Journal</button>
+                            <button type="button" class="btn-ghost" data-filter="morning_brief">Morning</button>
+                            <button type="button" class="btn-ghost" data-filter="evening_review">Evening</button>
+                        </div>
+                        <div id="heatmapGrid" class="heatmap-grid" role="img" aria-label="Activity heatmap"></div>
+                        <p id="heatmapHint" class="checklist-hint small"></p>
+                    </div>
+                </section>
+
+                <section id="dayBriefSource" class="widget-source" aria-label="Day">
+                    <div class="compact-widget day-brief-widget">
+                        <div class="panel-header compact-widget-head">
+                            <div>
+                                <h2 id="dayBriefTitle">Morning brief</h2>
+                                <p class="panel-sub" id="dayBriefSummary">Next events, today’s focus, and a plan.</p>
+                            </div>
+                            <div class="segmented" id="dayBriefSlotToggle" role="group" aria-label="Brief or review">
+                                <button type="button" data-slot="morning">Brief</button>
+                                <button type="button" data-slot="evening">Review</button>
+                            </div>
+                        </div>
+                        <div id="dayBriefBody"></div>
+                    </div>
+                </section>
+
                 <section id="timelineTab" class="widget-source" aria-label="Timeline">
                     <div class="panel timeline-section-wrap">
                         <div class="panel-header">

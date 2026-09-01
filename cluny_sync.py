@@ -82,6 +82,7 @@ def _sync_sqlite(entry: Dict[str, Any]) -> None:
             )
             """
         )
+        # kind and brief ride in raw_json so existing Cluny DBs need no migration.
         conn.execute(
             f"""
             INSERT OR REPLACE INTO {table}

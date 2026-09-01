@@ -181,6 +181,9 @@ def get_analytics(days: int = 30) -> Dict[str, Any]:
     work_stats = work.repeating_work_analytics(days)
     week_key = _week_key(end)
     pattern_notes = _load_pattern_notes()
+    import day_brief
+
+    capacity = day_brief.capacity_for_range(start, end)
     return {
         "period_start": start.isoformat(),
         "period_end": end.isoformat(),
@@ -197,6 +200,7 @@ def get_analytics(days: int = 30) -> Dict[str, Any]:
         "workout_plan": plan,
         "workout_streak": int(streaks.get("workout") or 0),
         "work": work_stats,
+        "capacity": capacity,
         "pattern_prompt": "What pattern do you notice?",
         "pattern_note": pattern_notes.get(week_key, ""),
     }

@@ -16,6 +16,9 @@ import { setupTodo } from './js/todo.js';
 import { setupAllWork } from './js/all_work.js';
 import { setupWorkouts } from './js/workouts.js';
 import { setupGoals } from './js/goals.js';
+import { setupCountdown } from './js/countdown.js';
+import { setupHeatmap } from './js/heatmap.js';
+import { setupDayBrief } from './js/day_brief.js';
 
 async function init() {
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -32,6 +35,9 @@ async function init() {
     setupJournal();
     setupAnalytics();
     setupTimeline();
+    setupCountdown();
+    setupHeatmap();
+    setupDayBrief();
     document.addEventListener('kosistenz:command', (e) => {
         const action = e.detail?.action;
         if (action === 'journal-new') {

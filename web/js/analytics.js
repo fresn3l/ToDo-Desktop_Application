@@ -112,6 +112,7 @@ function renderAnalytics(data) {
             return `<li><strong>${utils.escapeHtml(row.title)}</strong> · ${utils.escapeHtml(row.cadence_label)} · ${row.done}/${row.expected} (${rate}%)</li>`;
         })
         .join('') || '<li class="checklist-empty">No repeating to dos this period</li>';
+    const capacity = data.capacity || {};
     const plan = data.workout_plan || {};
 
     return `
@@ -123,6 +124,15 @@ function renderAnalytics(data) {
                 <ul class="review-list">
                     <li>${journal.days_written || 0} of ${data.days} days written</li>
                     <li>${journal.entries || 0} entries · ${journal.minutes || 0} min</li>
+                </ul>
+            </div>
+            <div class="review-card">
+                <h3>Capacity</h3>
+                <p class="review-stat">${capacity.completion_pct || 0}%</p>
+                <p class="review-detail">morning focus finished</p>
+                <ul class="review-list">
+                    <li>${capacity.done_count || 0} of ${capacity.focus_count || 0} planned · ${capacity.days_planned || 0} days with a brief</li>
+                    <li>${capacity.rolled_count || 0} moved to tomorrow · ${capacity.leftover_count || 0} left undone</li>
                 </ul>
             </div>
             <div class="review-card">
