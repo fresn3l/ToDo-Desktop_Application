@@ -12,6 +12,8 @@ import { setupSettings } from './js/settings.js';
 import { setupToday } from './js/today.js';
 import { setupHome, ensureHomeWidget } from './js/home.js';
 import { setupCalendar } from './js/calendar.js';
+import { setupWeather } from './js/weather.js';
+import { setupGlance } from './js/glance.js';
 import { setupTodo } from './js/todo.js';
 import { setupAllWork } from './js/all_work.js';
 import { setupWorkouts } from './js/workouts.js';
@@ -23,6 +25,8 @@ async function init() {
     setupTabs();
     setupSettings();
     setupHome();
+    setupWeather();
+    setupGlance();
     setupToday();
     setupCalendar();
     setupTodo();

@@ -58,12 +58,16 @@ That still opens the **native WebKit window**, not Chrome.
 
 ## Features
 
-- **Home**: Snap-to-grid widgets (To Do, Today, Workout, Journal, Goals, All Work, Analytics, Timeline). Extra pages, Edit Home to place and resize. First install shows To Do and a mini Today calendar.
+- **Home**: Snap-to-grid widgets (To Do, Today, Workout, Journal, Goals, All Work, Analytics, Timeline, Weather, Focus, Countdown, Habits). Extra pages, Edit Home to place and resize. First install shows To Do and a mini Today calendar.
 - **Journal**: Timed entries (Home widget)
 - **To Do**: Dated tasks with start / finish timers (Home widget)
 - **All Work**: Undated backlog you assign to a day later (Home widget)
 - **Workout**: Body weight, session types, and a simple week template (Home widget)
 - **Analytics**: Streaks, repeating to-do misses, template misses, body-weight sparkline (Home widget)
+- **Weather**: Place search, current conditions, hourly rain chance, seven-day forecast (Home widget; Open-Meteo, cached locally)
+- **Focus**: One intention for today; clears at midnight (Home widget)
+- **Countdown**: Named dates with days remaining (Home widget)
+- **Habits**: Daily ticks that reset each morning (Home widget)
 - **Menu bar**: Start or finish today’s active to do, log a session type, see whether today is empty
 - **Today widget**: Notification Center (and Lock Screen on macOS 14+) — open to-dos, workout logged or not, journal streak
 - **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in All Work** in the Services menu
@@ -91,6 +95,10 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 - **Custom checklist items**: `~/Library/Application Support/ToDo/checklist_custom_items.json`
 - **Active checklist template**: `~/Library/Application Support/ToDo/checklist_selected_stem.txt`
 - **Appearance**: `~/Library/Application Support/ToDo/appearance.json`
+- **Weather**: `~/Library/Application Support/ToDo/weather_settings.json` and `weather_cache.json`
+- **Focus**: `~/Library/Application Support/ToDo/focus.json`
+- **Countdowns**: `~/Library/Application Support/ToDo/countdowns.json`
+- **Habits**: `~/Library/Application Support/ToDo/habits.json`
 
 Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_sync.py`).
 Cluny is the local brain, not the scheduler — [docs/cluny-integration.md](docs/cluny-integration.md).

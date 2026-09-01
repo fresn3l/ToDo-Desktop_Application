@@ -404,6 +404,81 @@
                     </div>
                 </section>
 
+                <section id="weatherSource" class="widget-source" aria-label="Weather">
+                    <div class="glance-widget weather-widget">
+                        <header class="glance-head">
+                            <div>
+                                <p class="today-kicker">Weather</p>
+                                <h2 id="weatherPlace">Set a place</h2>
+                                <p id="weatherSub" class="today-date-sub">Search a city. Forecast stays cached on this Mac.</p>
+                            </div>
+                            <div class="segmented weather-units" id="weatherUnits" role="group" aria-label="Units">
+                                <button type="button" data-value="fahrenheit" class="is-selected">F</button>
+                                <button type="button" data-value="celsius">C</button>
+                            </div>
+                        </header>
+                        <div id="weatherCurrent" class="weather-current"></div>
+                        <ol id="weatherHourly" class="weather-hourly" aria-label="Hourly rain chance"></ol>
+                        <ol id="weatherDaily" class="weather-daily" aria-label="Seven-day forecast"></ol>
+                        <form id="weatherPlaceForm" class="weather-place-form">
+                            <button type="button" id="weatherChangePlace" class="btn-ghost">Change place</button>
+                            <div class="weather-place-search">
+                                <label class="checklist-field-label" for="weatherPlaceQuery">City</label>
+                                <div class="work-add-row">
+                                    <input type="text" id="weatherPlaceQuery" class="checklist-text-input" placeholder="Ann Arbor" autocomplete="off">
+                                    <button type="submit" class="btn-secondary">Search</button>
+                                </div>
+                            </div>
+                            <div id="weatherPlaceResults" class="weather-place-results"></div>
+                        </form>
+                        <p id="weatherStatus" class="checklist-hint small"></p>
+                    </div>
+                </section>
+
+                <section id="focusSource" class="widget-source" aria-label="Focus">
+                    <div class="glance-widget focus-widget">
+                        <p class="today-kicker">Today</p>
+                        <h2>Focus</h2>
+                        <label class="visually-hidden" for="focusInput">Today’s focus</label>
+                        <textarea id="focusInput" class="focus-input" rows="4" placeholder="The one thing that matters today."></textarea>
+                        <p class="checklist-hint small">Clears at midnight. ⌘Enter to save.</p>
+                    </div>
+                </section>
+
+                <section id="countdownSource" class="widget-source" aria-label="Countdown">
+                    <div class="glance-widget countdown-widget">
+                        <header class="glance-head">
+                            <div>
+                                <p class="today-kicker">Upcoming</p>
+                                <h2>Countdown</h2>
+                            </div>
+                        </header>
+                        <ul id="countdownList" class="glance-list"></ul>
+                        <form id="countdownForm" class="glance-add">
+                            <input type="text" id="countdownTitle" class="checklist-text-input" placeholder="Exam, trip, due…" autocomplete="off">
+                            <input type="date" id="countdownDate" class="checklist-text-input" aria-label="Date">
+                            <button type="submit" class="btn-secondary">Add</button>
+                        </form>
+                    </div>
+                </section>
+
+                <section id="habitsSource" class="widget-source" aria-label="Habits">
+                    <div class="glance-widget habits-widget">
+                        <header class="glance-head">
+                            <div>
+                                <p class="today-kicker">Daily</p>
+                                <h2>Habits</h2>
+                                <p id="habitsSummary" class="today-date-sub">Tick the small things that keep the day honest.</p>
+                            </div>
+                        </header>
+                        <ul id="habitList" class="habit-list"></ul>
+                        <form id="habitForm" class="glance-add">
+                            <input type="text" id="habitTitle" class="checklist-text-input" placeholder="Water, stretch, …" autocomplete="off">
+                            <button type="submit" class="btn-secondary">Add</button>
+                        </form>
+                    </div>
+                </section>
+
                 <section id="timelineTab" class="widget-source" aria-label="Timeline">
                     <div class="panel timeline-section-wrap">
                         <div class="panel-header">
