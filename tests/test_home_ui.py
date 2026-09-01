@@ -43,8 +43,18 @@ class HomeUiTests(unittest.TestCase):
             "homeAddPageBtn",
             "homeRenamePageBtn",
             "homeCatalog",
+            "homeBorderWidth",
+            "homeBorderColor",
         ):
             self.assertIn(f'id="{needle}"', INDEX)
+
+    def test_appearance_color_slots_exist(self) -> None:
+        self.assertIn('id="colorSlotList"', INDEX)
+        self.assertIn('id="userPresetSelect"', INDEX)
+        self.assertIn('id="savePresetBtn"', INDEX)
+        self.assertIn('id="newPresetBtn"', INDEX)
+        self.assertIn('id="inkAutoToggle"', INDEX)
+        self.assertIn('id="inkColorInput"', INDEX)
 
     def test_tabs_alias_old_names_to_home(self) -> None:
         self.assertIn("canonicalTab", TABS)

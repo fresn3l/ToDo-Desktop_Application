@@ -6,10 +6,15 @@ import * as utils from './utils.js';
 import {
     THEMES,
     ACCENTS,
+    COLOR_SLOTS,
     getAppearance,
     persistAppearance,
     resetAppearance,
     applyAppearance,
+    resolveColors,
+    resolveInk,
+    snapshotPresetFrom,
+    normalizeHex,
 } from './appearance.js';
 
 function bindSegmented(name, current, onPick) {
@@ -31,7 +36,7 @@ function paintSettings(settings) {
     });
 
     document.querySelectorAll('[data-theme-id]').forEach((btn) => {
-        btn.classList.toggle('is-selected', btn.getAttribute('data-theme-id') === settings.theme);
+        btn.classList.toggle('is-selected', btn.getAttribute('data-theme-id') === settings.theme && !settings.activePresetId);
     });
     document.querySelectorAll('[data-accent-id]').forEach((btn) => {
         btn.classList.toggle('is-selected', btn.getAttribute('data-accent-id') === settings.accent);
@@ -58,6 +63,146 @@ function paintSettings(settings) {
     if (contrast) contrast.checked = !!settings.highContrast;
     const autoFocus = document.getElementById('autoFocusToggle');
     if (autoFocus) autoFocus.checked = !!settings.autoFocus;
+
+    paintColorSlots(settings);
+    paintPresetSelect(settings);
+    paintInk(settings);
+}
+
+function paintColorSlots(settings) {
+    const colors = resolveColors(settings);
+    COLOR_SLOTS.forEach(({ id }) => {
+        const input = document.querySelector(`[data-color-slot="${id}"]`);
+        if (input) input.value = colors[id];
+    });
+}
+
+function paintInk(settings) {
+    const auto = document.getElementById('inkAutoToggle');
+    if (auto) auto.checked = settings.inkAuto !== false;
+    const wrap = document.getElementById('inkCustomWrap');
+    if (wrap) wrap.classList.toggle('is-hidden', settings.inkAuto !== false);
+    const inkInput = document.getElementById('inkColorInput');
+    if (inkInput) inkInput.value = resolveInk(settings);
+}
+
+function paintPresetSelect(settings) {
+    const select = document.getElementById('userPresetSelect');
+    if (select) {
+        const presets = settings.userPresets || [];
+        const currentId = settings.activePresetId || '';
+        select.innerHTML = `<option value="">Built-in theme</option>` + presets
+            .map((p) => `<option value="${utils.escapeHtml(p.id)}"${p.id === currentId ? ' selected' : ''}>${utils.escapeHtml(p.name)}</option>`)
+            .join('');
+        select.value = currentId;
+    }
+    const del = document.getElementById('deletePresetBtn');
+    if (del) del.disabled = !settings.activePresetId;
+    const note = document.getElementById('presetNote');
+    if (note) {
+        const overrides = Object.keys(settings.colorOverrides || {});
+        const themeLabel = (THEMES.find((t) => t.id === settings.theme) || { label: settings.theme }).label;
+        if (settings.activePresetId) {
+            const preset = (settings.userPresets || []).find((p) => p.id === settings.activePresetId);
+            note.textContent = preset ? `Using “${preset.name}”. Save updates it.` : '';
+        } else if (overrides.length) {
+            note.textContent = `${themeLabel} with custom colors — Save keeps them as a palette.`;
+        } else {
+            note.textContent = '';
+        }
+    }
+}
+
+function newPresetId() {
+    return `up-${Date.now().toString(36)}`;
+}
+
+async function applyBuiltinTheme(themeId) {
+    return update({
+        theme: themeId,
+        activePresetId: '',
+        colorOverrides: {},
+    });
+}
+
+async function applyUserPreset(preset) {
+    return update({
+        theme: preset.baseTheme || 'ocean',
+        activePresetId: preset.id,
+        colorOverrides: { ...(preset.colors || {}) },
+        widgetBorderWidth: preset.widgetBorderWidth,
+        inkAuto: preset.inkAuto !== false,
+        ink: preset.ink || '',
+        accent: 'custom',
+        customAccent: (preset.colors && preset.colors.accent) || '#4f8fcf',
+    });
+}
+
+async function setColorSlot(slot, hex) {
+    const value = normalizeHex(hex, '');
+    if (!value) return;
+    const current = getAppearance();
+    const colorOverrides = { ...(current.colorOverrides || {}), [slot]: value };
+    const patch = { colorOverrides };
+    if (slot === 'accent') {
+        patch.accent = 'custom';
+        patch.customAccent = value;
+    }
+    if (slot === 'widgetBorder') {
+        /* width stays; color is the slot */
+    }
+    return update(patch);
+}
+
+async function saveCurrentPreset() {
+    const current = getAppearance();
+    const snapshot = snapshotPresetFrom(current);
+    const existing = (current.userPresets || []).find((p) => p.id === current.activePresetId);
+    if (existing) {
+        const userPresets = current.userPresets.map((p) => (p.id === existing.id ? { ...p, ...snapshot, name: p.name, id: p.id } : p));
+        const next = await update({ userPresets });
+        utils.showSuccessFeedback(`Saved “${existing.name}”.`);
+        return next;
+    }
+    return createPreset(snapshot);
+}
+
+async function createPreset(snapshot) {
+    const current = getAppearance();
+    const snap = snapshot || snapshotPresetFrom(current);
+    const name = window.prompt('Name this palette', 'My palette');
+    if (name == null) return current;
+    const label = name.trim();
+    if (!label) {
+        utils.showErrorFeedback('Give the palette a name.');
+        return current;
+    }
+    const preset = {
+        id: newPresetId(),
+        name: label.slice(0, 40),
+        ...snap,
+    };
+    const userPresets = [...(current.userPresets || []), preset];
+    const next = await update({ userPresets, activePresetId: preset.id, colorOverrides: { ...snap.colors } });
+    utils.showSuccessFeedback(`Saved “${preset.name}”.`);
+    return next;
+}
+
+async function deleteActivePreset() {
+    const current = getAppearance();
+    if (!current.activePresetId) return current;
+    const preset = (current.userPresets || []).find((p) => p.id === current.activePresetId);
+    if (!preset) return current;
+    if (!window.confirm(`Delete “${preset.name}”?`)) return current;
+    const userPresets = current.userPresets.filter((p) => p.id !== preset.id);
+    const next = await update({
+        userPresets,
+        activePresetId: '',
+        colorOverrides: {},
+        theme: preset.baseTheme || current.theme,
+    });
+    utils.showSuccessFeedback('Palette deleted.');
+    return next;
 }
 
 async function update(partial) {
@@ -89,9 +234,54 @@ export function setupSettings() {
         ).join('');
         themeGrid.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-theme-id]');
-            if (btn) update({ theme: btn.getAttribute('data-theme-id') });
+            if (btn) applyBuiltinTheme(btn.getAttribute('data-theme-id'));
         });
     }
+
+    const slotList = document.getElementById('colorSlotList');
+    if (slotList && !slotList.dataset.ready) {
+        slotList.dataset.ready = '1';
+        slotList.innerHTML = COLOR_SLOTS.map(
+            (slot) =>
+                `<label class="color-slot" for="colorSlot-${slot.id}">
+                    <span class="color-slot-label">${slot.label}</span>
+                    <input type="color" class="color-input" id="colorSlot-${slot.id}" data-color-slot="${slot.id}" value="#4f8fcf">
+                </label>`,
+        ).join('');
+        slotList.addEventListener('input', (e) => {
+            const input = e.target.closest('[data-color-slot]');
+            if (input) setColorSlot(input.getAttribute('data-color-slot'), input.value);
+        });
+    }
+
+    document.getElementById('inkAutoToggle')?.addEventListener('change', (e) => {
+        const inkAuto = e.target.checked;
+        const patch = { inkAuto };
+        if (!inkAuto) patch.ink = resolveInk({ ...getAppearance(), inkAuto: true });
+        update(patch);
+    });
+    document.getElementById('inkColorInput')?.addEventListener('input', (e) => {
+        update({ inkAuto: false, ink: e.target.value });
+    });
+
+    document.getElementById('userPresetSelect')?.addEventListener('change', (e) => {
+        const id = e.target.value;
+        if (!id) {
+            applyBuiltinTheme(getAppearance().theme);
+            return;
+        }
+        const preset = (getAppearance().userPresets || []).find((p) => p.id === id);
+        if (preset) applyUserPreset(preset);
+    });
+    document.getElementById('savePresetBtn')?.addEventListener('click', () => {
+        void saveCurrentPreset();
+    });
+    document.getElementById('newPresetBtn')?.addEventListener('click', () => {
+        void createPreset();
+    });
+    document.getElementById('deletePresetBtn')?.addEventListener('click', () => {
+        void deleteActivePreset();
+    });
 
     const accentGrid = document.getElementById('accentGrid');
     if (accentGrid && !accentGrid.dataset.ready) {
@@ -105,12 +295,17 @@ export function setupSettings() {
         }).join('');
         accentGrid.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-accent-id]');
-            if (btn) update({ accent: btn.getAttribute('data-accent-id') });
+            if (!btn) return;
+            const accent = btn.getAttribute('data-accent-id');
+            const colorOverrides = { ...(getAppearance().colorOverrides || {}) };
+            delete colorOverrides.accent;
+            update({ accent, colorOverrides });
         });
     }
 
     document.getElementById('customAccentInput')?.addEventListener('input', (e) => {
-        update({ accent: 'custom', customAccent: e.target.value });
+        const colorOverrides = { ...(getAppearance().colorOverrides || {}), accent: e.target.value };
+        update({ accent: 'custom', customAccent: e.target.value, colorOverrides });
     });
 
     bindSegmented('font', getAppearance().font, (v) => update({ font: v }));
