@@ -1,0 +1,330 @@
+/**
+ * Customizable Home — snap-to-grid widgets, extra pages, Edit Home mode.
+ */
+
+import * as utils from './utils.js';
+import { WIDGET_CATALOG, catalogList, canPlace, snapCell } from './home_layout.js';
+import { onTodayTabShown, refreshToday } from './today.js';
+import { onTodoTabShown } from './todo.js';
+import { onAllWorkTabShown } from './all_work.js';
+import { onWorkoutTabShown } from './workouts.js';
+import { onGoalsTabShown } from './goals.js';
+import { onAnalyticsTabShown } from './analytics.js';
+import { onTimelineTabShown } from './timeline.js';
+import { loadPastEntries } from './journal.js';
+
+let layout = null;
+let editing = false;
+let drag = null;
+
+function rack() {
+    return document.getElementById('widgetSourceRack');
+}
+
+function activePage() {
+    if (!layout) return null;
+    return layout.pages.find((page) => page.id === layout.active_page_id) || layout.pages[0];
+}
+
+async function persist(next) {
+    if (typeof eel === 'undefined' || !eel.save_home_layout) {
+        layout = next;
+        return layout;
+    }
+    layout = await eel.save_home_layout(next)();
+    return layout;
+}
+
+async function loadLayout() {
+    if (typeof eel === 'undefined' || !eel.get_home_layout) {
+        layout = {
+            columns: 4,
+            active_page_id: 'local-home',
+            pages: [
+                {
+                    id: 'local-home',
+                    name: 'Home',
+                    widgets: [
+                        { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 3 },
+                        { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2 },
+                    ],
+                },
+            ],
+        };
+        return layout;
+    }
+    layout = await eel.get_home_layout()();
+    return layout;
+}
+
+function returnSources() {
+    const host = rack();
+    if (!host) return;
+    document.querySelectorAll('.home-widget-body > .widget-source').forEach((node) => {
+        host.appendChild(node);
+    });
+}
+
+function mountWidget(kind, body) {
+    const spec = WIDGET_CATALOG[kind];
+    if (!spec) return;
+    const source = document.getElementById(spec.source);
+    if (source && body) body.appendChild(source);
+}
+
+async function refreshKinds(kinds) {
+    const set = new Set(kinds);
+    try {
+        if (set.has('today_calendar')) await onTodayTabShown();
+        if (set.has('todo')) await onTodoTabShown();
+        if (set.has('allwork')) await onAllWorkTabShown();
+        if (set.has('workout')) await onWorkoutTabShown();
+        if (set.has('goals')) await onGoalsTabShown();
+        if (set.has('journal')) await loadPastEntries();
+        if (set.has('analytics')) await onAnalyticsTabShown();
+        if (set.has('timeline')) await onTimelineTabShown();
+        await refreshToday();
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function paintPages() {
+    const el = document.getElementById('homePages');
+    if (!el || !layout) return;
+    el.innerHTML = layout.pages
+        .map((page) => {
+            const on = page.id === layout.active_page_id;
+            return `<button type="button" class="home-page-chip${on ? ' is-selected' : ''}" data-page="${utils.escapeHtml(page.id)}">${utils.escapeHtml(page.name)}</button>`;
+        })
+        .join('');
+}
+
+function paintCatalog() {
+    const el = document.getElementById('homeCatalog');
+    if (!el) return;
+    const page = activePage();
+    const used = new Set((page?.widgets || []).map((item) => item.kind));
+    el.innerHTML = catalogList()
+        .map((spec) => {
+            const disabled = used.has(spec.kind) ? ' disabled' : '';
+            return `<button type="button" class="btn-ghost home-catalog-btn" data-kind="${spec.kind}"${disabled}>${utils.escapeHtml(spec.label)}</button>`;
+        })
+        .join('');
+}
+
+function paintGrid() {
+    const grid = document.getElementById('homeGrid');
+    if (!grid || !layout) return;
+    returnSources();
+    const page = activePage();
+    const widgets = page?.widgets || [];
+    grid.innerHTML = widgets
+        .map((item) => {
+            const spec = WIDGET_CATALOG[item.kind] || { label: item.kind };
+            return `
+                <article class="home-widget" data-id="${utils.escapeHtml(item.id)}" data-kind="${utils.escapeHtml(item.kind)}" data-w="${item.w}" data-h="${item.h}" style="grid-column:${item.x + 1} / span ${item.w};grid-row:${item.y + 1} / span ${item.h}">
+                    <div class="home-widget-chrome">
+                        <span class="home-widget-handle">${utils.escapeHtml(spec.label)}</span>
+                        <span class="home-widget-size">${item.w}×${item.h}</span>
+                        <button type="button" class="btn-ghost home-widget-btn" data-act="resize">Size</button>
+                        <button type="button" class="btn-ghost home-widget-btn" data-act="remove">Remove</button>
+                    </div>
+                    <div class="home-widget-body"></div>
+                </article>`;
+        })
+        .join('');
+    widgets.forEach((item) => {
+        const card = grid.querySelector(`.home-widget[data-id="${item.id}"]`);
+        mountWidget(item.kind, card?.querySelector('.home-widget-body'));
+    });
+}
+
+function setEditing(on) {
+    editing = !!on;
+    document.getElementById('homeShell')?.classList.toggle('is-editing', editing);
+    document.getElementById('homeEditBar')?.classList.toggle('is-hidden', !editing);
+    const editBtn = document.getElementById('homeEditBtn');
+    if (editBtn) editBtn.textContent = editing ? 'Done' : 'Edit Home';
+    if (editing) paintCatalog();
+}
+
+async function renderHome() {
+    paintPages();
+    paintGrid();
+    paintCatalog();
+    const page = activePage();
+    await refreshKinds((page?.widgets || []).map((item) => item.kind));
+}
+
+async function run(action) {
+    try {
+        layout = await action();
+        await renderHome();
+    } catch (err) {
+        console.error(err);
+        utils.showErrorFeedback(err?.message || 'Could not update Home.');
+        await renderHome();
+    }
+}
+
+function bindHome() {
+    const root = document.getElementById('homeTab');
+    if (!root || root.dataset.homeReady === '1') return;
+    root.dataset.homeReady = '1';
+
+    document.getElementById('homePages')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-page]');
+        if (!btn) return;
+        void run(() => eel.set_active_home_page(btn.getAttribute('data-page'))());
+    });
+
+    document.getElementById('homeAddPageBtn')?.addEventListener('click', () => {
+        const name = window.prompt('Name this page', `Page ${(layout?.pages.length || 0) + 1}`);
+        if (name == null) return;
+        void run(() => eel.add_home_page(name.trim())());
+    });
+
+    document.getElementById('homeRenamePageBtn')?.addEventListener('click', () => {
+        const page = activePage();
+        if (!page) return;
+        const name = window.prompt('Rename page', page.name);
+        if (name == null) return;
+        void run(() => eel.rename_home_page(page.id, name.trim())());
+    });
+
+    document.getElementById('homeDeletePageBtn')?.addEventListener('click', () => {
+        const page = activePage();
+        if (!page || (layout?.pages.length || 0) <= 1) {
+            utils.showErrorFeedback('Keep at least one Home page.');
+            return;
+        }
+        if (!window.confirm(`Delete “${page.name}”? Widgets on it go away.`)) return;
+        void run(() => eel.delete_home_page(page.id)());
+    });
+
+    document.getElementById('homeEditBtn')?.addEventListener('click', () => {
+        setEditing(!editing);
+    });
+    document.getElementById('homeDoneEditBtn')?.addEventListener('click', () => {
+        setEditing(false);
+    });
+
+    document.getElementById('homeCatalog')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-kind]');
+        if (!btn || btn.disabled) return;
+        const page = activePage();
+        if (!page) return;
+        void run(() => eel.add_home_widget(page.id, btn.getAttribute('data-kind'))());
+    });
+
+    document.getElementById('homeGrid')?.addEventListener('click', (e) => {
+        if (!editing) return;
+        const btn = e.target.closest('[data-act]');
+        if (!btn) return;
+        const card = btn.closest('.home-widget');
+        const page = activePage();
+        if (!card || !page) return;
+        const id = card.getAttribute('data-id');
+        if (btn.getAttribute('data-act') === 'remove') {
+            void run(() => eel.remove_home_widget(page.id, id)());
+            return;
+        }
+        if (btn.getAttribute('data-act') === 'resize') {
+            void run(() => eel.resize_home_widget(page.id, id)());
+        }
+    });
+
+    document.getElementById('homeGrid')?.addEventListener('pointerdown', (e) => {
+        if (!editing) return;
+        if (e.target.closest('[data-act]')) return;
+        const handle = e.target.closest('.home-widget-handle, .home-widget-chrome');
+        const card = e.target.closest('.home-widget');
+        if (!handle || !card) return;
+        const page = activePage();
+        const widget = page?.widgets.find((item) => item.id === card.getAttribute('data-id'));
+        if (!widget) return;
+        e.preventDefault();
+        drag = {
+            id: widget.id,
+            originX: widget.x,
+            originY: widget.y,
+            pointerId: e.pointerId,
+        };
+        card.classList.add('is-dragging');
+        card.setPointerCapture?.(e.pointerId);
+    });
+
+    document.getElementById('homeGrid')?.addEventListener('pointermove', (e) => {
+        if (!drag) return;
+        const grid = document.getElementById('homeGrid');
+        const page = activePage();
+        const widget = page?.widgets.find((item) => item.id === drag.id);
+        if (!grid || !widget) return;
+        const cell = snapCell(e.clientX, e.clientY, grid);
+        const x = Math.max(0, Math.min(4 - widget.w, cell.x));
+        const y = Math.max(0, cell.y);
+        const card = grid.querySelector(`.home-widget[data-id="${drag.id}"]`);
+        if (!card) return;
+        if (canPlace(page.widgets, widget, x, y)) {
+            card.style.gridColumn = `${x + 1} / span ${widget.w}`;
+            card.style.gridRow = `${y + 1} / span ${widget.h}`;
+            card.dataset.dropX = String(x);
+            card.dataset.dropY = String(y);
+        }
+    });
+
+    const endDrag = (e) => {
+        if (!drag) return;
+        const page = activePage();
+        const grid = document.getElementById('homeGrid');
+        const card = grid?.querySelector(`.home-widget[data-id="${drag.id}"]`);
+        const x = Number(card?.dataset.dropX);
+        const y = Number(card?.dataset.dropY);
+        const id = drag.id;
+        drag = null;
+        card?.classList.remove('is-dragging');
+        if (!page || Number.isNaN(x) || Number.isNaN(y)) {
+            void renderHome();
+            return;
+        }
+        void run(() => eel.move_home_widget(page.id, id, x, y)()).then(() => {
+            if (e) {/* keep */}
+        });
+    };
+
+    document.getElementById('homeGrid')?.addEventListener('pointerup', endDrag);
+    document.getElementById('homeGrid')?.addEventListener('pointercancel', endDrag);
+}
+
+export function setupHome() {
+    bindHome();
+    document.addEventListener('kosistenz:data-changed', () => {
+        if (document.getElementById('homeTab')?.classList.contains('active')) {
+            const page = activePage();
+            void refreshKinds((page?.widgets || []).map((item) => item.kind));
+        } else {
+            void refreshToday();
+        }
+    });
+}
+
+export async function onHomeTabShown() {
+    await loadLayout();
+    setEditing(false);
+    await renderHome();
+}
+
+export async function ensureHomeWidget(kind) {
+    await loadLayout();
+    const page = activePage();
+    if (!page) return;
+    if (!(page.widgets || []).some((item) => item.kind === kind)) {
+        try {
+            layout = await eel.add_home_widget(page.id, kind)();
+        } catch (err) {
+            console.error(err);
+        }
+    }
+    await renderHome();
+}

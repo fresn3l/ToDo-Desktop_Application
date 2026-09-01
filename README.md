@@ -58,11 +58,12 @@ That still opens the **native WebKit window**, not Chrome.
 
 ## Features
 
-- **Journal**: Timed entries
-- **To Do**: Dated tasks with start / finish timers
-- **All Work**: Undated backlog you assign to a day later
-- **Workout**: Body weight, session types, and a simple week template (expected days only)
-- **Analytics**: Streaks, repeating to-do misses, template misses, body-weight sparkline
+- **Home**: Snap-to-grid widgets (To Do, Today, Workout, Journal, Goals, All Work, Analytics, Timeline). Extra pages, Edit Home to place and resize. First install shows To Do and a mini Today calendar.
+- **Journal**: Timed entries (Home widget)
+- **To Do**: Dated tasks with start / finish timers (Home widget)
+- **All Work**: Undated backlog you assign to a day later (Home widget)
+- **Workout**: Body weight, session types, and a simple week template (Home widget)
+- **Analytics**: Streaks, repeating to-do misses, template misses, body-weight sparkline (Home widget)
 - **Menu bar**: Start or finish today’s active to do, log a session type, see whether today is empty
 - **Today widget**: Notification Center (and Lock Screen on macOS 14+) — open to-dos, workout logged or not, journal streak
 - **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in All Work** in the Services menu

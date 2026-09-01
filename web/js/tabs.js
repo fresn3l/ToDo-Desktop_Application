@@ -1,50 +1,41 @@
 /**
- * Tab navigation — today, calendar, journal, workout, to do, goals, all work, analytics, timeline, settings.
+ * Tab navigation — Home, Calendar, Settings.
  */
 
-import { loadPastEntries, exitJournalFocus } from './journal.js';
-import { onAnalyticsTabShown } from './analytics.js';
-import { onTimelineTabShown } from './timeline.js';
+import { exitJournalFocus } from './journal.js';
 import { onSettingsTabShown } from './settings.js';
-import { onTodoTabShown } from './todo.js';
-import { onAllWorkTabShown } from './all_work.js';
-import { onWorkoutTabShown } from './workouts.js';
-import { onTodayTabShown } from './today.js';
 import { onCalendarTabShown } from './calendar.js';
-import { onGoalsTabShown } from './goals.js';
+import { onHomeTabShown } from './home.js';
 import { notifyNativeTab } from './appearance.js';
 
 const ID_MAP = {
-    today: 'todayTab',
+    home: 'homeTab',
+    today: 'homeTab',
     calendar: 'calendarTab',
-    journal: 'journalTab',
-    workout: 'workoutTab',
-    todo: 'todoTab',
-    goals: 'goalsTab',
-    allwork: 'allWorkTab',
-    analytics: 'analyticsTab',
-    timeline: 'timelineTab',
     settings: 'settingsTab',
 };
 
 const LABELS = {
-    today: 'Today',
+    home: 'Home',
+    today: 'Home',
     calendar: 'Calendar',
-    journal: 'Journal',
-    workout: 'Workout',
-    todo: 'To Do',
-    goals: 'Goals',
-    allwork: 'All Work',
-    analytics: 'Analytics',
-    timeline: 'Timeline',
     settings: 'Settings',
 };
 
+function canonicalTab(name) {
+    if (name === 'today' || name === 'journal' || name === 'workout' || name === 'todo'
+        || name === 'goals' || name === 'allwork' || name === 'analytics' || name === 'timeline') {
+        return 'home';
+    }
+    return name;
+}
+
 function setDocumentTitle(name) {
-    document.title = `${LABELS[name] || 'Kosistenz'} · Kosistenz`;
+    const key = canonicalTab(name);
+    document.title = `${LABELS[key] || 'Kosistenz'} · Kosistenz`;
     const crumb = document.getElementById('pageCrumb');
-    if (crumb) crumb.textContent = LABELS[name] || '';
-    notifyNativeTab(name, LABELS[name] || 'Kosistenz');
+    if (crumb) crumb.textContent = LABELS[key] || '';
+    notifyNativeTab(key, LABELS[key] || 'Kosistenz');
 }
 
 function openTabFromEvent(e) {
@@ -60,7 +51,6 @@ export function setupTabs() {
     const sidebar = document.querySelector('.app-sidebar');
     if (!sidebar) return;
 
-    // Capture phase: native WKWebView can miss bubble-phase clicks on transparent pixels.
     sidebar.addEventListener('click', openTabFromEvent, true);
 
     document.addEventListener('keydown', (e) => {
@@ -71,15 +61,9 @@ export function setupTabs() {
         }
         if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
         const map = {
-            1: 'today',
+            1: 'home',
             2: 'calendar',
-            3: 'journal',
-            4: 'workout',
-            5: 'todo',
-            6: 'goals',
-            7: 'allwork',
-            8: 'analytics',
-            9: 'timeline',
+            3: 'settings',
         };
         const tab = map[e.key];
         if (!tab) return;
@@ -87,12 +71,8 @@ export function setupTabs() {
         switchTab(tab).catch((err) => console.error(err));
     });
 
-    document.addEventListener('kosistenz:open-day', (e) => {
-        const date = e.detail?.date;
-        if (!date) return;
-        const picker = document.getElementById('timelineDate');
-        if (picker) picker.value = date;
-        switchTab('timeline').catch((err) => console.error(err));
+    document.addEventListener('kosistenz:open-day', () => {
+        switchTab('home').catch((err) => console.error(err));
     });
 
     document.addEventListener('kosistenz:open-tab', (e) => {
@@ -102,47 +82,34 @@ export function setupTabs() {
 }
 
 export async function switchTab(name) {
+    const key = canonicalTab(name);
     document.querySelectorAll('.nav-item').forEach((b) => {
-        const on = b.getAttribute('data-tab') === name;
+        const on = b.getAttribute('data-tab') === key;
         b.classList.toggle('active', on);
         b.setAttribute('aria-current', on ? 'page' : 'false');
     });
-    const activeId = ID_MAP[name];
+    const activeId = ID_MAP[key];
     document.querySelectorAll('.tab-content').forEach((c) => {
         c.classList.toggle('active', activeId !== undefined && c.id === activeId);
     });
-    setDocumentTitle(name);
-    document.documentElement.setAttribute('data-page', name);
+    setDocumentTitle(key);
+    document.documentElement.setAttribute('data-page', key);
 
-    if (name !== 'journal') {
+    if (key !== 'home') {
         exitJournalFocus();
     }
 
     try {
-        if (name === 'today') {
-            await onTodayTabShown();
-        } else if (name === 'calendar') {
+        if (key === 'home') {
+            await onHomeTabShown();
+        } else if (key === 'calendar') {
             await onCalendarTabShown();
-        } else if (name === 'journal') {
-            await loadPastEntries();
-        } else if (name === 'workout') {
-            await onWorkoutTabShown();
-        } else if (name === 'todo') {
-            await onTodoTabShown();
-        } else if (name === 'goals') {
-            await onGoalsTabShown();
-        } else if (name === 'allwork') {
-            await onAllWorkTabShown();
-        } else if (name === 'analytics') {
-            await onAnalyticsTabShown();
-        } else if (name === 'timeline') {
-            await onTimelineTabShown();
-        } else if (name === 'settings') {
+        } else if (key === 'settings') {
             onSettingsTabShown();
         }
     } catch (err) {
         console.error(err);
     }
 
-    document.dispatchEvent(new CustomEvent('kosistenz:tab-shown', { detail: { tab: name } }));
+    document.dispatchEvent(new CustomEvent('kosistenz:tab-shown', { detail: { tab: key } }));
 }

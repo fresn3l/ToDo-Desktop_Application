@@ -11,6 +11,7 @@ import eel
 
 import appearance  # noqa: F401
 import calclock  # noqa: F401
+import home_layout  # noqa: F401
 import export_data  # noqa: F401
 import goals  # noqa: F401
 import icloud_sync  # noqa: F401

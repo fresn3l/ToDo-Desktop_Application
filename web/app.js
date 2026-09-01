@@ -10,6 +10,7 @@ import { setupAnalytics } from './js/analytics.js';
 import { setupTimeline } from './js/timeline.js';
 import { setupSettings } from './js/settings.js';
 import { setupToday } from './js/today.js';
+import { setupHome, ensureHomeWidget } from './js/home.js';
 import { setupCalendar } from './js/calendar.js';
 import { setupTodo } from './js/todo.js';
 import { setupAllWork } from './js/all_work.js';
@@ -21,6 +22,7 @@ async function init() {
     await initAppearance();
     setupTabs();
     setupSettings();
+    setupHome();
     setupToday();
     setupCalendar();
     setupTodo();
@@ -33,7 +35,8 @@ async function init() {
     document.addEventListener('kosistenz:command', (e) => {
         const action = e.detail?.action;
         if (action === 'journal-new') {
-            switchTab('journal')
+            switchTab('home')
+                .then(() => ensureHomeWidget('journal'))
                 .then(() => beginNewJournalEntry(e.detail?.text || ''))
                 .catch((err) => console.error(err));
             return;
@@ -42,7 +45,7 @@ async function init() {
             switchTab(e.detail.tab).catch((err) => console.error(err));
         }
     });
-    await switchTab('today');
+    await switchTab('home');
 }
 
 function markNativeShell() {

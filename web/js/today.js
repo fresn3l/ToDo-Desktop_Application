@@ -6,13 +6,7 @@
 import * as utils from './utils.js';
 import { formatDuration, liveSeconds } from './work.js';
 import { logWorkoutKind, renderWorkoutChips } from './workout_chips.js';
-import { getAppearance, persistAppearance, onAppearanceChange } from './appearance.js';
 import { loadGoalOptions } from './goals.js';
-import {
-    applyTodayOrder,
-    moveTodayModule,
-    renderTodayOrderList,
-} from './today_layout.js';
 
 let homeTick = null;
 
@@ -82,33 +76,6 @@ function paintPulse(data) {
     if (data.journal_count) bits.push(`${data.journal_count} journal`);
     else if (data.journal_streak) bits.push(`${data.journal_streak}-day streak`);
     el.textContent = bits.join('  ·  ') || 'A quiet day so far';
-}
-
-function paintCustomize() {
-    const s = getAppearance();
-    const todo = document.getElementById('todayShowTodo');
-    const workout = document.getElementById('todayShowWorkout');
-    const journal = document.getElementById('todayShowJournal');
-    if (todo) todo.checked = s.todayTodo !== false;
-    if (workout) workout.checked = s.todayWorkout !== false;
-    if (journal) journal.checked = s.todayJournal !== false;
-    document.querySelectorAll('#todayLayoutGroup [data-value]').forEach((btn) => {
-        btn.classList.toggle('is-selected', btn.getAttribute('data-value') === (s.todayLayout || 'split'));
-    });
-    applyTodayOrder(s.todayOrder);
-    renderTodayOrderList(document.getElementById('todayOrderList'), s.todayOrder);
-}
-
-function setCustomizeOpen(open) {
-    const panel = document.getElementById('todayCustomizePanel');
-    const btn = document.getElementById('todayCustomizeBtn');
-    if (!panel) return;
-    panel.classList.toggle('is-hidden', !open);
-    panel.hidden = !open;
-    if (btn) {
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        btn.textContent = open ? 'Done' : 'Customize';
-    }
 }
 
 function renderPills(el, data) {
@@ -429,7 +396,7 @@ export async function refreshToday() {
             el.innerHTML = '<span class="today-label">Today</span><span class="today-fallback">Status unavailable</span>';
         }
     }
-    if (document.getElementById('todayTab')?.classList.contains('active')) {
+    if (document.getElementById('homeTab')?.classList.contains('active')) {
         await refreshTodayHome();
     }
 }
@@ -447,45 +414,6 @@ export function setupToday() {
     document.getElementById('todayJournalSave')?.addEventListener('click', () => {
         void saveTodayJournal();
     });
-    document.getElementById('todayOpenJournal')?.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'journal' } }));
-    });
-    document.getElementById('todayOpenTodo')?.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'todo' } }));
-    });
-    document.getElementById('todayOpenWorkout')?.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'workout' } }));
-    });
-    document.getElementById('todayCustomizeBtn')?.addEventListener('click', () => {
-        const panel = document.getElementById('todayCustomizePanel');
-        setCustomizeOpen(!!panel?.classList.contains('is-hidden'));
-        paintCustomize();
-    });
-    document.getElementById('todayShowTodo')?.addEventListener('change', (e) => {
-        persistAppearance({ todayTodo: e.target.checked });
-    });
-    document.getElementById('todayShowWorkout')?.addEventListener('change', (e) => {
-        persistAppearance({ todayWorkout: e.target.checked });
-    });
-    document.getElementById('todayShowJournal')?.addEventListener('change', (e) => {
-        persistAppearance({ todayJournal: e.target.checked });
-    });
-    document.getElementById('todayLayoutGroup')?.querySelectorAll('[data-value]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            persistAppearance({ todayLayout: btn.getAttribute('data-value') });
-            paintCustomize();
-        });
-    });
-    document.getElementById('todayOrderList')?.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-move]');
-        if (!btn || btn.disabled) return;
-        const moduleId = btn.closest('[data-module]')?.getAttribute('data-module');
-        if (!moduleId) return;
-        const next = moveTodayModule(getAppearance().todayOrder, moduleId, btn.getAttribute('data-move'));
-        persistAppearance({ todayOrder: next.join(',') });
-        paintCustomize();
-    });
-    onAppearanceChange(() => paintCustomize());
     document.getElementById('todayLogSpecial')?.addEventListener('click', () => {
         void confirmTodaySpecial();
     });
@@ -495,7 +423,7 @@ export function setupToday() {
         void refreshToday();
     });
     document.addEventListener('kosistenz:tab-shown', (e) => {
-        if (e.detail?.tab === 'today') void refreshTodayHome();
+        if (e.detail?.tab === 'home') void refreshTodayHome();
         else void refreshToday();
     });
 }

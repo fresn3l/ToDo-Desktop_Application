@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
-    <title>Today · Kosistenz</title>
+    <title>Home · Kosistenz</title>
     <link rel="stylesheet" href="style.css">
     <script src="js/boot-appearance.js"></script>
 </head>
@@ -20,41 +20,13 @@
             </div>
 
             <nav class="app-nav" aria-label="Sections">
-                <button type="button" class="nav-item active" data-tab="today" aria-current="page">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="5.5" width="15" height="14" rx="2"/><path d="M8 3.5v3M16 3.5v3M4.5 9.5h15"/></svg>
-                    <span class="nav-label">Today</span>
+                <button type="button" class="nav-item active" data-tab="home" aria-current="page">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>
+                    <span class="nav-label">Home</span>
                 </button>
                 <button type="button" class="nav-item" data-tab="calendar">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
                     <span class="nav-label">Calendar</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="journal">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 4.5h11.5A2.5 2.5 0 0 1 19 7v13.5H7.5A2.5 2.5 0 0 1 5 18V4.5Z"/><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19"/><path d="M9 9h6M9 13h6"/></svg>
-                    <span class="nav-label">Journal</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="workout">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 8h10M6 12h12M8 16h8"/><circle cx="12" cy="12" r="8.5"/></svg>
-                    <span class="nav-label">Workout</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="todo">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="2"/><path d="m8 12 2.2 2.2L16 8.5"/></svg>
-                    <span class="nav-label">To Do</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="goals">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2"/></svg>
-                    <span class="nav-label">Goals</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="allwork">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 7h14l-1.2 12.2A2 2 0 0 1 15.8 21H8.2a2 2 0 0 1-2-1.8L5 7Z"/><path d="M9 7V5.8A2.8 2.8 0 0 1 11.8 3h.4A2.8 2.8 0 0 1 15 5.8V7"/></svg>
-                    <span class="nav-label">All Work</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="analytics">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15v4M12 11v8M16 8v11"/></svg>
-                    <span class="nav-label">Analytics</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="timeline">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
-                    <span class="nav-label">Timeline</span>
                 </button>
             </nav>
 
@@ -74,101 +46,32 @@
             <header class="app-topbar">
                 <div>
                     <p class="eyebrow">Kosistenz</p>
-                    <h1 id="pageCrumb">Today</h1>
+                    <h1 id="pageCrumb">Home</h1>
                 </div>
                 <div id="todayStatus" class="today-status" aria-live="polite"></div>
                 <p class="topbar-note">Everything stays on this Mac.</p>
             </header>
 
             <main class="app-content">
-                <section id="todayTab" class="tab-content active" aria-label="Today">
-                    <div id="todayHome" class="today-home">
-                        <header class="today-masthead">
-                            <div>
-                                <p class="today-kicker">Today</p>
-                                <h1 id="todayDateTitle">Today</h1>
-                                <p id="todayDateSub" class="today-date-sub"></p>
-                            </div>
-                            <div class="today-masthead-side">
-                                <p id="todayPulse" class="today-pulse"></p>
-                                <button type="button" id="todayCustomizeBtn" class="btn-ghost today-customize-btn" aria-expanded="false">Customize</button>
+                <section id="homeTab" class="tab-content active" aria-label="Home">
+                    <div id="homeShell" class="home-shell">
+                        <header class="home-toolbar">
+                            <div id="homePages" class="home-pages" role="tablist" aria-label="Home pages"></div>
+                            <div class="home-toolbar-actions">
+                                <button type="button" id="homeAddPageBtn" class="btn-ghost">New page</button>
+                                <button type="button" id="homeEditBtn" class="btn-primary">Edit Home</button>
                             </div>
                         </header>
-                        <div id="todayCustomizePanel" class="today-customize is-hidden" hidden>
-                            <div class="today-customize-section">
-                                <p class="today-customize-label">Show</p>
-                                <div class="today-toggles">
-                                    <label class="today-toggle">
-                                        <input type="checkbox" id="todayShowTodo" checked> To Do
-                                    </label>
-                                    <label class="today-toggle">
-                                        <input type="checkbox" id="todayShowWorkout" checked> Workout
-                                    </label>
-                                    <label class="today-toggle">
-                                        <input type="checkbox" id="todayShowJournal" checked> Journal
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="today-customize-section">
-                                <p class="today-customize-label">Layout</p>
-                                <div class="segmented" id="todayLayoutGroup" role="group" aria-label="Today layout">
-                                    <button type="button" data-value="split" class="is-selected">Two columns</button>
-                                    <button type="button" data-value="columns">Three columns</button>
-                                    <button type="button" data-value="stack">One column</button>
-                                </div>
-                            </div>
-                            <div class="today-customize-section">
-                                <p class="today-customize-label">Order</p>
-                                <ul id="todayOrderList" class="today-order-list"></ul>
+                        <div id="homeEditBar" class="home-edit-bar is-hidden">
+                            <p class="home-edit-copy">Drag a widget title to snap it. Size cycles the allowed shapes. Add another page for a second board.</p>
+                            <div id="homeCatalog" class="home-catalog"></div>
+                            <div class="home-edit-actions">
+                                <button type="button" id="homeRenamePageBtn" class="btn-ghost">Rename page</button>
+                                <button type="button" id="homeDeletePageBtn" class="btn-ghost">Delete page</button>
+                                <button type="button" id="homeDoneEditBtn" class="btn-secondary">Done</button>
                             </div>
                         </div>
-                        <ol id="todayAgenda" class="today-agenda" aria-label="Today on the clock"></ol>
-                        <div id="todayActiveTodo"></div>
-                        <div class="today-board">
-                            <section id="todayTodoModule" class="today-card" data-module="todo">
-                                <div class="today-card-head">
-                                    <h2>To Do</h2>
-                                    <button type="button" id="todayOpenTodo" class="btn-ghost today-card-link">Open</button>
-                                </div>
-                                <div id="todayTodoList" class="work-list"></div>
-                                <div class="work-add-row">
-                                    <input type="text" id="todayNewTitle" class="checklist-text-input" placeholder="45 mins calculus" autocomplete="off">
-                                    <select id="todayNewGoal" class="checklist-text-input today-goal-select" title="Attach to a goal">
-                                        <option value="">Goal</option>
-                                    </select>
-                                    <button type="button" id="todayAddBtn" class="btn-primary">Add</button>
-                                </div>
-                            </section>
-                            <section id="todayWorkoutModule" class="today-card" data-module="workout">
-                                <div class="today-card-head">
-                                    <h2>Workout</h2>
-                                    <button type="button" id="todayOpenWorkout" class="btn-ghost today-card-link">Open</button>
-                                </div>
-                                <p class="today-card-meta" id="todayExpected"></p>
-                                <div id="todayWorkoutChips" class="workout-chips"></div>
-                                <div id="todayMilesWrap" class="workout-chip-extra is-hidden">
-                                    <label class="checklist-field-label" for="todayMiles">Miles</label>
-                                    <input type="number" id="todayMiles" class="checklist-text-input" min="0" step="0.1" placeholder="0.0" inputmode="decimal">
-                                </div>
-                                <div id="todayOtherWrap" class="workout-chip-extra is-hidden">
-                                    <label class="checklist-field-label" for="todayOtherLabel">What did you do?</label>
-                                    <input type="text" id="todayOtherLabel" class="checklist-text-input" placeholder="Pickleball, hill sprints, …" autocomplete="off">
-                                </div>
-                                <button type="button" id="todayLogSpecial" class="btn-primary is-hidden">Log</button>
-                                <ul id="todaySessions" class="today-session-list"></ul>
-                            </section>
-                            <section id="todayJournalModule" class="today-card today-card--wide" data-module="journal">
-                                <div class="today-card-head">
-                                    <h2>Journal</h2>
-                                    <button type="button" id="todayOpenJournal" class="btn-ghost today-card-link">Open</button>
-                                </div>
-                                <p class="today-card-meta" id="todayJournalMeta"></p>
-                                <textarea id="todayJournal" class="today-journal-input" rows="5" placeholder="What happened today?"></textarea>
-                                <div class="journal-actions">
-                                    <button type="button" id="todayJournalSave" class="btn-primary">Save</button>
-                                </div>
-                            </section>
-                        </div>
+                        <div id="homeGrid" class="home-grid" aria-label="Home widgets"></div>
                     </div>
                 </section>
 
@@ -241,7 +144,21 @@
                     </div>
                 </section>
 
-                <section id="journalTab" class="tab-content" aria-label="Journal">
+                <section id="todayCalendarSource" class="widget-source" aria-label="Today">
+                    <div class="today-mini">
+                        <header class="today-masthead">
+                            <div>
+                                <p class="today-kicker">Today</p>
+                                <h2 id="todayDateTitle">Today</h2>
+                                <p id="todayDateSub" class="today-date-sub"></p>
+                            </div>
+                            <p id="todayPulse" class="today-pulse"></p>
+                        </header>
+                        <ol id="todayAgenda" class="today-agenda" aria-label="Today on the clock"></ol>
+                    </div>
+                </section>
+
+                <section id="journalTab" class="widget-source" aria-label="Journal">
                     <div class="journal-layout">
                         <div class="panel journal-compose journal-paper">
                             <div class="journal-entry-section">
@@ -299,7 +216,7 @@
                     </div>
                 </section>
 
-                <section id="workoutTab" class="tab-content" aria-label="Workout">
+                <section id="workoutTab" class="widget-source" aria-label="Workout">
                     <div class="work-layout">
                         <div class="panel">
                             <div class="panel-header">
@@ -359,7 +276,7 @@
                     </div>
                 </section>
 
-                <section id="todoTab" class="tab-content" aria-label="To Do">
+                <section id="todoTab" class="widget-source" aria-label="To Do">
                     <div class="work-layout">
                         <div class="panel">
                             <div class="panel-header">
@@ -419,7 +336,7 @@
                     </div>
                 </section>
 
-                <section id="goalsTab" class="tab-content" aria-label="Goals">
+                <section id="goalsTab" class="widget-source" aria-label="Goals">
                     <div class="panel-header goals-page-head">
                         <div>
                             <h2>Goals</h2>
@@ -429,7 +346,7 @@
                     <div id="goalsBoard" class="goals-layout"></div>
                 </section>
 
-                <section id="allWorkTab" class="tab-content" aria-label="All Work">
+                <section id="allWorkTab" class="widget-source" aria-label="All Work">
                     <div class="panel">
                         <div class="panel-header">
                             <div>
@@ -450,7 +367,7 @@
                     </div>
                 </section>
 
-                <section id="analyticsTab" class="tab-content" aria-label="Analytics">
+                <section id="analyticsTab" class="widget-source" aria-label="Analytics">
                     <div class="panel review-section">
                         <div class="panel-header">
                             <div>
@@ -468,7 +385,7 @@
                     </div>
                 </section>
 
-                <section id="timelineTab" class="tab-content" aria-label="Timeline">
+                <section id="timelineTab" class="widget-source" aria-label="Timeline">
                     <div class="panel timeline-section-wrap">
                         <div class="panel-header">
                             <div>
@@ -557,25 +474,8 @@
                                 </div>
                             </div>
                             <div class="settings-block">
-                                <h3>Today dashboard</h3>
-                                <p class="checklist-hint small">Pick the cards, their order, and how they sit on Today.</p>
-                                <div class="today-toggles">
-                                    <label class="today-toggle">
-                                        <input type="checkbox" id="todayTodoToggle" checked> To Do
-                                    </label>
-                                    <label class="today-toggle">
-                                        <input type="checkbox" id="todayWorkoutToggle" checked> Workout
-                                    </label>
-                                    <label class="today-toggle">
-                                        <input type="checkbox" id="todayJournalToggle" checked> Journal
-                                    </label>
-                                </div>
-                                <div class="segmented" data-setting-group="todayLayout" role="group" aria-label="Today layout">
-                                    <button type="button" data-value="split">Two columns</button>
-                                    <button type="button" data-value="columns">Three columns</button>
-                                    <button type="button" data-value="stack">One column</button>
-                                </div>
-                                <ul id="settingsTodayOrder" class="today-order-list"></ul>
+                                <h3>Home</h3>
+                                <p class="checklist-hint small">Widgets, sizes, and extra pages live on Home. Open Home and click Edit Home.</p>
                             </div>
                         </div>
 
@@ -718,6 +618,7 @@
                         </div>
                     </div>
                 </section>
+                <div id="widgetSourceRack" class="widget-source-rack" hidden></div>
             </main>
         </div>
     </div>

@@ -1,6 +1,6 @@
 # Next sprint
 
-**Current plan:** [docs/calendar-home.md](calendar-home.md)
+**Current plan:** [docs/calendar-home.md](calendar-home.md). Home widgets are on this branch; later Calendar month/year and live Home drag are in [futuresprints.md](futuresprints.md).
 
 Kosistenz is the calendar you carry (Mac week on a clock, later the iPhone
 agenda). The class due-date subscription is a **deadline feed** — all-day

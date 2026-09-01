@@ -22,6 +22,8 @@ DATA_FILES = [
             "web/js/appearance.js",
             "web/js/settings.js",
             "web/js/today.js",
+            "web/js/home.js",
+            "web/js/home_layout.js",
                 "web/js/todo.js",
                 "web/js/all_work.js",
                 "web/js/goals.js",
@@ -56,7 +58,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts", "goals"],
+    "includes": ["daily_checklist", "journal", "cluny_sync", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts", "goals", "home_layout"],
 }
 
 setup(
