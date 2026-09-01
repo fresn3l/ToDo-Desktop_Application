@@ -24,7 +24,8 @@ const LABELS = {
 
 function canonicalTab(name) {
     if (name === 'today' || name === 'journal' || name === 'workout' || name === 'todo'
-        || name === 'goals' || name === 'allwork' || name === 'analytics' || name === 'timeline') {
+        || name === 'goals' || name === 'allwork' || name === 'analytics' || name === 'timeline'
+        || name === 'checklist' || name === 'word') {
         return 'home';
     }
     return name;

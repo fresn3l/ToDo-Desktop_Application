@@ -2499,6 +2499,90 @@ input[type='range'] {
     grid-template-columns: 1fr;
 }
 
+.home-widget[data-kind="checklist"]:not([data-w="4"]) .checklist-aside,
+.home-widget[data-kind="checklist"]:not([data-h="4"]) .checklist-aside {
+    display: none;
+}
+
+.home-widget[data-kind="checklist"]:not([data-w="4"]) .checklist-layout {
+    display: block;
+}
+
+.word-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100%;
+    min-height: 0;
+}
+
+.word-head {
+    margin: 0;
+    font-size: clamp(1.45rem, 2.4vw, 2.1rem);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    color: var(--text-title, var(--text-primary));
+}
+
+.word-chip {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.word-meaning {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--text-primary);
+}
+
+.word-example {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.word-evening-hint,
+.word-used {
+    margin: 4px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+
+.word-used-label {
+    display: inline-block;
+    margin-right: 6px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--done, var(--success, #5ebb8e));
+}
+
+.word-evening-btn {
+    align-self: flex-start;
+    margin-top: 4px;
+}
+
+.checklist-template-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 0 12px;
+}
+
+.home-widget[data-kind="word"]:not([data-h="3"]):not([data-w="4"]) .word-example,
+.home-widget[data-kind="word"]:not([data-h="3"]):not([data-w="4"]) .word-evening-hint {
+    display: none;
+}
+
 .today-mini {
     display: flex;
     flex-direction: column;

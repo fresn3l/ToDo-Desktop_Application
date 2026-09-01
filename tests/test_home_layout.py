@@ -32,6 +32,8 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("allwork", kinds)
         self.assertIn("analytics", kinds)
         self.assertIn("timeline", kinds)
+        self.assertIn("word", kinds)
+        self.assertIn("checklist", kinds)
         self.assertNotIn("settings", kinds)
         self.assertNotIn("calendar", kinds)
 

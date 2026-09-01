@@ -73,8 +73,6 @@ class UnloadedApiTests(unittest.TestCase):
 
         exposed = getattr(eel, "_exposed_functions", {})
         for name in (
-            "submit_daily_checklist_response",
-            "get_daily_checklist",
             "get_pending_recovery",
             "submit_recovery_response",
             "get_weekly_review",

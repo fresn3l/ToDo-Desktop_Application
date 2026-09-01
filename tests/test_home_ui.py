@@ -31,9 +31,13 @@ class HomeUiTests(unittest.TestCase):
             "allWorkTab",
             "analyticsTab",
             "timelineTab",
+            "wordTab",
+            "checklistTab",
         ):
             self.assertIn(f'id="{source_id}"', INDEX)
             self.assertIn("widget-source", INDEX)
+        self.assertIn('id="wordCard"', INDEX)
+        self.assertIn('id="checklistWizard"', INDEX)
 
     def test_edit_home_controls_exist(self) -> None:
         for needle in (
@@ -77,6 +81,8 @@ class HomeUiTests(unittest.TestCase):
             "allwork",
             "analytics",
             "timeline",
+            "word",
+            "checklist",
         ):
             self.assertIn(f"{kind}:", HOME_JS)
         self.assertNotIn("settings:", HOME_JS)

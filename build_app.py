@@ -246,6 +246,7 @@ def build_app() -> None:
         "workouts",
         "goals",
         "home_layout",
+        "word_of_the_day",
         "export_data",
         "daily_checklist",
         "reminders",

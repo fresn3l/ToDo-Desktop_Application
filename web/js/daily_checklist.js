@@ -283,8 +283,8 @@ function setupChecklistKeys() {
     document.body.dataset.checklistKeys = '1';
     document.addEventListener('keydown', (e) => {
         if (e.metaKey || e.ctrlKey || e.altKey) return;
-        const tab = document.getElementById('checklistTab');
-        if (!tab || !tab.classList.contains('active')) return;
+        const home = document.getElementById('homeTab');
+        if (!home || !home.classList.contains('active')) return;
         if (isTypingTarget(e.target)) return;
         const card = document.querySelector('#checklistWizard [data-kind]');
         if (!card) return;
@@ -375,7 +375,7 @@ function paintWizard(cardBody, { kind = '', extraTag = '', kbdHint = '' } = {}) 
     const recapItems = Object.entries(state?.answers || {})
         .map(([key, val]) => {
             const node = nodeForAnswerKey(key);
-            const label = node.question || String(key).replace(/[_-]+/g, ' ');
+            const label = node.history_label || node.question || String(key).replace(/[_-]+/g, ' ');
             const value = formatPreviewValue(node, val);
             return `<li><span class="wizard-recap-q">${utils.escapeHtml(label)}</span><span class="wizard-recap-a">${utils.escapeHtml(value)}</span></li>`;
         })

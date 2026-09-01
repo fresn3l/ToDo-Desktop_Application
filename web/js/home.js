@@ -13,6 +13,8 @@ import { onGoalsTabShown } from './goals.js';
 import { onAnalyticsTabShown } from './analytics.js';
 import { onTimelineTabShown } from './timeline.js';
 import { loadPastEntries } from './journal.js';
+import { onWordTabShown } from './word.js';
+import { onChecklistTabShown, openChecklistTemplate } from './daily_checklist.js';
 
 const FALLBACK_LAYOUT = {
     columns: 4,
@@ -92,6 +94,8 @@ async function refreshKinds(kinds) {
         if (set.has('journal')) await loadPastEntries();
         if (set.has('analytics')) await onAnalyticsTabShown();
         if (set.has('timeline')) await onTimelineTabShown();
+        if (set.has('word')) await onWordTabShown();
+        if (set.has('checklist')) await onChecklistTabShown();
         await refreshToday();
     } catch (err) {
         console.error(err);
@@ -343,6 +347,16 @@ export function setupHome() {
         } else {
             void refreshToday();
         }
+    });
+    document.addEventListener('kosistenz:open-evening-checkin', () => {
+        void (async () => {
+            await ensureHomeWidget('checklist');
+            try {
+                await openChecklistTemplate('evening');
+            } catch (err) {
+                console.error(err);
+            }
+        })();
     });
 }
 

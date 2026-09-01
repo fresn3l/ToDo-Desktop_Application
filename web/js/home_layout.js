@@ -14,6 +14,8 @@ export const WIDGET_CATALOG = {
     allwork: { label: 'All Work', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'allWorkTab' },
     analytics: { label: 'Analytics', sizes: [[4, 3], [4, 4]], default: [4, 3], source: 'analyticsTab' },
     timeline: { label: 'Timeline', sizes: [[4, 2], [4, 3], [4, 4]], default: [4, 3], source: 'timelineTab' },
+    word: { label: 'Word', sizes: [[2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'wordTab' },
+    checklist: { label: 'Check-in', sizes: [[2, 3], [4, 3], [4, 4]], default: [2, 3], source: 'checklistTab' },
 };
 
 export function catalogList() {
