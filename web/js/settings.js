@@ -87,23 +87,19 @@ function paintInk(settings) {
 }
 
 function paintPresetSelect(settings) {
-    const select = document.getElementById('userPresetSelect');
-    if (select) {
+    const chips = document.getElementById('userPresetChips');
+    if (chips) {
         const presets = settings.userPresets || [];
         const currentId = settings.activePresetId || '';
-        const signature = presets.map((p) => `${p.id}:${p.name}`).join('|');
-        if (select.dataset.signature !== signature) {
-            select.dataset.signature = signature;
-            select.dataset.painting = '1';
-            select.innerHTML = `<option value="">Built-in theme</option>` + presets
-                .map((p) => `<option value="${utils.escapeHtml(p.id)}">${utils.escapeHtml(p.name)}</option>`)
+        if (!presets.length) {
+            chips.innerHTML = '<span class="preset-empty">No saved palettes yet.</span>';
+        } else {
+            chips.innerHTML = presets
+                .map(
+                    (p) =>
+                        `<button type="button" class="home-page-chip${p.id === currentId ? ' is-selected' : ''}" data-preset-id="${utils.escapeHtml(p.id)}">${utils.escapeHtml(p.name)}</button>`,
+                )
                 .join('');
-            select.dataset.painting = '';
-        }
-        if (select.value !== currentId) {
-            select.dataset.painting = '1';
-            select.value = currentId;
-            select.dataset.painting = '';
         }
     }
     const del = document.getElementById('deletePresetBtn');
@@ -274,14 +270,10 @@ export function setupSettings() {
         update({ inkAuto: false, ink: e.target.value });
     });
 
-    document.getElementById('userPresetSelect')?.addEventListener('change', (e) => {
-        if (e.currentTarget.dataset.painting === '1') return;
-        const id = e.target.value;
-        if (!id) {
-            applyBuiltinTheme(getAppearance().theme);
-            return;
-        }
-        const preset = (getAppearance().userPresets || []).find((p) => p.id === id);
+    document.getElementById('userPresetChips')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-preset-id]');
+        if (!btn) return;
+        const preset = (getAppearance().userPresets || []).find((p) => p.id === btn.getAttribute('data-preset-id'));
         if (preset) applyUserPreset(preset);
     });
     document.getElementById('savePresetBtn')?.addEventListener('click', () => {

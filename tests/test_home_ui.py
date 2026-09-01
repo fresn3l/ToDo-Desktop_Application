@@ -50,13 +50,13 @@ class HomeUiTests(unittest.TestCase):
 
     def test_appearance_color_slots_exist(self) -> None:
         self.assertIn('id="colorSlotList"', INDEX)
-        self.assertIn('id="userPresetSelect"', INDEX)
+        self.assertIn('id="userPresetChips"', INDEX)
         self.assertIn('id="savePresetBtn"', INDEX)
         self.assertIn('id="newPresetBtn"', INDEX)
         self.assertIn('id="inkAutoToggle"', INDEX)
         self.assertIn('id="inkColorInput"', INDEX)
         self.assertIn('id="accentGrid"', INDEX)
-        self.assertIn('dataset.painting', Path(__file__).resolve().parents[1].joinpath("web", "js", "settings.js").read_text(encoding="utf-8"))
+        self.assertIn('data-preset-id', Path(__file__).resolve().parents[1].joinpath("web", "js", "settings.js").read_text(encoding="utf-8"))
 
     def test_tabs_alias_old_names_to_home(self) -> None:
         self.assertIn("canonicalTab", TABS)
