@@ -31,6 +31,10 @@ class HomeUiTests(unittest.TestCase):
             "allWorkTab",
             "analyticsTab",
             "timelineTab",
+            "weatherSource",
+            "focusSource",
+            "countdownSource",
+            "habitsSource",
         ):
             self.assertIn(f'id="{source_id}"', INDEX)
             self.assertIn("widget-source", INDEX)
@@ -77,6 +81,10 @@ class HomeUiTests(unittest.TestCase):
             "allwork",
             "analytics",
             "timeline",
+            "weather",
+            "focus",
+            "countdown",
+            "habits",
         ):
             self.assertIn(f"{kind}:", HOME_JS)
         self.assertNotIn("settings:", HOME_JS)

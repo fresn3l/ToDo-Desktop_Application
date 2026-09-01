@@ -32,6 +32,10 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("allwork", kinds)
         self.assertIn("analytics", kinds)
         self.assertIn("timeline", kinds)
+        self.assertIn("weather", kinds)
+        self.assertIn("focus", kinds)
+        self.assertIn("countdown", kinds)
+        self.assertIn("habits", kinds)
         self.assertNotIn("settings", kinds)
         self.assertNotIn("calendar", kinds)
 
@@ -134,6 +138,8 @@ class HomeLayoutTests(unittest.TestCase):
             home_layout.add_widget(layout, page_id, "workout")
         with self.assertRaises(ValueError):
             home_layout.add_widget(layout, page_id, "calendar")
+        layout = home_layout.add_home_widget(page_id, "weather")
+        self.assertIn("weather", [item["kind"] for item in layout["pages"][0]["widgets"]])
 
     def test_move_rejects_overlap_resize_cycles(self) -> None:
         layout = home_layout.get_home_layout()

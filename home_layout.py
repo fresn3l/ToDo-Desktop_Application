@@ -64,6 +64,26 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((4, 2), (4, 3), (4, 4)),
         "default": (4, 3),
     },
+    "weather": {
+        "label": "Weather",
+        "sizes": ((2, 2), (2, 3), (4, 2), (4, 3)),
+        "default": (2, 2),
+    },
+    "focus": {
+        "label": "Focus",
+        "sizes": ((2, 2), (4, 2)),
+        "default": (2, 2),
+    },
+    "countdown": {
+        "label": "Countdown",
+        "sizes": ((2, 2), (2, 3), (4, 2)),
+        "default": (2, 2),
+    },
+    "habits": {
+        "label": "Habits",
+        "sizes": ((2, 2), (2, 3), (4, 2)),
+        "default": (2, 2),
+    },
 }
 
 SOURCE_TAB = {
@@ -75,6 +95,10 @@ SOURCE_TAB = {
     "allwork": "allWorkTab",
     "analytics": "analyticsTab",
     "timeline": "timelineTab",
+    "weather": "weatherSource",
+    "focus": "focusSource",
+    "countdown": "countdownSource",
+    "habits": "habitsSource",
 }
 
 
