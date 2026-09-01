@@ -12,15 +12,17 @@ import os
 import re
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 import eel
 
 import work
+from db import sqlite_connect
 
 SETTINGS_NAME = "calendar_feeds.json"
 DEFAULT_ESTIMATE = 60
@@ -44,11 +46,14 @@ def _settings_path() -> Path:
     return work._data_dir() / SETTINGS_NAME
 
 
-def _connect() -> sqlite3.Connection:
-    path = _db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
+@contextmanager
+def _connect() -> Iterator[sqlite3.Connection]:
+    with sqlite_connect(_db_path()) as conn:
+        _ensure_schema(conn)
+        yield conn
+
+
+def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS calendar_events (
@@ -86,7 +91,6 @@ def _connect() -> sqlite3.Connection:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_blocks_work ON schedule_blocks(work_item_id)"
     )
-    return conn
 
 
 def load_settings() -> Dict[str, Any]:

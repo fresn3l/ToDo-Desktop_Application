@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
 TABS = (ROOT / "web" / "js" / "tabs.js").read_text(encoding="utf-8")
 HOME_JS = (ROOT / "web" / "js" / "home_layout.js").read_text(encoding="utf-8")
+HOME_RUNTIME = (ROOT / "web" / "js" / "home.js").read_text(encoding="utf-8")
 
 
 class HomeUiTests(unittest.TestCase):
@@ -80,3 +81,9 @@ class HomeUiTests(unittest.TestCase):
         ):
             self.assertIn(f"{kind}:", HOME_JS)
         self.assertNotIn("settings:", HOME_JS)
+
+    def test_home_widget_refresh_continues_after_one_failure(self) -> None:
+        refresh = HOME_RUNTIME.split("async function refreshKinds")[1].split("function paintPages")[0]
+        self.assertIn("const run = async (fn)", refresh)
+        self.assertIn("await run(onWorkoutTabShown)", refresh)
+        self.assertIn("await run(onTodoTabShown)", refresh)

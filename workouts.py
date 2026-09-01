@@ -10,12 +10,14 @@ import json
 import os
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import eel
 
+from db import sqlite_connect
 from paths import data_directory
 
 KINDS = ("running", "legs", "push", "pull", "other")
@@ -66,11 +68,14 @@ def _refresh_snapshot() -> None:
         pass
 
 
-def _connect() -> sqlite3.Connection:
-    path = get_workouts_db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
+@contextmanager
+def _connect() -> Iterator[sqlite3.Connection]:
+    with sqlite_connect(get_workouts_db_path()) as conn:
+        _ensure_schema(conn)
+        yield conn
+
+
+def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS workout_days (
@@ -98,7 +103,6 @@ def _connect() -> sqlite3.Connection:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_workout_sessions_date ON workout_sessions(local_date)"
     )
-    return conn
 
 
 def _parse_date(value: Optional[str]) -> str:
