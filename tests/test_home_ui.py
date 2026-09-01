@@ -125,3 +125,12 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("if (!editing)", pointer)
         click = HOME_RUNTIME.split("addEventListener('click'")[-1].split("addEventListener('pointerdown'")[0]
         self.assertIn("if (!editing) return;", click)
+
+    def test_home_widget_refresh_continues_after_one_failure(self) -> None:
+        refresh = HOME_RUNTIME.split("async function refreshKinds")[1].split("function paintPages")[0]
+        self.assertIn("const run = async (fn)", refresh)
+        self.assertIn("await run(onWorkoutTabShown)", refresh)
+        self.assertIn("await run(onTodoTabShown)", refresh)
+        self.assertIn("await run(refreshWeather)", refresh)
+        self.assertIn("await run(refreshDayBrief)", refresh)
+        self.assertIn("await run(onWordTabShown)", refresh)

@@ -91,29 +91,32 @@ function mountWidget(kind, body) {
 
 async function refreshKinds(kinds) {
     const set = new Set(kinds);
-    try {
-        if (set.has('today_calendar')) await onTodayTabShown();
-        if (set.has('todo')) await onTodoTabShown();
-        if (set.has('allwork')) await onAllWorkTabShown();
-        if (set.has('workout')) await onWorkoutTabShown();
-        if (set.has('goals')) await onGoalsTabShown();
-        if (set.has('journal')) await loadPastEntries();
-        if (set.has('analytics')) await onAnalyticsTabShown();
-        if (set.has('timeline')) await onTimelineTabShown();
-        if (set.has('weather')) await refreshWeather();
-        if (set.has('focus')) await refreshFocus();
-        if (set.has('countdown')) await refreshCountdown();
-        if (set.has('habits')) await refreshHabits();
-        if (set.has('heatmap')) await refreshHeatmap();
-        if (set.has('day_brief')) await refreshDayBrief();
-        if (set.has('counters')) await refreshCounters();
-        if (set.has('reading')) await refreshReading();
-        if (set.has('word')) await onWordTabShown();
-        if (set.has('checklist')) await onChecklistTabShown();
-        await refreshToday();
-    } catch (err) {
-        console.error(err);
-    }
+    const run = async (fn) => {
+        try {
+            await fn();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+    if (set.has('today_calendar')) await run(onTodayTabShown);
+    if (set.has('todo')) await run(onTodoTabShown);
+    if (set.has('allwork')) await run(onAllWorkTabShown);
+    if (set.has('workout')) await run(onWorkoutTabShown);
+    if (set.has('goals')) await run(onGoalsTabShown);
+    if (set.has('journal')) await run(loadPastEntries);
+    if (set.has('analytics')) await run(onAnalyticsTabShown);
+    if (set.has('timeline')) await run(onTimelineTabShown);
+    if (set.has('weather')) await run(refreshWeather);
+    if (set.has('focus')) await run(refreshFocus);
+    if (set.has('countdown')) await run(refreshCountdown);
+    if (set.has('habits')) await run(refreshHabits);
+    if (set.has('heatmap')) await run(refreshHeatmap);
+    if (set.has('day_brief')) await run(refreshDayBrief);
+    if (set.has('counters')) await run(refreshCounters);
+    if (set.has('reading')) await run(refreshReading);
+    if (set.has('word')) await run(onWordTabShown);
+    if (set.has('checklist')) await run(onChecklistTabShown);
+    await run(refreshToday);
 }
 
 function paintPages() {

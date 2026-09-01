@@ -27,6 +27,8 @@ from typing import Any, Dict
 from pathlib import Path
 from urllib.parse import urlparse
 
+from db import sqlite_connect
+
 
 def _journal_table_name() -> str:
     raw = os.environ.get("CLUNY_JOURNAL_TABLE", "cluny_journal_entries")
@@ -67,8 +69,7 @@ def _sync_sqlite(entry: Dict[str, Any]) -> None:
     path = _validate_sqlite_path(path)
     table = _journal_table_name()
     raw = json.dumps(entry, ensure_ascii=False)
-    conn = sqlite3.connect(path)
-    try:
+    with sqlite_connect(path) as conn:
         conn.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {table} (
@@ -99,9 +100,6 @@ def _sync_sqlite(entry: Dict[str, Any]) -> None:
                 raw,
             ),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def _sync_http(entry: Dict[str, Any]) -> None:
@@ -139,8 +137,7 @@ def _sync_checklist_sqlite(submission: Dict[str, Any]) -> None:
     path = _validate_sqlite_path(path)
     table = _checklist_table_name()
     raw = json.dumps(submission, ensure_ascii=False)
-    conn = sqlite3.connect(path)
-    try:
+    with sqlite_connect(path) as conn:
         conn.execute(
             f"""
             CREATE TABLE IF NOT EXISTS {table} (
@@ -170,9 +167,6 @@ def _sync_checklist_sqlite(submission: Dict[str, Any]) -> None:
                 raw,
             ),
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def _sync_checklist_http(submission: Dict[str, Any]) -> None:

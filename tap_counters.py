@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import eel
 
+from db import sqlite_connect
 from paths import data_directory
 
 MAX_COUNTERS = 12
@@ -42,33 +44,32 @@ def _db_path():
     return data_directory() / "tap_counters.sqlite"
 
 
-def _connect() -> sqlite3.Connection:
-    path = _db_path()
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS counters (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            icon TEXT NOT NULL,
-            target INTEGER,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL
+@contextmanager
+def _connect() -> Iterator[sqlite3.Connection]:
+    with sqlite_connect(_db_path()) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS counters (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                icon TEXT NOT NULL,
+                target INTEGER,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+            """
         )
-        """
-    )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS taps (
-            counter_id TEXT NOT NULL,
-            local_date TEXT NOT NULL,
-            count INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (counter_id, local_date)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS taps (
+                counter_id TEXT NOT NULL,
+                local_date TEXT NOT NULL,
+                count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (counter_id, local_date)
+            )
+            """
         )
-        """
-    )
-    return conn
+        yield conn
 
 
 def _clip_name(raw: Any) -> str:

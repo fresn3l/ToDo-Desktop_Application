@@ -13,12 +13,14 @@ import os
 import re
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import eel
 
+from db import sqlite_connect
 from paths import data_directory
 
 STATUSES = ("open", "active", "done")
@@ -36,11 +38,14 @@ def get_widget_snapshot_path() -> Path:
     return _data_dir() / "widget_snapshot.json"
 
 
-def _connect() -> sqlite3.Connection:
-    path = get_work_db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
+@contextmanager
+def _connect() -> Iterator[sqlite3.Connection]:
+    with sqlite_connect(get_work_db_path()) as conn:
+        _ensure_schema(conn)
+        yield conn
+
+
+def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS work_items (
@@ -120,7 +125,6 @@ def _connect() -> sqlite3.Connection:
     import goals as _goals
 
     _goals.ensure_schema(conn)
-    return conn
 
 
 def _now() -> datetime:

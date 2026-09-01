@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import eel
 
 import journal
 import work
+from db import sqlite_connect
 from paths import data_directory
 
 SLOTS = ("morning", "evening")
@@ -36,29 +38,28 @@ def _settings_path():
     return data_directory() / "day_brief.json"
 
 
-def _connect() -> sqlite3.Connection:
-    path = _db_path()
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS briefs (
-            local_date TEXT NOT NULL,
-            slot TEXT NOT NULL,
-            intention_text TEXT,
-            recap_text TEXT,
-            focus_work_ids TEXT,
-            shown_event_ids TEXT,
-            done_ids TEXT,
-            leftover_ids TEXT,
-            rolled_ids TEXT,
-            journal_id TEXT,
-            saved_at TEXT NOT NULL,
-            PRIMARY KEY (local_date, slot)
+@contextmanager
+def _connect() -> Iterator[sqlite3.Connection]:
+    with sqlite_connect(_db_path()) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS briefs (
+                local_date TEXT NOT NULL,
+                slot TEXT NOT NULL,
+                intention_text TEXT,
+                recap_text TEXT,
+                focus_work_ids TEXT,
+                shown_event_ids TEXT,
+                done_ids TEXT,
+                leftover_ids TEXT,
+                rolled_ids TEXT,
+                journal_id TEXT,
+                saved_at TEXT NOT NULL,
+                PRIMARY KEY (local_date, slot)
+            )
+            """
         )
-        """
-    )
-    return conn
+        yield conn
 
 
 def _parse_ids(raw: Any) -> List[str]:

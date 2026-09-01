@@ -13,12 +13,13 @@ import re
 import sqlite3
 import sys
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import eel
-
+from db import sqlite_connect
 from paths import data_directory
 
 
@@ -220,15 +221,13 @@ def _init_db(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_submissions_local_date ON submissions (local_date)"
     )
-    conn.commit()
 
 
-def _connect() -> sqlite3.Connection:
-    path = get_daily_checklist_db_path()
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    _init_db(conn)
-    return conn
+@contextmanager
+def _connect() -> Iterator[sqlite3.Connection]:
+    with sqlite_connect(get_daily_checklist_db_path()) as conn:
+        _init_db(conn)
+        yield conn
 
 
 @eel.expose
