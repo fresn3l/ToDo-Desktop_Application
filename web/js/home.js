@@ -306,11 +306,7 @@ function bindHome() {
             id: widget.id,
             originX: widget.x,
             originY: widget.y,
-            ignoreUp: true,
         };
-        window.setTimeout(() => {
-            if (drag) drag.ignoreUp = false;
-        }, 0);
         card.classList.add('is-dragging');
         card.draggable = false;
         card.dataset.dropX = String(widget.x);
@@ -343,7 +339,7 @@ function bindHome() {
     };
 
     const endDrag = () => {
-        if (!drag || drag.ignoreUp) return;
+        if (!drag) return;
         const page = activePage();
         const grid = document.getElementById('homeGrid');
         const card = grid?.querySelector(`.home-widget[data-id="${drag.id}"]`);
@@ -369,11 +365,9 @@ function bindHome() {
 
     const grid = document.getElementById('homeGrid');
     grid?.addEventListener('pointerdown', beginDrag);
-    grid?.addEventListener('mousedown', beginDrag);
     grid?.addEventListener('dragstart', (e) => e.preventDefault());
     window.addEventListener('pointermove', moveDrag);
     window.addEventListener('pointerup', endDrag);
-    window.addEventListener('pointercancel', endDrag);
     window.addEventListener('mousemove', moveDrag);
     window.addEventListener('mouseup', endDrag);
 }
