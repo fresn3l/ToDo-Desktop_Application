@@ -94,6 +94,32 @@ def _expected_payload(today: date) -> Dict[str, Any]:
     }
 
 
+def _session_line(session: Dict[str, Any], local_date: str) -> Dict[str, Any]:
+    return {
+        "local_date": local_date,
+        "label": session.get("label") or session.get("kind_label") or "",
+        "kind_label": session.get("kind_label") or "",
+        "miles": session.get("miles") or 0,
+        "minutes": session.get("minutes") or 0,
+    }
+
+
+def _last_workout_session(today_iso: str, today_workout: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    today_sessions = today_workout.get("sessions") or []
+    if today_sessions:
+        return _session_line(today_sessions[-1], today_iso)
+    try:
+        days = workouts.list_recent_workout_days(21)
+    except Exception:
+        return None
+    for day in days:
+        sessions = day.get("sessions") or []
+        if not sessions:
+            continue
+        return _session_line(sessions[-1], str(day.get("local_date") or ""))
+    return None
+
+
 @eel.expose
 def get_today_status() -> Dict[str, Any]:
     """Workout, to-do, and journal counts for today."""
@@ -122,6 +148,8 @@ def get_today_status() -> Dict[str, Any]:
             "session_count": int(workout.get("session_count") or 0),
             "miles": workout.get("miles") or 0,
             "kinds": [s.get("kind") for s in workout.get("sessions") or []],
+            "sessions": workout.get("sessions") or [],
+            "last_session": _last_workout_session(iso, workout),
         },
         "work": {
             "open": work_open,

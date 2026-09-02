@@ -5,7 +5,7 @@
 import * as utils from './utils.js';
 import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize, isFirstHomePage, widgetRegion, widgetsInRegion } from './home_layout.js';
 import { mountGlance, refreshGlances, runGlanceAction, syncHomeDayPart } from './glance_tiles.js';
-import { getAppearance, persistAppearance, onAppearanceChange, resolveColors, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
+import { getAppearance, onAppearanceChange, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { onTodayTabShown, refreshToday } from './today.js';
 import { onTodoTabShown } from './todo.js';
 import { onAllWorkTabShown } from './all_work.js';
@@ -33,9 +33,9 @@ const FALLBACK_LAYOUT = {
             widgets: [
                 { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2, region: 'above' },
                 { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2, region: 'above' },
-                { id: 'w-weather', kind: 'weather', x: 0, y: 0, w: 1, h: 1 },
-                { id: 'w-word', kind: 'word', x: 1, y: 0, w: 1, h: 1 },
-                { id: 'w-cluny', kind: 'cluny', x: 2, y: 0, w: 2, h: 2 },
+                { id: 'w-weather', kind: 'weather', x: 0, y: 0, w: 2, h: 1 },
+                { id: 'w-word', kind: 'word', x: 2, y: 0, w: 2, h: 2 },
+                { id: 'w-cluny', kind: 'cluny', x: 0, y: 1, w: 2, h: 2 },
             ],
         },
     ],
@@ -316,7 +316,7 @@ function paintPages() {
     el.innerHTML = layout.pages
         .map((page) => {
             const on = page.id === layout.active_page_id;
-            return `<button type="button" class="home-page-chip${on ? ' is-selected' : ''}" data-page="${utils.escapeHtml(page.id)}">${utils.escapeHtml(page.name)}</button>`;
+            return `<button type="button" class="home-page-chip${on ? ' is-selected' : ''}" data-page="${utils.escapeHtml(page.id)}" aria-selected="${on ? 'true' : 'false'}">${utils.escapeHtml(page.name)}</button>`;
         })
         .join('');
     paintSidebar();
@@ -501,17 +501,6 @@ async function syncCheckin() {
     }
 }
 
-function paintBorderControls() {
-    const settings = getAppearance();
-    const colors = resolveColors(settings);
-    const width = document.getElementById('homeBorderWidth');
-    const widthVal = document.getElementById('homeBorderWidthValue');
-    const color = document.getElementById('homeBorderColor');
-    if (width) width.value = String(settings.widgetBorderWidth ?? 1);
-    if (widthVal) widthVal.textContent = `${settings.widgetBorderWidth ?? 1}px`;
-    if (color) color.value = colors.widgetBorder;
-}
-
 function setEditing(on) {
     const next = !!on;
     if (next) closeHomeWork(true);
@@ -524,7 +513,6 @@ function setEditing(on) {
     if (editBtn) editBtn.textContent = editing ? 'Done' : 'Edit Home';
     if (editing) {
         paintCatalog();
-        paintBorderControls();
     }
     const page = activePage();
     const first = firstPageActive();
@@ -618,17 +606,6 @@ function bindHome() {
     });
     document.getElementById('homeDoneEditBtn')?.addEventListener('click', () => {
         setEditing(false);
-    });
-
-    document.getElementById('homeBorderWidth')?.addEventListener('input', (e) => {
-        const n = parseInt(e.target.value, 10);
-        const label = document.getElementById('homeBorderWidthValue');
-        if (label) label.textContent = `${n}px`;
-        void persistAppearance({ widgetBorderWidth: n });
-    });
-    document.getElementById('homeBorderColor')?.addEventListener('input', (e) => {
-        const colorOverrides = { ...(getAppearance().colorOverrides || {}), widgetBorder: e.target.value };
-        void persistAppearance({ colorOverrides });
     });
 
     document.getElementById('homeCatalog')?.addEventListener('click', (e) => {
@@ -880,10 +857,8 @@ function bindHome() {
 
 export function setupHome() {
     bindHome();
-    paintBorderControls();
     syncHomeDayPart();
     onAppearanceChange(() => {
-        paintBorderControls();
         if (document.getElementById('homeTab')?.classList.contains('active')) {
             syncPageColors();
         }
@@ -897,6 +872,10 @@ export function setupHome() {
         } else {
             void refreshToday();
         }
+    });
+    document.addEventListener('kosistenz:open-home-work', (event) => {
+        const kind = event.detail?.kind;
+        if (kind) void openHomeWork(kind);
     });
     document.addEventListener('kosistenz:open-evening-checkin', () => {
         checkinSlotOverride = 'evening';

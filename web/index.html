@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="ocean" data-density="comfortable" data-radius="soft" data-width="standard" data-font="system" data-sidebar="expanded">
+<html lang="en" data-theme="ocean" data-density="comfortable" data-radius="soft" data-width="standard" data-font="system" data-sidebar="compact">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
     <title>Home · Kosistenz</title>
+    <link rel="stylesheet" href="tokens.css">
     <link rel="stylesheet" href="style.css">
     <script src="js/boot-appearance.js"></script>
 </head>
@@ -40,7 +41,7 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 4.5v1.4M12 18.1v1.4M7.05 7.05l1 1M15.95 15.95l1 1M4.5 12h1.4M18.1 12h1.4M7.05 16.95l1-1M15.95 8.05l1-1"/></svg>
                     <span class="nav-label">Settings</span>
                 </button>
-                <button type="button" class="sidebar-collapse" id="sidebarToggle" title="Collapse sidebar">
+                <button type="button" class="sidebar-collapse" id="sidebarToggle" title="Expand sidebar" aria-label="Expand sidebar" aria-expanded="false">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M15 6 9 12l6 6"/></svg>
                     <span class="nav-label">Collapse</span>
                 </button>
@@ -72,18 +73,7 @@
                         </header>
                         <p class="home-live-copy" hidden>Drag a widget’s title bar to move it. Drag a corner or edge to snap to an allowed size. Add or remove tiles from the catalog.</p>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
-                            <p class="home-edit-copy">Live Home is look-and-tap. In Edit, drag the title bar to move, and a corner or edge to resize. On the first page, drop a widget above or below Check-in. These widget borders apply to every page unless a page has its own colors in Settings.</p>
-                            <div class="home-border-controls">
-                                <label class="home-border-field" for="homeBorderWidth">
-                                    Widget border
-                                    <input type="range" id="homeBorderWidth" min="0" max="8" step="1" value="1">
-                                    <span id="homeBorderWidthValue">1px</span>
-                                </label>
-                                <label class="home-border-field" for="homeBorderColor">
-                                    Color
-                                    <input type="color" id="homeBorderColor" class="color-input" value="#2c3d4e">
-                                </label>
-                            </div>
+                            <p class="home-edit-copy">Live Home is look-and-tap. In Edit, drag the title bar to move, and a corner or edge to resize. On the first page, drop a widget above or below Check-in.</p>
                             <div id="homeCatalog" class="home-catalog"></div>
                             <div class="home-edit-actions">
                                 <button type="button" id="homeRenamePageBtn" class="btn-ghost">Rename page</button>
@@ -96,7 +86,7 @@
                             <section id="homeCheckinBand" class="home-checkin-band" hidden>
                                 <header class="home-checkin-bar">
                                     <div class="home-checkin-copy">
-                                        <p id="homeCheckinKicker" class="today-kicker">Morning</p>
+                                        <p id="homeCheckinKicker" class="home-checkin-kicker">Morning</p>
                                         <h2 id="homeCheckinTitle">Morning check-in</h2>
                                         <p id="homeCheckinStatus" class="home-checkin-status">Not yet</p>
                                     </div>
@@ -799,7 +789,7 @@
                             </div>
                             <div class="settings-block">
                                 <h3>Home</h3>
-                                <p class="checklist-hint small">Widgets, sizes, extra pages, and widget borders live on Home. Open Home and click Edit Home. Colors above can be for every page or just the one you pick.</p>
+                                <p class="checklist-hint small">Widgets, sizes, and extra pages live on Home. Open Home and click Edit Home. Colors above can be for every page or just the one you pick.</p>
                             </div>
                         </div>
                         </div>

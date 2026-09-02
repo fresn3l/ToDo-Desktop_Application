@@ -32,14 +32,14 @@ export const THEME_PALETTES = {
         sidebar: '#0e1620',
     },
     midnight: {
-        pageBg: '#111113',
-        widgetBg: '#1f1f23',
-        widgetBorder: '#2a2a30',
-        titles: '#f4f4f5',
-        accent: '#4f8fcf',
+        pageBg: '#0e0d0b',
+        widgetBg: '#161512',
+        widgetBorder: '#2a2722',
+        titles: '#f0eee9',
+        accent: '#e0b355',
         done: '#5ebb8e',
-        openNext: '#d4a054',
-        sidebar: '#0c0c0e',
+        openNext: '#e0b355',
+        sidebar: '#161512',
     },
     slate: {
         pageBg: '#171e2b',
@@ -91,7 +91,7 @@ export const DEFAULTS = {
     density: 'comfortable',
     radius: 'soft',
     width: 'standard',
-    sidebar: 'expanded',
+    sidebar: 'compact',
     todayLayout: 'split',
     todayOrder: 'todo,workout,journal',
     todayTodo: true,
@@ -304,6 +304,15 @@ export function applyAppearance(settings) {
     root.setAttribute('data-width', current.width);
     root.setAttribute('data-font', current.font);
     root.setAttribute('data-sidebar', current.sidebar);
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    if (sidebarToggle) {
+        const compact = current.sidebar === 'compact';
+        sidebarToggle.setAttribute('aria-expanded', compact ? 'false' : 'true');
+        sidebarToggle.setAttribute('aria-label', compact ? 'Expand sidebar' : 'Collapse sidebar');
+        sidebarToggle.title = compact ? 'Expand sidebar' : 'Collapse sidebar';
+        const collapseLabel = sidebarToggle.querySelector('.nav-label');
+        if (collapseLabel) collapseLabel.textContent = compact ? 'Expand' : 'Collapse';
+    }
     root.setAttribute('data-today-layout', current.todayLayout || 'split');
     root.setAttribute('data-today-order', current.todayOrder || 'todo,workout,journal');
     root.setAttribute('data-today-todo', current.todayTodo === false ? 'off' : 'on');
