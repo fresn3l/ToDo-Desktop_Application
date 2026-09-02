@@ -1,0 +1,402 @@
+/**
+ * Purpose-built Home glances — small tiles that summarize a widget.
+ * Full UI lives in the work layer, not in the cell.
+ */
+
+import * as utils from './utils.js';
+import { WIDGET_CATALOG } from './home_layout.js';
+
+const POSTERS = {
+    workout: { kicker: 'Workout', line: 'Log today’s session' },
+    journal: { kicker: 'Journal', line: 'A page for this Mac' },
+    goals: { kicker: 'Goals', line: 'Horizons and weekly work' },
+    allwork: { kicker: 'All Work', line: 'Undated backlog' },
+    analytics: { kicker: 'Analytics', line: 'Streaks and patterns' },
+    timeline: { kicker: 'Timeline', line: 'The days in a row' },
+    focus: { kicker: 'Focus', line: 'The one thing today' },
+    countdown: { kicker: 'Countdown', line: 'Days until it matters' },
+    habits: { kicker: 'Habits', line: 'Small things, every day' },
+    heatmap: { kicker: 'Heatmap', line: 'A year at a glance' },
+    day_brief: { kicker: 'Day', line: 'Morning brief, evening review' },
+    counters: { kicker: 'Counters', line: 'Tap to keep count' },
+    reading: { kicker: 'Reading', line: 'The book in your hands' },
+    checklist: { kicker: 'Check-in', line: 'Morning and evening' },
+};
+
+function hasEel(name) {
+    return typeof eel !== 'undefined' && typeof eel[name] === 'function';
+}
+
+async function eelCall(name, ...args) {
+    if (!hasEel(name)) return null;
+    try {
+        return await eel[name](...args)();
+    } catch (err) {
+        console.error(err);
+        return null;
+    }
+}
+
+function clip(text, n) {
+    const s = String(text || '').trim();
+    if (!s) return '';
+    if (s.length <= n) return s;
+    return `${s.slice(0, Math.max(1, n - 1)).trim()}…`;
+}
+
+function sizeOf(card) {
+    const w = Math.max(1, Number(card?.dataset.w) || 1);
+    const h = Math.max(1, Number(card?.dataset.h) || 1);
+    return { w, h, cells: w * h, wide: w >= 2, tall: h >= 2, board: w >= 4 || h >= 3 };
+}
+
+function tile(kind, size, extraClass, inner) {
+    return `<div class="glance-tile glance-tile--${kind} glance-tile--${size.w}x${size.h}${extraClass ? ` ${extraClass}` : ''}" data-glance="${kind}">${inner}</div>`;
+}
+
+function kicker(text) {
+    return `<p class="glance-kicker">${utils.escapeHtml(text)}</p>`;
+}
+
+function kpi(text, extra = '') {
+    return `<p class="glance-kpi${extra}">${utils.escapeHtml(String(text))}</p>`;
+}
+
+function line(text, extra = '') {
+    return `<p class="glance-line${extra}">${utils.escapeHtml(text)}</p>`;
+}
+
+function hint() {
+    return '<span class="glance-open-hint">Open</span>';
+}
+
+function emptyTile(kind, label, message, size) {
+    return tile(kind, size, 'is-empty', `${kicker(label)}${line(message)}${size.wide ? hint() : ''}`);
+}
+
+function weatherGlyph(label) {
+    const t = String(label || '').toLowerCase();
+    let paths = '<circle cx="12" cy="12" r="4.2"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"/>';
+    if (t.includes('thunder')) {
+        paths = '<path d="M13 3 6.5 13h5L10 21l7.2-11h-5L13 3Z"/>';
+    } else if (t.includes('snow')) {
+        paths = '<path d="M12 4v16M5.4 7.5l13.2 9M5.4 16.5l13.2-9"/><circle cx="12" cy="12" r="1.4"/>';
+    } else if (t.includes('rain') || t.includes('drizzle') || t.includes('shower')) {
+        paths = '<path d="M7 11.5a5 5 0 0 1 9.7-1.6A3.6 3.6 0 0 1 18.2 16H7.6A3.2 3.2 0 0 1 7 11.5Z"/><path d="M9 18.2 8 21M12.5 18.2 11.5 21M16 18.2 15 21"/>';
+    } else if (t.includes('fog') || t.includes('haze')) {
+        paths = '<path d="M5 10h14M6 13h12M5 16h14"/>';
+    } else if (t.includes('cloud') || t.includes('overcast')) {
+        paths = '<path d="M7.2 16.5a4.2 4.2 0 0 1 .4-8.3 5.2 5.2 0 0 1 10 1.6 3.6 3.6 0 0 1 .2 6.7H7.2Z"/>';
+    }
+    return `<span class="glance-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths}</svg></span>`;
+}
+
+function formatAgendaTime(item) {
+    const start = new Date(item.start_at);
+    if (Number.isNaN(start.getTime())) return '';
+    return start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function taskDot(status) {
+    const cls = status === 'done' ? 'is-done' : status === 'active' ? 'is-active' : 'is-open';
+    return `<i class="glance-dot ${cls}" aria-hidden="true"></i>`;
+}
+
+function listRows(items, limit, render) {
+    const rows = (items || []).slice(0, limit);
+    if (!rows.length) return '';
+    return `<ul class="glance-list">${rows.map(render).join('')}</ul>`;
+}
+
+function weatherHtml(data, size) {
+    const label = 'Weather';
+    if (!data || data.need_place) {
+        return emptyTile('weather', label, 'Set a place', size);
+    }
+    if (!data.ok) {
+        return emptyTile('weather', label, data.error ? 'Could not load' : 'No forecast yet', size);
+    }
+    const cur = data.current || {};
+    const unit = data.unit_symbol || '°';
+    const temp = cur.temp == null ? '—' : `${cur.temp}${unit}`;
+    const cond = cur.label || '';
+    const place = data.place || '';
+    const glyph = weatherGlyph(cond);
+    if (!size.wide && !size.tall) {
+        return tile('weather', size, '', `${glyph}${kpi(temp)}${cond ? line(clip(cond, 14), ' glance-line--tiny') : ''}`);
+    }
+    if (!size.tall) {
+        return tile('weather', size, '', `
+            <div class="glance-row">
+                ${glyph}
+                <div class="glance-copy">
+                    ${kicker(place || label)}
+                    ${kpi(temp)}
+                    ${line(cond)}
+                </div>
+            </div>`);
+    }
+    const days = (data.daily || []).slice(0, size.board ? 5 : 3);
+    const forecast = days.length
+        ? `<ul class="glance-forecast">${days.map((row) => {
+            const high = row.high == null ? '—' : `${row.high}°`;
+            const low = row.low == null ? '' : `${row.low}°`;
+            return `<li><span>${utils.escapeHtml(row.day || '')}</span><em>${utils.escapeHtml(high)}${low ? ` <small>${utils.escapeHtml(low)}</small>` : ''}</em></li>`;
+        }).join('')}</ul>`
+        : '';
+    return tile('weather', size, '', `
+        ${kicker(place || label)}
+        <div class="glance-row">
+            ${glyph}
+            ${kpi(temp)}
+        </div>
+        ${line(cond)}
+        ${forecast}
+        ${hint()}`);
+}
+
+function wordHtml(data, size) {
+    const label = 'Word';
+    if (!data?.word) {
+        return emptyTile('word', label, 'Today’s word', size);
+    }
+    const head = data.display || data.word;
+    const pos = [data.language_label || (data.language === 'de' ? 'German' : 'English'), data.pos].filter(Boolean).join(' · ');
+    if (!size.wide && !size.tall) {
+        return tile('word', size, '', `${kicker(label)}${kpi(clip(head, 12), ' glance-kpi--word')}`);
+    }
+    if (!size.tall) {
+        return tile('word', size, '', `${kicker(pos || label)}${kpi(clip(head, 22), ' glance-kpi--word')}${hint()}`);
+    }
+    return tile('word', size, '', `
+        ${kicker(pos || label)}
+        ${kpi(head, ' glance-kpi--word')}
+        ${line(clip(data.meaning || '', size.board ? 140 : 90))}
+        ${hint()}`);
+}
+
+function todayHtml(data, size) {
+    const label = 'Today';
+    const iso = data?.local_date;
+    const d = iso ? new Date(`${iso}T12:00:00`) : new Date();
+    const weekday = Number.isNaN(d.getTime()) ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'long' });
+    const shortWeek = Number.isNaN(d.getTime()) ? 'Now' : d.toLocaleDateString(undefined, { weekday: 'short' });
+    const dayNum = Number.isNaN(d.getTime()) ? '' : String(d.getDate());
+    const month = Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short' });
+    const agenda = data?.agenda || [];
+    const next = agenda[0];
+    const nextLine = next
+        ? `${formatAgendaTime(next)} ${next.title || ''}`.trim()
+        : 'A quiet stretch';
+    if (!size.wide && !size.tall) {
+        return tile('today_calendar', size, '', `${kicker(shortWeek)}${kpi(dayNum)}${line(month, ' glance-line--tiny')}`);
+    }
+    if (!size.tall) {
+        return tile('today_calendar', size, '', `
+            <div class="glance-copy">
+                ${kicker(`${weekday} ${dayNum}`)}
+                ${line(clip(nextLine, 42))}
+            </div>
+            ${hint()}`);
+    }
+    const work = data?.work || {};
+    const pulse = work.open
+        ? `${work.open} open`
+        : work.total
+            ? 'To do done'
+            : '';
+    const limit = size.board ? 5 : 4;
+    const rows = listRows(agenda, limit, (item) => {
+        const hh = formatAgendaTime(item);
+        return `<li><span>${utils.escapeHtml(hh)}</span><strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong></li>`;
+    });
+    return tile('today_calendar', size, '', `
+        ${kicker(label)}
+        ${kpi(`${shortWeek} ${dayNum}`)}
+        ${line(pulse || (agenda.length ? `${agenda.length} on the clock` : 'Nothing timed yet'))}
+        ${rows || `<p class="glance-empty">${utils.escapeHtml(nextLine)}</p>`}
+        ${hint()}`);
+}
+
+function todoHtml(data, size) {
+    const label = 'To Do';
+    const items = data?.today || [];
+    const open = data?.counts?.today_open ?? items.filter((row) => row.status !== 'done').length;
+    const done = data?.counts?.today_done ?? items.filter((row) => row.status === 'done').length;
+    if (!size.tall) {
+        return tile('todo', size, '', `
+            ${kicker(label)}
+            <div class="glance-row">
+                ${kpi(open)}
+                <div class="glance-copy">
+                    ${line(open === 1 ? 'open today' : 'open today')}
+                    ${done ? line(`${done} finished`, ' glance-line--muted') : ''}
+                </div>
+            </div>
+            ${hint()}`);
+    }
+    const visible = items.filter((row) => row.status !== 'done' || size.board).slice(0, size.board ? 6 : 5);
+    const rows = listRows(visible, visible.length, (item) => (
+        `<li class="${item.status === 'done' ? 'is-done' : ''}">${taskDot(item.status)}<strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
+    ));
+    const sub = open
+        ? `${open} open${done ? ` · ${done} done` : ''}`
+        : done
+            ? 'All finished'
+            : 'Nothing dated yet';
+    return tile('todo', size, '', `
+        ${kicker(label)}
+        ${kpi(open)}
+        ${line(sub)}
+        ${rows || '<p class="glance-empty">Tap to add today’s work.</p>'}
+        ${hint()}`);
+}
+
+function posterHtml(kind, data, size) {
+    const spec = WIDGET_CATALOG[kind] || { label: kind };
+    const meta = POSTERS[kind] || { kicker: spec.label, line: 'Open the full view' };
+    const packed = posterCopy(kind, data, meta);
+    if (!size.wide && !size.tall) {
+        return tile(kind, size, 'glance-tile--poster', `${kicker(meta.kicker)}${kpi(packed.kpi || '·')}${packed.tiny ? line(packed.tiny, ' glance-line--tiny') : ''}`);
+    }
+    if (!size.tall) {
+        return tile(kind, size, 'glance-tile--poster', `
+            ${kicker(meta.kicker)}
+            ${packed.kpi ? kpi(packed.kpi) : ''}
+            ${line(packed.line)}
+            ${hint()}`);
+    }
+    return tile(kind, size, 'glance-tile--poster', `
+        ${kicker(meta.kicker)}
+        ${packed.kpi ? kpi(packed.kpi) : `<p class="glance-mark">${utils.escapeHtml(spec.label.slice(0, 1))}</p>`}
+        ${line(packed.line)}
+        ${packed.extra || ''}
+        ${hint()}`);
+}
+
+function posterCopy(kind, data, meta) {
+    if (kind === 'focus') {
+        const text = (data?.text || '').trim();
+        return text
+            ? { kpi: clip(text, 28), line: 'Today’s focus', tiny: clip(text, 10) }
+            : { kpi: '·', line: meta.line, tiny: 'Focus' };
+    }
+    if (kind === 'countdown') {
+        const rows = Array.isArray(data) ? data : [];
+        const next = rows.find((row) => row.state !== 'past') || rows[0];
+        if (!next) return { kpi: '·', line: meta.line, tiny: 'Soon' };
+        const days = Number(next.days);
+        const count = Number.isFinite(days) ? String(Math.abs(days)) : '—';
+        const unit = next.state === 'today' ? 'today' : Number(next.days) < 0 ? 'ago' : 'days';
+        return { kpi: count, line: clip(next.title || meta.line, 36), tiny: unit, extra: next.phrase ? line(next.phrase, ' glance-line--muted') : '' };
+    }
+    if (kind === 'habits') {
+        const total = data?.total || 0;
+        const done = data?.done || 0;
+        return total
+            ? { kpi: `${done}/${total}`, line: done === total ? 'All ticked' : 'ticked today', tiny: `${done}/${total}` }
+            : { kpi: '0', line: meta.line, tiny: 'Habits' };
+    }
+    if (kind === 'reading') {
+        if (data?.title) {
+            return { kpi: data.pages_today ? String(data.pages_today) : String(data.page || '·'), line: clip(data.title, 36), tiny: clip(data.title, 10) };
+        }
+        return { kpi: '·', line: meta.line, tiny: 'Read' };
+    }
+    if (kind === 'counters') {
+        const rows = data?.counters || [];
+        const first = rows[0];
+        if (!first) return { kpi: '·', line: meta.line, tiny: 'Count' };
+        return { kpi: String(first.today || 0), line: clip(first.name || meta.line, 28), tiny: first.icon || '•' };
+    }
+    if (kind === 'workout') {
+        const workout = data?.workout || data || {};
+        const session = workout.session_count || 0;
+        if (workout.done) {
+            return { kpi: String(session || '✓'), line: session === 1 ? 'Session logged' : `${session} sessions`, tiny: 'Done' };
+        }
+        const expected = (data?.expected?.labels || []).join(' · ');
+        return { kpi: '·', line: expected || meta.line, tiny: 'Gym' };
+    }
+    if (kind === 'journal') {
+        const n = data?.journal_count || 0;
+        return n
+            ? { kpi: String(n), line: n === 1 ? 'saved today' : 'saved today', tiny: String(n) }
+            : { kpi: '·', line: meta.line, tiny: 'Write' };
+    }
+    if (kind === 'goals') {
+        const n = Array.isArray(data) ? data.length : 0;
+        return n
+            ? { kpi: String(n), line: n === 1 ? 'goal in motion' : 'goals in motion', tiny: String(n) }
+            : { kpi: '·', line: meta.line, tiny: 'Goals' };
+    }
+    if (kind === 'allwork') {
+        const n = Array.isArray(data) ? data.length : 0;
+        return n
+            ? { kpi: String(n), line: n === 1 ? 'waiting to be dated' : 'waiting to be dated', tiny: String(n) }
+            : { kpi: '0', line: 'Backlog is clear', tiny: '0' };
+    }
+    if (kind === 'day_brief') {
+        const slot = data?.slot === 'evening' ? 'Evening' : 'Morning';
+        return { kpi: slot.slice(0, 1), line: `${slot} ${data?.slot === 'evening' ? 'review' : 'brief'}`, tiny: slot.slice(0, 3) };
+    }
+    if (kind === 'checklist') {
+        return { kpi: '✓', line: meta.line, tiny: 'In' };
+    }
+    return { kpi: specLetter(kind), line: meta.line, tiny: meta.kicker.slice(0, 4) };
+}
+
+function specLetter(kind) {
+    return (WIDGET_CATALOG[kind]?.label || kind).slice(0, 1);
+}
+
+async function loadGlance(kind) {
+    if (kind === 'weather') return eelCall('get_weather_forecast', false);
+    if (kind === 'word') return eelCall('get_word_of_the_day');
+    if (kind === 'today_calendar') return eelCall('get_today_home');
+    if (kind === 'todo') return eelCall('get_work_board', utils.localISODate());
+    if (kind === 'focus') return eelCall('get_daily_focus');
+    if (kind === 'countdown') return eelCall('get_countdowns');
+    if (kind === 'habits') return eelCall('get_habits');
+    if (kind === 'reading') return eelCall('get_reading');
+    if (kind === 'counters') return eelCall('get_tap_counters');
+    if (kind === 'workout' || kind === 'journal') return eelCall('get_today_status');
+    if (kind === 'goals') return eelCall('list_goals');
+    if (kind === 'allwork') return eelCall('list_backlog');
+    if (kind === 'day_brief') return eelCall('get_day_brief');
+    return null;
+}
+
+function renderKind(kind, data, size) {
+    if (kind === 'weather') return weatherHtml(data, size);
+    if (kind === 'word') return wordHtml(data, size);
+    if (kind === 'today_calendar') return todayHtml(data, size);
+    if (kind === 'todo') return todoHtml(data, size);
+    return posterHtml(kind, data, size);
+}
+
+export function mountGlance(kind, body, card) {
+    const spec = WIDGET_CATALOG[kind] || { label: kind };
+    if (!body) return;
+    const size = sizeOf(card);
+    body.innerHTML = emptyTile(kind, spec.label, '…', size);
+}
+
+export async function paintGlance(kind, body, card) {
+    if (!body) return;
+    const size = sizeOf(card);
+    const data = await loadGlance(kind);
+    if (!body.isConnected) return;
+    body.innerHTML = renderKind(kind, data, size);
+}
+
+export async function refreshGlances(kinds) {
+    const set = kinds ? new Set(kinds) : null;
+    const cards = [...document.querySelectorAll('#homeGrid .home-widget')];
+    await Promise.all(cards.map(async (card) => {
+        const kind = card.getAttribute('data-kind');
+        if (set && !set.has(kind)) return;
+        const body = card.querySelector('.home-widget-body');
+        if (body) await paintGlance(kind, body, card);
+    }));
+}

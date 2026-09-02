@@ -2641,12 +2641,64 @@ html.native-shell .home-title-strip {
     min-width: 0;
     min-height: 0;
     border: var(--home-widget-border-width) solid var(--home-widget-border-color);
-    border-radius: 11px;
-    background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-main));
+    border-radius: 14px;
+    background:
+        radial-gradient(120% 90% at 100% -10%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 52%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
     box-shadow:
-        inset 0 1px 0 hsl(0 0% 100% / 0.06),
+        inset 0 1px 0 hsl(0 0% 100% / 0.07),
         0 1px 2px hsl(0 0% 0% / 0.12);
     overflow: hidden;
+    transition:
+        transform 180ms var(--ease-out),
+        box-shadow 180ms var(--ease-out),
+        border-color 180ms var(--ease-out),
+        filter 180ms var(--ease-out);
+}
+
+.home-shell:not(.is-editing) .home-widget {
+    cursor: pointer;
+}
+
+.home-shell:not(.is-editing) .home-widget:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--primary) 42%, var(--home-widget-border-color));
+    box-shadow:
+        inset 0 1px 0 hsl(0 0% 100% / 0.08),
+        0 10px 24px hsl(0 0% 0% / 0.16);
+}
+
+.home-shell:not(.is-editing) .home-widget:active {
+    transform: translateY(0) scale(0.992);
+}
+
+.home-shell:not(.is-editing) .home-widget:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--primary) 70%, transparent);
+    outline-offset: 2px;
+}
+
+.home-widget[data-kind="weather"] {
+    background:
+        radial-gradient(130% 90% at 110% -20%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 58%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+}
+
+.home-widget[data-kind="word"] {
+    background:
+        radial-gradient(120% 80% at 0% 110%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 55%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+}
+
+.home-widget[data-kind="todo"] {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--primary) 8%, var(--bg-elevated)) 0%, var(--bg-elevated) 42%),
+        var(--bg-elevated);
+}
+
+.home-widget[data-kind="today_calendar"] {
+    background:
+        radial-gradient(90% 80% at 0% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 50%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
 }
 
 .home-widget.is-dragging,
@@ -2664,6 +2716,11 @@ html.native-shell .home-title-strip {
     background: transparent;
     -webkit-app-region: no-drag;
     touch-action: none;
+    display: none;
+}
+
+.home-shell.is-editing .home-widget-resize {
+    display: block;
 }
 
 .home-widget-resize[data-resize="e"] {
@@ -2714,7 +2771,7 @@ html.native-shell .home-title-strip {
     top: 0;
     left: 0;
     right: 0;
-    display: flex;
+    display: none;
     align-items: center;
     gap: 4px;
     padding: 4px 7px 8px;
@@ -2726,6 +2783,10 @@ html.native-shell .home-title-strip {
     pointer-events: none;
 }
 
+.home-shell.is-editing .home-widget-chrome {
+    display: flex;
+}
+
 .home-widget-size,
 .home-widget-btn {
     display: none;
@@ -2735,11 +2796,6 @@ html.native-shell .home-title-strip {
 .home-shell.is-editing .home-widget-btn,
 .home-widget.is-resizing .home-widget-size {
     display: inline-flex;
-}
-
-.home-shell.is-editing .home-widget-body {
-    pointer-events: none;
-    user-select: none;
 }
 
 .home-widget-handle {
@@ -2801,27 +2857,380 @@ html.native-shell .home-title-strip {
 .home-widget-body {
     flex: 1;
     min-height: 0;
-    overflow: auto;
-    padding: 1.35rem 10px 8px;
+    overflow: hidden;
+    padding: 12px 13px 11px;
     display: flex;
     flex-direction: column;
 }
 
+.home-shell.is-editing .home-widget-body {
+    padding-top: 1.4rem;
+    pointer-events: none;
+    user-select: none;
+}
+
 .home-widget[data-h="1"] .home-widget-body {
-    padding: 1.2rem 8px 5px;
+    padding: 10px 10px 8px;
 }
 
 .home-widget[data-w="1"][data-h="1"] .home-widget-body {
-    padding: 1.15rem 7px 4px;
+    padding: 9px 8px 7px;
     justify-content: center;
 }
 
-.home-widget[data-kind="todo"] .home-widget-body,
-.home-widget[data-kind="allwork"] .home-widget-body,
-.home-widget[data-kind="journal"] .home-widget-body,
-.home-widget[data-kind="checklist"] .home-widget-body,
-.home-widget[data-kind="timeline"] .home-widget-body {
+.glance-tile {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 2px;
+    height: 100%;
+    min-height: 0;
+    color: var(--text-primary);
+}
+
+.glance-tile--1x1 {
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.glance-kicker {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--text-muted) 80%, var(--text-primary));
+}
+
+.glance-kpi {
+    margin: 0;
+    font-size: clamp(1.55rem, 2.4vw, 2.15rem);
+    font-weight: 670;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    color: var(--text-title);
+}
+
+.home-widget[data-w="1"][data-h="1"] .glance-kpi {
+    font-size: 1.55rem;
+}
+
+.glance-kpi--word {
+    font-size: clamp(1.15rem, 2vw, 1.7rem);
+    letter-spacing: -0.03em;
+    font-weight: 650;
+}
+
+.glance-line {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.25;
+    color: var(--text-secondary);
+}
+
+.glance-line--tiny {
+    font-size: 11px;
+}
+
+.glance-line--muted {
+    color: var(--text-muted);
+}
+
+.glance-empty {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.glance-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.glance-copy {
+    min-width: 0;
+    flex: 1;
+}
+
+.glance-glyph {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 auto;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    border-radius: 999px;
+}
+
+.glance-glyph svg {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.home-widget[data-w="1"][data-h="1"] .glance-glyph {
+    width: 1.55rem;
+    height: 1.55rem;
+    margin-bottom: 4px;
+}
+
+.glance-list,
+.glance-forecast {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.glance-list li,
+.glance-forecast li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 13px;
+    min-width: 0;
+}
+
+.glance-list li span,
+.glance-forecast li span {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    flex: 0 0 auto;
+}
+
+.glance-list li strong,
+.glance-forecast li em {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-style: normal;
+    font-weight: 550;
+}
+
+.glance-list li.is-done strong {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.glance-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    flex: 0 0 auto;
+    background: color-mix(in srgb, var(--text-muted) 55%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 18%, transparent);
+}
+
+.glance-dot.is-open {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--primary) 70%, var(--text-muted));
+}
+
+.glance-dot.is-active {
+    background: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.glance-dot.is-done {
+    background: color-mix(in srgb, var(--text-muted) 70%, transparent);
+}
+
+.glance-open-hint {
+    margin-top: auto;
+    padding-top: 8px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--primary) 70%, var(--text-muted));
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+
+.home-shell:not(.is-editing) .home-widget:hover .glance-open-hint,
+.home-shell:not(.is-editing) .home-widget:focus-visible .glance-open-hint {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.home-widget[data-h="1"] .glance-open-hint,
+.home-widget[data-w="1"][data-h="1"] .glance-open-hint {
+    display: none;
+}
+
+.glance-mark {
+    margin: 4px 0 2px;
+    font-size: 1.8rem;
+    font-weight: 670;
+    letter-spacing: -0.04em;
+    color: color-mix(in srgb, var(--primary) 55%, var(--text-title));
+}
+
+.glance-tile.is-empty .glance-kpi {
+    color: var(--text-muted);
+}
+
+html.home-work-open .app-content {
+    overflow: hidden;
+}
+
+.home-work-layer {
+    position: fixed;
+    inset: 0 0 0 var(--sidebar-width);
+    z-index: 1200;
+    pointer-events: none;
+}
+
+.home-work-layer.is-hidden {
+    display: none;
+}
+
+.home-work-layer:not(.is-hidden) {
+    pointer-events: auto;
+}
+
+.home-work-backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    background: color-mix(in srgb, var(--bg-canvas) 28%, hsl(0 0% 0% / 0.42));
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 280ms var(--ease-out);
+}
+
+.home-work-layer.is-open .home-work-backdrop {
+    opacity: 1;
+}
+
+.home-work-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: min(760px, calc(100% - 36px));
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--bg-panel, var(--bg-elevated));
+    border: 1px solid var(--border-subtle);
+    border-radius: 18px;
+    box-shadow:
+        0 24px 64px hsl(0 0% 0% / 0.32),
+        inset 0 1px 0 hsl(0 0% 100% / 0.06);
+    transform: translateX(108%);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    overflow: hidden;
+}
+
+.home-work-layer.is-open .home-work-panel {
+    transform: translateX(0);
+}
+
+.home-work-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-main));
+}
+
+.home-work-kicker {
+    margin: 0 0 2px;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.home-work-head h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    letter-spacing: var(--letter-tight);
+    color: var(--text-title);
+}
+
+.home-work-close {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.home-work-close svg {
+    width: 16px;
+    height: 16px;
+}
+
+.home-work-close:hover {
+    color: var(--text-primary);
+    border-color: color-mix(in srgb, var(--primary) 40%, var(--border-subtle));
+}
+
+.home-work-body {
+    flex: 1;
+    min-height: 0;
     overflow: auto;
+    padding: 16px 18px 24px;
+}
+
+.home-work-body > .widget-source,
+.widget-source.widget-source--active {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.home-work-body .panel-header h2,
+.home-work-body .goals-page-head h2,
+.home-work-body .today-kicker,
+.home-work-body .word-card > .today-kicker,
+.home-work-body .glance-widget > h2,
+.home-work-body .compact-widget-head h2,
+.home-work-body .checklist-main > .panel-header h2 {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .home-work-layer {
+        inset: 0;
+    }
+
+    .home-work-panel {
+        top: 8px;
+        right: 8px;
+        bottom: 8px;
+        left: 8px;
+        width: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-widget,
+    .glance-open-hint,
+    .home-work-backdrop,
+    .home-work-panel {
+        transition: none;
+    }
 }
 
 .home-widget-body .panel-header,
@@ -4512,9 +4921,7 @@ html[data-motion='reduce'] *::after {
 }
 
 .home-live-copy {
-    margin: 0 0 6px;
-    font-size: 12px;
-    color: var(--text-secondary);
+    display: none;
 }
 
 .home-shell.is-editing .home-live-copy {

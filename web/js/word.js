@@ -54,7 +54,7 @@ export async function refreshWord() {
 
 export function setupWord() {
     document.addEventListener('kosistenz:data-changed', () => {
-        if (document.getElementById('wordTab')?.closest('.home-widget-body')) {
+        if (document.getElementById('wordTab')?.closest('#homeWorkBody, .home-widget-body')) {
             void refreshWord();
         }
     });

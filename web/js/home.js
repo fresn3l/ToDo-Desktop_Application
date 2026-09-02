@@ -3,7 +3,8 @@
  */
 
 import * as utils from './utils.js';
-import { WIDGET_CATALOG, catalogList, canPlace, snapCell, pickResize } from './home_layout.js';
+import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize } from './home_layout.js';
+import { mountGlance, refreshGlances } from './glance_tiles.js';
 import { getAppearance, persistAppearance, onAppearanceChange, resolveColors, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { onTodayTabShown, refreshToday } from './today.js';
 import { onTodoTabShown } from './todo.js';
@@ -32,6 +33,8 @@ const FALLBACK_LAYOUT = {
             widgets: [
                 { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2 },
                 { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2 },
+                { id: 'w-weather', kind: 'weather', x: 0, y: 2, w: 1, h: 1 },
+                { id: 'w-word', kind: 'word', x: 1, y: 2, w: 1, h: 1 },
             ],
         },
     ],
@@ -40,6 +43,9 @@ const FALLBACK_LAYOUT = {
 let layout = FALLBACK_LAYOUT;
 let editing = false;
 let drag = null;
+let workKind = null;
+let workOpener = null;
+let workHideTimer = 0;
 
 function rack() {
     return document.getElementById('widgetSourceRack');
@@ -77,20 +83,102 @@ async function loadLayout() {
 function returnSources() {
     const host = rack();
     if (!host) return;
-    document.querySelectorAll('.home-widget-body > .widget-source').forEach((node) => {
+    document.querySelectorAll('.home-widget-body > .widget-source, #homeWorkBody > .widget-source').forEach((node) => {
+        node.classList.remove('widget-source--active');
         host.appendChild(node);
     });
 }
 
-function mountWidget(kind, body) {
+function workLayer() {
+    return document.getElementById('homeWorkLayer');
+}
+
+function isWorkOpen() {
+    const layer = workLayer();
+    return !!(layer && !layer.hidden && layer.classList.contains('is-open'));
+}
+
+function mountWorkSource(kind) {
     const spec = WIDGET_CATALOG[kind];
-    if (!spec || !body) return;
+    const body = document.getElementById('homeWorkBody');
+    const title = document.getElementById('homeWorkTitle');
+    const kicker = document.getElementById('homeWorkKicker');
+    if (title) title.textContent = spec?.label || kind;
+    if (kicker) kicker.textContent = 'Home';
+    if (!spec || !body) return false;
     const source = document.getElementById(spec.source);
-    if (source) {
-        body.appendChild(source);
+    if (!source) {
+        body.innerHTML = `<p class="checklist-error">Could not load ${spec.label}.</p>`;
+        return false;
+    }
+    body.appendChild(source);
+    source.classList.add('widget-source--active');
+    return true;
+}
+
+export function closeHomeWork(immediate = false) {
+    const layer = workLayer();
+    if (!layer) return;
+    const opener = workOpener;
+    workKind = null;
+    workOpener = null;
+    document.documentElement.classList.remove('home-work-open');
+    document.getElementById('homeShell')?.classList.remove('is-working');
+    document.getElementById('homeShell')?.removeAttribute('inert');
+    layer.classList.remove('is-open');
+    const finish = () => {
+        if (layer.classList.contains('is-open')) return;
+        layer.classList.add('is-hidden');
+        layer.hidden = true;
+        returnSources();
+        if (opener && document.contains(opener)) {
+            try {
+                opener.focus({ preventScroll: true });
+            } catch (_) {
+                opener.focus();
+            }
+        }
+    };
+    if (workHideTimer) {
+        window.clearTimeout(workHideTimer);
+        workHideTimer = 0;
+    }
+    if (immediate) {
+        finish();
         return;
     }
-    body.innerHTML = `<p class="checklist-error">Could not load ${spec.label}.</p>`;
+    workHideTimer = window.setTimeout(() => {
+        workHideTimer = 0;
+        finish();
+    }, 340);
+}
+
+export async function openHomeWork(kind, opener) {
+    const spec = WIDGET_CATALOG[kind];
+    if (!spec || editing) return;
+    closeHomeWork(true);
+    workKind = kind;
+    workOpener = opener || document.querySelector(`#homeGrid .home-widget[data-kind="${kind}"]`);
+    const layer = workLayer();
+    const panel = document.getElementById('homeWorkPanel');
+    if (!layer || !panel) return;
+    mountWorkSource(kind);
+    layer.hidden = false;
+    layer.classList.remove('is-hidden');
+    layer.setAttribute('data-kind', kind);
+    document.documentElement.classList.add('home-work-open');
+    document.getElementById('homeShell')?.classList.add('is-working');
+    document.getElementById('homeShell')?.setAttribute('inert', '');
+    requestAnimationFrame(() => {
+        layer.classList.add('is-open');
+        const closeBtn = document.getElementById('homeWorkClose');
+        try {
+            closeBtn?.focus({ preventScroll: true });
+        } catch (_) {
+            closeBtn?.focus();
+        }
+    });
+    await refreshKinds([kind]);
 }
 
 async function refreshKinds(kinds) {
@@ -121,6 +209,7 @@ async function refreshKinds(kinds) {
     if (set.has('word')) await run(onWordTabShown);
     if (set.has('checklist')) await run(onChecklistTabShown);
     await run(refreshToday);
+    await run(() => refreshGlances([...set]));
 }
 
 const HOME_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>';
@@ -197,13 +286,15 @@ function paintGrid() {
     returnSources();
     const page = activePage();
     const widgets = page?.widgets || [];
+    const live = !editing;
     grid.innerHTML = widgets
         .map((item) => {
             const spec = WIDGET_CATALOG[item.kind] || { label: item.kind };
+            const label = utils.escapeHtml(spec.label);
             return `
-                <article class="home-widget" data-id="${utils.escapeHtml(item.id)}" data-kind="${utils.escapeHtml(item.kind)}" data-w="${item.w}" data-h="${item.h}" style="grid-column:${item.x + 1} / span ${item.w};grid-row:${item.y + 1} / span ${item.h}">
+                <article class="home-widget" data-id="${utils.escapeHtml(item.id)}" data-kind="${utils.escapeHtml(item.kind)}" data-w="${item.w}" data-h="${item.h}" style="grid-column:${item.x + 1} / span ${item.w};grid-row:${item.y + 1} / span ${item.h}" role="${live ? 'button' : 'group'}" tabindex="${live ? '0' : '-1'}" aria-label="${live ? `Open ${label}` : label}">
                     <div class="home-widget-chrome">
-                        <span class="home-widget-handle"><span class="home-widget-grip" aria-hidden="true"></span>${utils.escapeHtml(spec.label)}</span>
+                        <span class="home-widget-handle"><span class="home-widget-grip" aria-hidden="true"></span>${label}</span>
                         <span class="home-widget-size">${item.w}×${item.h}</span>
                         <button type="button" class="btn-ghost home-widget-btn" data-act="remove">Remove</button>
                     </div>
@@ -216,7 +307,7 @@ function paintGrid() {
         .join('');
     widgets.forEach((item) => {
         const card = grid.querySelector(`.home-widget[data-id="${item.id}"]`);
-        mountWidget(item.kind, card?.querySelector('.home-widget-body'));
+        mountGlance(item.kind, card?.querySelector('.home-widget-body'), card);
     });
 }
 
@@ -232,15 +323,25 @@ function paintBorderControls() {
 }
 
 function setEditing(on) {
-    editing = !!on;
+    const next = !!on;
+    if (next) closeHomeWork(true);
+    editing = next;
     document.getElementById('homeShell')?.classList.toggle('is-editing', editing);
     document.getElementById('homeEditBar')?.classList.toggle('is-hidden', !editing);
+    const howTo = document.querySelector('.home-live-copy');
+    if (howTo) howTo.hidden = true;
     const editBtn = document.getElementById('homeEditBtn');
     if (editBtn) editBtn.textContent = editing ? 'Done' : 'Edit Home';
     if (editing) {
         paintCatalog();
         paintBorderControls();
     }
+    document.querySelectorAll('#homeGrid .home-widget').forEach((card) => {
+        const spec = WIDGET_CATALOG[card.getAttribute('data-kind')] || { label: card.getAttribute('data-kind') };
+        card.setAttribute('role', editing ? 'group' : 'button');
+        card.tabIndex = editing ? -1 : 0;
+        card.setAttribute('aria-label', editing ? spec.label : `Open ${spec.label}`);
+    });
 }
 
 async function renderHome() {
@@ -270,6 +371,7 @@ function bindHome() {
     document.getElementById('homePages')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-page]');
         if (!btn) return;
+        closeHomeWork(true);
         void run(() => eel.set_active_home_page(btn.getAttribute('data-page'))());
     });
 
@@ -340,16 +442,29 @@ function bindHome() {
     });
 
     document.getElementById('homeGrid')?.addEventListener('click', (e) => {
-        if (!editing) return;
-        const btn = e.target.closest('[data-act]');
-        if (!btn) return;
-        const card = btn.closest('.home-widget');
-        const page = activePage();
-        if (!card || !page) return;
-        const id = card.getAttribute('data-id');
-        if (btn.getAttribute('data-act') === 'remove') {
-            void run(() => eel.remove_home_widget(page.id, id)());
+        if (editing) {
+            const btn = e.target.closest('[data-act]');
+            if (!btn) return;
+            const card = btn.closest('.home-widget');
+            const page = activePage();
+            if (!card || !page) return;
+            const id = card.getAttribute('data-id');
+            if (btn.getAttribute('data-act') === 'remove') {
+                void run(() => eel.remove_home_widget(page.id, id)());
+            }
+            return;
         }
+        const card = e.target.closest('.home-widget');
+        if (!card) return;
+        void openHomeWork(card.getAttribute('data-kind'), card);
+    });
+    document.getElementById('homeGrid')?.addEventListener('keydown', (e) => {
+        if (editing) return;
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const card = e.target.closest('.home-widget');
+        if (!card || e.target !== card) return;
+        e.preventDefault();
+        void openHomeWork(card.getAttribute('data-kind'), card);
     });
 
     const paintWidgetBox = (card, x, y, w, h) => {
@@ -363,6 +478,7 @@ function bindHome() {
     };
 
     const beginDrag = (e) => {
+        if (!editing) return;
         if (e.button != null && e.button !== 0) return;
         if (e.target.closest('[data-act]')) return;
         if (e.target.closest('[data-resize]')) return;
@@ -393,6 +509,7 @@ function bindHome() {
     };
 
     const beginResize = (e) => {
+        if (!editing) return;
         if (e.button != null && e.button !== 0) return;
         const handle = e.target.closest('[data-resize]');
         const card = e.target.closest('.home-widget');
@@ -499,6 +616,21 @@ function bindHome() {
     window.addEventListener('pointerup', endDrag);
     window.addEventListener('mousemove', moveDrag);
     window.addEventListener('mouseup', endDrag);
+
+    document.getElementById('homeWorkClose')?.addEventListener('click', () => closeHomeWork());
+    document.getElementById('homeWorkBackdrop')?.addEventListener('click', () => closeHomeWork());
+    document.addEventListener(
+        'keydown',
+        (e) => {
+            if (e.key !== 'Escape') return;
+            if (utils.dialogIsOpen()) return;
+            if (!isWorkOpen()) return;
+            e.preventDefault();
+            e.stopPropagation();
+            closeHomeWork();
+        },
+        true,
+    );
 }
 
 export function setupHome() {
@@ -540,6 +672,7 @@ export async function onHomeTabShown(pageId) {
             console.error(err);
         }
     }
+    closeHomeWork(true);
     setEditing(false);
     await renderHome();
 }
@@ -556,4 +689,5 @@ export async function ensureHomeWidget(kind) {
         }
     }
     await renderHome();
+    await openHomeWork(kind);
 }

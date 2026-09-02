@@ -169,6 +169,22 @@ def default_layout() -> Dict[str, Any]:
                         "w": 2,
                         "h": 2,
                     },
+                    {
+                        "id": _new_id(),
+                        "kind": "weather",
+                        "x": 0,
+                        "y": 2,
+                        "w": 1,
+                        "h": 1,
+                    },
+                    {
+                        "id": _new_id(),
+                        "kind": "word",
+                        "x": 1,
+                        "y": 2,
+                        "w": 1,
+                        "h": 1,
+                    },
                 ],
             }
         ],

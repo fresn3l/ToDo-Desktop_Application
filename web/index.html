@@ -67,9 +67,9 @@
                                 <button type="button" id="homeEditBtn" class="btn-primary">Edit Home</button>
                             </div>
                         </header>
-                        <p class="home-live-copy">Drag a widget’s title bar to move it. Drag a corner or edge to resize. Edit Home to add or remove.</p>
+                        <p class="home-live-copy" hidden>Drag a widget’s title bar to move it. Drag a corner or edge to snap to an allowed size. Add or remove tiles from the catalog.</p>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
-                            <p class="home-edit-copy">Drag a corner or edge to snap to an allowed size. Add another page for a second board. These widget borders apply to every page unless a page has its own colors in Settings. Drag still uses the title bar so you do not grab a to-do.</p>
+                            <p class="home-edit-copy">Live Home is look-and-tap. In Edit, drag the title bar to move, and a corner or edge to resize. These widget borders apply to every page unless a page has its own colors in Settings.</p>
                             <div class="home-border-controls">
                                 <label class="home-border-field" for="homeBorderWidth">
                                     Widget border
@@ -89,6 +89,23 @@
                             </div>
                         </div>
                         <div id="homeGrid" class="home-grid" aria-label="Home widgets"></div>
+                    </div>
+                    <div id="homeWorkLayer" class="home-work-layer is-hidden" hidden>
+                        <button type="button" id="homeWorkBackdrop" class="home-work-backdrop" aria-label="Dismiss"></button>
+                        <aside id="homeWorkPanel" class="home-work-panel" role="dialog" aria-modal="true" aria-labelledby="homeWorkTitle">
+                            <header class="home-work-head">
+                                <div class="home-work-titles">
+                                    <p id="homeWorkKicker" class="home-work-kicker">Home</p>
+                                    <h2 id="homeWorkTitle">To Do</h2>
+                                </div>
+                                <button type="button" id="homeWorkClose" class="home-work-close" aria-label="Close">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path d="M6 6l12 12M18 6 6 18"/>
+                                    </svg>
+                                </button>
+                            </header>
+                            <div id="homeWorkBody" class="home-work-body"></div>
+                        </aside>
                     </div>
                 </section>
 

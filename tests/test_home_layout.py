@@ -45,22 +45,31 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertNotIn("settings", kinds)
         self.assertNotIn("calendar", kinds)
 
-    def test_default_home_is_todo_and_today_calendar(self) -> None:
+    def test_default_home_is_a_bento_of_day_slices(self) -> None:
         layout = home_layout.default_layout()
         self.assertEqual(len(layout["pages"]), 1)
         self.assertEqual(layout["pages"][0]["name"], "Home")
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
-        self.assertEqual(kinds, ["todo", "today_calendar"])
+        self.assertEqual(kinds, ["todo", "today_calendar", "weather", "word"])
         todo = layout["pages"][0]["widgets"][0]
         today = layout["pages"][0]["widgets"][1]
+        weather = layout["pages"][0]["widgets"][2]
+        word = layout["pages"][0]["widgets"][3]
         self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 2, 2))
         self.assertEqual((today["x"], today["y"], today["w"], today["h"]), (2, 0, 2, 2))
+        self.assertEqual((weather["x"], weather["y"], weather["w"], weather["h"]), (0, 2, 1, 1))
+        self.assertEqual((word["x"], word["y"], word["w"], word["h"]), (1, 2, 1, 1))
         self.assertFalse(home_layout.boxes_overlap(todo, today))
+        self.assertFalse(home_layout.boxes_overlap(weather, word))
+        self.assertFalse(home_layout.boxes_overlap(todo, weather))
 
     def test_fresh_file_writes_the_default(self) -> None:
         layout = home_layout.get_home_layout()
         self.assertTrue((self.root / "home_layout.json").exists())
-        self.assertEqual([item["kind"] for item in layout["pages"][0]["widgets"]], ["todo", "today_calendar"])
+        self.assertEqual(
+            [item["kind"] for item in layout["pages"][0]["widgets"]],
+            ["todo", "today_calendar", "weather", "word"],
+        )
 
     def test_each_kind_has_a_few_allowed_sizes(self) -> None:
         for kind, spec in home_layout.WIDGET_CATALOG.items():
@@ -149,8 +158,8 @@ class HomeLayoutTests(unittest.TestCase):
             home_layout.add_widget(layout, page_id, "workout")
         with self.assertRaises(ValueError):
             home_layout.add_widget(layout, page_id, "calendar")
-        layout = home_layout.add_home_widget(page_id, "weather")
-        self.assertIn("weather", [item["kind"] for item in layout["pages"][0]["widgets"]])
+        layout = home_layout.add_home_widget(page_id, "focus")
+        self.assertIn("focus", [item["kind"] for item in layout["pages"][0]["widgets"]])
 
     def test_move_rejects_overlap_resize_cycles(self) -> None:
         layout = home_layout.get_home_layout()
@@ -175,6 +184,10 @@ class HomeLayoutTests(unittest.TestCase):
             home_layout.resize_widget(layout, page_id, todo["id"], 4, 2)
         today = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "today_calendar")
         layout = home_layout.remove_home_widget(page_id, today["id"])
+        weather = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "weather")
+        layout = home_layout.remove_home_widget(page_id, weather["id"])
+        word = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "word")
+        layout = home_layout.remove_home_widget(page_id, word["id"])
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
         layout = home_layout.resize_home_widget(page_id, todo["id"], 4, 3)
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
@@ -186,7 +199,7 @@ class HomeLayoutTests(unittest.TestCase):
         today = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "today_calendar")
         layout = home_layout.remove_home_widget(page_id, today["id"])
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
-        self.assertEqual(kinds, ["todo"])
+        self.assertEqual(kinds, ["todo", "weather", "word"])
 
     def test_today_can_move_down_without_hitting_todo(self) -> None:
         layout = home_layout.get_home_layout()
@@ -235,7 +248,6 @@ class HomeLayoutTests(unittest.TestCase):
     def test_new_home_widgets_can_be_added(self) -> None:
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
-        layout = home_layout.add_home_widget(page_id, "weather")
         layout = home_layout.add_home_widget(page_id, "focus")
         layout = home_layout.add_home_widget(page_id, "countdown")
         layout = home_layout.add_home_widget(page_id, "habits")
@@ -243,7 +255,6 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.add_home_widget(page_id, "day_brief")
         layout = home_layout.add_home_widget(page_id, "counters")
         layout = home_layout.add_home_widget(page_id, "reading")
-        layout = home_layout.add_home_widget(page_id, "word")
         layout = home_layout.add_home_widget(page_id, "checklist")
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
         self.assertIn("weather", kinds)
@@ -266,4 +277,7 @@ class HomeLayoutTests(unittest.TestCase):
         home_layout.add_home_page("Extra")
         layout = home_layout.reset_home_layout()
         self.assertEqual(len(layout["pages"]), 1)
-        self.assertEqual([item["kind"] for item in layout["pages"][0]["widgets"]], ["todo", "today_calendar"])
+        self.assertEqual(
+            [item["kind"] for item in layout["pages"][0]["widgets"]],
+            ["todo", "today_calendar", "weather", "word"],
+        )

@@ -5,7 +5,7 @@
 import { exitJournalFocus } from './journal.js';
 import { onSettingsTabShown } from './settings.js';
 import { onCalendarTabShown } from './calendar.js';
-import { onHomeTabShown, clearHomePageColors } from './home.js';
+import { onHomeTabShown, clearHomePageColors, closeHomeWork } from './home.js';
 import { notifyNativeTab } from './appearance.js';
 
 const ID_MAP = {
@@ -105,6 +105,7 @@ export async function switchTab(name, opts = {}) {
     document.documentElement.setAttribute('data-page', key);
 
     if (key !== 'home') {
+        closeHomeWork(true);
         exitJournalFocus();
         clearHomePageColors();
     }

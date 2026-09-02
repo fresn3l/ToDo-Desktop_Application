@@ -10,6 +10,7 @@ INDEX = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
 TABS = (ROOT / "web" / "js" / "tabs.js").read_text(encoding="utf-8")
 HOME_JS = (ROOT / "web" / "js" / "home_layout.js").read_text(encoding="utf-8")
 HOME_RUNTIME = (ROOT / "web" / "js" / "home.js").read_text(encoding="utf-8")
+GLANCE_TILES = (ROOT / "web" / "js" / "glance_tiles.js").read_text(encoding="utf-8")
 TODAY_JS = (ROOT / "web" / "js" / "today.js").read_text(encoding="utf-8")
 GLANCE_JS = (ROOT / "web" / "js" / "glance.js").read_text(encoding="utf-8")
 CAL_JS = (ROOT / "web" / "js" / "calendar.js").read_text(encoding="utf-8")
@@ -124,7 +125,43 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("eel.get_month", CAL_JS)
         self.assertIn("eel.get_year", CAL_JS)
 
-    def test_live_home_drags_from_title_without_edit(self) -> None:
+    def test_work_layer_markup_and_dismiss_controls(self) -> None:
+        for needle in ("homeWorkLayer", "homeWorkBackdrop", "homeWorkPanel", "homeWorkTitle", "homeWorkClose", "homeWorkBody"):
+            self.assertIn(f'id="{needle}"', INDEX)
+        self.assertIn("home-work-layer", STYLE)
+        self.assertIn("home-work-backdrop", STYLE)
+        self.assertIn("translateX(108%)", STYLE)
+        self.assertIn("openHomeWork", HOME_RUNTIME)
+        self.assertIn("closeHomeWork", HOME_RUNTIME)
+        self.assertIn("homeWorkClose", HOME_RUNTIME)
+        self.assertIn("homeWorkBackdrop", HOME_RUNTIME)
+        begin = HOME_RUNTIME.split("const beginDrag")[1].split("const beginResize")[0]
+        self.assertIn("if (!editing) return", begin)
+        self.assertIn("openHomeWork(card.getAttribute('data-kind')", HOME_RUNTIME)
+        self.assertIn("Escape", HOME_RUNTIME)
+        self.assertIn("w-weather", HOME_RUNTIME)
+        self.assertIn("w-word", HOME_RUNTIME)
+        self.assertIn("inert", HOME_RUNTIME)
+
+    def test_glances_mount_instead_of_full_pages(self) -> None:
+        self.assertIn("mountGlance", HOME_RUNTIME)
+        self.assertIn("from './glance_tiles.js'", HOME_RUNTIME)
+        self.assertNotIn("mountWidget(", HOME_RUNTIME)
+        self.assertIn("export function mountGlance", GLANCE_TILES)
+        self.assertIn("function weatherHtml", GLANCE_TILES)
+        self.assertIn("function wordHtml", GLANCE_TILES)
+        self.assertIn("function todayHtml", GLANCE_TILES)
+        self.assertIn("function todoHtml", GLANCE_TILES)
+        self.assertIn("function posterHtml", GLANCE_TILES)
+        self.assertIn("get_work_board", GLANCE_TILES)
+        self.assertIn("get_today_home", GLANCE_TILES)
+        self.assertIn("get_weather_forecast", GLANCE_TILES)
+        self.assertIn("get_word_of_the_day", GLANCE_TILES)
+        self.assertIn(".glance-tile", STYLE)
+        self.assertIn(".glance-kpi", STYLE)
+        self.assertIn(".home-work-body > .widget-source", STYLE)
+
+    def test_live_home_opens_work_edit_home_moves(self) -> None:
         self.assertIn("home-live-copy", INDEX)
         self.assertIn("home-widget-handle", HOME_RUNTIME)
         self.assertIn("closest('.home-widget-chrome')", HOME_RUNTIME)
@@ -132,9 +169,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("window.addEventListener('pointermove', moveDrag)", HOME_RUNTIME)
         self.assertIn("window.addEventListener('mousemove', moveDrag)", HOME_RUNTIME)
         begin = HOME_RUNTIME.split("const beginDrag")[1].split("const moveDrag")[0]
-        self.assertNotIn("if (!editing)", begin)
-        click = HOME_RUNTIME.split("addEventListener('click'")[-1].split("const beginDrag")[0]
-        self.assertIn("if (!editing) return;", click)
+        self.assertIn("if (!editing) return", begin)
+        self.assertIn("openHomeWork", HOME_RUNTIME.split("addEventListener('click'")[-1].split("const beginDrag")[0])
 
     def test_home_widgets_resize_by_dragging_handles(self) -> None:
         self.assertIn("export function pickResize", HOME_JS)
