@@ -41,7 +41,7 @@ export function paintCountdowns(items) {
     if (!el) return;
     const rows = Array.isArray(items) ? items : [];
     if (!rows.length) {
-        el.innerHTML = '<li class="checklist-empty">Add an exam, trip, or due date.</li>';
+        el.innerHTML = '<li class="checklist-empty">No dates yet.</li>';
         return;
     }
     el.innerHTML = rows
@@ -78,12 +78,12 @@ export function paintHabits(data) {
     if (summary) {
         const total = data?.total || 0;
         const done = data?.done || 0;
-        summary.textContent = total ? `${done} of ${total} today` : 'Tick the small things that keep the day honest.';
+        summary.textContent = total ? `${done} of ${total} today` : 'No habits yet.';
     }
     if (!el) return;
     const rows = data?.habits || [];
     if (!rows.length) {
-        el.innerHTML = '<li class="checklist-empty">Add water, stretch, or whatever you repeat.</li>';
+        el.innerHTML = '<li class="checklist-empty">No habits yet.</li>';
         return;
     }
     el.innerHTML = rows

@@ -15,7 +15,6 @@ function paintWord(word) {
     if (!root) return;
     if (!word || !word.word) {
         root.innerHTML = `
-            <p class="today-kicker">Word of the day</p>
             <p class="checklist-hint small">Could not load today’s word.</p>`;
         return;
     }
@@ -25,7 +24,6 @@ function paintWord(word) {
         : `<p class="word-evening-hint">Evening check-in will ask you to use this word.</p>
            <button type="button" class="btn-ghost word-evening-btn" id="wordEveningBtn">Open Evening check-in</button>`;
     root.innerHTML = `
-        <p class="today-kicker">Word of the day</p>
         <h2 class="word-head">${utils.escapeHtml(word.display || word.word)}</h2>
         <p class="word-chip">${utils.escapeHtml(languageChip(word))}</p>
         <p class="word-meaning">${utils.escapeHtml(word.meaning || '')}</p>

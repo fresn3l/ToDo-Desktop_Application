@@ -100,12 +100,11 @@ function updateWhenHint() {
     if (!hint) return;
     const day = whenDays.find((row) => row.place_date === selectedDoDate);
     if (!day) {
-        hint.textContent =
-            'Pick a day this week. Minutes can live in the title (45 mins, 1h). Optional due date if it is also an assignment.';
+        hint.textContent = 'Pick a day this week.';
         return;
     }
     const when = day.is_today ? 'today' : day.is_past ? `next ${day.label}` : day.label;
-    hint.textContent = `Places on ${when}. Minutes can live in the title (45 mins, 1h). Optional due date if it is also an assignment.`;
+    hint.textContent = day.is_today ? 'Places today.' : `Places on ${when}.`;
 }
 
 function paintWhenChips() {
@@ -298,9 +297,8 @@ export async function refreshTodo() {
         }
         if (!board.today.length) {
             parts.push(`
-                <div class="empty-state">
-                    <h3>No tasks for today</h3>
-                    <p>Type “45 mins calculus” and pick a day. Kosistenz parks it in a free gap on the calendar.</p>
+                <div class="empty-state empty-state--line">
+                    <p>Nothing dated for today.</p>
                 </div>`);
         } else if (rest.length) {
             parts.push(rest.map((item) => itemRow(item)).join(''));
