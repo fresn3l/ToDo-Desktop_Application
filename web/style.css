@@ -5158,7 +5158,15 @@ html[data-motion='reduce'] *::after {
     font-size: 13px;
     font-weight: 650;
     letter-spacing: var(--letter-tight);
+    text-transform: none;
     color: var(--text-title);
+}
+
+.cal-aside .checklist-field-label {
+    text-transform: none;
+    letter-spacing: var(--letter-tight);
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .cal-aside .checklist-text-input,
