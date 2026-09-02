@@ -130,6 +130,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("openWeekForDate", CAL_JS)
         self.assertIn("eel.get_month", CAL_JS)
         self.assertIn("eel.get_year", CAL_JS)
+        self.assertNotIn("Nothing is written to Apple Calendar", INDEX)
+        self.assertNotIn("Month and year for the long view", INDEX)
+        self.assertNotIn("Class meeting times live here", INDEX)
+        self.assertIn("Nothing to place.", CAL_JS)
+        self.assertIn("html[data-page='calendar'] .app-content", STYLE)
+        self.assertIn(".cal-month-cell.is-today", STYLE)
+        self.assertIn(".cal-month-cell.is-out", STYLE)
 
     def test_work_layer_markup_and_dismiss_controls(self) -> None:
         for needle in ("homeWorkLayer", "homeWorkBackdrop", "homeWorkPanel", "homeWorkTitle", "homeWorkClose", "homeWorkBody"):
@@ -315,3 +322,12 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("home-checkin-band", STYLE)
         self.assertIn("is-empty-drop", STYLE)
         self.assertIn("html[data-page='journal'] .tab-content.active", STYLE)
+        self.assertIn('class="journal-compose journal-paper"', INDEX)
+        self.assertNotIn("panel journal-compose", INDEX)
+        self.assertNotIn("journal-compose journal-paper panel", INDEX)
+        self.assertNotIn("Last 30 days", INDEX)
+        self.assertIn("Nothing saved this month.", journal)
+        self.assertIn("empty-state--line", journal)
+        self.assertIn("empty-state--line", STYLE)
+        self.assertNotIn("On this Mac", INDEX)
+        self.assertIn(".brand-tag", STYLE)

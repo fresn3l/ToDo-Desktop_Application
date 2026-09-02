@@ -419,18 +419,13 @@ export async function loadPastEntries() {
     if (!container) return;
 
     try {
-        container.innerHTML = '<div class="empty-state empty-state--loading"><div class="loading-spinner"></div><p>Loading entries...</p></div>';
+        container.innerHTML = '<p class="empty-state empty-state--line">Loading</p>';
         journalCache = await eel.get_recent_entries(30)();
         refreshJournalTagFilter();
         renderJournalHistory();
     } catch (error) {
         console.error('Error loading past entries:', error);
-        container.innerHTML = `
-            <div class="empty-state empty-state--message empty-state--compact">
-                <h3>Error loading entries</h3>
-                <p>Please try again later.</p>
-            </div>
-        `;
+        container.innerHTML = '<p class="empty-state empty-state--line">Could not load entries.</p>';
     }
 }
 
@@ -473,22 +468,12 @@ function renderJournalHistory() {
     const entries = filteredJournalEntries();
 
     if (!journalCache.length) {
-        container.innerHTML = `
-            <div class="empty-state empty-state--message empty-state--compact">
-                <h3>No entries yet</h3>
-                <p>Start writing your first journal entry above.</p>
-            </div>
-        `;
+        container.innerHTML = '<p class="empty-state empty-state--line">Nothing saved this month.</p>';
         return;
     }
 
     if (!entries.length) {
-        container.innerHTML = `
-            <div class="empty-state empty-state--message empty-state--compact">
-                <h3>No matching entries</h3>
-                <p>Try a different search or tag.</p>
-            </div>
-        `;
+        container.innerHTML = '<p class="empty-state empty-state--line">No matching entries.</p>';
         return;
     }
 

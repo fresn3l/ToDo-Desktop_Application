@@ -121,13 +121,13 @@
     --sidebar-width: 232px;
     --content-max: 1180px;
 
-    --text-h1: 1.35rem;
-    --text-h2: 1.2rem;
+    --text-h1: 1.2rem;
+    --text-h2: 1.05rem;
     --text-h3: 0.78rem;
     --text-body: 15px;
     --text-caption: 12px;
     --letter-tight: -0.02em;
-    --letter-wide: 0.06em;
+    --letter-wide: 0.04em;
 
     --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
     --transition-fast: 160ms var(--ease-out);
@@ -467,9 +467,7 @@ body {
 }
 
 .brand-tag {
-    display: block;
-    font-size: 11px;
-    color: var(--text-muted);
+    display: none;
 }
 
 .app-nav {
@@ -763,6 +761,19 @@ html[data-page='home'] .tab-content.active {
     overflow: visible;
 }
 
+html[data-page='journal'] .app-topbar .eyebrow,
+html[data-page='calendar'] .app-topbar .eyebrow,
+html[data-page='journal'] .topbar-note,
+html[data-page='calendar'] .topbar-note {
+    display: none;
+}
+
+html[data-page='journal'] .app-topbar,
+html[data-page='calendar'] .app-topbar {
+    padding-top: 12px;
+    padding-bottom: 10px;
+}
+
 html[data-page='journal'] .app-content {
     display: flex;
     flex-direction: column;
@@ -782,6 +793,12 @@ html[data-page='journal'] .journal-layout {
     flex: 1;
     min-height: 0;
     align-items: stretch;
+}
+
+html[data-page='calendar'] .app-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 html[data-page='calendar'] .tab-content.active {
@@ -889,11 +906,12 @@ button {
 .btn-ghost,
 .btn-danger {
     font: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     border-radius: var(--radius-md);
     letter-spacing: -0.01em;
-    padding: 10px 16px;
+    min-height: 2rem;
+    padding: 6px 12px;
     cursor: pointer;
     transition: background var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -936,7 +954,7 @@ button {
 }
 
 .btn-ghost {
-    background: var(--bg-panel);
+    background: transparent;
     color: var(--text-secondary);
     border: 1px solid transparent;
 }
@@ -949,8 +967,7 @@ button {
 .checklist-select,
 .checklist-text-input,
 .checklist-textarea,
-.checklist-other-input,
-#journalEntry {
+.checklist-other-input {
     width: 100%;
     font: inherit;
     color: var(--text-primary);
@@ -964,11 +981,11 @@ button {
 .checklist-select:focus,
 .checklist-text-input:focus,
 .checklist-textarea:focus,
-.checklist-other-input:focus,
-#journalEntry:focus {
-    outline: none;
+.checklist-other-input:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-muted);
+    box-shadow: none;
 }
 
 .checklist-textarea::placeholder,
@@ -1050,6 +1067,25 @@ input[type='radio'] {
     color: var(--text-muted);
 }
 
+.empty-state--line {
+    text-align: left;
+    padding: 10px 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.vis-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .empty-state h3 {
     color: var(--text-secondary);
     margin-bottom: 6px;
@@ -1118,24 +1154,62 @@ input[type='radio'] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
     gap: var(--space-lg);
-    align-items: start;
+    align-items: stretch;
 }
 
-.journal-paper.panel {
-    background: var(--bg-panel);
+.journal-paper {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: color-mix(in srgb, var(--bg-main) 88%, var(--bg-panel));
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px 12px;
     box-shadow: none;
 }
 
-.journal-paper #journalEntry {
-    min-height: 52vh;
+.journal-entry-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    min-height: 0;
+}
+
+.journal-text-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.journal-paper #journalEntry,
+#journalEntry {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    height: auto;
     border: 0;
     background: transparent;
-    padding: 8px 4px 24px;
+    padding: 4px 2px 16px;
     box-shadow: none;
+    resize: none;
+    font-family: var(--font-editor);
+    font-size: var(--journal-font-size);
+    line-height: 1.7;
+}
+
+.journal-paper #journalEntry:focus,
+#journalEntry:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    box-shadow: none;
+    border-color: transparent;
 }
 
 .journal-tags-details {
-    margin: 4px 0;
+    margin: 0;
     color: var(--text-secondary);
     font-size: 13px;
 }
@@ -1146,46 +1220,50 @@ input[type='radio'] {
 }
 
 .journal-inspector {
-    max-height: calc(100vh - 80px);
-    overflow: auto;
-}
-
-.journal-entry-section {
     display: flex;
     flex-direction: column;
-    gap: var(--space-md);
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
+    padding: 4px 0 0 16px;
+    border-left: 1px solid var(--border-subtle);
+}
+
+.journal-inspector-head h2 {
+    margin: 0 0 8px;
+    font-size: var(--text-h2);
+    font-weight: 650;
+    letter-spacing: var(--letter-tight);
+    color: var(--text-title);
 }
 
 .journal-timer-container {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-areas: 'time controls' 'time status';
-    gap: 4px 20px;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    padding: 14px 16px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    gap: 8px 14px;
+    padding: 0 0 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: transparent;
 }
 
 .timer-display {
-    grid-area: time;
-    font-size: 2rem;
+    font-size: 1.15rem;
     font-weight: 650;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
     color: var(--text-primary);
 }
 
 .timer-controls {
-    grid-area: controls;
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
+    align-items: center;
+    margin-left: auto;
 }
 
 .timer-status {
-    grid-area: status;
     font-size: 12px;
     color: var(--text-muted);
 }
@@ -1217,15 +1295,6 @@ input[type='radio'] {
     color: var(--primary-ink);
 }
 
-#journalEntry {
-    min-height: 360px;
-    padding: 16px;
-    font-family: var(--font-editor);
-    font-size: var(--journal-font-size);
-    line-height: 1.7;
-    resize: vertical;
-}
-
 .journal-actions {
     display: flex;
     justify-content: flex-end;
@@ -1235,16 +1304,19 @@ input[type='radio'] {
 .journal-entries-container {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    max-height: calc(100vh - 240px);
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
     overflow: auto;
 }
 
 .journal-entry-item {
-    padding: 14px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    padding: 10px 0;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
 }
 
 .journal-entry-header {
@@ -1917,7 +1989,15 @@ input[type='range'] {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 8px;
-    margin: -8px 0 12px;
+    margin: 0 0 8px;
+}
+
+.journal-history-toolbar .checklist-text-input,
+.journal-history-toolbar .checklist-select,
+.journal-tags-row .checklist-text-input {
+    min-height: 2rem;
+    padding: 6px 10px;
+    font-size: 13px;
 }
 
 .journal-day-group {
@@ -1934,8 +2014,9 @@ input[type='range'] {
 
 .journal-day-header h3 {
     font-size: 12px;
-    letter-spacing: var(--letter-wide);
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    font-weight: 650;
     color: var(--text-muted);
 }
 
@@ -4281,9 +4362,9 @@ html.home-work-open .app-content {
 
 .today-kicker {
     font-size: 11px;
-    font-weight: 650;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: none;
     color: var(--text-muted);
     margin-bottom: 6px;
 }
@@ -4866,10 +4947,11 @@ html[data-focus='on'] .app-topbar {
     }
 
     .journal-timer-container {
-        grid-template-columns: 1fr;
-        grid-template-areas: 'time' 'controls' 'status';
-        text-align: center;
-        justify-items: center;
+        justify-content: center;
+    }
+
+    .timer-controls {
+        margin-left: 0;
     }
 }
 
@@ -4935,22 +5017,40 @@ html[data-motion='reduce'] *::after {
     gap: var(--space-lg);
     align-items: stretch;
     flex: 1;
-    min-height: calc(100vh - 36px);
+    min-height: 0;
 }
 
 .cal-main {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
 }
 
 .cal-toolbar {
-    align-items: flex-start;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 0 0 12px;
+}
+
+.cal-toolbar h2 {
+    margin: 0;
+    font-size: var(--text-h2);
+    font-weight: 650;
+    letter-spacing: var(--letter-tight);
+    color: var(--text-title);
 }
 
 .cal-toolbar-actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
 }
 
@@ -4967,8 +5067,9 @@ html[data-motion='reduce'] *::after {
     flex-direction: column;
     justify-content: space-between;
     padding-top: 36px;
-    font-family: var(--font-mono);
-    font-size: 11px;
+    font-family: inherit;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
     color: var(--text-muted);
 }
 
@@ -5018,8 +5119,8 @@ html[data-motion='reduce'] *::after {
     border: 0;
     border-radius: 6px;
     padding: 4px 6px;
-    font-size: 11px;
-    line-height: 1.25;
+    font-size: 12px;
+    line-height: 1.3;
     text-align: left;
     color: var(--text-primary);
     cursor: pointer;
@@ -5041,21 +5142,56 @@ html[data-motion='reduce'] *::after {
 .cal-aside {
     display: flex;
     flex-direction: column;
-    gap: var(--space-lg);
+    gap: 18px;
+    min-height: 0;
+    overflow: auto;
+}
+
+.cal-aside-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cal-aside-block h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 650;
+    letter-spacing: var(--letter-tight);
+    color: var(--text-title);
+}
+
+.cal-aside .checklist-text-input,
+.cal-aside .checklist-select {
+    min-height: 2rem;
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+.cal-aside .work-day-chip {
+    min-height: 2rem;
+    padding: 4px 8px;
+}
+
+.cal-import-status {
+    margin: 0;
+    min-height: 1em;
+    font-size: 12px;
+    color: var(--text-muted);
 }
 
 .cal-time-row {
-    margin-bottom: 8px;
+    margin-bottom: 0;
 }
 
 .cal-unplaced {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .cal-unplaced-item h4 {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
 }
 
@@ -5094,9 +5230,9 @@ html[data-motion='reduce'] *::after {
 .cal-month-dow {
     text-align: center;
     font-size: 11px;
-    font-weight: 650;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
     color: var(--text-muted);
     padding: 4px 0;
 }
@@ -5104,9 +5240,9 @@ html[data-motion='reduce'] *::after {
 .cal-month-cell {
     min-height: 6.5rem;
     height: 100%;
-    border: 1px solid var(--border-subtle);
+    border: 0;
     border-radius: var(--radius-sm);
-    background: var(--bg-elevated);
+    background: transparent;
     color: var(--text-primary);
     font: inherit;
     text-align: left;
@@ -5117,13 +5253,27 @@ html[data-motion='reduce'] *::after {
     gap: 6px;
 }
 
+.cal-month-cell:hover {
+    background: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
+}
+
+.cal-month-cell:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .cal-month-cell.is-out {
-    opacity: 0.42;
+    opacity: 0.28;
 }
 
 .cal-month-cell.is-today {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px var(--primary-muted);
+    background: color-mix(in srgb, var(--primary) 18%, var(--bg-elevated));
+    color: var(--text-title);
+    box-shadow: none;
+}
+
+.cal-month-cell.is-today .cal-month-num {
+    color: var(--primary);
 }
 
 .cal-month-num {
@@ -5163,8 +5313,9 @@ html[data-motion='reduce'] *::after {
 .cal-year-month h3 {
     margin: 0 0 6px;
     font-size: 13px;
-    letter-spacing: var(--letter-wide);
-    text-transform: uppercase;
+    letter-spacing: var(--letter-tight);
+    text-transform: none;
+    font-weight: 650;
     color: var(--text-title);
     cursor: pointer;
 }

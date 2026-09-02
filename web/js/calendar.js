@@ -254,7 +254,7 @@ function renderUnplaced(items) {
     const root = document.getElementById('calUnplaced');
     if (!root) return;
     if (!items?.length) {
-        root.innerHTML = '<p class="checklist-hint small">Inbox is clear — or items need an estimate.</p>';
+        root.innerHTML = '<p class="empty-state empty-state--line">Nothing to place.</p>';
         return;
     }
     root.innerHTML = items
