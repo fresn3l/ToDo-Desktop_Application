@@ -18,6 +18,7 @@ from appearance import COLOR_SLOTS, _as_hex
 from paths import data_directory
 
 GRID_COLUMNS = 4
+LAYOUT_VERSION = 2
 MAX_PAGES = 12
 MAX_WIDGETS_PER_PAGE = 32
 MAX_PAGE_NAME = 40
@@ -27,88 +28,88 @@ MAX_SCAN_ROWS = 32
 WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "todo": {
         "label": "To Do",
-        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
         "default": (2, 2),
     },
     "today_calendar": {
         "label": "Today",
-        "sizes": ((1, 1), (2, 1), (2, 2), (2, 3), (4, 2)),
+        "sizes": ((1, 1), (2, 1), (2, 2), (2, 3), (3, 2)),
         "default": (2, 2),
     },
     "workout": {
         "label": "Workout",
-        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
         "default": (2, 2),
     },
     "goals": {
         "label": "Goals",
-        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
         "default": (2, 2),
     },
     "allwork": {
         "label": "All Work",
-        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3)),
+        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
         "default": (2, 2),
     },
     "analytics": {
         "label": "Analytics",
-        "sizes": ((2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "sizes": ((2, 2), (2, 3), (3, 2), (3, 3)),
         "default": (2, 2),
     },
     "timeline": {
         "label": "Timeline",
-        "sizes": ((2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "sizes": ((2, 2), (2, 3), (3, 2), (3, 3)),
         "default": (2, 2),
     },
     "weather": {
         "label": "Weather",
-        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2), (4, 3)),
+        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
         "default": (2, 1),
     },
     "focus": {
         "label": "Focus",
-        "sizes": ((1, 1), (2, 1), (2, 2), (4, 1), (4, 2)),
+        "sizes": ((1, 1), (2, 1), (2, 2), (3, 1), (3, 2)),
         "default": (2, 1),
     },
     "countdown": {
         "label": "Countdown",
-        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2)),
+        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
         "default": (2, 1),
     },
     "habits": {
         "label": "Habits",
-        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2)),
+        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
         "default": (2, 2),
     },
     "heatmap": {
         "label": "Heatmap",
-        "sizes": ((2, 1), (4, 1), (2, 2), (4, 2), (4, 3)),
-        "default": (4, 1),
+        "sizes": ((2, 1), (3, 1), (2, 2), (3, 2), (3, 3)),
+        "default": (3, 1),
     },
     "day_brief": {
         "label": "Day",
-        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
+        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
         "default": (2, 2),
     },
     "counters": {
         "label": "Counters",
-        "sizes": ((1, 1), (2, 1), (2, 2), (4, 2), (4, 3)),
+        "sizes": ((1, 1), (2, 1), (2, 2), (3, 2), (3, 3)),
         "default": (2, 1),
     },
     "reading": {
         "label": "Reading",
-        "sizes": ((1, 1), (2, 1), (2, 2), (2, 3), (4, 2)),
+        "sizes": ((1, 1), (2, 1), (2, 2), (2, 3), (3, 2)),
         "default": (2, 1),
     },
     "word": {
         "label": "Word",
-        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2)),
-        "default": (1, 1),
+        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
+        "default": (2, 2),
     },
     "cluny": {
         "label": "Ask Cluny",
-        "sizes": ((2, 2), (2, 3), (4, 3), (4, 4)),
-        "default": (2, 3),
+        "sizes": ((2, 2), (2, 3), (3, 2), (3, 3)),
+        "default": (2, 2),
     },
 }
 
@@ -140,6 +141,7 @@ def _new_id() -> str:
 def default_layout() -> Dict[str, Any]:
     page_id = _new_id()
     return {
+        "version": LAYOUT_VERSION,
         "columns": GRID_COLUMNS,
         "active_page_id": page_id,
         "pages": [
@@ -170,22 +172,22 @@ def default_layout() -> Dict[str, Any]:
                         "kind": "weather",
                         "x": 0,
                         "y": 0,
-                        "w": 1,
+                        "w": 2,
                         "h": 1,
                     },
                     {
                         "id": _new_id(),
                         "kind": "word",
-                        "x": 1,
+                        "x": 2,
                         "y": 0,
-                        "w": 1,
-                        "h": 1,
+                        "w": 2,
+                        "h": 2,
                     },
                     {
                         "id": _new_id(),
                         "kind": "cluny",
-                        "x": 2,
-                        "y": 0,
+                        "x": 0,
+                        "y": 1,
                         "w": 2,
                         "h": 2,
                     },
@@ -414,7 +416,12 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
     active = str(raw.get("active_page_id") or "").strip()
     if not any(page["id"] == active for page in pages):
         active = pages[0]["id"]
-    return {"columns": GRID_COLUMNS, "active_page_id": active, "pages": pages}
+    return {
+        "version": LAYOUT_VERSION,
+        "columns": GRID_COLUMNS,
+        "active_page_id": active,
+        "pages": pages,
+    }
 
 
 STOCK_HOME_KINDS = frozenset({"todo", "today_calendar", "weather", "word"})
@@ -635,11 +642,14 @@ def get_home_layout() -> Dict[str, Any]:
         return _write(default_layout())
     try:
         with open(path, "r", encoding="utf-8") as handle:
-            packed, added = seed_ask_cluny(json.load(handle))
+            raw = json.load(handle)
+        if int((raw or {}).get("version") or 0) < LAYOUT_VERSION:
+            return _write(default_layout())
+        packed, added = seed_ask_cluny(raw)
         if added:
             return _write(packed)
         return packed
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return _write(default_layout())
 
 

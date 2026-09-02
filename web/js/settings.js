@@ -456,7 +456,8 @@ export function setupSettings() {
     });
 
     document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-        const next = getAppearance().sidebar === 'compact' ? 'expanded' : 'compact';
+        const expanded = getAppearance().sidebar !== 'compact';
+        const next = expanded ? 'compact' : 'expanded';
         update({ sidebar: next });
     });
 

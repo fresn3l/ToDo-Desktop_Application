@@ -1,0 +1,36 @@
+/* Home + chrome tokens. Alias onto appearance so themes keep working.
+   Midnight is the pasted warm palette. Home CSS must use these names. */
+:root {
+    --bg: var(--bg-canvas);
+    --surface-1: var(--bg-elevated);
+    --surface-2: var(--bg-panel);
+    --surface-hover: var(--bg-input);
+
+    --line: var(--border-subtle);
+    --line-strong: var(--border-color);
+
+    --text-1: var(--text-primary);
+    --text-2: var(--text-secondary);
+    --text-3: var(--text-muted);
+
+    /* Interactive only: button, [aria-selected="true"], [aria-current], :focus-visible */
+    --accent: var(--primary);
+    --accent-quiet: var(--primary-muted);
+    --on-accent: var(--on-primary);
+
+    --t-label: 11px;
+    --t-body: 14px;
+    --t-lead: 16px;
+    --t-metric: 28px;
+    --t-hero: 40px;
+
+    --r-sm: 8px;
+    --r-md: 14px;
+    --s-1: 4px;
+    --s-2: 8px;
+    --s-3: 12px;
+    --s-4: 16px;
+    --s-5: 24px;
+    --grid-gap: 12px;
+    --row-h: 88px;
+}

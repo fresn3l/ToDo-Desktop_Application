@@ -70,8 +70,6 @@ class HomeUiTests(unittest.TestCase):
             "homeAddPageBtn",
             "homeRenamePageBtn",
             "homeCatalog",
-            "homeBorderWidth",
-            "homeBorderColor",
         ):
             self.assertIn(f'id="{needle}"', INDEX)
 
@@ -179,6 +177,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("function analyticsHtml", GLANCE_TILES)
         self.assertIn("function timelineHtml", GLANCE_TILES)
         self.assertIn("function posterHtml", GLANCE_TILES)
+        self.assertIn("function shellHtml", GLANCE_TILES)
+        self.assertIn("glance_copy.js", GLANCE_TILES)
         self.assertIn("get_work_board", GLANCE_TILES)
         self.assertIn("get_today_home", GLANCE_TILES)
         self.assertIn("get_weather_forecast", GLANCE_TILES)
@@ -206,15 +206,16 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("habit-tick", GLANCE_TILES)
         self.assertIn("counter-tap", GLANCE_TILES)
         self.assertIn("focus-keep", GLANCE_TILES)
-        self.assertIn("isComplete", GLANCE_TILES)
-        self.assertIn("weatherSky", GLANCE_TILES)
         self.assertIn("dayPart", GLANCE_TILES)
         self.assertIn("syncHomeDayPart", HOME_RUNTIME)
-        self.assertIn("data-daypart", STYLE)
-        self.assertIn("data-sky", STYLE)
         self.assertIn(".glance-action", STYLE)
-        self.assertIn(".home-widget.is-complete", STYLE)
+        self.assertIn(".glance-label", STYLE)
         self.assertIn(".home-widget.is-source", STYLE)
+        self.assertNotIn("on the clock", GLANCE_TILES)
+        self.assertNotIn("waiting to be dated", GLANCE_TILES)
+        self.assertIn("1 event today.", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
+        self.assertIn("Journal and timer still available.", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
+        self.assertIn("unscheduled", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
 
     def test_live_home_opens_work_edit_home_moves(self) -> None:
         self.assertIn("home-live-copy", INDEX)
@@ -304,18 +305,23 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("setPageColorSlot", SETTINGS_JS)
 
     def test_home_widgets_are_dense_and_scroll_the_page(self) -> None:
-        self.assertIn("--home-row: 5.75rem", STYLE)
+        self.assertIn("--home-row: var(--row-h, 88px)", STYLE)
         self.assertIn("grid-auto-rows: var(--home-row)", STYLE)
         self.assertIn("min-height: 0", STYLE)
         self.assertIn("overflow-y: auto", STYLE)
         self.assertIn("padding-bottom: 88px", STYLE)
         self.assertIn('sizes: [[1, 1]', HOME_JS)
-        self.assertIn("default: [1, 1]", HOME_JS)
+        self.assertIn("default: [2, 2]", HOME_JS)
         self.assertIn("default: [2, 1]", HOME_JS)
         self.assertIn('[data-w="1"][data-h="1"]', STYLE)
         self.assertIn(".home-widget-chrome", STYLE)
-        self.assertIn("linear-gradient(to bottom", STYLE)
         self.assertIn("countdown-days", GLANCE_JS)
+        tokens = (ROOT / "web" / "tokens.css").read_text(encoding="utf-8")
+        self.assertIn("--row-h: 88px", tokens)
+        self.assertIn("--line:", tokens)
+        self.assertIn('href="tokens.css"', INDEX)
+        self.assertIn("max-width: 1440px", STYLE)
+        self.assertNotIn("html[data-page='home'] .tab-content.active {\n    max-width: none", STYLE)
 
     def test_today_mini_widget_loads_without_legacy_today_page(self) -> None:
         self.assertIn('id="todayCalendarSource"', INDEX)
@@ -357,6 +363,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("empty-state--line", STYLE)
         self.assertNotIn("On this Mac", INDEX)
         self.assertIn(".brand-tag", STYLE)
+        self.assertIn('data-sidebar="compact"', INDEX)
+        self.assertIn('aria-label="Expand sidebar"', INDEX)
 
     def test_cluny_ask_widget_and_day_hook(self) -> None:
         app = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
