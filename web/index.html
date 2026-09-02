@@ -146,8 +146,9 @@
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
-                            <div class="cal-aside-block">
-                                <h3>Lecture</h3>
+                            <div class="cal-aside-block" id="calEditor">
+                                <h3 id="calEditorHeading">New lecture</h3>
+                                <p id="calEditorHint" class="cal-editor-hint">Click a block to edit it. Drag to move.</p>
                                 <label class="checklist-field-label" for="calEventTitle">Name</label>
                                 <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="CHEM 109" autocomplete="off">
                                 <div class="cal-time-row">
@@ -167,7 +168,18 @@
                                     <button type="button" class="work-day-chip" data-day="5">Sat</button>
                                     <button type="button" class="work-day-chip" data-day="6">Sun</button>
                                 </div>
-                                <button type="button" id="calAddEvent" class="btn-primary">Save event</button>
+                                <div id="calBlockStatus" class="work-weekdays is-hidden" role="group" aria-label="On the clock">
+                                    <button type="button" class="work-day-chip" data-status="proposed">Flexible</button>
+                                    <button type="button" class="work-day-chip" data-status="locked">Locked</button>
+                                    <button type="button" class="work-day-chip" data-status="done">Done</button>
+                                    <button type="button" class="work-day-chip" data-status="skipped">Skip</button>
+                                </div>
+                                <div class="reminder-actions cal-editor-actions">
+                                    <button type="button" id="calSaveItem" class="btn-primary">Save</button>
+                                    <button type="button" id="calParkItem" class="btn-ghost is-hidden">Save for later</button>
+                                    <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
+                                    <button type="button" id="calNewLecture" class="btn-ghost is-hidden">New lecture</button>
+                                </div>
                             </div>
                             <div class="cal-aside-block">
                                 <h3>Unplaced</h3>

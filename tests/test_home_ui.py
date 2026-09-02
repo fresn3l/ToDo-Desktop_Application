@@ -282,6 +282,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("kosistenzInsertText", NATIVE_MAC)
         self.assertIn("addEventListener('paste'", CAL_JS)
         self.assertIn("kosistenzSanitizePastedUrl", CAL_JS)
+        self.assertIn('id="calSaveItem"', INDEX)
+        self.assertIn('id="calParkItem"', INDEX)
+        self.assertIn("Save for later", INDEX)
+        self.assertIn("update_calendar_event", CAL_JS)
+        self.assertIn("park_schedule_block", CAL_JS)
+        self.assertIn("schedule_work_at", CAL_JS)
+        self.assertIn("onBlockPointerMove", CAL_JS)
 
     def test_calendar_tab_uses_full_width_and_taller_cells(self) -> None:
         self.assertIn("html[data-page='calendar'] .tab-content.active", STYLE)

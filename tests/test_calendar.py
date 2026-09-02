@@ -342,6 +342,81 @@ END:VCALENDAR
         self.assertEqual(req.full_url, "https://cal.example.edu/class.ics")
         self.assertEqual(calclock.load_settings()["ics_url"], "https://cal.example.edu/class.ics")
 
+    def test_rename_and_move_lecture(self) -> None:
+        event = calclock.create_calendar_event(
+            "CHEM 109",
+            "2026-09-07T09:30:00",
+            "2026-09-07T10:20:00",
+            weekdays=[0],
+        )
+        updated = calclock.update_calendar_event(
+            event["id"],
+            "CHEM 109 lecture",
+            "2026-09-07T14:00:00",
+            "2026-09-07T14:50:00",
+            [0, 2],
+        )
+        self.assertEqual(updated["title"], "CHEM 109 lecture")
+        self.assertEqual(updated["start_at"], "2026-09-07T14:00:00")
+        self.assertEqual(updated["recurrence"]["weekdays"], [0, 2])
+
+    def test_drag_recurring_lecture_swaps_weekday(self) -> None:
+        event = calclock.create_calendar_event(
+            "Lab",
+            "2026-09-07T13:00:00",
+            "2026-09-07T15:00:00",
+            weekdays=[0],
+        )
+        moved = calclock.update_calendar_event(
+            event["id"],
+            "",
+            "2026-09-08T16:00:00",
+            "2026-09-08T18:00:00",
+            None,
+            "2026-09-07",
+        )
+        self.assertEqual(moved["recurrence"]["weekdays"], [1])
+        self.assertEqual(moved["start_at"][11:19], "16:00:00")
+        self.assertTrue(moved["start_at"].startswith("2026-09-07"))
+
+    def test_rename_move_and_park_work_block(self) -> None:
+        item = work.create_work_item("Study essay", estimate_minutes=60)
+        placed = calclock.schedule_work_at(
+            item["id"],
+            "2026-09-08T11:00:00",
+            "2026-09-08T12:00:00",
+        )
+        block = placed["block"]
+        self.assertEqual(block["start_at"], "2026-09-08T11:00:00")
+        self.assertEqual(placed["item"]["scheduled_date"], "2026-09-08")
+        renamed = calclock.update_schedule_block(
+            block["id"],
+            "Study essay 2",
+            "2026-09-09T15:00:00",
+            "2026-09-09T16:30:00",
+            "locked",
+        )
+        self.assertEqual(renamed["title"], "Study essay 2")
+        self.assertEqual(renamed["local_date"], "2026-09-09")
+        self.assertEqual(renamed["status"], "locked")
+        self.assertEqual(work.get_work_items_by_ids([item["id"]])[0]["title"], "Study essay 2")
+        self.assertEqual(work.get_work_items_by_ids([item["id"]])[0]["scheduled_date"], "2026-09-09")
+        calclock.park_schedule_block(block["id"])
+        parked = work.get_work_items_by_ids([item["id"]])[0]
+        self.assertIsNone(parked["scheduled_date"])
+        week = calclock.get_week("2026-09-07")
+        self.assertEqual([b for day in week["days"] for b in day["blocks"]], [])
+
+    def test_delete_locked_block_requires_force(self) -> None:
+        item = work.create_work_item("Problem set", estimate_minutes=50)
+        block = calclock.schedule_work_at(item["id"], "2026-09-08T09:00:00", "2026-09-08T09:50:00")["block"]
+        calclock.set_block_status(block["id"], "locked")
+        with self.assertRaises(ValueError):
+            calclock.delete_schedule_block(block["id"])
+        calclock.delete_schedule_block(block["id"], True)
+        week = calclock.get_week("2026-09-07")
+        self.assertEqual([b for day in week["days"] for b in day["blocks"]], [])
+
 
 if __name__ == "__main__":
     unittest.main()
