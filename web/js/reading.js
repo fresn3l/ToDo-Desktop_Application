@@ -15,7 +15,7 @@ function paint(data) {
     if (summary) {
         summary.textContent = data?.title
             ? `${data.title} · page ${data.page || 0}`
-            : 'Name the book, then count pages today.';
+            : 'No book yet.';
     }
 }
 

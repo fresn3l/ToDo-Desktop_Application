@@ -2826,18 +2826,15 @@ html.native-shell .home-title-strip {
     min-height: 0;
     border: var(--home-widget-border-width) solid var(--home-widget-border-color);
     border-radius: 14px;
-    background:
-        radial-gradient(120% 90% at 100% -10%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 52%),
-        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+    background: color-mix(in srgb, var(--bg-elevated) 92%, var(--bg-main));
     box-shadow:
-        inset 0 1px 0 hsl(0 0% 100% / 0.07),
-        0 1px 2px hsl(0 0% 0% / 0.12);
+        inset 0 1px 0 hsl(0 0% 100% / 0.06),
+        0 1px 2px hsl(0 0% 0% / 0.1);
     overflow: hidden;
     transition:
         transform 180ms var(--ease-out),
         box-shadow 180ms var(--ease-out),
-        border-color 180ms var(--ease-out),
-        filter 180ms var(--ease-out);
+        border-color 180ms var(--ease-out);
 }
 
 .home-shell:not(.is-editing) .home-widget {
@@ -2859,30 +2856,6 @@ html.native-shell .home-title-strip {
 .home-shell:not(.is-editing) .home-widget:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--primary) 70%, transparent);
     outline-offset: 2px;
-}
-
-.home-widget[data-kind="weather"] {
-    background:
-        radial-gradient(130% 90% at 110% -20%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 58%),
-        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
-}
-
-.home-widget[data-kind="word"] {
-    background:
-        radial-gradient(120% 80% at 0% 110%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 55%),
-        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
-}
-
-.home-widget[data-kind="todo"] {
-    background:
-        linear-gradient(180deg, color-mix(in srgb, var(--primary) 8%, var(--bg-elevated)) 0%, var(--bg-elevated) 42%),
-        var(--bg-elevated);
-}
-
-.home-widget[data-kind="today_calendar"] {
-    background:
-        radial-gradient(90% 80% at 0% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 50%),
-        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
 }
 
 .home-widget.is-dragging,
@@ -2986,9 +2959,9 @@ html.native-shell .home-title-strip {
     flex: 1;
     min-width: 0;
     font-weight: 650;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: var(--letter-tight);
+    text-transform: none;
     cursor: grab;
     color: color-mix(in srgb, var(--text-muted) 88%, var(--text-primary));
     user-select: none;
@@ -3082,8 +3055,8 @@ html.native-shell .home-title-strip {
     margin: 0;
     font-size: 11px;
     font-weight: 650;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: var(--letter-tight);
+    text-transform: none;
     color: color-mix(in srgb, var(--text-muted) 80%, var(--text-primary));
 }
 
@@ -3231,8 +3204,8 @@ html.native-shell .home-title-strip {
     margin-top: auto;
     padding-top: 8px;
     font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: var(--letter-tight);
+    text-transform: none;
     color: color-mix(in srgb, var(--primary) 70%, var(--text-muted));
     opacity: 0;
     transform: translateY(4px);
@@ -3286,12 +3259,8 @@ html.native-shell .home-title-strip {
 }
 
 .home-widget.is-complete {
-    background:
-        radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 58%),
-        color-mix(in srgb, var(--bg-elevated) 94%, var(--bg-main));
-    box-shadow:
-        inset 0 1px 0 hsl(0 0% 100% / 0.05),
-        0 1px 2px hsl(0 0% 0% / 0.08);
+    background: color-mix(in srgb, var(--bg-elevated) 94%, var(--bg-main));
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--home-widget-border-color));
 }
 
 .home-widget.is-complete .glance-kpi,
@@ -3302,22 +3271,53 @@ html.native-shell .home-title-strip {
 .glance-action {
     align-self: flex-start;
     margin-top: 8px;
-    border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border-subtle));
-    background: color-mix(in srgb, var(--primary) 12%, var(--bg-elevated));
-    color: var(--text-primary);
-    border-radius: 999px;
-    padding: 5px 11px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    min-height: 2rem;
+    padding: 6px 12px;
     font: inherit;
-    font-size: 12px;
-    font-weight: 650;
-    letter-spacing: 0.01em;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
     cursor: pointer;
     z-index: 3;
     pointer-events: auto;
 }
 
 .glance-action:hover {
-    background: color-mix(in srgb, var(--primary) 20%, var(--bg-elevated));
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+
+.glance-heat {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 8px;
+}
+
+.glance-heat i {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--border-subtle);
+}
+
+.glance-heat i.is-hit,
+.glance-heat i.level-2,
+.glance-heat i.level-3,
+.glance-heat i.level-4 {
+    background: var(--primary);
+}
+
+.glance-heat i.level-1 {
+    background: color-mix(in srgb, var(--primary) 45%, var(--border-subtle));
+}
+
+.glance-heat i.is-miss {
+    background: color-mix(in srgb, var(--danger) 55%, var(--border-subtle));
 }
 
 .home-widget[data-daypart="morning"] {
@@ -3486,8 +3486,8 @@ html.home-work-open .app-content {
     margin: 0 0 2px;
     font-size: 11px;
     font-weight: 650;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: var(--letter-tight);
+    text-transform: none;
     color: var(--text-muted);
 }
 
@@ -3533,6 +3533,32 @@ html.home-work-open .app-content {
     flex-direction: column;
     height: 100%;
     min-height: 0;
+}
+
+#todoTab .checklist-field-label,
+#workoutTab .checklist-field-label,
+#focusSource .checklist-field-label,
+#habitsSource .checklist-field-label,
+#countdownSource .checklist-field-label,
+#readingSource .checklist-field-label,
+#weatherSource .checklist-field-label,
+#wordTab .checklist-field-label {
+    text-transform: none;
+    letter-spacing: var(--letter-tight);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#todoTab .checklist-text-input,
+#todoTab .checklist-select,
+#workoutTab .checklist-text-input,
+#focusSource .checklist-text-input,
+#habitsSource .checklist-text-input,
+#countdownSource .checklist-text-input,
+#readingSource .checklist-text-input,
+#readingSource .checklist-textarea,
+#weatherSource .checklist-text-input {
+    min-height: 2rem;
 }
 
 .home-work-body .panel-header h2,

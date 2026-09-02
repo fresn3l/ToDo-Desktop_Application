@@ -100,7 +100,7 @@ function paintStatus(data) {
     if (sub) {
         if (data?.ok && data.stale) sub.textContent = 'Last good forecast — could not refresh';
         else if (data?.ok) sub.textContent = rainLine(data);
-        else if (data?.need_place) sub.textContent = 'Search a city. Forecast stays cached on this Mac.';
+        else if (data?.need_place) sub.textContent = 'Search a city.';
         else sub.textContent = data?.error ? 'Could not load forecast' : '';
     }
     if (el) {

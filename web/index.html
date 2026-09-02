@@ -267,7 +267,7 @@
                             <div class="panel-header">
                                 <div>
                                     <h2>Workout</h2>
-                                    <p class="panel-sub" id="workoutSummary">Log body weight and today’s sessions. Multiple sessions in a day are fine.</p>
+                                    <p class="panel-sub" id="workoutSummary"></p>
                                 </div>
                             </div>
                             <div class="workout-form">
@@ -275,7 +275,7 @@
                                     <label class="checklist-field-label" for="workoutWeight">Weight</label>
                                     <div class="work-add-row">
                                         <input type="number" id="workoutWeight" class="checklist-text-input" min="0" step="0.1" placeholder="lb" inputmode="decimal">
-                                        <button type="button" id="workoutWeightSave" class="btn-secondary">Save</button>
+                                        <button type="button" id="workoutWeightSave" class="btn-ghost">Save</button>
                                     </div>
                                 </div>
                                 <div>
@@ -301,15 +301,8 @@
                                 <div class="panel-header">
                                     <h3>Week template</h3>
                                 </div>
-                                <p class="checklist-hint small">Click a day to cycle none → push → pull → legs. Missed expected days stay on that date in Analytics.</p>
                                 <div id="weekTemplateForm" class="week-template"></div>
-                                <button type="button" id="weekTemplateSave" class="btn-secondary">Save template</button>
-                            </div>
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <h3>How this works</h3>
-                                </div>
-                                <p class="checklist-hint small">Lift days are type only — push, pull, or legs. Runs store miles. Other is a name plus optional minutes or miles. Analytics tracks totals; nothing carries over from a missed day.</p>
+                                <button type="button" id="weekTemplateSave" class="btn-ghost">Save template</button>
                             </div>
                             <div class="panel">
                                 <div class="panel-header">
@@ -327,7 +320,7 @@
                             <div class="panel-header">
                                 <div>
                                     <h2>To Do</h2>
-                                    <p class="panel-sub" id="todoSummary">Name the work and how long it takes. Pick a day this week — Kosistenz parks it in a free gap on the calendar.</p>
+                                    <p class="panel-sub" id="todoSummary"></p>
                                 </div>
                             </div>
                             <div class="work-add-row">
@@ -335,7 +328,7 @@
                                 <button type="button" id="todoAddBtn" class="btn-primary">Add to calendar</button>
                             </div>
                             <div id="todoWhen" class="todo-when work-weekdays" role="radiogroup" aria-label="Do this week"></div>
-                            <p class="checklist-hint small todo-when-hint">Today is selected. The minutes can live in the title (45 mins, 1h). Optional due date if it is also an assignment.</p>
+                            <p class="todo-when-hint"></p>
                             <div class="work-add-row work-add-optional">
                                 <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="5" placeholder="Min" title="Override minutes if the title has none">
                                 <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date (optional)">
@@ -371,12 +364,6 @@
                         <aside class="work-aside">
                             <div id="todoOverdue" class="panel work-side-panel is-hidden"></div>
                             <div id="todoTomorrow" class="panel work-side-panel is-hidden"></div>
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <h3>How this works</h3>
-                                </div>
-                                <p class="checklist-hint small">Type “45 mins calculus” and pick Thursday. Kosistenz places a 45-minute block on Thursday around lectures. Attach a goal, or put the goal’s keyword in the title. Park undated work in All Work.</p>
-                            </div>
                         </aside>
                     </div>
                 </section>
@@ -437,7 +424,7 @@
                             <div>
                                 <p class="today-kicker">Weather</p>
                                 <h2 id="weatherPlace">Set a place</h2>
-                                <p id="weatherSub" class="today-date-sub">Search a city. Forecast stays cached on this Mac.</p>
+                                <p id="weatherSub" class="today-date-sub"></p>
                             </div>
                             <div class="segmented weather-units" id="weatherUnits" role="group" aria-label="Units">
                                 <button type="button" data-value="fahrenheit" class="is-selected">F</button>
@@ -453,7 +440,7 @@
                                 <label class="checklist-field-label" for="weatherPlaceQuery">City</label>
                                 <div class="work-add-row">
                                     <input type="text" id="weatherPlaceQuery" class="checklist-text-input" placeholder="Ann Arbor" autocomplete="off">
-                                    <button type="submit" class="btn-secondary">Search</button>
+                                    <button type="submit" class="btn-primary">Search</button>
                                 </div>
                             </div>
                             <div id="weatherPlaceResults" class="weather-place-results"></div>
@@ -464,11 +451,10 @@
 
                 <section id="focusSource" class="widget-source" aria-label="Focus">
                     <div class="glance-widget focus-widget">
-                        <p class="today-kicker">Today</p>
                         <h2>Focus</h2>
                         <label class="visually-hidden" for="focusInput">Today’s focus</label>
                         <textarea id="focusInput" class="focus-input" rows="4" placeholder="The one thing that matters today."></textarea>
-                        <p class="checklist-hint small">Clears at midnight. ⌘Enter to save.</p>
+                        <p class="journal-kbd-hint">⌘Enter save</p>
                     </div>
                 </section>
 
@@ -476,7 +462,6 @@
                     <div class="glance-widget countdown-widget">
                         <header class="glance-head">
                             <div>
-                                <p class="today-kicker">Upcoming</p>
                                 <h2>Countdown</h2>
                             </div>
                         </header>
@@ -484,7 +469,7 @@
                         <form id="countdownForm" class="glance-add">
                             <input type="text" id="countdownTitle" class="checklist-text-input" placeholder="Exam, trip, due…" autocomplete="off">
                             <input type="date" id="countdownDate" class="checklist-text-input" aria-label="Date">
-                            <button type="submit" class="btn-secondary">Add</button>
+                            <button type="submit" class="btn-primary">Add</button>
                         </form>
                     </div>
                 </section>
@@ -493,15 +478,14 @@
                     <div class="glance-widget habits-widget">
                         <header class="glance-head">
                             <div>
-                                <p class="today-kicker">Daily</p>
                                 <h2>Habits</h2>
-                                <p id="habitsSummary" class="today-date-sub">Tick the small things that keep the day honest.</p>
+                                <p id="habitsSummary" class="today-date-sub"></p>
                             </div>
                         </header>
                         <ul id="habitList" class="habit-list"></ul>
                         <form id="habitForm" class="glance-add">
                             <input type="text" id="habitTitle" class="checklist-text-input" placeholder="Water, stretch, …" autocomplete="off">
-                            <button type="submit" class="btn-secondary">Add</button>
+                            <button type="submit" class="btn-primary">Add</button>
                         </form>
                     </div>
                 </section>
@@ -571,7 +555,7 @@
                         <div class="panel-header compact-widget-head">
                             <div>
                                 <h2>Currently reading</h2>
-                                <p class="panel-sub" id="readingSummary">Book, page, and pages today.</p>
+                                <p class="panel-sub" id="readingSummary"></p>
                             </div>
                         </div>
                         <form id="readingBookForm" class="reading-book-form">
@@ -583,9 +567,9 @@
                             <p id="readingPagesToday" class="review-stat">0</p>
                             <p class="review-detail">pages today</p>
                             <div class="reading-page-btns">
-                                <button type="button" class="btn-secondary" data-pages="1">+1 page</button>
-                                <button type="button" class="btn-secondary" data-pages="5">+5 pages</button>
-                                <button type="button" class="btn-secondary" data-pages="10">+10 pages</button>
+                                <button type="button" class="btn-ghost" data-pages="1">+1 page</button>
+                                <button type="button" class="btn-ghost" data-pages="5">+5 pages</button>
+                                <button type="button" class="btn-ghost" data-pages="10">+10 pages</button>
                             </div>
                         </div>
                         <form id="readingJournalForm" class="day-brief-form">
@@ -616,7 +600,6 @@
 
                 <section id="wordTab" class="widget-source" aria-label="Word of the day">
                     <div id="wordCard" class="word-card">
-                        <p class="today-kicker">Word of the day</p>
                         <p class="checklist-hint small">Loading…</p>
                     </div>
                 </section>

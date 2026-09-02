@@ -6,22 +6,6 @@
 import * as utils from './utils.js';
 import { WIDGET_CATALOG } from './home_layout.js';
 
-const POSTERS = {
-    workout: { kicker: 'Workout', line: 'Log today’s session' },
-    goals: { kicker: 'Goals', line: 'Horizons and weekly work' },
-    allwork: { kicker: 'All Work', line: 'Undated backlog' },
-    analytics: { kicker: 'Analytics', line: 'Streaks and patterns' },
-    timeline: { kicker: 'Timeline', line: 'The days in a row' },
-    focus: { kicker: 'Focus', line: 'The one thing today' },
-    countdown: { kicker: 'Countdown', line: 'Days until it matters' },
-    habits: { kicker: 'Habits', line: 'Small things, every day' },
-    heatmap: { kicker: 'Heatmap', line: 'A year at a glance' },
-    day_brief: { kicker: 'Day', line: 'Morning brief, evening review' },
-    cluny: { kicker: 'Brain', line: 'Ask Cluny' },
-    counters: { kicker: 'Counters', line: 'Tap to keep count' },
-    reading: { kicker: 'Reading', line: 'The book in your hands' },
-};
-
 function hasEel(name) {
     return typeof eel !== 'undefined' && typeof eel[name] === 'function';
 }
@@ -98,7 +82,7 @@ function applyAtmosphere(kind, data, card) {
     if (!card) return;
     card.classList.toggle('is-complete', isComplete(kind, data));
     const part = dayPart(data?.hour);
-    if (kind === 'today_calendar' || kind === 'day_brief' || kind === 'weather') {
+    if (kind === 'today_calendar' || kind === 'day_brief') {
         card.setAttribute('data-daypart', part);
     } else {
         card.removeAttribute('data-daypart');
@@ -148,6 +132,20 @@ function actionBtn(act, label, attrs = '') {
 
 function emptyTile(kind, label, message, size) {
     return tile(kind, size, 'is-empty', `${kicker(label)}${line(message)}${size.wide ? hint() : ''}`);
+}
+
+function compactTile(kind, size, label, value, detail, complete) {
+    const mark = complete ? doneMark() : '';
+    const cls = complete ? 'is-complete' : '';
+    if (!size.wide && !size.tall) {
+        return tile(kind, size, cls, `${mark}${kicker(label)}${kpi(value)}${detail ? line(clip(detail, 14), ' glance-line--tiny') : ''}`);
+    }
+    return tile(kind, size, cls, `
+        ${mark}
+        ${kicker(label)}
+        ${kpi(value)}
+        ${detail ? line(detail) : ''}
+        ${hint()}`);
 }
 
 function weatherGlyph(label) {
@@ -234,7 +232,7 @@ function weatherHtml(data, size) {
 function wordHtml(data, size) {
     const label = 'Word';
     if (!data?.word) {
-        return emptyTile('word', label, 'Today’s word', size);
+        return emptyTile('word', label, 'No word yet', size);
     }
     const head = data.display || data.word;
     const pos = [data.language_label || (data.language === 'de' ? 'German' : 'English'), data.pos].filter(Boolean).join(' · ');
@@ -268,7 +266,7 @@ function todayHtml(data, size) {
     const next = agenda[0];
     const nextLine = next
         ? `${formatAgendaTime(next)} ${next.title || ''}`.trim()
-        : 'A quiet stretch';
+        : 'Nothing timed';
     const part = dayPart(data?.hour);
     if (!size.wide && !size.tall) {
         return tile('today_calendar', size, '', `${kicker(shortWeek)}${kpi(dayNum)}${line(month, ' glance-line--tiny')}`);
@@ -297,7 +295,7 @@ function todayHtml(data, size) {
         ${kicker(`${label} · ${partLine}`)}
         ${kpi(`${shortWeek} ${dayNum}`)}
         ${line(pulse || (agenda.length ? `${agenda.length} on the clock` : 'Nothing timed yet'))}
-        ${rows || `<p class="glance-empty">${utils.escapeHtml(nextLine)}</p>`}
+        ${rows || ''}
         ${hint()}`);
 }
 
@@ -343,19 +341,20 @@ function todoHtml(data, size) {
         ${kicker(label)}
         ${kpi(complete ? 'Done' : open)}
         ${line(sub)}
-        ${rows || '<p class="glance-empty">Tap to add today’s work.</p>'}
+        ${rows || ''}
         ${action}
         ${hint()}`);
 }
 
 function habitsHtml(data, size) {
-    const meta = POSTERS.habits;
+    const label = 'Habits';
     const total = data?.total || 0;
     const done = data?.done || 0;
     const complete = total > 0 && done === total;
     const mark = complete ? doneMark() : '';
     if (!size.action) {
-        return posterHtml('habits', data, size);
+        if (!total) return emptyTile('habits', label, 'No habits yet.', size);
+        return compactTile('habits', size, label, `${done}/${total}`, complete ? 'All ticked' : 'today', complete);
     }
     const next = (data?.habits || []).find((row) => !row.done);
     const action = next
@@ -366,21 +365,22 @@ function habitsHtml(data, size) {
     ));
     return tile('habits', size, complete ? 'is-complete' : '', `
         ${mark}
-        ${kicker(meta.kicker)}
+        ${kicker(label)}
         ${kpi(total ? `${done}/${total}` : '0')}
-        ${line(complete ? 'All ticked' : total ? 'ticked today' : meta.line)}
-        ${rows || '<p class="glance-empty">Add a small daily habit.</p>'}
+        ${line(complete ? 'All ticked' : total ? 'ticked today' : 'No habits yet.')}
+        ${rows || '<p class="glance-empty">No habits yet.</p>'}
         ${action}
         ${hint()}`);
 }
 
 function countersHtml(data, size) {
-    const meta = POSTERS.counters;
+    const label = 'Counters';
     const rows = data?.counters || [];
     const first = rows[0];
     const complete = rows.length > 0 && rows.every((row) => !row.target || row.met);
     if (!size.action) {
-        return posterHtml('counters', data, size);
+        if (!first) return emptyTile('counters', label, 'No counters yet.', size);
+        return compactTile('counters', size, label, String(first.today || 0), first.name || '', complete);
     }
     const action = first
         ? actionBtn('counter-tap', `+1 ${clip(first.name, 16)}`, ` data-id="${utils.escapeHtml(first.id)}"`)
@@ -390,136 +390,219 @@ function countersHtml(data, size) {
     ));
     return tile('counters', size, complete ? 'is-complete' : '', `
         ${complete ? doneMark() : ''}
-        ${kicker(meta.kicker)}
+        ${kicker(label)}
         ${kpi(first ? String(first.today || 0) : '·')}
-        ${line(first ? clip(first.name, 28) : meta.line)}
+        ${line(first ? clip(first.name, 28) : 'No counters yet.')}
         ${list}
         ${action}
         ${hint()}`);
 }
 
 function focusHtml(data, size) {
-    const meta = POSTERS.focus;
+    const label = 'Focus';
     const text = (data?.text || '').trim();
     const kept = Boolean(data?.kept && text);
     if (!size.action) {
-        return posterHtml('focus', data, size);
+        if (!text) return emptyTile('focus', label, 'No focus yet.', size);
+        return compactTile('focus', size, label, clip(text, size.wide ? 28 : 12), kept ? 'Kept' : '', kept);
     }
     const action = text && !kept
         ? actionBtn('focus-keep', 'Kept')
         : '';
     return tile('focus', size, kept ? 'is-complete' : '', `
         ${kept ? doneMark() : ''}
-        ${kicker(meta.kicker)}
+        ${kicker(label)}
         ${kpi(text ? clip(text, 42) : '·', ' glance-kpi--word')}
-        ${line(kept ? 'Held for today' : text ? 'Today’s focus' : meta.line)}
+        ${line(kept ? 'Held for today' : text ? 'Today' : 'No focus yet.')}
         ${action}
         ${hint()}`);
 }
 
-function posterHtml(kind, data, size) {
-    const spec = WIDGET_CATALOG[kind] || { label: kind };
-    const meta = POSTERS[kind] || { kicker: spec.label, line: 'Open the full view' };
-    const packed = posterCopy(kind, data, meta);
-    const complete = isComplete(kind, data);
-    const mark = complete ? doneMark() : '';
-    const cls = `glance-tile--poster${complete ? ' is-complete' : ''}`;
-    if (!size.wide && !size.tall) {
-        return tile(kind, size, cls, `${mark}${kicker(meta.kicker)}${kpi(packed.kpi || '·')}${packed.tiny ? line(packed.tiny, ' glance-line--tiny') : ''}`);
-    }
+function countdownHtml(data, size) {
+    const label = 'Countdown';
+    const rows = Array.isArray(data) ? data : [];
+    const next = rows.find((row) => row.state !== 'past') || rows[0];
+    if (!next) return emptyTile('countdown', label, 'No dates yet.', size);
+    const days = Number(next.days);
+    const count = next.state === 'today' ? '0' : (Number.isFinite(days) ? String(Math.abs(days)) : '—');
+    const unit = next.state === 'today' ? 'today' : Number(next.days) < 0 ? 'ago' : 'days';
     if (!size.tall) {
-        return tile(kind, size, cls, `
-            ${mark}
-            ${kicker(meta.kicker)}
-            ${packed.kpi ? kpi(packed.kpi) : ''}
-            ${line(packed.line)}
-            ${hint()}`);
+        return compactTile('countdown', size, label, count, `${clip(next.title || '', 28)} · ${unit}`);
     }
-    return tile(kind, size, cls, `
-        ${mark}
-        ${kicker(meta.kicker)}
-        ${packed.kpi ? kpi(packed.kpi) : `<p class="glance-mark">${utils.escapeHtml(spec.label.slice(0, 1))}</p>`}
-        ${line(packed.line)}
-        ${packed.extra || ''}
+    const list = listRows(rows, size.board ? 6 : 4, (item) => {
+        const n = item.state === 'today' ? '0' : String(Math.abs(Number(item.days) || 0));
+        return `<li><span>${utils.escapeHtml(n)}</span><strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong></li>`;
+    });
+    return tile('countdown', size, '', `
+        ${kicker(label)}
+        ${kpi(count)}
+        ${line(clip(next.title || '', 36))}
+        ${list}
         ${hint()}`);
 }
 
-function posterCopy(kind, data, meta) {
-    if (kind === 'focus') {
-        const text = (data?.text || '').trim();
-        if (data?.kept && text) return { kpi: '✓', line: clip(text, 36), tiny: 'Kept' };
-        return text
-            ? { kpi: clip(text, 28), line: 'Today’s focus', tiny: clip(text, 10) }
-            : { kpi: '·', line: meta.line, tiny: 'Focus' };
+function readingHtml(data, size) {
+    const label = 'Reading';
+    if (!data?.title) return emptyTile('reading', label, 'No book yet.', size);
+    const pages = data.pages_today ? String(data.pages_today) : String(data.page || '·');
+    const detail = data.pages_today ? `${clip(data.title, 28)} · today` : clip(data.title, 36);
+    if (!size.tall) {
+        return compactTile('reading', size, label, pages, detail);
     }
-    if (kind === 'countdown') {
-        const rows = Array.isArray(data) ? data : [];
-        const next = rows.find((row) => row.state !== 'past') || rows[0];
-        if (!next) return { kpi: '·', line: meta.line, tiny: 'Soon' };
-        const days = Number(next.days);
-        const count = Number.isFinite(days) ? String(Math.abs(days)) : '—';
-        const unit = next.state === 'today' ? 'today' : Number(next.days) < 0 ? 'ago' : 'days';
-        return { kpi: count, line: clip(next.title || meta.line, 36), tiny: unit, extra: next.phrase ? line(next.phrase, ' glance-line--muted') : '' };
-    }
-    if (kind === 'habits') {
-        const total = data?.total || 0;
-        const done = data?.done || 0;
-        return total
-            ? { kpi: `${done}/${total}`, line: done === total ? 'All ticked' : 'ticked today', tiny: `${done}/${total}` }
-            : { kpi: '0', line: meta.line, tiny: 'Habits' };
-    }
-    if (kind === 'reading') {
-        if (data?.title) {
-            return { kpi: data.pages_today ? String(data.pages_today) : String(data.page || '·'), line: clip(data.title, 36), tiny: clip(data.title, 10) };
-        }
-        return { kpi: '·', line: meta.line, tiny: 'Read' };
-    }
-    if (kind === 'counters') {
-        const rows = data?.counters || [];
-        const first = rows[0];
-        if (!first) return { kpi: '·', line: meta.line, tiny: 'Count' };
-        return { kpi: String(first.today || 0), line: clip(first.name || meta.line, 28), tiny: first.icon || '•' };
-    }
-    if (kind === 'workout') {
-        const workout = data?.workout || data || {};
-        const session = workout.session_count || 0;
-        if (workout.done) {
-            return { kpi: '✓', line: session === 1 ? 'Session logged' : `${session} sessions`, tiny: 'Done' };
-        }
-        const expected = (data?.expected?.labels || []).join(' · ');
-        return { kpi: '·', line: expected || meta.line, tiny: 'Gym' };
-    }
-    if (kind === 'goals') {
-        const n = Array.isArray(data) ? data.length : 0;
-        return n
-            ? { kpi: String(n), line: n === 1 ? 'goal in motion' : 'goals in motion', tiny: String(n) }
-            : { kpi: '·', line: meta.line, tiny: 'Goals' };
-    }
-    if (kind === 'allwork') {
-        const n = Array.isArray(data) ? data.length : 0;
-        return n
-            ? { kpi: String(n), line: n === 1 ? 'waiting to be dated' : 'waiting to be dated', tiny: String(n) }
-            : { kpi: '0', line: 'Backlog is clear', tiny: '0' };
-    }
-    if (kind === 'day_brief') {
-        const slot = data?.slot === 'evening' ? 'Evening' : 'Morning';
-        return { kpi: slot.slice(0, 1), line: `${slot} ${data?.slot === 'evening' ? 'review' : 'brief'}`, tiny: slot.slice(0, 3) };
-    }
-    if (kind === 'cluny') {
-        const n = Number(data?.pending_count || 0);
-        if (n) {
-            return { kpi: String(n), line: n === 1 ? 'suggestion waiting' : 'suggestions waiting', tiny: String(n) };
-        }
-        if (data && data.ok === false) {
-            return { kpi: 'Off', line: 'Journal and the clock still work', tiny: 'Off' };
-        }
-        return { kpi: 'Ask', line: meta.line, tiny: 'Ask' };
-    }
-    return { kpi: specLetter(kind), line: meta.line, tiny: meta.kicker.slice(0, 4) };
+    return tile('reading', size, '', `
+        ${kicker(label)}
+        ${kpi(pages)}
+        ${line(clip(data.title, 48))}
+        ${line(data.page ? `Page ${data.page}` : 'pages today', ' glance-line--muted')}
+        ${hint()}`);
 }
 
-function specLetter(kind) {
-    return (WIDGET_CATALOG[kind]?.label || kind).slice(0, 1);
+function workoutHtml(data, size) {
+    const label = 'Workout';
+    const workout = data?.workout || data || {};
+    const session = workout.session_count || 0;
+    const done = Boolean(workout.done);
+    const expected = (data?.expected?.labels || []).join(' · ');
+    if (done) {
+        return compactTile('workout', size, label, '✓', session === 1 ? 'Session logged' : `${session} sessions`, true);
+    }
+    if (!size.tall) {
+        return compactTile('workout', size, label, session || '·', expected || 'Nothing logged');
+    }
+    return tile('workout', size, '', `
+        ${kicker(label)}
+        ${kpi(session || '·')}
+        ${line(expected || 'Nothing logged')}
+        ${hint()}`);
+}
+
+function goalsHtml(data, size) {
+    const label = 'Goals';
+    const rows = Array.isArray(data) ? data : [];
+    if (!rows.length) return emptyTile('goals', label, 'No goals yet.', size);
+    const weekly = rows.find((row) => row.horizon === 'week');
+    const sub = weekly?.title
+        ? clip(weekly.title, 36)
+        : rows.length === 1
+            ? '1 in motion'
+            : `${rows.length} in motion`;
+    if (!size.tall) {
+        return compactTile('goals', size, label, String(rows.length), sub);
+    }
+    const list = listRows(rows, size.board ? 5 : 4, (item) => (
+        `<li><strong>${utils.escapeHtml(clip(item.title || '', 32))}</strong></li>`
+    ));
+    return tile('goals', size, '', `
+        ${kicker(label)}
+        ${kpi(String(rows.length))}
+        ${line(sub)}
+        ${list}
+        ${hint()}`);
+}
+
+function allworkHtml(data, size) {
+    const label = 'All Work';
+    const rows = Array.isArray(data) ? data : [];
+    if (!rows.length) return emptyTile('allwork', label, 'Backlog is clear.', size);
+    const sub = rows.length === 1 ? clip(rows[0].title || '', 36) : `${rows.length} waiting`;
+    if (!size.tall) {
+        return compactTile('allwork', size, label, String(rows.length), sub);
+    }
+    const list = listRows(rows, size.board ? 6 : 4, (item) => (
+        `<li><strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
+    ));
+    return tile('allwork', size, '', `
+        ${kicker(label)}
+        ${kpi(String(rows.length))}
+        ${line(sub)}
+        ${list}
+        ${hint()}`);
+}
+
+function heatmapHtml(data, size) {
+    const label = 'Heatmap';
+    if (!data) return emptyTile('heatmap', label, 'No activity yet.', size);
+    const streak = Number(data.streak || 0);
+    const source = data.series_title || data.source_label || label;
+    const days = data.days || [];
+    const recent = days.slice(-14);
+    const strip = (size.tall || size.board) && recent.length
+        ? `<div class="glance-heat" aria-hidden="true">${recent.map((day) => {
+            const hit = day.state === 'hit' || Number(day.value || 0) > 0;
+            const level = Math.max(0, Math.min(4, Number(day.level) || (hit ? 2 : 0)));
+            return `<i class="is-${utils.escapeHtml(day.state || 'none')} level-${level}"></i>`;
+        }).join('')}</div>`
+        : '';
+    if (!size.tall && !size.board) {
+        return compactTile('heatmap', size, source, streak ? String(streak) : '0', streak ? 'day streak' : 'No streak');
+    }
+    return tile('heatmap', size, '', `
+        ${kicker(source)}
+        ${kpi(streak ? String(streak) : '0')}
+        ${line(streak ? 'day streak' : 'No streak')}
+        ${strip}
+        ${hint()}`);
+}
+
+function dayBriefHtml(data, size) {
+    const evening = data?.slot === 'evening';
+    const slot = evening ? 'Evening' : 'Morning';
+    const leftover = data?.review?.leftover?.length || 0;
+    const next = (data?.agenda || [])[0];
+    const nextLine = next
+        ? `${formatAgendaTime(next)} ${next.title || ''}`.trim()
+        : '';
+    if (evening) {
+        const detail = leftover ? `${leftover} leftover` : 'Review';
+        if (!size.tall) return compactTile('day_brief', size, slot, leftover ? String(leftover) : '✓', detail);
+        return tile('day_brief', size, leftover ? '' : 'is-complete', `
+            ${kicker(slot)}
+            ${kpi(leftover ? String(leftover) : 'Done')}
+            ${line(detail)}
+            ${hint()}`);
+    }
+    if (!size.tall) {
+        return compactTile('day_brief', size, slot, next ? formatAgendaTime(next) || '·' : '·', nextLine || 'No events yet');
+    }
+    return tile('day_brief', size, '', `
+        ${kicker(slot)}
+        ${kpi(next ? formatAgendaTime(next) || 'Brief' : 'Brief')}
+        ${line(nextLine || 'No events yet')}
+        ${hint()}`);
+}
+
+function analyticsHtml(data, size) {
+    const label = 'Analytics';
+    if (!data) return emptyTile('analytics', label, 'No streak yet.', size);
+    const streak = Number(data.journal?.streak || 0);
+    const missed = (data.work?.series || []).reduce((n, row) => n + Number(row.missed || 0), 0);
+    const written = Number(data.journal?.days_written || 0);
+    const detail = missed ? `${missed} misses` : `${written} days written`;
+    return compactTile('analytics', size, label, String(streak), detail);
+}
+
+function timelineHtml(data, size) {
+    const label = 'Timeline';
+    if (!data) return emptyTile('timeline', label, 'Nothing logged.', size);
+    const n = Number(data.journal_count || 0)
+        + Number(data.work_count || 0)
+        + Number(data.workout_count || 0)
+        + Number(data.submission_count || 0);
+    const iso = data.local_date || utils.localISODate();
+    const d = new Date(`${iso}T12:00:00`);
+    const when = Number.isNaN(d.getTime())
+        ? 'Today'
+        : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    return compactTile('timeline', size, label, String(n), when);
+}
+
+function clunyHtml(_data, size) {
+    return compactTile('cluny', size, 'Cluny', '?', 'Open to ask');
+}
+
+function posterHtml(kind, _data, size) {
+    const spec = WIDGET_CATALOG[kind] || { label: kind };
+    return emptyTile(kind, spec.label, 'Could not load.', size);
 }
 
 async function loadGlance(kind) {
@@ -536,11 +619,9 @@ async function loadGlance(kind) {
     if (kind === 'goals') return eelCall('list_goals');
     if (kind === 'allwork') return eelCall('list_backlog');
     if (kind === 'day_brief') return eelCall('get_day_brief');
-    if (kind === 'cluny') {
-        const inbox = await eelCall('get_cluny_inbox') || {};
-        const health = await eelCall('get_cluny_health') || {};
-        return { ...inbox, ...health };
-    }
+    if (kind === 'heatmap') return eelCall('get_heatmap');
+    if (kind === 'analytics') return eelCall('get_analytics', 7);
+    if (kind === 'timeline') return eelCall('get_timeline_day', utils.localISODate());
     return null;
 }
 
@@ -552,6 +633,16 @@ function renderKind(kind, data, size) {
     if (kind === 'habits') return habitsHtml(data, size);
     if (kind === 'counters') return countersHtml(data, size);
     if (kind === 'focus') return focusHtml(data, size);
+    if (kind === 'countdown') return countdownHtml(data, size);
+    if (kind === 'reading') return readingHtml(data, size);
+    if (kind === 'workout') return workoutHtml(data, size);
+    if (kind === 'goals') return goalsHtml(data, size);
+    if (kind === 'allwork') return allworkHtml(data, size);
+    if (kind === 'heatmap') return heatmapHtml(data, size);
+    if (kind === 'day_brief') return dayBriefHtml(data, size);
+    if (kind === 'analytics') return analyticsHtml(data, size);
+    if (kind === 'timeline') return timelineHtml(data, size);
+    if (kind === 'cluny') return clunyHtml(data, size);
     return posterHtml(kind, data, size);
 }
 
