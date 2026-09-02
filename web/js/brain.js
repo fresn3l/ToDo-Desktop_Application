@@ -268,8 +268,29 @@ async function acceptProposal(id) {
     }
 }
 
+function openBrainModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('is-hidden');
+    el.hidden = false;
+}
+
+function closeBrainModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('is-hidden');
+    el.hidden = true;
+}
+
 async function uploadFiles(fileList) {
-    if (!brainReady || !hasEel('brain_ingest_file_b64')) return;
+    if (!brainReady) {
+        utils.showErrorFeedback('Cluny is off.');
+        return;
+    }
+    if (!hasEel('brain_ingest_file_b64')) {
+        utils.showErrorFeedback('File ingest is unavailable. Restart Kosistenz.');
+        return;
+    }
     for (const file of fileList) {
         const buf = await file.arrayBuffer();
         const bytes = new Uint8Array(buf);
@@ -291,16 +312,18 @@ async function uploadFiles(fileList) {
 }
 
 async function openBrainEditor() {
-    if (!hasEel('brain_config_get')) return;
-    const dialog = document.getElementById('brainEditorDialog');
+    if (!hasEel('brain_config_get')) {
+        utils.showErrorFeedback('Brain editor unavailable. Restart Kosistenz.');
+        return;
+    }
     try {
         const cfg = await eel.brain_config_get()();
         document.getElementById('brainPersona').value = cfg?.global_persona || '';
         document.getElementById('brainRagSystem').value = cfg?.prompts?.rag_system || cfg?.defaults?.rag_system || '';
-        dialog?.showModal();
+        openBrainModal('brainEditorDialog');
     } catch (err) {
         console.error(err);
-        utils.showErrorFeedback('Could not load brain config.');
+        utils.showErrorFeedback(err?.message || 'Could not load brain config.');
     }
 }
 
@@ -313,7 +336,7 @@ async function saveBrainEditor(event) {
             prompts: { rag_system: document.getElementById('brainRagSystem')?.value || '' },
         })();
         utils.showSuccessFeedback('Brain instructions saved.');
-        document.getElementById('brainEditorDialog')?.close();
+        closeBrainModal('brainEditorDialog');
     } catch (err) {
         console.error(err);
         utils.showErrorFeedback(err?.message || 'Save failed.');
@@ -321,8 +344,10 @@ async function saveBrainEditor(event) {
 }
 
 async function openBrainSettings() {
-    if (!hasEel('brain_user_config_get')) return;
-    const dialog = document.getElementById('brainSettingsDialog');
+    if (!hasEel('brain_user_config_get')) {
+        utils.showErrorFeedback('Brain settings unavailable. Restart Kosistenz.');
+        return;
+    }
     try {
         const cfg = await eel.brain_user_config_get()();
         document.getElementById('brainChatModelInput').value = cfg?.chat_model || '';
@@ -330,10 +355,10 @@ async function openBrainSettings() {
         document.getElementById('brainRetrievalK').value = cfg?.retrieval_k ?? 5;
         document.getElementById('brainHybridWeight').value = cfg?.hybrid_vector_weight ?? 0.5;
         document.getElementById('brainAskCollection').value = cfg?.ask_collection || '';
-        dialog?.showModal();
+        openBrainModal('brainSettingsDialog');
     } catch (err) {
         console.error(err);
-        utils.showErrorFeedback('Could not load settings.');
+        utils.showErrorFeedback(err?.message || 'Could not load settings.');
     }
 }
 
@@ -350,7 +375,7 @@ async function saveBrainSettings(event) {
             agent_mode: document.getElementById('brainAgentMode')?.value || null,
         })();
         utils.showSuccessFeedback('Brain settings saved.');
-        document.getElementById('brainSettingsDialog')?.close();
+        closeBrainModal('brainSettingsDialog');
         await refreshBrain();
     } catch (err) {
         console.error(err);
@@ -392,6 +417,9 @@ export function setupBrain() {
     document.getElementById('brainSourceFilter')?.addEventListener('change', () => {
         void refreshBrainLibrary();
     });
+    document.getElementById('brainAddDocsBtn')?.addEventListener('click', () => {
+        document.getElementById('brainFileInput')?.click();
+    });
     document.getElementById('brainFileInput')?.addEventListener('change', (e) => {
         const files = e.target.files;
         if (files?.length) void uploadFiles(files);
@@ -404,10 +432,10 @@ export function setupBrain() {
         void openBrainSettings();
     });
     document.getElementById('brainEditorClose')?.addEventListener('click', () => {
-        document.getElementById('brainEditorDialog')?.close();
+        closeBrainModal('brainEditorDialog');
     });
     document.getElementById('brainSettingsClose')?.addEventListener('click', () => {
-        document.getElementById('brainSettingsDialog')?.close();
+        closeBrainModal('brainSettingsDialog');
     });
     document.getElementById('brainEditorForm')?.addEventListener('submit', (e) => {
         void saveBrainEditor(e);

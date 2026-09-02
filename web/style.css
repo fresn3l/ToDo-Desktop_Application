@@ -5927,24 +5927,39 @@ html[data-motion='reduce'] *::after {
     background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
 }
 
-.brain-chat-form {
+.brain-dialog-card {
+    width: min(720px, 100%);
+    max-height: min(85vh, 900px);
+    overflow: auto;
+}
+
+.brain-dialog-body {
     display: flex;
     flex-direction: column;
+    gap: 10px;
+}
+
+.brain-dialog-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 8px;
 }
 
+.brain-dialog-head h2 {
+    margin: 0;
+    text-transform: none;
+    letter-spacing: var(--letter-tight);
+}
+
+.brain-dialog-actions,
 .brain-chat-actions,
 .brain-sidebar-actions,
-.brain-mode-row,
-.brain-dialog-actions {
+.brain-mode-row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-}
-
-.brain-file-btn {
-    cursor: pointer;
 }
 
 .brain-propose-panel {
@@ -5961,29 +5976,9 @@ html[data-motion='reduce'] *::after {
     display: none;
 }
 
-.brain-dialog {
-    border: none;
-    border-radius: 12px;
-    padding: 0;
-    max-width: 720px;
-    width: min(720px, 92vw);
-}
-
-.brain-dialog::backdrop {
-    background: rgb(0 0 0 / 35%);
-}
-
-.brain-dialog-body {
-    padding: 16px;
+.brain-chat-form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-}
-
-.brain-dialog-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     gap: 8px;
 }
 
