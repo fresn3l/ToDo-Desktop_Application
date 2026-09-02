@@ -15,7 +15,6 @@
                 <span class="brand-mark" aria-hidden="true">K</span>
                 <div class="brand-copy">
                     <strong class="brand-name">Kosistenz</strong>
-                    <span class="brand-tag">On this Mac</span>
                 </div>
             </div>
 
@@ -132,22 +131,19 @@
 
                 <section id="calendarTab" class="tab-content" aria-label="Calendar">
                     <div class="cal-layout">
-                        <div class="panel cal-main">
-                            <div class="panel-header cal-toolbar">
-                                <div>
-                                    <h2 id="calWeekLabel">This month</h2>
-                                    <p class="panel-sub">Month and year for the long view. Open a day for the week clock. Fill week still places study around lectures. Nothing is written to Apple Calendar.</p>
-                                </div>
+                        <div class="cal-main">
+                            <div class="cal-toolbar">
+                                <h2 id="calWeekLabel">This month</h2>
                                 <div class="cal-toolbar-actions">
                                     <div class="segmented" id="calViewGroup" role="group" aria-label="Calendar view">
                                         <button type="button" data-cal-view="week">Week</button>
                                         <button type="button" data-cal-view="month" class="is-selected">Month</button>
                                         <button type="button" data-cal-view="year">Year</button>
                                     </div>
-                                    <button type="button" id="calPrevWeek" class="btn-secondary">Prev</button>
+                                    <button type="button" id="calPrevWeek" class="btn-ghost">Prev</button>
                                     <button type="button" id="calThisWeek" class="btn-ghost">Today</button>
-                                    <button type="button" id="calNextWeek" class="btn-secondary">Next</button>
-                                    <button type="button" id="calFillWeek" class="btn-primary is-hidden">Fill week</button>
+                                    <button type="button" id="calNextWeek" class="btn-ghost">Next</button>
+                                    <button type="button" id="calFillWeek" class="btn-primary is-hidden" title="Places study around lectures">Fill week</button>
                                 </div>
                             </div>
                             <div id="calGrid" class="cal-grid is-hidden"></div>
@@ -155,11 +151,8 @@
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <h3>Add a lecture</h3>
-                                </div>
-                                <p class="checklist-hint small">Class meeting times live here. The due-date subscription is not lectures.</p>
+                            <div class="cal-aside-block">
+                                <h3>Lecture</h3>
                                 <label class="checklist-field-label" for="calEventTitle">Name</label>
                                 <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="CHEM 109" autocomplete="off">
                                 <div class="cal-time-row">
@@ -170,7 +163,6 @@
                                     <label class="checklist-field-label" for="calEventEnd">Ends</label>
                                     <input type="datetime-local" id="calEventEnd" class="checklist-text-input">
                                 </div>
-                                <p class="checklist-hint small">Repeat weekly</p>
                                 <div id="calEventWeekdays" class="work-weekdays" role="group" aria-label="Lecture days">
                                     <button type="button" class="work-day-chip" data-day="0">Mon</button>
                                     <button type="button" class="work-day-chip" data-day="1">Tue</button>
@@ -182,25 +174,19 @@
                                 </div>
                                 <button type="button" id="calAddEvent" class="btn-primary">Save event</button>
                             </div>
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <h3>Unplaced</h3>
-                                </div>
-                                <p class="checklist-hint small">Needs an estimate to land on the clock. Due dates from class stay here until Fill week.</p>
+                            <div class="cal-aside-block">
+                                <h3>Unplaced</h3>
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <h3>Class due dates</h3>
-                                </div>
-                                <p class="checklist-hint small">Paste the same ICS URL Apple Calendar already subscribes to, or import from Apple on this Mac. All-day and 11:59 events become to-dos, not busy bars.</p>
+                            <div class="cal-aside-block">
+                                <h3>Due dates</h3>
                                 <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
                                 <input type="url" id="calIcsUrl" class="checklist-text-input" placeholder="https://…" autocomplete="off">
                                 <div class="reminder-actions">
                                     <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
-                                    <button type="button" id="calImportApple" class="btn-secondary">Import Apple calendars</button>
+                                    <button type="button" id="calImportApple" class="btn-ghost">Import Apple calendars</button>
                                 </div>
-                                <p id="calImportStatus" class="checklist-hint small"></p>
+                                <p id="calImportStatus" class="cal-import-status"></p>
                             </div>
                         </aside>
                     </div>
@@ -222,26 +208,26 @@
 
                 <section id="journalTab" class="tab-content" aria-label="Journal">
                     <div class="journal-layout">
-                        <div class="panel journal-compose journal-paper">
+                        <div class="journal-compose journal-paper">
                             <div class="journal-entry-section">
+                                <div class="journal-timer-container">
+                                    <div class="timer-display" id="timerDisplay">10:00</div>
+                                    <div class="timer-controls">
+                                        <span class="meta-chip" id="journalWordCount">0 words</span>
+                                        <button type="button" id="journalFocusBtn" class="btn-ghost" aria-pressed="false">Focus</button>
+                                        <button type="button" id="startTimer" class="btn-ghost">Start session</button>
+                                        <button type="button" id="pauseTimer" class="btn-primary is-hidden">Pause</button>
+                                        <button type="button" id="continueTimer" class="btn-ghost is-hidden">Continue</button>
+                                    </div>
+                                    <div class="timer-status vis-hidden" id="timerStatus" aria-live="polite">Ready when you are</div>
+                                </div>
+
                                 <div class="journal-text-container">
                                     <textarea
                                         id="journalEntry"
                                         placeholder="Start writing. The timer begins with the first sentence."
                                         rows="15"
                                     ></textarea>
-                                </div>
-
-                                <div class="journal-timer-container">
-                                    <div class="timer-display" id="timerDisplay">10:00</div>
-                                    <div class="timer-controls">
-                                        <span class="meta-chip" id="journalWordCount">0 words</span>
-                                        <button type="button" id="journalFocusBtn" class="btn-ghost" aria-pressed="false">Focus</button>
-                                        <button type="button" id="startTimer" class="btn-primary">Start session</button>
-                                        <button type="button" id="pauseTimer" class="btn-secondary is-hidden">Pause</button>
-                                        <button type="button" id="continueTimer" class="btn-secondary is-hidden">Continue</button>
-                                    </div>
-                                    <div class="timer-status" id="timerStatus">Ready when you are</div>
                                 </div>
 
                                 <details class="journal-tags-details">
@@ -253,19 +239,16 @@
                                 </details>
 
                                 <div class="journal-actions">
-                                    <p class="wizard-kbd journal-kbd-hint">⌘Enter save · Esc pause / clear</p>
+                                    <p class="journal-kbd-hint">⌘Enter save · Esc pause / clear</p>
                                     <button type="button" id="clearEntry" class="btn-ghost">Clear</button>
                                     <button type="button" id="saveEntry" class="btn-primary" disabled>Save entry</button>
                                 </div>
                             </div>
                         </div>
 
-                        <aside class="panel journal-entries-section journal-inspector">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Recent</h2>
-                                    <p class="panel-sub">Last 30 days</p>
-                                </div>
+                        <aside class="journal-entries-section journal-inspector">
+                            <div class="journal-inspector-head">
+                                <h2>Recent</h2>
                             </div>
                             <div class="journal-history-toolbar">
                                 <input type="search" id="journalSearch" class="checklist-text-input" placeholder="Search entries" autocomplete="off">
