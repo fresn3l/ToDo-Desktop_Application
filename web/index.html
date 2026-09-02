@@ -719,10 +719,8 @@
                             </div>
                             <div class="brain-sidebar-actions">
                                 <button type="button" id="brainRefreshLibraryBtn" class="btn-ghost">Refresh library</button>
-                                <label class="btn-secondary brain-file-btn">
-                                    Add documents
-                                    <input type="file" id="brainFileInput" multiple hidden accept=".pdf,.md,.txt,.markdown,.text">
-                                </label>
+                                <button type="button" id="brainAddDocsBtn" class="btn-secondary">Add documents</button>
+                                <input type="file" id="brainFileInput" multiple hidden accept=".pdf,.md,.txt,.markdown,.text">
                             </div>
                             <ul id="brainLibraryList" class="brain-library-list"></ul>
                             <div class="brain-sidebar-foot">
@@ -763,44 +761,6 @@
                             </div>
                         </div>
                     </div>
-                    <dialog id="brainEditorDialog" class="brain-dialog">
-                        <form method="dialog" class="brain-dialog-body" id="brainEditorForm">
-                            <header class="brain-dialog-head">
-                                <h2>Brain instructions</h2>
-                                <button type="button" class="btn-ghost" id="brainEditorClose">Close</button>
-                            </header>
-                            <label class="checklist-field-label" for="brainPersona">Global persona</label>
-                            <textarea id="brainPersona" class="checklist-textarea" rows="3"></textarea>
-                            <label class="checklist-field-label" for="brainRagSystem">RAG system prompt</label>
-                            <textarea id="brainRagSystem" class="checklist-textarea" rows="5"></textarea>
-                            <div class="brain-dialog-actions">
-                                <button type="button" id="brainExportConfigBtn" class="btn-ghost">Export JSON</button>
-                                <button type="button" id="brainImportConfigBtn" class="btn-ghost">Import JSON</button>
-                                <input type="file" id="brainImportFile" accept="application/json,.json" hidden>
-                                <button type="button" id="brainResetConfigBtn" class="btn-ghost">Reset defaults</button>
-                                <button type="submit" class="btn-primary">Save</button>
-                            </div>
-                        </form>
-                    </dialog>
-                    <dialog id="brainSettingsDialog" class="brain-dialog">
-                        <form method="dialog" class="brain-dialog-body" id="brainSettingsForm">
-                            <header class="brain-dialog-head">
-                                <h2>Brain settings</h2>
-                                <button type="button" class="btn-ghost" id="brainSettingsClose">Close</button>
-                            </header>
-                            <label class="checklist-field-label" for="brainChatModelInput">Chat model</label>
-                            <input type="text" id="brainChatModelInput" class="checklist-text-input" autocomplete="off">
-                            <label class="checklist-field-label" for="brainEmbedModelInput">Embed model</label>
-                            <input type="text" id="brainEmbedModelInput" class="checklist-text-input" autocomplete="off">
-                            <label class="checklist-field-label" for="brainRetrievalK">Retrieval k</label>
-                            <input type="number" id="brainRetrievalK" class="checklist-text-input" min="1" max="50">
-                            <label class="checklist-field-label" for="brainHybridWeight">Hybrid vector weight</label>
-                            <input type="number" id="brainHybridWeight" class="checklist-text-input" min="0" max="1" step="0.05">
-                            <label class="checklist-field-label" for="brainAskCollection">Default collection</label>
-                            <input type="text" id="brainAskCollection" class="checklist-text-input" placeholder="journal">
-                            <button type="submit" class="btn-primary">Save settings</button>
-                        </form>
-                    </dialog>
                 </section>
 
                 <section id="settingsTab" class="tab-content" aria-label="Settings">
@@ -1147,6 +1107,50 @@
                 <button type="button" class="btn-primary" id="workScopeSeries">Entire series</button>
                 <button type="button" class="btn-ghost" id="workScopeCancel">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <div id="brainEditorDialog" class="app-dialog is-hidden" hidden>
+        <div class="app-dialog-card brain-dialog-card" role="dialog" aria-modal="true" aria-labelledby="brainEditorTitle">
+            <form id="brainEditorForm" class="brain-dialog-body">
+                <header class="brain-dialog-head">
+                    <h2 id="brainEditorTitle">Brain instructions</h2>
+                    <button type="button" class="btn-ghost" id="brainEditorClose">Close</button>
+                </header>
+                <label class="checklist-field-label" for="brainPersona">Global persona</label>
+                <textarea id="brainPersona" class="checklist-textarea" rows="3"></textarea>
+                <label class="checklist-field-label" for="brainRagSystem">RAG system prompt</label>
+                <textarea id="brainRagSystem" class="checklist-textarea" rows="5"></textarea>
+                <div class="brain-dialog-actions">
+                    <button type="button" id="brainExportConfigBtn" class="btn-ghost">Export JSON</button>
+                    <button type="button" id="brainImportConfigBtn" class="btn-ghost">Import JSON</button>
+                    <input type="file" id="brainImportFile" accept="application/json,.json" hidden>
+                    <button type="button" id="brainResetConfigBtn" class="btn-ghost">Reset defaults</button>
+                    <button type="submit" class="btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="brainSettingsDialog" class="app-dialog is-hidden" hidden>
+        <div class="app-dialog-card brain-dialog-card" role="dialog" aria-modal="true" aria-labelledby="brainSettingsTitle">
+            <form id="brainSettingsForm" class="brain-dialog-body">
+                <header class="brain-dialog-head">
+                    <h2 id="brainSettingsTitle">Brain settings</h2>
+                    <button type="button" class="btn-ghost" id="brainSettingsClose">Close</button>
+                </header>
+                <label class="checklist-field-label" for="brainChatModelInput">Chat model</label>
+                <input type="text" id="brainChatModelInput" class="checklist-text-input" autocomplete="off">
+                <label class="checklist-field-label" for="brainEmbedModelInput">Embed model</label>
+                <input type="text" id="brainEmbedModelInput" class="checklist-text-input" autocomplete="off">
+                <label class="checklist-field-label" for="brainRetrievalK">Retrieval k</label>
+                <input type="number" id="brainRetrievalK" class="checklist-text-input" min="1" max="50">
+                <label class="checklist-field-label" for="brainHybridWeight">Hybrid vector weight</label>
+                <input type="number" id="brainHybridWeight" class="checklist-text-input" min="0" max="1" step="0.05">
+                <label class="checklist-field-label" for="brainAskCollection">Default collection</label>
+                <input type="text" id="brainAskCollection" class="checklist-text-input" placeholder="journal">
+                <button type="submit" class="btn-primary">Save settings</button>
+            </form>
         </div>
     </div>
 
