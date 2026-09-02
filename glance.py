@@ -91,13 +91,22 @@ def load_focus(today: Optional[date] = None) -> Dict[str, Any]:
     stored_date = str(raw.get("date") or "")
     text = _clip(raw.get("text"), MAX_FOCUS)
     if stored_date != today.isoformat():
-        return {"date": today.isoformat(), "text": ""}
-    return {"date": today.isoformat(), "text": text}
+        return {"date": today.isoformat(), "text": "", "kept": False}
+    return {"date": today.isoformat(), "text": text, "kept": bool(raw.get("kept")) and bool(text)}
 
 
 def save_focus(text: str, today: Optional[date] = None) -> Dict[str, Any]:
     today = today or _today()
-    packed = {"date": today.isoformat(), "text": _clip(text, MAX_FOCUS)}
+    packed = {"date": today.isoformat(), "text": _clip(text, MAX_FOCUS), "kept": False}
+    _write(_path("focus.json"), packed)
+    return packed
+
+
+def keep_focus(kept: bool = True, today: Optional[date] = None) -> Dict[str, Any]:
+    current = load_focus(today)
+    if not current["text"]:
+        raise ValueError("Set today’s focus first")
+    packed = {"date": current["date"], "text": current["text"], "kept": bool(kept)}
     _write(_path("focus.json"), packed)
     return packed
 
@@ -273,6 +282,11 @@ def get_daily_focus() -> Dict[str, Any]:
 @eel.expose
 def set_daily_focus(text: str) -> Dict[str, Any]:
     return save_focus(text)
+
+
+@eel.expose
+def keep_daily_focus(kept: bool = True) -> Dict[str, Any]:
+    return keep_focus(bool(kept))
 
 
 @eel.expose

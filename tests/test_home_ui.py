@@ -130,7 +130,9 @@ class HomeUiTests(unittest.TestCase):
             self.assertIn(f'id="{needle}"', INDEX)
         self.assertIn("home-work-layer", STYLE)
         self.assertIn("home-work-backdrop", STYLE)
-        self.assertIn("translateX(108%)", STYLE)
+        self.assertIn("applyPanelBox", HOME_RUNTIME)
+        self.assertIn("is-source", HOME_RUNTIME)
+        self.assertIn("tileBox", HOME_RUNTIME)
         self.assertIn("openHomeWork", HOME_RUNTIME)
         self.assertIn("closeHomeWork", HOME_RUNTIME)
         self.assertIn("homeWorkClose", HOME_RUNTIME)
@@ -160,6 +162,22 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".glance-tile", STYLE)
         self.assertIn(".glance-kpi", STYLE)
         self.assertIn(".home-work-body > .widget-source", STYLE)
+        self.assertIn("data-glance-act", GLANCE_TILES)
+        self.assertIn("runGlanceAction", GLANCE_TILES)
+        self.assertIn("keep_daily_focus", GLANCE_TILES)
+        self.assertIn("todo-finish", GLANCE_TILES)
+        self.assertIn("habit-tick", GLANCE_TILES)
+        self.assertIn("counter-tap", GLANCE_TILES)
+        self.assertIn("focus-keep", GLANCE_TILES)
+        self.assertIn("isComplete", GLANCE_TILES)
+        self.assertIn("weatherSky", GLANCE_TILES)
+        self.assertIn("dayPart", GLANCE_TILES)
+        self.assertIn("syncHomeDayPart", HOME_RUNTIME)
+        self.assertIn("data-daypart", STYLE)
+        self.assertIn("data-sky", STYLE)
+        self.assertIn(".glance-action", STYLE)
+        self.assertIn(".home-widget.is-complete", STYLE)
+        self.assertIn(".home-widget.is-source", STYLE)
 
     def test_live_home_opens_work_edit_home_moves(self) -> None:
         self.assertIn("home-live-copy", INDEX)
@@ -171,6 +189,8 @@ class HomeUiTests(unittest.TestCase):
         begin = HOME_RUNTIME.split("const beginDrag")[1].split("const moveDrag")[0]
         self.assertIn("if (!editing) return", begin)
         self.assertIn("openHomeWork", HOME_RUNTIME.split("addEventListener('click'")[-1].split("const beginDrag")[0])
+        self.assertIn("runGlanceAction", HOME_RUNTIME)
+        self.assertIn("data-glance-act", HOME_RUNTIME)
 
     def test_home_widgets_resize_by_dragging_handles(self) -> None:
         self.assertIn("export function pickResize", HOME_JS)

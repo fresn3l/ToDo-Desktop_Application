@@ -4,7 +4,7 @@
 
 import * as utils from './utils.js';
 import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize } from './home_layout.js';
-import { mountGlance, refreshGlances } from './glance_tiles.js';
+import { mountGlance, refreshGlances, runGlanceAction, syncHomeDayPart } from './glance_tiles.js';
 import { getAppearance, persistAppearance, onAppearanceChange, resolveColors, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { onTodayTabShown, refreshToday } from './today.js';
 import { onTodoTabShown } from './todo.js';
@@ -93,9 +93,71 @@ function workLayer() {
     return document.getElementById('homeWorkLayer');
 }
 
+function workPanel() {
+    return document.getElementById('homeWorkPanel');
+}
+
 function isWorkOpen() {
     const layer = workLayer();
     return !!(layer && !layer.hidden && layer.classList.contains('is-open'));
+}
+
+function reduceMotion() {
+    return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+}
+
+function clearSourceTile() {
+    document.querySelectorAll('.home-widget.is-source').forEach((node) => node.classList.remove('is-source'));
+}
+
+function markSourceTile(tile) {
+    clearSourceTile();
+    tile?.classList.add('is-source');
+}
+
+function tileBox(tile, layer) {
+    if (!tile || !layer || !document.contains(tile)) return null;
+    const host = layer.getBoundingClientRect();
+    const rect = tile.getBoundingClientRect();
+    if (rect.width < 8 || rect.height < 8) return null;
+    return {
+        top: rect.top - host.top,
+        left: rect.left - host.left,
+        width: rect.width,
+        height: rect.height,
+        radius: getComputedStyle(tile).borderRadius || '14px',
+    };
+}
+
+function settledBox(layer) {
+    const host = layer.getBoundingClientRect();
+    const width = Math.min(760, Math.max(280, host.width - 36));
+    return {
+        top: 10,
+        left: Math.max(10, host.width - 10 - width),
+        width,
+        height: Math.max(160, host.height - 20),
+        radius: '18px',
+    };
+}
+
+function applyPanelBox(panel, box) {
+    if (!panel || !box) return;
+    panel.style.top = `${box.top}px`;
+    panel.style.left = `${box.left}px`;
+    panel.style.width = `${box.width}px`;
+    panel.style.height = `${box.height}px`;
+    panel.style.borderRadius = box.radius;
+}
+
+function clearPanelBox(panel) {
+    if (!panel) return;
+    panel.style.top = '';
+    panel.style.left = '';
+    panel.style.width = '';
+    panel.style.height = '';
+    panel.style.borderRadius = '';
+    panel.style.transition = '';
 }
 
 function mountWorkSource(kind) {
@@ -118,8 +180,10 @@ function mountWorkSource(kind) {
 
 export function closeHomeWork(immediate = false) {
     const layer = workLayer();
+    const panel = workPanel();
     if (!layer) return;
     const opener = workOpener;
+    const from = tileBox(opener, layer);
     workKind = null;
     workOpener = null;
     document.documentElement.classList.remove('home-work-open');
@@ -130,6 +194,8 @@ export function closeHomeWork(immediate = false) {
         if (layer.classList.contains('is-open')) return;
         layer.classList.add('is-hidden');
         layer.hidden = true;
+        clearPanelBox(panel);
+        clearSourceTile();
         returnSources();
         if (opener && document.contains(opener)) {
             try {
@@ -143,14 +209,16 @@ export function closeHomeWork(immediate = false) {
         window.clearTimeout(workHideTimer);
         workHideTimer = 0;
     }
-    if (immediate) {
+    if (immediate || reduceMotion() || !from || !panel) {
         finish();
         return;
     }
+    panel.style.transition = '';
+    applyPanelBox(panel, from);
     workHideTimer = window.setTimeout(() => {
         workHideTimer = 0;
         finish();
-    }, 340);
+    }, 420);
 }
 
 export async function openHomeWork(kind, opener) {
@@ -160,7 +228,7 @@ export async function openHomeWork(kind, opener) {
     workKind = kind;
     workOpener = opener || document.querySelector(`#homeGrid .home-widget[data-kind="${kind}"]`);
     const layer = workLayer();
-    const panel = document.getElementById('homeWorkPanel');
+    const panel = workPanel();
     if (!layer || !panel) return;
     mountWorkSource(kind);
     layer.hidden = false;
@@ -169,8 +237,23 @@ export async function openHomeWork(kind, opener) {
     document.documentElement.classList.add('home-work-open');
     document.getElementById('homeShell')?.classList.add('is-working');
     document.getElementById('homeShell')?.setAttribute('inert', '');
+    markSourceTile(workOpener);
+    const from = tileBox(workOpener, layer);
+    const to = settledBox(layer);
+    if (from && !reduceMotion()) {
+        panel.style.transition = 'none';
+        applyPanelBox(panel, from);
+        layer.offsetHeight;
+        panel.style.transition = '';
+        requestAnimationFrame(() => {
+            applyPanelBox(panel, to);
+            layer.classList.add('is-open');
+        });
+    } else {
+        applyPanelBox(panel, to);
+        requestAnimationFrame(() => layer.classList.add('is-open'));
+    }
     requestAnimationFrame(() => {
-        layer.classList.add('is-open');
         const closeBtn = document.getElementById('homeWorkClose');
         try {
             closeBtn?.focus({ preventScroll: true });
@@ -348,6 +431,7 @@ async function renderHome() {
     paintPages();
     paintGrid();
     paintCatalog();
+    syncHomeDayPart();
     const page = activePage();
     await refreshKinds((page?.widgets || []).map((item) => item.kind));
 }
@@ -452,6 +536,13 @@ function bindHome() {
             if (btn.getAttribute('data-act') === 'remove') {
                 void run(() => eel.remove_home_widget(page.id, id)());
             }
+            return;
+        }
+        const act = e.target.closest('[data-glance-act]');
+        if (act) {
+            e.preventDefault();
+            e.stopPropagation();
+            void runGlanceAction(act);
             return;
         }
         const card = e.target.closest('.home-widget');
@@ -636,6 +727,7 @@ function bindHome() {
 export function setupHome() {
     bindHome();
     paintBorderControls();
+    syncHomeDayPart();
     onAppearanceChange(() => {
         paintBorderControls();
         if (document.getElementById('homeTab')?.classList.contains('active')) {

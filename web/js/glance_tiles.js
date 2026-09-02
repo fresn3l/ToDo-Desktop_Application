@@ -47,7 +47,76 @@ function clip(text, n) {
 function sizeOf(card) {
     const w = Math.max(1, Number(card?.dataset.w) || 1);
     const h = Math.max(1, Number(card?.dataset.h) || 1);
-    return { w, h, cells: w * h, wide: w >= 2, tall: h >= 2, board: w >= 4 || h >= 3 };
+    return { w, h, cells: w * h, wide: w >= 2, tall: h >= 2, board: w >= 4 || h >= 3, action: w >= 2 && h >= 2 };
+}
+
+export function dayPart(hour) {
+    const h = Number.isFinite(Number(hour)) ? Number(hour) : new Date().getHours();
+    if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon';
+    return 'evening';
+}
+
+function weatherSky(data) {
+    const t = String(data?.current?.label || data?.label || '').toLowerCase();
+    if (t.includes('thunder')) return 'storm';
+    if (t.includes('snow')) return 'snow';
+    if (t.includes('rain') || t.includes('drizzle') || t.includes('shower')) return 'rain';
+    if (t.includes('fog') || t.includes('haze')) return 'fog';
+    if (t.includes('cloud') || t.includes('overcast')) return 'cloud';
+    if (t.includes('clear') || t.includes('sun')) return 'clear';
+    return data?.ok ? 'clear' : '';
+}
+
+function isComplete(kind, data) {
+    if (kind === 'todo') {
+        const items = data?.today || [];
+        const open = data?.counts?.today_open ?? items.filter((row) => row.status !== 'done').length;
+        const done = data?.counts?.today_done ?? items.filter((row) => row.status === 'done').length;
+        return open === 0 && done > 0;
+    }
+    if (kind === 'habits') {
+        const total = data?.total || 0;
+        return total > 0 && data.done === total;
+    }
+    if (kind === 'workout') {
+        return !!(data?.workout || data || {}).done;
+    }
+    if (kind === 'word') {
+        return Boolean((data?.used_tonight || '').trim());
+    }
+    if (kind === 'focus') {
+        return Boolean(data?.kept && (data?.text || '').trim());
+    }
+    if (kind === 'counters') {
+        const rows = data?.counters || [];
+        return rows.length > 0 && rows.every((row) => !row.target || row.met);
+    }
+    return false;
+}
+
+function applyAtmosphere(kind, data, card) {
+    if (!card) return;
+    card.classList.toggle('is-complete', isComplete(kind, data));
+    const part = dayPart(data?.hour);
+    if (kind === 'today_calendar' || kind === 'day_brief' || kind === 'weather') {
+        card.setAttribute('data-daypart', part);
+    } else {
+        card.removeAttribute('data-daypart');
+    }
+    if (kind === 'weather') {
+        const sky = weatherSky(data);
+        if (sky) card.setAttribute('data-sky', sky);
+        else card.removeAttribute('data-sky');
+    } else {
+        card.removeAttribute('data-sky');
+    }
+}
+
+export function syncHomeDayPart(hour) {
+    const part = dayPart(hour);
+    document.documentElement.setAttribute('data-daypart', part);
+    document.getElementById('homeShell')?.setAttribute('data-daypart', part);
 }
 
 function tile(kind, size, extraClass, inner) {
@@ -68,6 +137,14 @@ function line(text, extra = '') {
 
 function hint() {
     return '<span class="glance-open-hint">Open</span>';
+}
+
+function doneMark() {
+    return '<span class="glance-complete" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></span>';
+}
+
+function actionBtn(act, label, attrs = '') {
+    return `<button type="button" class="glance-action" data-glance-act="${utils.escapeHtml(act)}"${attrs}>${utils.escapeHtml(label)}</button>`;
 }
 
 function emptyTile(kind, label, message, size) {
@@ -162,16 +239,21 @@ function wordHtml(data, size) {
     }
     const head = data.display || data.word;
     const pos = [data.language_label || (data.language === 'de' ? 'German' : 'English'), data.pos].filter(Boolean).join(' · ');
+    const used = Boolean((data.used_tonight || '').trim());
+    const mark = used ? doneMark() : '';
+    const usedLine = used ? line('Used tonight', ' glance-line--muted') : '';
     if (!size.wide && !size.tall) {
-        return tile('word', size, '', `${kicker(label)}${kpi(clip(head, 12), ' glance-kpi--word')}`);
+        return tile('word', size, used ? 'is-complete' : '', `${mark}${kicker(label)}${kpi(clip(head, 12), ' glance-kpi--word')}`);
     }
     if (!size.tall) {
-        return tile('word', size, '', `${kicker(pos || label)}${kpi(clip(head, 22), ' glance-kpi--word')}${hint()}`);
+        return tile('word', size, used ? 'is-complete' : '', `${mark}${kicker(pos || label)}${kpi(clip(head, 22), ' glance-kpi--word')}${usedLine}${hint()}`);
     }
-    return tile('word', size, '', `
+    return tile('word', size, used ? 'is-complete' : '', `
+        ${mark}
         ${kicker(pos || label)}
         ${kpi(head, ' glance-kpi--word')}
         ${line(clip(data.meaning || '', size.board ? 140 : 90))}
+        ${usedLine}
         ${hint()}`);
 }
 
@@ -188,6 +270,7 @@ function todayHtml(data, size) {
     const nextLine = next
         ? `${formatAgendaTime(next)} ${next.title || ''}`.trim()
         : 'A quiet stretch';
+    const part = dayPart(data?.hour);
     if (!size.wide && !size.tall) {
         return tile('today_calendar', size, '', `${kicker(shortWeek)}${kpi(dayNum)}${line(month, ' glance-line--tiny')}`);
     }
@@ -210,8 +293,9 @@ function todayHtml(data, size) {
         const hh = formatAgendaTime(item);
         return `<li><span>${utils.escapeHtml(hh)}</span><strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong></li>`;
     });
+    const partLine = part === 'morning' ? 'Morning' : part === 'afternoon' ? 'Afternoon' : 'Evening';
     return tile('today_calendar', size, '', `
-        ${kicker(label)}
+        ${kicker(`${label} · ${partLine}`)}
         ${kpi(`${shortWeek} ${dayNum}`)}
         ${line(pulse || (agenda.length ? `${agenda.length} on the clock` : 'Nothing timed yet'))}
         ${rows || `<p class="glance-empty">${utils.escapeHtml(nextLine)}</p>`}
@@ -223,14 +307,17 @@ function todoHtml(data, size) {
     const items = data?.today || [];
     const open = data?.counts?.today_open ?? items.filter((row) => row.status !== 'done').length;
     const done = data?.counts?.today_done ?? items.filter((row) => row.status === 'done').length;
+    const complete = open === 0 && done > 0;
+    const mark = complete ? doneMark() : '';
     if (!size.tall) {
-        return tile('todo', size, '', `
+        return tile('todo', size, complete ? 'is-complete' : '', `
+            ${mark}
             ${kicker(label)}
             <div class="glance-row">
-                ${kpi(open)}
+                ${kpi(complete ? '✓' : open)}
                 <div class="glance-copy">
-                    ${line(open === 1 ? 'open today' : 'open today')}
-                    ${done ? line(`${done} finished`, ' glance-line--muted') : ''}
+                    ${line(complete ? 'All finished' : 'open today')}
+                    ${done && !complete ? line(`${done} finished`, ' glance-line--muted') : ''}
                 </div>
             </div>
             ${hint()}`);
@@ -239,16 +326,95 @@ function todoHtml(data, size) {
     const rows = listRows(visible, visible.length, (item) => (
         `<li class="${item.status === 'done' ? 'is-done' : ''}">${taskDot(item.status)}<strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
     ));
-    const sub = open
-        ? `${open} open${done ? ` · ${done} done` : ''}`
-        : done
-            ? 'All finished'
+    const sub = complete
+        ? 'All finished'
+        : open
+            ? `${open} open${done ? ` · ${done} done` : ''}`
             : 'Nothing dated yet';
-    return tile('todo', size, '', `
+    const active = items.find((row) => row.status === 'active');
+    const nextOpen = items.find((row) => row.status === 'open');
+    let action = '';
+    if (size.action && active) {
+        action = actionBtn('todo-finish', 'Finish', ` data-id="${utils.escapeHtml(active.id)}"`);
+    } else if (size.action && nextOpen) {
+        action = actionBtn('todo-start', 'Start', ` data-id="${utils.escapeHtml(nextOpen.id)}"`);
+    }
+    return tile('todo', size, complete ? 'is-complete' : '', `
+        ${mark}
         ${kicker(label)}
-        ${kpi(open)}
+        ${kpi(complete ? 'Done' : open)}
         ${line(sub)}
         ${rows || '<p class="glance-empty">Tap to add today’s work.</p>'}
+        ${action}
+        ${hint()}`);
+}
+
+function habitsHtml(data, size) {
+    const meta = POSTERS.habits;
+    const total = data?.total || 0;
+    const done = data?.done || 0;
+    const complete = total > 0 && done === total;
+    const mark = complete ? doneMark() : '';
+    if (!size.action) {
+        return posterHtml('habits', data, size);
+    }
+    const next = (data?.habits || []).find((row) => !row.done);
+    const action = next
+        ? actionBtn('habit-tick', `Tick ${clip(next.title, 18)}`, ` data-id="${utils.escapeHtml(next.id)}"`)
+        : '';
+    const rows = listRows(data?.habits || [], size.board ? 6 : 4, (item) => (
+        `<li class="${item.done ? 'is-done' : ''}">${taskDot(item.done ? 'done' : 'open')}<strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong></li>`
+    ));
+    return tile('habits', size, complete ? 'is-complete' : '', `
+        ${mark}
+        ${kicker(meta.kicker)}
+        ${kpi(total ? `${done}/${total}` : '0')}
+        ${line(complete ? 'All ticked' : total ? 'ticked today' : meta.line)}
+        ${rows || '<p class="glance-empty">Add a small daily habit.</p>'}
+        ${action}
+        ${hint()}`);
+}
+
+function countersHtml(data, size) {
+    const meta = POSTERS.counters;
+    const rows = data?.counters || [];
+    const first = rows[0];
+    const complete = rows.length > 0 && rows.every((row) => !row.target || row.met);
+    if (!size.action) {
+        return posterHtml('counters', data, size);
+    }
+    const action = first
+        ? actionBtn('counter-tap', `+1 ${clip(first.name, 16)}`, ` data-id="${utils.escapeHtml(first.id)}"`)
+        : '';
+    const list = listRows(rows, size.board ? 5 : 3, (item) => (
+        `<li class="${item.met ? 'is-done' : ''}"><strong>${utils.escapeHtml(clip(item.name || '', 22))}</strong><span>${item.today || 0}${item.target ? `/${item.target}` : ''}</span></li>`
+    ));
+    return tile('counters', size, complete ? 'is-complete' : '', `
+        ${complete ? doneMark() : ''}
+        ${kicker(meta.kicker)}
+        ${kpi(first ? String(first.today || 0) : '·')}
+        ${line(first ? clip(first.name, 28) : meta.line)}
+        ${list}
+        ${action}
+        ${hint()}`);
+}
+
+function focusHtml(data, size) {
+    const meta = POSTERS.focus;
+    const text = (data?.text || '').trim();
+    const kept = Boolean(data?.kept && text);
+    if (!size.action) {
+        return posterHtml('focus', data, size);
+    }
+    const action = text && !kept
+        ? actionBtn('focus-keep', 'Kept')
+        : '';
+    return tile('focus', size, kept ? 'is-complete' : '', `
+        ${kept ? doneMark() : ''}
+        ${kicker(meta.kicker)}
+        ${kpi(text ? clip(text, 42) : '·', ' glance-kpi--word')}
+        ${line(kept ? 'Held for today' : text ? 'Today’s focus' : meta.line)}
+        ${action}
         ${hint()}`);
 }
 
@@ -256,17 +422,22 @@ function posterHtml(kind, data, size) {
     const spec = WIDGET_CATALOG[kind] || { label: kind };
     const meta = POSTERS[kind] || { kicker: spec.label, line: 'Open the full view' };
     const packed = posterCopy(kind, data, meta);
+    const complete = isComplete(kind, data);
+    const mark = complete ? doneMark() : '';
+    const cls = `glance-tile--poster${complete ? ' is-complete' : ''}`;
     if (!size.wide && !size.tall) {
-        return tile(kind, size, 'glance-tile--poster', `${kicker(meta.kicker)}${kpi(packed.kpi || '·')}${packed.tiny ? line(packed.tiny, ' glance-line--tiny') : ''}`);
+        return tile(kind, size, cls, `${mark}${kicker(meta.kicker)}${kpi(packed.kpi || '·')}${packed.tiny ? line(packed.tiny, ' glance-line--tiny') : ''}`);
     }
     if (!size.tall) {
-        return tile(kind, size, 'glance-tile--poster', `
+        return tile(kind, size, cls, `
+            ${mark}
             ${kicker(meta.kicker)}
             ${packed.kpi ? kpi(packed.kpi) : ''}
             ${line(packed.line)}
             ${hint()}`);
     }
-    return tile(kind, size, 'glance-tile--poster', `
+    return tile(kind, size, cls, `
+        ${mark}
         ${kicker(meta.kicker)}
         ${packed.kpi ? kpi(packed.kpi) : `<p class="glance-mark">${utils.escapeHtml(spec.label.slice(0, 1))}</p>`}
         ${line(packed.line)}
@@ -277,6 +448,7 @@ function posterHtml(kind, data, size) {
 function posterCopy(kind, data, meta) {
     if (kind === 'focus') {
         const text = (data?.text || '').trim();
+        if (data?.kept && text) return { kpi: '✓', line: clip(text, 36), tiny: 'Kept' };
         return text
             ? { kpi: clip(text, 28), line: 'Today’s focus', tiny: clip(text, 10) }
             : { kpi: '·', line: meta.line, tiny: 'Focus' };
@@ -313,7 +485,7 @@ function posterCopy(kind, data, meta) {
         const workout = data?.workout || data || {};
         const session = workout.session_count || 0;
         if (workout.done) {
-            return { kpi: String(session || '✓'), line: session === 1 ? 'Session logged' : `${session} sessions`, tiny: 'Done' };
+            return { kpi: '✓', line: session === 1 ? 'Session logged' : `${session} sessions`, tiny: 'Done' };
         }
         const expected = (data?.expected?.labels || []).join(' · ');
         return { kpi: '·', line: expected || meta.line, tiny: 'Gym' };
@@ -372,6 +544,9 @@ function renderKind(kind, data, size) {
     if (kind === 'word') return wordHtml(data, size);
     if (kind === 'today_calendar') return todayHtml(data, size);
     if (kind === 'todo') return todoHtml(data, size);
+    if (kind === 'habits') return habitsHtml(data, size);
+    if (kind === 'counters') return countersHtml(data, size);
+    if (kind === 'focus') return focusHtml(data, size);
     return posterHtml(kind, data, size);
 }
 
@@ -387,6 +562,7 @@ export async function paintGlance(kind, body, card) {
     const size = sizeOf(card);
     const data = await loadGlance(kind);
     if (!body.isConnected) return;
+    applyAtmosphere(kind, data, card);
     body.innerHTML = renderKind(kind, data, size);
 }
 
@@ -399,4 +575,29 @@ export async function refreshGlances(kinds) {
         const body = card.querySelector('.home-widget-body');
         if (body) await paintGlance(kind, body, card);
     }));
+}
+
+export async function runGlanceAction(btn) {
+    const act = btn?.getAttribute('data-glance-act');
+    const id = btn?.getAttribute('data-id') || '';
+    if (!act) return;
+    try {
+        if (act === 'todo-finish' && hasEel('finish_work_item')) {
+            await eel.finish_work_item(id)();
+        } else if (act === 'todo-start' && hasEel('start_work_item')) {
+            await eel.start_work_item(id)();
+        } else if (act === 'habit-tick' && hasEel('toggle_home_habit')) {
+            await eel.toggle_home_habit(id)();
+        } else if (act === 'counter-tap' && hasEel('tap_counter')) {
+            await eel.tap_counter(id, 1)();
+        } else if (act === 'focus-keep' && hasEel('keep_daily_focus')) {
+            await eel.keep_daily_focus(true)();
+        } else {
+            return;
+        }
+        utils.notifyDataChanged();
+    } catch (err) {
+        console.error(err);
+        utils.showErrorFeedback(err?.message || 'Could not update that.');
+    }
 }

@@ -2879,6 +2879,7 @@ html.native-shell .home-title-strip {
 }
 
 .glance-tile {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -3077,6 +3078,134 @@ html.native-shell .home-title-strip {
     color: var(--text-muted);
 }
 
+.home-widget.is-source {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.glance-complete {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.glance-complete svg {
+    width: 0.85rem;
+    height: 0.85rem;
+}
+
+.home-widget.is-complete {
+    background:
+        radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 58%),
+        color-mix(in srgb, var(--bg-elevated) 94%, var(--bg-main));
+    box-shadow:
+        inset 0 1px 0 hsl(0 0% 100% / 0.05),
+        0 1px 2px hsl(0 0% 0% / 0.08);
+}
+
+.home-widget.is-complete .glance-kpi,
+.home-widget.is-complete .glance-kicker {
+    color: color-mix(in srgb, var(--text-title) 78%, var(--text-muted));
+}
+
+.glance-action {
+    align-self: flex-start;
+    margin-top: 8px;
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border-subtle));
+    background: color-mix(in srgb, var(--primary) 12%, var(--bg-elevated));
+    color: var(--text-primary);
+    border-radius: 999px;
+    padding: 5px 11px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    z-index: 3;
+    pointer-events: auto;
+}
+
+.glance-action:hover {
+    background: color-mix(in srgb, var(--primary) 20%, var(--bg-elevated));
+}
+
+.home-widget[data-daypart="morning"] {
+    background:
+        radial-gradient(130% 90% at 0% 0%, color-mix(in srgb, #e8a15a 22%, transparent), transparent 58%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+}
+
+.home-widget[data-daypart="afternoon"] {
+    background:
+        radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, var(--primary) 20%, transparent), transparent 58%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+}
+
+.home-widget[data-daypart="evening"] {
+    background:
+        radial-gradient(130% 100% at 0% 100%, color-mix(in srgb, #6b5b9a 26%, transparent), transparent 60%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+}
+
+.home-widget[data-kind="weather"][data-sky="clear"] {
+    background:
+        radial-gradient(120% 90% at 100% -10%, color-mix(in srgb, #f2c14e 28%, transparent), transparent 52%),
+        radial-gradient(90% 80% at 0% 100%, color-mix(in srgb, #4f8fcf 22%, transparent), transparent 55%),
+        color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-main));
+}
+
+.home-widget[data-kind="weather"][data-sky="cloud"] {
+    background:
+        radial-gradient(120% 90% at 80% 0%, color-mix(in srgb, #8aa0b8 28%, transparent), transparent 55%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+}
+
+.home-widget[data-kind="weather"][data-sky="rain"] {
+    background:
+        radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, #3d6d99 34%, transparent), transparent 58%),
+        color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-main));
+}
+
+.home-widget[data-kind="weather"][data-sky="storm"] {
+    background:
+        radial-gradient(110% 90% at 100% 0%, color-mix(in srgb, #5b4d8a 36%, transparent), transparent 55%),
+        color-mix(in srgb, var(--bg-elevated) 86%, var(--bg-main));
+}
+
+.home-widget[data-kind="weather"][data-sky="snow"] {
+    background:
+        radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, #d7e7f5 38%, transparent), transparent 55%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+}
+
+.home-widget[data-kind="weather"][data-sky="fog"] {
+    background:
+        radial-gradient(120% 90% at 50% 40%, color-mix(in srgb, #9aa6b2 30%, transparent), transparent 58%),
+        color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-main));
+}
+
+.home-shell[data-daypart="morning"] {
+    background:
+        radial-gradient(80% 40% at 50% -10%, color-mix(in srgb, #e8a15a 10%, transparent), transparent 70%);
+}
+
+.home-shell[data-daypart="afternoon"] {
+    background:
+        radial-gradient(80% 40% at 50% -10%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%);
+}
+
+.home-shell[data-daypart="evening"] {
+    background:
+        radial-gradient(90% 50% at 50% -8%, color-mix(in srgb, #6b5b9a 12%, transparent), transparent 72%);
+}
+
 html.home-work-open .app-content {
     overflow: hidden;
 }
@@ -3116,9 +3245,11 @@ html.home-work-open .app-content {
 .home-work-panel {
     position: absolute;
     top: 10px;
-    right: 10px;
-    bottom: 10px;
+    right: auto;
+    bottom: auto;
+    left: auto;
     width: min(760px, calc(100% - 36px));
+    height: calc(100% - 20px);
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -3128,13 +3259,33 @@ html.home-work-open .app-content {
     box-shadow:
         0 24px 64px hsl(0 0% 0% / 0.32),
         inset 0 1px 0 hsl(0 0% 100% / 0.06);
-    transform: translateX(108%);
-    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform: none;
+    transition:
+        top 400ms cubic-bezier(0.22, 1, 0.36, 1),
+        left 400ms cubic-bezier(0.22, 1, 0.36, 1),
+        width 400ms cubic-bezier(0.22, 1, 0.36, 1),
+        height 400ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-radius 400ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 400ms cubic-bezier(0.22, 1, 0.36, 1);
     overflow: hidden;
 }
 
 .home-work-layer.is-open .home-work-panel {
-    transform: translateX(0);
+    transform: none;
+    box-shadow:
+        0 28px 72px hsl(0 0% 0% / 0.38),
+        inset 0 1px 0 hsl(0 0% 100% / 0.06);
+}
+
+.home-work-head,
+.home-work-body {
+    opacity: 0;
+    transition: opacity 180ms ease 90ms;
+}
+
+.home-work-layer.is-open .home-work-head,
+.home-work-layer.is-open .home-work-body {
+    opacity: 1;
 }
 
 .home-work-head {
@@ -3217,8 +3368,8 @@ html.home-work-open .app-content {
 
     .home-work-panel {
         top: 8px;
-        right: 8px;
-        bottom: 8px;
+        right: auto;
+        bottom: auto;
         left: 8px;
         width: auto;
     }
@@ -3228,8 +3379,15 @@ html.home-work-open .app-content {
     .home-widget,
     .glance-open-hint,
     .home-work-backdrop,
-    .home-work-panel {
+    .home-work-panel,
+    .home-work-head,
+    .home-work-body {
         transition: none;
+    }
+
+    .home-work-head,
+    .home-work-body {
+        opacity: 1;
     }
 }
 

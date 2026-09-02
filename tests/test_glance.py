@@ -31,10 +31,18 @@ class GlanceTests(unittest.TestCase):
         packed = glance.get_daily_focus()
         self.assertEqual(packed["text"], "Finish the lab report")
         self.assertEqual(packed["date"], "2026-09-01")
+        self.assertFalse(packed["kept"])
+        kept = glance.keep_daily_focus(True)
+        self.assertTrue(kept["kept"])
+        glance.set_daily_focus("Finish the lab report")
+        self.assertFalse(glance.get_daily_focus()["kept"])
         with mock.patch.object(glance, "_today", return_value=date(2026, 9, 2)):
             next_day = glance.get_daily_focus()
-        self.assertEqual(next_day["text"], "")
-        self.assertEqual(next_day["date"], "2026-09-02")
+            self.assertEqual(next_day["text"], "")
+            self.assertEqual(next_day["date"], "2026-09-02")
+            self.assertFalse(next_day["kept"])
+            with self.assertRaises(ValueError):
+                glance.keep_daily_focus(True)
 
     def test_countdown_phrases_and_order(self) -> None:
         glance.add_home_countdown("Trip", "2026-09-15")
