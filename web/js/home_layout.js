@@ -9,7 +9,6 @@ export const WIDGET_CATALOG = {
     todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'todoTab' },
     today_calendar: { label: 'Today', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [4, 2]], default: [2, 2], source: 'todayCalendarSource' },
     workout: { label: 'Workout', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'workoutTab' },
-    journal: { label: 'Journal', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'journalTab' },
     goals: { label: 'Goals', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'goalsTab' },
     allwork: { label: 'All Work', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3]], default: [2, 2], source: 'allWorkTab' },
     analytics: { label: 'Analytics', sizes: [[2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'analyticsTab' },
@@ -23,7 +22,6 @@ export const WIDGET_CATALOG = {
     counters: { label: 'Counters', sizes: [[1, 1], [2, 1], [2, 2], [4, 2], [4, 3]], default: [2, 1], source: 'countersSource' },
     reading: { label: 'Reading', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [4, 2]], default: [2, 1], source: 'readingSource' },
     word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [4, 2]], default: [1, 1], source: 'wordTab' },
-    checklist: { label: 'Check-in', sizes: [[2, 1], [2, 2], [2, 3], [4, 2], [4, 3], [4, 4]], default: [2, 2], source: 'checklistTab' },
 };
 
 export function catalogList() {
@@ -109,4 +107,17 @@ export function pageById(layout, pageId) {
 
 export function kindsOnPage(page) {
     return new Set((page?.widgets || []).map((item) => item.kind));
+}
+
+export function isFirstHomePage(layout, page) {
+    return !!(layout?.pages?.[0] && page && layout.pages[0].id === page.id);
+}
+
+export function widgetRegion(widget, firstPage) {
+    if (!firstPage) return 'below';
+    return widget?.region === 'above' ? 'above' : 'below';
+}
+
+export function widgetsInRegion(page, region, firstPage) {
+    return (page?.widgets || []).filter((item) => widgetRegion(item, firstPage) === region);
 }

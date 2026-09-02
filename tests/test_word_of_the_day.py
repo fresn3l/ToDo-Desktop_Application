@@ -108,10 +108,21 @@ class WordOfTheDayTests(unittest.TestCase):
         self.assertEqual(rows[0]["label"], "Today’s word")
         self.assertEqual(rows[0]["value"], "I felt Fernweh on the train.")
 
-    def test_home_catalog_includes_word_and_checklist(self) -> None:
+    def test_home_catalog_includes_word_not_checklist(self) -> None:
         kinds = {row["kind"] for row in home_layout.catalog()}
         self.assertIn("word", kinds)
-        self.assertIn("checklist", kinds)
+        self.assertNotIn("checklist", kinds)
+        self.assertNotIn("journal", kinds)
+
+    def test_home_checkin_status_follows_todays_submissions(self) -> None:
+        info = daily_checklist.get_home_checkin()
+        self.assertIn(info["slot"], ("morning", "evening"))
+        self.assertFalse(info["morning_done"])
+        self.assertFalse(info["evening_done"])
+        daily_checklist.submit_daily_checklist_response("morning", 1, {"intentions": "go"})
+        info = daily_checklist.get_home_checkin()
+        self.assertTrue(info["morning_done"])
+        self.assertFalse(info["evening_done"])
 
     def test_submit_evening_plan_still_creates_tomorrow(self) -> None:
         parked = work.create_work_item("Call dentist")

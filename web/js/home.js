@@ -3,7 +3,7 @@
  */
 
 import * as utils from './utils.js';
-import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize } from './home_layout.js';
+import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize, isFirstHomePage, widgetRegion, widgetsInRegion } from './home_layout.js';
 import { mountGlance, refreshGlances, runGlanceAction, syncHomeDayPart } from './glance_tiles.js';
 import { getAppearance, persistAppearance, onAppearanceChange, resolveColors, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { onTodayTabShown, refreshToday } from './today.js';
@@ -13,7 +13,6 @@ import { onWorkoutTabShown } from './workouts.js';
 import { onGoalsTabShown } from './goals.js';
 import { onAnalyticsTabShown } from './analytics.js';
 import { onTimelineTabShown } from './timeline.js';
-import { loadPastEntries } from './journal.js';
 import { refreshWeather } from './weather.js';
 import { refreshFocus, refreshCountdown, refreshHabits } from './glance.js';
 import { refreshHeatmap } from './heatmap.js';
@@ -21,7 +20,7 @@ import { refreshDayBrief } from './day_brief.js';
 import { refreshCounters } from './counters.js';
 import { refreshReading } from './reading.js';
 import { onWordTabShown } from './word.js';
-import { onChecklistTabShown, openChecklistTemplate } from './daily_checklist.js';
+import { openChecklistTemplate } from './daily_checklist.js';
 
 const FALLBACK_LAYOUT = {
     columns: 4,
@@ -31,10 +30,10 @@ const FALLBACK_LAYOUT = {
             id: 'local-home',
             name: 'Home',
             widgets: [
-                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2 },
-                { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2 },
-                { id: 'w-weather', kind: 'weather', x: 0, y: 2, w: 1, h: 1 },
-                { id: 'w-word', kind: 'word', x: 1, y: 2, w: 1, h: 1 },
+                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2, region: 'above' },
+                { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2, region: 'above' },
+                { id: 'w-weather', kind: 'weather', x: 0, y: 0, w: 1, h: 1 },
+                { id: 'w-word', kind: 'word', x: 1, y: 0, w: 1, h: 1 },
             ],
         },
     ],
@@ -46,6 +45,10 @@ let drag = null;
 let workKind = null;
 let workOpener = null;
 let workHideTimer = 0;
+let checkinForceOpen = null;
+let checkinSlotOverride = '';
+let lastViewedDone = false;
+let lastViewedSlot = 'morning';
 
 function rack() {
     return document.getElementById('widgetSourceRack');
@@ -54,6 +57,14 @@ function rack() {
 function activePage() {
     if (!layout) return null;
     return layout.pages.find((page) => page.id === layout.active_page_id) || layout.pages[0];
+}
+
+function firstPageActive() {
+    return isFirstHomePage(layout, activePage());
+}
+
+function homeWidgetCards() {
+    return document.querySelectorAll('#homeGridAbove .home-widget, #homeGrid .home-widget');
 }
 
 async function persist(next) {
@@ -83,7 +94,7 @@ async function loadLayout() {
 function returnSources() {
     const host = rack();
     if (!host) return;
-    document.querySelectorAll('.home-widget-body > .widget-source, #homeWorkBody > .widget-source').forEach((node) => {
+    document.querySelectorAll('.home-widget-body > .widget-source, #homeWorkBody > .widget-source, #homeCheckinBody > .widget-source').forEach((node) => {
         node.classList.remove('widget-source--active');
         host.appendChild(node);
     });
@@ -226,7 +237,7 @@ export async function openHomeWork(kind, opener) {
     if (!spec || editing) return;
     closeHomeWork(true);
     workKind = kind;
-    workOpener = opener || document.querySelector(`#homeGrid .home-widget[data-kind="${kind}"]`);
+    workOpener = opener || document.querySelector(`#homeGridAbove .home-widget[data-kind="${kind}"], #homeGrid .home-widget[data-kind="${kind}"]`);
     const layer = workLayer();
     const panel = workPanel();
     if (!layer || !panel) return;
@@ -278,7 +289,6 @@ async function refreshKinds(kinds) {
     if (set.has('allwork')) await run(onAllWorkTabShown);
     if (set.has('workout')) await run(onWorkoutTabShown);
     if (set.has('goals')) await run(onGoalsTabShown);
-    if (set.has('journal')) await run(loadPastEntries);
     if (set.has('analytics')) await run(onAnalyticsTabShown);
     if (set.has('timeline')) await run(onTimelineTabShown);
     if (set.has('weather')) await run(refreshWeather);
@@ -290,7 +300,6 @@ async function refreshKinds(kinds) {
     if (set.has('counters')) await run(refreshCounters);
     if (set.has('reading')) await run(refreshReading);
     if (set.has('word')) await run(onWordTabShown);
-    if (set.has('checklist')) await run(onChecklistTabShown);
     await run(refreshToday);
     await run(() => refreshGlances([...set]));
 }
@@ -329,8 +338,7 @@ function paintTitle() {
 function paintSidebar() {
     const el = document.getElementById('homeNavPages');
     if (!el || !layout) return;
-    const onHome = document.documentElement.getAttribute('data-page') !== 'calendar'
-        && document.documentElement.getAttribute('data-page') !== 'settings';
+    const onHome = document.documentElement.getAttribute('data-page') === 'home';
     el.innerHTML = layout.pages
         .map((page, index) => {
             const selected = onHome && page.id === layout.active_page_id;
@@ -363,35 +371,131 @@ function paintCatalog() {
         .join('');
 }
 
-function paintGrid() {
-    const grid = document.getElementById('homeGrid');
-    if (!grid || !layout) return;
-    returnSources();
-    const page = activePage();
-    const widgets = page?.widgets || [];
-    const live = !editing;
-    grid.innerHTML = widgets
-        .map((item) => {
-            const spec = WIDGET_CATALOG[item.kind] || { label: item.kind };
-            const label = utils.escapeHtml(spec.label);
-            return `
-                <article class="home-widget" data-id="${utils.escapeHtml(item.id)}" data-kind="${utils.escapeHtml(item.kind)}" data-w="${item.w}" data-h="${item.h}" style="grid-column:${item.x + 1} / span ${item.w};grid-row:${item.y + 1} / span ${item.h}" role="${live ? 'button' : 'group'}" tabindex="${live ? '0' : '-1'}" aria-label="${live ? `Open ${label}` : label}">
-                    <div class="home-widget-chrome">
-                        <span class="home-widget-handle"><span class="home-widget-grip" aria-hidden="true"></span>${label}</span>
-                        <span class="home-widget-size">${item.w}×${item.h}</span>
-                        <button type="button" class="btn-ghost home-widget-btn" data-act="remove">Remove</button>
-                    </div>
-                    <div class="home-widget-body"></div>
-                    <button type="button" class="home-widget-resize" data-resize="e" aria-label="Resize width"></button>
-                    <button type="button" class="home-widget-resize" data-resize="s" aria-label="Resize height"></button>
-                    <button type="button" class="home-widget-resize" data-resize="se" aria-label="Resize"></button>
-                </article>`;
-        })
-        .join('');
+function widgetCardHtml(item, live) {
+    const spec = WIDGET_CATALOG[item.kind] || { label: item.kind };
+    const label = utils.escapeHtml(spec.label);
+    return `
+        <article class="home-widget" data-id="${utils.escapeHtml(item.id)}" data-kind="${utils.escapeHtml(item.kind)}" data-w="${item.w}" data-h="${item.h}" style="grid-column:${item.x + 1} / span ${item.w};grid-row:${item.y + 1} / span ${item.h}" role="${live ? 'button' : 'group'}" tabindex="${live ? '0' : '-1'}" aria-label="${live ? `Open ${label}` : label}">
+            <div class="home-widget-chrome">
+                <span class="home-widget-handle"><span class="home-widget-grip" aria-hidden="true"></span>${label}</span>
+                <span class="home-widget-size">${item.w}×${item.h}</span>
+                <button type="button" class="btn-ghost home-widget-btn" data-act="remove">Remove</button>
+            </div>
+            <div class="home-widget-body"></div>
+            <button type="button" class="home-widget-resize" data-resize="e" aria-label="Resize width"></button>
+            <button type="button" class="home-widget-resize" data-resize="s" aria-label="Resize height"></button>
+            <button type="button" class="home-widget-resize" data-resize="se" aria-label="Resize"></button>
+        </article>`;
+}
+
+function paintOneGrid(grid, widgets, live) {
+    if (!grid) return;
+    grid.innerHTML = widgets.map((item) => widgetCardHtml(item, live)).join('');
     widgets.forEach((item) => {
         const card = grid.querySelector(`.home-widget[data-id="${item.id}"]`);
         mountGlance(item.kind, card?.querySelector('.home-widget-body'), card);
     });
+}
+
+function paintGrid() {
+    const above = document.getElementById('homeGridAbove');
+    const below = document.getElementById('homeGrid');
+    const band = document.getElementById('homeCheckinBand');
+    if (!below || !layout) return;
+    returnSources();
+    const page = activePage();
+    const first = firstPageActive();
+    const live = !editing;
+    const aboveWidgets = first ? widgetsInRegion(page, 'above', true) : [];
+    const belowWidgets = first ? widgetsInRegion(page, 'below', true) : (page?.widgets || []);
+    if (above) {
+        above.classList.toggle('is-absent', !first);
+        paintOneGrid(above, aboveWidgets, live);
+        above.classList.toggle('is-empty-drop', first && aboveWidgets.length === 0);
+    }
+    if (band) {
+        band.hidden = !first;
+        if (!first) band.classList.remove('is-open');
+    }
+    paintOneGrid(below, belowWidgets, live);
+}
+
+function parkCheckin() {
+    const source = document.getElementById('checklistTab');
+    const host = rack();
+    if (!source || !host) return;
+    source.classList.remove('widget-source--active');
+    host.appendChild(source);
+}
+
+function viewedCheckinSlot(info) {
+    return checkinSlotOverride || info?.slot || lastViewedSlot || 'morning';
+}
+
+function paintCheckinChrome(info, slot, done, open) {
+    const kicker = document.getElementById('homeCheckinKicker');
+    const title = document.getElementById('homeCheckinTitle');
+    const status = document.getElementById('homeCheckinStatus');
+    const toggle = document.getElementById('homeCheckinToggle');
+    const other = document.getElementById('homeCheckinOther');
+    const morningLabel = 'Morning check-in';
+    const eveningLabel = 'Evening check-in';
+    const label = slot === 'evening' ? eveningLabel : morningLabel;
+    if (kicker) kicker.textContent = slot === 'evening' ? 'Evening' : 'Morning';
+    if (title) title.textContent = done ? `${label} done` : label;
+    if (status) {
+        if (info?.morning_done && info?.evening_done) status.textContent = 'Morning and evening saved';
+        else if (done) status.textContent = 'Saved today';
+        else status.textContent = 'Not yet';
+    }
+    if (toggle) toggle.textContent = open ? 'Fold' : 'Open';
+    if (other) {
+        other.textContent = slot === 'evening' ? 'Morning instead' : 'Evening instead';
+        other.hidden = false;
+    }
+}
+
+async function syncCheckin() {
+    const band = document.getElementById('homeCheckinBand');
+    const body = document.getElementById('homeCheckinBody');
+    if (!band) return;
+    if (!firstPageActive()) {
+        band.hidden = true;
+        band.classList.remove('is-open');
+        parkCheckin();
+        return;
+    }
+    band.hidden = false;
+    let info = { slot: 'morning', morning_done: false, evening_done: false, current_done: false };
+    try {
+        if (typeof eel !== 'undefined' && eel.get_home_checkin) {
+            info = await eel.get_home_checkin()();
+        }
+    } catch (err) {
+        console.error(err);
+    }
+    const slot = viewedCheckinSlot(info);
+    lastViewedSlot = slot;
+    const done = slot === 'evening' ? !!info.evening_done : !!info.morning_done;
+    if (done && !lastViewedDone) checkinForceOpen = null;
+    lastViewedDone = done;
+    const open = checkinForceOpen == null ? !done : checkinForceOpen;
+    band.classList.toggle('is-open', open);
+    paintCheckinChrome(info, slot, done, open);
+    if (!open) {
+        parkCheckin();
+        return;
+    }
+    const source = document.getElementById('checklistTab');
+    if (source && body) {
+        body.appendChild(source);
+        source.classList.add('widget-source--active');
+    }
+    try {
+        await openChecklistTemplate(slot);
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 function paintBorderControls() {
@@ -419,7 +523,13 @@ function setEditing(on) {
         paintCatalog();
         paintBorderControls();
     }
-    document.querySelectorAll('#homeGrid .home-widget').forEach((card) => {
+    const page = activePage();
+    const first = firstPageActive();
+    const above = document.getElementById('homeGridAbove');
+    if (above) {
+        above.classList.toggle('is-empty-drop', first && widgetsInRegion(page, 'above', true).length === 0);
+    }
+    homeWidgetCards().forEach((card) => {
         const spec = WIDGET_CATALOG[card.getAttribute('data-kind')] || { label: card.getAttribute('data-kind') };
         card.setAttribute('role', editing ? 'group' : 'button');
         card.tabIndex = editing ? -1 : 0;
@@ -434,6 +544,7 @@ async function renderHome() {
     syncHomeDayPart();
     const page = activePage();
     await refreshKinds((page?.widgets || []).map((item) => item.kind));
+    await syncCheckin();
 }
 
 async function run(action) {
@@ -525,7 +636,7 @@ function bindHome() {
         void run(() => eel.add_home_widget(page.id, btn.getAttribute('data-kind'))());
     });
 
-    document.getElementById('homeGrid')?.addEventListener('click', (e) => {
+    document.getElementById('homeBoard')?.addEventListener('click', (e) => {
         if (editing) {
             const btn = e.target.closest('[data-act]');
             if (!btn) return;
@@ -549,7 +660,7 @@ function bindHome() {
         if (!card) return;
         void openHomeWork(card.getAttribute('data-kind'), card);
     });
-    document.getElementById('homeGrid')?.addEventListener('keydown', (e) => {
+    document.getElementById('homeBoard')?.addEventListener('keydown', (e) => {
         if (editing) return;
         if (e.key !== 'Enter' && e.key !== ' ') return;
         const card = e.target.closest('.home-widget');
@@ -557,6 +668,32 @@ function bindHome() {
         e.preventDefault();
         void openHomeWork(card.getAttribute('data-kind'), card);
     });
+
+    document.getElementById('homeCheckinToggle')?.addEventListener('click', () => {
+        const band = document.getElementById('homeCheckinBand');
+        checkinForceOpen = !band?.classList.contains('is-open');
+        void syncCheckin();
+    });
+    document.getElementById('homeCheckinOther')?.addEventListener('click', () => {
+        checkinSlotOverride = viewedCheckinSlot() === 'evening' ? 'morning' : 'evening';
+        checkinForceOpen = true;
+        void syncCheckin();
+    });
+
+    const dropTargetAt = (clientX, clientY) => {
+        const above = document.getElementById('homeGridAbove');
+        const below = document.getElementById('homeGrid');
+        if (!firstPageActive() || !above || above.classList.contains('is-absent')) {
+            return { grid: below, region: 'below' };
+        }
+        const aboveRect = above.getBoundingClientRect();
+        const belowRect = below.getBoundingClientRect();
+        const mid = (aboveRect.bottom + belowRect.top) / 2;
+        if (clientY < mid) return { grid: above, region: 'above' };
+        return { grid: below, region: 'below' };
+    };
+
+    const findCard = (id) => document.querySelector(`#homeGridAbove .home-widget[data-id="${id}"], #homeGrid .home-widget[data-id="${id}"]`);
 
     const paintWidgetBox = (card, x, y, w, h) => {
         if (!card) return;
@@ -587,11 +724,13 @@ function bindHome() {
             id: widget.id,
             originX: widget.x,
             originY: widget.y,
+            originRegion: widgetRegion(widget, firstPageActive()),
         };
         card.classList.add('is-dragging');
         card.draggable = false;
         card.dataset.dropX = String(widget.x);
         card.dataset.dropY = String(widget.y);
+        card.dataset.dropRegion = widgetRegion(widget, firstPageActive());
         try {
             chrome.setPointerCapture?.(e.pointerId);
         } catch (_) {
@@ -633,46 +772,57 @@ function bindHome() {
     const moveDrag = (e) => {
         if (!drag) return;
         if (!Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return;
-        const grid = document.getElementById('homeGrid');
         const page = activePage();
         const widget = page?.widgets.find((item) => item.id === drag.id);
-        if (!grid || !widget) return;
-        const card = grid.querySelector(`.home-widget[data-id="${drag.id}"]`);
-        if (!card) return;
-        const cell = snapCell(e.clientX, e.clientY, grid);
+        const card = findCard(drag.id);
+        if (!widget || !card) return;
+        const first = firstPageActive();
         if (drag.type === 'resize') {
+            const region = widgetRegion(widget, first);
+            const occupied = widgetsInRegion(page, region, first);
+            const grid = card.parentElement;
+            const cell = snapCell(e.clientX, e.clientY, grid);
             const wantW = drag.axis === 'y' ? widget.w : Math.max(1, cell.x - widget.x + 1);
             const wantH = drag.axis === 'x' ? widget.h : Math.max(1, cell.y - widget.y + 1);
-            const next = pickResize(widget.kind, widget, wantW, wantH, page.widgets, drag.axis);
+            const next = pickResize(widget.kind, widget, wantW, wantH, occupied, drag.axis);
             paintWidgetBox(card, widget.x, widget.y, next.w, next.h);
             card.dataset.dropW = String(next.w);
             card.dataset.dropH = String(next.h);
             return;
         }
+        const target = dropTargetAt(e.clientX, e.clientY);
+        if (target.grid && card.parentElement !== target.grid) {
+            target.grid.appendChild(card);
+            target.grid.classList.remove('is-empty-drop');
+        }
+        const occupied = widgetsInRegion(page, target.region, first);
+        const cell = snapCell(e.clientX, e.clientY, target.grid);
         const x = Math.max(0, Math.min(GRID_COLUMNS - widget.w, cell.x));
         const y = Math.max(0, cell.y);
-        if (canPlace(page.widgets, widget, x, y)) {
+        if (canPlace(occupied, widget, x, y)) {
             paintWidgetBox(card, x, y, widget.w, widget.h);
             card.dataset.dropX = String(x);
             card.dataset.dropY = String(y);
+            card.dataset.dropRegion = target.region;
         }
     };
 
     const endDrag = () => {
         if (!drag) return;
         const page = activePage();
-        const grid = document.getElementById('homeGrid');
-        const card = grid?.querySelector(`.home-widget[data-id="${drag.id}"]`);
         const id = drag.id;
         const type = drag.type;
         const originX = drag.originX;
         const originY = drag.originY;
         const originW = drag.originW;
         const originH = drag.originH;
+        const originRegion = drag.originRegion;
+        const card = findCard(id);
         const x = Number(card?.dataset.dropX);
         const y = Number(card?.dataset.dropY);
         const w = Number(card?.dataset.dropW);
         const h = Number(card?.dataset.dropH);
+        const region = card?.dataset.dropRegion || originRegion || 'below';
         drag = null;
         card?.classList.remove('is-dragging');
         card?.classList.remove('is-resizing');
@@ -685,11 +835,12 @@ function bindHome() {
             void run(() => eel.resize_home_widget(page.id, id, w | 0, h | 0)());
             return;
         }
-        if (!page || Number.isNaN(x) || Number.isNaN(y) || (x === originX && y === originY)) {
+        const regionChanged = region !== originRegion;
+        if (!page || Number.isNaN(x) || Number.isNaN(y) || (x === originX && y === originY && !regionChanged)) {
             if (card && widget) paintWidgetBox(card, widget.x, widget.y, widget.w, widget.h);
             return;
         }
-        void run(() => eel.move_home_widget(page.id, id, x | 0, y | 0)());
+        void run(() => eel.move_home_widget(page.id, id, x | 0, y | 0, region)());
     };
 
     const onPointerDown = (e) => {
@@ -700,9 +851,9 @@ function bindHome() {
         beginDrag(e);
     };
 
-    const grid = document.getElementById('homeGrid');
-    grid?.addEventListener('pointerdown', onPointerDown);
-    grid?.addEventListener('dragstart', (e) => e.preventDefault());
+    const board = document.getElementById('homeBoard');
+    board?.addEventListener('pointerdown', onPointerDown);
+    board?.addEventListener('dragstart', (e) => e.preventDefault());
     window.addEventListener('pointermove', moveDrag);
     window.addEventListener('pointerup', endDrag);
     window.addEventListener('mousemove', moveDrag);
@@ -739,19 +890,18 @@ export function setupHome() {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
             const page = activePage();
             void refreshKinds((page?.widgets || []).map((item) => item.kind));
+            void syncCheckin();
         } else {
             void refreshToday();
         }
     });
     document.addEventListener('kosistenz:open-evening-checkin', () => {
-        void (async () => {
-            await ensureHomeWidget('checklist');
-            try {
-                await openChecklistTemplate('evening');
-            } catch (err) {
-                console.error(err);
-            }
-        })();
+        checkinSlotOverride = 'evening';
+        checkinForceOpen = true;
+        const firstId = layout?.pages?.[0]?.id;
+        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', {
+            detail: { tab: 'home', homePageId: firstId },
+        }));
     });
 }
 

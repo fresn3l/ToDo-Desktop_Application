@@ -8,7 +8,6 @@ import { WIDGET_CATALOG } from './home_layout.js';
 
 const POSTERS = {
     workout: { kicker: 'Workout', line: 'Log today’s session' },
-    journal: { kicker: 'Journal', line: 'A page for this Mac' },
     goals: { kicker: 'Goals', line: 'Horizons and weekly work' },
     allwork: { kicker: 'All Work', line: 'Undated backlog' },
     analytics: { kicker: 'Analytics', line: 'Streaks and patterns' },
@@ -20,7 +19,6 @@ const POSTERS = {
     day_brief: { kicker: 'Day', line: 'Morning brief, evening review' },
     counters: { kicker: 'Counters', line: 'Tap to keep count' },
     reading: { kicker: 'Reading', line: 'The book in your hands' },
-    checklist: { kicker: 'Check-in', line: 'Morning and evening' },
 };
 
 function hasEel(name) {
@@ -490,12 +488,6 @@ function posterCopy(kind, data, meta) {
         const expected = (data?.expected?.labels || []).join(' · ');
         return { kpi: '·', line: expected || meta.line, tiny: 'Gym' };
     }
-    if (kind === 'journal') {
-        const n = data?.journal_count || 0;
-        return n
-            ? { kpi: String(n), line: n === 1 ? 'saved today' : 'saved today', tiny: String(n) }
-            : { kpi: '·', line: meta.line, tiny: 'Write' };
-    }
     if (kind === 'goals') {
         const n = Array.isArray(data) ? data.length : 0;
         return n
@@ -511,9 +503,6 @@ function posterCopy(kind, data, meta) {
     if (kind === 'day_brief') {
         const slot = data?.slot === 'evening' ? 'Evening' : 'Morning';
         return { kpi: slot.slice(0, 1), line: `${slot} ${data?.slot === 'evening' ? 'review' : 'brief'}`, tiny: slot.slice(0, 3) };
-    }
-    if (kind === 'checklist') {
-        return { kpi: '✓', line: meta.line, tiny: 'In' };
     }
     return { kpi: specLetter(kind), line: meta.line, tiny: meta.kicker.slice(0, 4) };
 }
@@ -532,7 +521,7 @@ async function loadGlance(kind) {
     if (kind === 'habits') return eelCall('get_habits');
     if (kind === 'reading') return eelCall('get_reading');
     if (kind === 'counters') return eelCall('get_tap_counters');
-    if (kind === 'workout' || kind === 'journal') return eelCall('get_today_status');
+    if (kind === 'workout') return eelCall('get_today_status');
     if (kind === 'goals') return eelCall('list_goals');
     if (kind === 'allwork') return eelCall('list_backlog');
     if (kind === 'day_brief') return eelCall('get_day_brief');
@@ -568,7 +557,7 @@ export async function paintGlance(kind, body, card) {
 
 export async function refreshGlances(kinds) {
     const set = kinds ? new Set(kinds) : null;
-    const cards = [...document.querySelectorAll('#homeGrid .home-widget')];
+    const cards = [...document.querySelectorAll('#homeGridAbove .home-widget, #homeGrid .home-widget')];
     await Promise.all(cards.map(async (card) => {
         const kind = card.getAttribute('data-kind');
         if (set && !set.has(kind)) return;

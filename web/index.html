@@ -26,6 +26,10 @@
                         <span class="nav-label">Home</span>
                     </button>
                 </div>
+                <button type="button" class="nav-item" data-tab="journal">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v12a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 18V6A1.5 1.5 0 0 1 7 4.5Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+                    <span class="nav-label">Journal</span>
+                </button>
                 <button type="button" class="nav-item" data-tab="calendar">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
                     <span class="nav-label">Calendar</span>
@@ -69,7 +73,7 @@
                         </header>
                         <p class="home-live-copy" hidden>Drag a widget’s title bar to move it. Drag a corner or edge to snap to an allowed size. Add or remove tiles from the catalog.</p>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
-                            <p class="home-edit-copy">Live Home is look-and-tap. In Edit, drag the title bar to move, and a corner or edge to resize. These widget borders apply to every page unless a page has its own colors in Settings.</p>
+                            <p class="home-edit-copy">Live Home is look-and-tap. In Edit, drag the title bar to move, and a corner or edge to resize. On the first page, drop a widget above or below Check-in. These widget borders apply to every page unless a page has its own colors in Settings.</p>
                             <div class="home-border-controls">
                                 <label class="home-border-field" for="homeBorderWidth">
                                     Widget border
@@ -88,7 +92,24 @@
                                 <button type="button" id="homeDoneEditBtn" class="btn-secondary">Done</button>
                             </div>
                         </div>
-                        <div id="homeGrid" class="home-grid" aria-label="Home widgets"></div>
+                        <div id="homeBoard" class="home-board">
+                            <div id="homeGridAbove" class="home-grid home-grid--above is-absent" aria-label="Widgets above check-in"></div>
+                            <section id="homeCheckinBand" class="home-checkin-band" hidden>
+                                <header class="home-checkin-bar">
+                                    <div class="home-checkin-copy">
+                                        <p id="homeCheckinKicker" class="today-kicker">Morning</p>
+                                        <h2 id="homeCheckinTitle">Morning check-in</h2>
+                                        <p id="homeCheckinStatus" class="home-checkin-status">Not yet</p>
+                                    </div>
+                                    <div class="home-checkin-actions">
+                                        <button type="button" id="homeCheckinOther" class="btn-ghost">Evening instead</button>
+                                        <button type="button" id="homeCheckinToggle" class="btn-primary">Open</button>
+                                    </div>
+                                </header>
+                                <div id="homeCheckinBody" class="home-checkin-body"></div>
+                            </section>
+                            <div id="homeGrid" class="home-grid" aria-label="Home widgets"></div>
+                        </div>
                     </div>
                     <div id="homeWorkLayer" class="home-work-layer is-hidden" hidden>
                         <button type="button" id="homeWorkBackdrop" class="home-work-backdrop" aria-label="Dismiss"></button>
@@ -199,7 +220,7 @@
                     </div>
                 </section>
 
-                <section id="journalTab" class="widget-source" aria-label="Journal">
+                <section id="journalTab" class="tab-content" aria-label="Journal">
                     <div class="journal-layout">
                         <div class="panel journal-compose journal-paper">
                             <div class="journal-entry-section">

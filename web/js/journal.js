@@ -382,9 +382,7 @@ function setupJournalKeys() {
     document.body.dataset.journalKeys = '1';
     document.addEventListener('keydown', async (e) => {
         const tab = document.getElementById('journalTab');
-        const onHome = document.getElementById('homeTab')?.classList.contains('active');
-        const mounted = !!tab?.closest('#homeWorkBody, .home-widget-body');
-        if (!tab || !(tab.classList.contains('active') || (onHome && mounted))) return;
+        if (!tab?.classList.contains('active')) return;
         if (utils.dialogIsOpen()) return;
 
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

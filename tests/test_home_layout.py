@@ -27,7 +27,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("todo", kinds)
         self.assertIn("today_calendar", kinds)
         self.assertIn("workout", kinds)
-        self.assertIn("journal", kinds)
+        self.assertNotIn("journal", kinds)
         self.assertIn("goals", kinds)
         self.assertIn("allwork", kinds)
         self.assertIn("analytics", kinds)
@@ -41,7 +41,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("counters", kinds)
         self.assertIn("reading", kinds)
         self.assertIn("word", kinds)
-        self.assertIn("checklist", kinds)
+        self.assertNotIn("checklist", kinds)
         self.assertNotIn("settings", kinds)
         self.assertNotIn("calendar", kinds)
 
@@ -56,12 +56,14 @@ class HomeLayoutTests(unittest.TestCase):
         weather = layout["pages"][0]["widgets"][2]
         word = layout["pages"][0]["widgets"][3]
         self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 2, 2))
+        self.assertEqual(todo.get("region"), "above")
         self.assertEqual((today["x"], today["y"], today["w"], today["h"]), (2, 0, 2, 2))
-        self.assertEqual((weather["x"], weather["y"], weather["w"], weather["h"]), (0, 2, 1, 1))
-        self.assertEqual((word["x"], word["y"], word["w"], word["h"]), (1, 2, 1, 1))
+        self.assertEqual(today.get("region"), "above")
+        self.assertEqual((weather["x"], weather["y"], weather["w"], weather["h"]), (0, 0, 1, 1))
+        self.assertNotEqual(weather.get("region"), "above")
+        self.assertEqual((word["x"], word["y"], word["w"], word["h"]), (1, 0, 1, 1))
         self.assertFalse(home_layout.boxes_overlap(todo, today))
         self.assertFalse(home_layout.boxes_overlap(weather, word))
-        self.assertFalse(home_layout.boxes_overlap(todo, weather))
 
     def test_fresh_file_writes_the_default(self) -> None:
         layout = home_layout.get_home_layout()
@@ -119,7 +121,7 @@ class HomeLayoutTests(unittest.TestCase):
                     "name": "Home",
                     "widgets": [
                         {"id": "a", "kind": "todo", "x": 0, "y": 0, "w": 2, "h": 2},
-                        {"id": "b", "kind": "journal", "x": 0, "y": 0, "w": 2, "h": 2},
+                        {"id": "b", "kind": "workout", "x": 0, "y": 0, "w": 2, "h": 2},
                     ],
                 }
             ]
@@ -255,7 +257,6 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.add_home_widget(page_id, "day_brief")
         layout = home_layout.add_home_widget(page_id, "counters")
         layout = home_layout.add_home_widget(page_id, "reading")
-        layout = home_layout.add_home_widget(page_id, "checklist")
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
         self.assertIn("weather", kinds)
         self.assertIn("focus", kinds)
@@ -266,7 +267,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("counters", kinds)
         self.assertIn("reading", kinds)
         self.assertIn("word", kinds)
-        self.assertIn("checklist", kinds)
+        self.assertNotIn("checklist", kinds)
         self.assertEqual(home_layout.coerce_size("countdown", 4, 2), (4, 2))
         self.assertEqual(home_layout.coerce_size("heatmap", 2, 2), (2, 2))
         self.assertEqual(home_layout.coerce_size("heatmap", 3, 1), (4, 1))
@@ -281,3 +282,40 @@ class HomeLayoutTests(unittest.TestCase):
             [item["kind"] for item in layout["pages"][0]["widgets"]],
             ["todo", "today_calendar", "weather", "word"],
         )
+
+    def test_sanitize_drops_journal_and_checklist_widgets(self) -> None:
+        packed = home_layout.sanitize_layout(
+            {
+                "pages": [
+                    {
+                        "id": "p1",
+                        "name": "Home",
+                        "widgets": [
+                            {"id": "a", "kind": "todo", "x": 0, "y": 0, "w": 2, "h": 2, "region": "above"},
+                            {"id": "b", "kind": "journal", "x": 2, "y": 0, "w": 2, "h": 2},
+                            {"id": "c", "kind": "checklist", "x": 0, "y": 2, "w": 2, "h": 2},
+                        ],
+                    }
+                ]
+            }
+        )
+        kinds = [item["kind"] for item in packed["pages"][0]["widgets"]]
+        self.assertEqual(kinds, ["todo"])
+
+    def test_first_page_keeps_above_and_below_regions(self) -> None:
+        layout = home_layout.get_home_layout()
+        page_id = layout["pages"][0]["id"]
+        weather = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "weather")
+        layout = home_layout.move_home_widget(page_id, weather["id"], 0, 2, "above")
+        weather = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "weather")
+        self.assertEqual(weather.get("region"), "above")
+        self.assertEqual((weather["x"], weather["y"]), (0, 2))
+        extra = home_layout.add_home_page("Studio")
+        extra_id = extra["pages"][1]["id"]
+        extra = home_layout.add_home_widget(extra_id, "focus", "above")
+        focus = extra["pages"][1]["widgets"][0]
+        self.assertNotEqual(focus.get("region"), "above")
+        with self.assertRaises(ValueError):
+            home_layout.add_widget(layout, page_id, "journal")
+        with self.assertRaises(ValueError):
+            home_layout.add_widget(layout, page_id, "checklist")

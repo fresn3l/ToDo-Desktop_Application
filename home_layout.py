@@ -40,11 +40,6 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
         "default": (2, 2),
     },
-    "journal": {
-        "label": "Journal",
-        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
-        "default": (2, 2),
-    },
     "goals": {
         "label": "Goals",
         "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
@@ -110,18 +105,12 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2)),
         "default": (1, 1),
     },
-    "checklist": {
-        "label": "Check-in",
-        "sizes": ((2, 1), (2, 2), (2, 3), (4, 2), (4, 3), (4, 4)),
-        "default": (2, 2),
-    },
 }
 
 SOURCE_TAB = {
     "todo": "todoTab",
     "today_calendar": "todayCalendarSource",
     "workout": "workoutTab",
-    "journal": "journalTab",
     "goals": "goalsTab",
     "allwork": "allWorkTab",
     "analytics": "analyticsTab",
@@ -135,7 +124,6 @@ SOURCE_TAB = {
     "counters": "countersSource",
     "reading": "readingSource",
     "word": "wordTab",
-    "checklist": "checklistTab",
 }
 
 
@@ -160,6 +148,7 @@ def default_layout() -> Dict[str, Any]:
                         "y": 0,
                         "w": 2,
                         "h": 2,
+                        "region": "above",
                     },
                     {
                         "id": _new_id(),
@@ -168,12 +157,13 @@ def default_layout() -> Dict[str, Any]:
                         "y": 0,
                         "w": 2,
                         "h": 2,
+                        "region": "above",
                     },
                     {
                         "id": _new_id(),
                         "kind": "weather",
                         "x": 0,
-                        "y": 2,
+                        "y": 0,
                         "w": 1,
                         "h": 1,
                     },
@@ -181,7 +171,7 @@ def default_layout() -> Dict[str, Any]:
                         "id": _new_id(),
                         "kind": "word",
                         "x": 1,
-                        "y": 2,
+                        "y": 0,
                         "w": 1,
                         "h": 1,
                     },
@@ -319,6 +309,47 @@ def _as_int(raw: Any, default: int, lo: int, hi: int) -> int:
     return max(lo, min(hi, n))
 
 
+def _is_first_page(layout: Dict[str, Any], page_id: str) -> bool:
+    pages = layout.get("pages") or []
+    return bool(pages) and pages[0].get("id") == page_id
+
+
+def coerce_region(raw: Any, first_page: bool) -> str:
+    if not first_page:
+        return "below"
+    return "above" if str(raw or "").strip() == "above" else "below"
+
+
+def widget_region(widget: Dict[str, Any], first_page: bool) -> str:
+    return coerce_region(widget.get("region"), first_page)
+
+
+def region_widgets(
+    widgets: List[Dict[str, Any]], region: str, first_page: bool, ignore_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for item in widgets:
+        if ignore_id and item.get("id") == ignore_id:
+            continue
+        if widget_region(item, first_page) == region:
+            out.append(item)
+    return out
+
+
+def _pack_widget(item: Dict[str, Any], region: str) -> Dict[str, Any]:
+    widget = {
+        "id": str(item.get("id") or "").strip() or _new_id(),
+        "kind": item["kind"],
+        "x": item["x"],
+        "y": item["y"],
+        "w": item["w"],
+        "h": item["h"],
+    }
+    if region == "above":
+        widget["region"] = "above"
+    return widget
+
+
 def sanitize_layout(raw: Any) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         return default_layout()
@@ -336,6 +367,7 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
         incoming = page.get("widgets")
         if not isinstance(incoming, list):
             incoming = []
+        first_page = index == 0
         for item in incoming[:MAX_WIDGETS_PER_PAGE]:
             if not isinstance(item, dict):
                 continue
@@ -345,16 +377,14 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
             w, h = coerce_size(kind, item.get("w"), item.get("h"))
             x = _as_int(item.get("x"), 0, 0, GRID_COLUMNS - w)
             y = _as_int(item.get("y"), 0, 0, MAX_SCAN_ROWS - 1)
-            widget = {
-                "id": str(item.get("id") or "").strip() or _new_id(),
-                "kind": kind,
-                "x": x,
-                "y": y,
-                "w": w,
-                "h": h,
-            }
-            if any(boxes_overlap(widget, other) for other in widgets):
-                spot = first_fit(widgets, w, h)
+            region = coerce_region(item.get("region"), first_page)
+            widget = _pack_widget(
+                {"id": item.get("id"), "kind": kind, "x": x, "y": y, "w": w, "h": h},
+                region,
+            )
+            occupied = region_widgets(widgets, region, first_page)
+            if any(boxes_overlap(widget, other) for other in occupied):
+                spot = first_fit(occupied, w, h)
                 if spot is None:
                     continue
                 widget["x"], widget["y"] = spot
@@ -436,7 +466,9 @@ def set_page_colors(layout: Dict[str, Any], page_id: str, colors: Any) -> Dict[s
     return packed
 
 
-def add_widget(layout: Dict[str, Any], page_id: str, kind: str) -> Dict[str, Any]:
+def add_widget(
+    layout: Dict[str, Any], page_id: str, kind: str, region: str = "below"
+) -> Dict[str, Any]:
     packed = sanitize_layout(layout)
     page = _page(packed, page_id)
     if page is None:
@@ -447,18 +479,27 @@ def add_widget(layout: Dict[str, Any], page_id: str, kind: str) -> Dict[str, Any
         raise ValueError("That widget is already on this page")
     if len(page["widgets"]) >= MAX_WIDGETS_PER_PAGE:
         raise ValueError("This page is full")
+    first_page = _is_first_page(packed, page_id)
+    region = coerce_region(region, first_page)
     w, h = spec_default(kind)
-    spot = first_fit(page["widgets"], w, h)
+    occupied = region_widgets(page["widgets"], region, first_page)
+    spot = first_fit(occupied, w, h)
     if spot is None:
         raise ValueError("No free space for that size")
-    page["widgets"].append(
-        {"id": _new_id(), "kind": kind, "x": spot[0], "y": spot[1], "w": w, "h": h}
-    )
+    widget = {"id": _new_id(), "kind": kind, "x": spot[0], "y": spot[1], "w": w, "h": h}
+    if region == "above":
+        widget["region"] = "above"
+    page["widgets"].append(widget)
     return packed
 
 
 def move_widget(
-    layout: Dict[str, Any], page_id: str, widget_id: str, x: int, y: int
+    layout: Dict[str, Any],
+    page_id: str,
+    widget_id: str,
+    x: int,
+    y: int,
+    region: Optional[str] = None,
 ) -> Dict[str, Any]:
     packed = sanitize_layout(layout)
     page = _page(packed, page_id)
@@ -467,15 +508,24 @@ def move_widget(
     widget = next((item for item in page["widgets"] if item["id"] == widget_id), None)
     if widget is None:
         raise ValueError("Widget not found")
+    first_page = _is_first_page(packed, page_id)
+    dest = coerce_region(region if region is not None else widget.get("region"), first_page)
     nx = _as_int(x, widget["x"], 0, GRID_COLUMNS - widget["w"])
     ny = _as_int(y, widget["y"], 0, MAX_SCAN_ROWS - 1)
     trial = dict(widget, x=nx, y=ny)
-    if any(
-        other["id"] != widget_id and boxes_overlap(trial, other) for other in page["widgets"]
-    ):
+    if dest == "above":
+        trial["region"] = "above"
+    else:
+        trial.pop("region", None)
+    occupied = region_widgets(page["widgets"], dest, first_page, ignore_id=widget_id)
+    if any(boxes_overlap(trial, other) for other in occupied):
         raise ValueError("That cell is taken")
     widget["x"] = nx
     widget["y"] = ny
+    if dest == "above":
+        widget["region"] = "above"
+    else:
+        widget.pop("region", None)
     return packed
 
 
@@ -500,12 +550,13 @@ def resize_widget(
         trial["x"] = min(widget["x"], GRID_COLUMNS - nw)
     elif widget["x"] + nw > GRID_COLUMNS:
         raise ValueError("That size does not fit here")
-    if any(
-        other["id"] != widget_id and boxes_overlap(trial, other) for other in page["widgets"]
-    ):
+    first_page = _is_first_page(packed, page_id)
+    region = widget_region(widget, first_page)
+    occupied = region_widgets(page["widgets"], region, first_page, ignore_id=widget_id)
+    if any(boxes_overlap(trial, other) for other in occupied):
         if not may_relocate:
             raise ValueError("That size does not fit here")
-        spot = first_fit(page["widgets"], nw, nh, ignore_id=widget_id)
+        spot = first_fit(occupied, nw, nh)
         if spot is None:
             raise ValueError("No room for that size")
         trial["x"], trial["y"] = spot
@@ -589,13 +640,16 @@ def set_home_page_colors(page_id: str, colors: Any) -> Dict[str, Any]:
 
 
 @eel.expose
-def add_home_widget(page_id: str, kind: str) -> Dict[str, Any]:
-    return _write(add_widget(get_home_layout(), page_id, kind))
+def add_home_widget(page_id: str, kind: str, region: str = "below") -> Dict[str, Any]:
+    return _write(add_widget(get_home_layout(), page_id, kind, region))
 
 
 @eel.expose
-def move_home_widget(page_id: str, widget_id: str, x: int, y: int) -> Dict[str, Any]:
-    return _write(move_widget(get_home_layout(), page_id, widget_id, x, y))
+def move_home_widget(
+    page_id: str, widget_id: str, x: int, y: int, region: str = ""
+) -> Dict[str, Any]:
+    dest = region if str(region or "").strip() else None
+    return _write(move_widget(get_home_layout(), page_id, widget_id, x, y, dest))
 
 
 @eel.expose

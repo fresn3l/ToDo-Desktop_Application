@@ -10,7 +10,7 @@ import { setupAnalytics } from './js/analytics.js';
 import { setupTimeline } from './js/timeline.js';
 import { setupSettings } from './js/settings.js';
 import { setupToday } from './js/today.js';
-import { setupHome, ensureHomeWidget } from './js/home.js';
+import { setupHome } from './js/home.js';
 import { setupCalendar } from './js/calendar.js';
 import { setupWeather } from './js/weather.js';
 import { setupGlance } from './js/glance.js';
@@ -51,8 +51,7 @@ async function init() {
     document.addEventListener('kosistenz:command', (e) => {
         const action = e.detail?.action;
         if (action === 'journal-new') {
-            switchTab('home')
-                .then(() => ensureHomeWidget('journal'))
+            switchTab('journal')
                 .then(() => beginNewJournalEntry(e.detail?.text || ''))
                 .catch((err) => console.error(err));
             return;

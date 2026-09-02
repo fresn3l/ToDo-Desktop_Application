@@ -554,3 +554,24 @@ def list_daily_checklist_submissions(limit: int = 30) -> List[Dict[str, Any]]:
     """Recent submissions for the checklist history panel only."""
     limit = max(1, min(int(limit or 30), 100))
     return fetch_submissions(limit=limit, decorate=True)
+
+
+@eel.expose
+def get_home_checkin() -> Dict[str, Any]:
+    """Morning/evening slot and whether today's flows are already saved."""
+    import day_brief
+
+    today = datetime.now().date().isoformat()
+    slot = day_brief.resolve_slot()
+    rows = fetch_submissions(local_date=today, decorate=False)
+    done = {str(row.get("checklist_id") or "") for row in rows}
+    morning_done = "morning" in done
+    evening_done = "evening" in done
+    current_done = evening_done if slot == "evening" else morning_done
+    return {
+        "date": today,
+        "slot": slot,
+        "morning_done": morning_done,
+        "evening_done": evening_done,
+        "current_done": current_done,
+    }

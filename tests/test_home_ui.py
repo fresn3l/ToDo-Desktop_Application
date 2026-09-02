@@ -22,21 +22,20 @@ NATIVE_MAC = (ROOT / "native_mac.py").read_text(encoding="utf-8")
 
 
 class HomeUiTests(unittest.TestCase):
-    def test_sidebar_is_home_and_calendar(self) -> None:
+    def test_sidebar_is_home_journal_and_calendar(self) -> None:
         self.assertIn('data-tab="home"', INDEX)
+        self.assertIn('data-tab="journal"', INDEX)
         self.assertIn('data-tab="calendar"', INDEX)
         self.assertIn('data-tab="settings"', INDEX)
         self.assertNotIn('data-tab="today"', INDEX)
         self.assertNotIn('data-tab="workout"', INDEX)
         self.assertNotIn('data-tab="todo"', INDEX)
-        self.assertNotIn('data-tab="journal"', INDEX)
 
     def test_old_pages_are_widget_sources(self) -> None:
         for source_id in (
             "todoTab",
             "todayCalendarSource",
             "workoutTab",
-            "journalTab",
             "goalsTab",
             "allWorkTab",
             "analyticsTab",
@@ -56,11 +55,16 @@ class HomeUiTests(unittest.TestCase):
             self.assertIn("widget-source", INDEX)
         self.assertIn('id="wordCard"', INDEX)
         self.assertIn('id="checklistWizard"', INDEX)
+        self.assertIn('id="journalTab"', INDEX)
+        self.assertIn('id="journalTab" class="tab-content"', INDEX)
 
     def test_edit_home_controls_exist(self) -> None:
         for needle in (
             "homeEditBtn",
             "homeGrid",
+            "homeGridAbove",
+            "homeCheckinBand",
+            "homeCheckinBody",
             "homePages",
             "homeAddPageBtn",
             "homeRenamePageBtn",
@@ -86,15 +90,16 @@ class HomeUiTests(unittest.TestCase):
     def test_tabs_alias_old_names_to_home(self) -> None:
         self.assertIn("canonicalTab", TABS)
         self.assertIn("today: 'homeTab'", TABS)
+        self.assertIn("journal: 'journalTab'", TABS)
         self.assertIn("1: 'home'", TABS)
-        self.assertIn("2: 'calendar'", TABS)
+        self.assertIn("2: 'journal'", TABS)
+        self.assertIn("3: 'calendar'", TABS)
 
     def test_js_catalog_matches_folded_tabs(self) -> None:
         for kind in (
             "todo",
             "today_calendar",
             "workout",
-            "journal",
             "goals",
             "allwork",
             "analytics",
@@ -108,9 +113,10 @@ class HomeUiTests(unittest.TestCase):
             "counters",
             "reading",
             "word",
-            "checklist",
         ):
             self.assertIn(f"{kind}:", HOME_JS)
+        self.assertNotIn("journal:", HOME_JS)
+        self.assertNotIn("checklist:", HOME_JS)
         self.assertNotIn("settings:", HOME_JS)
 
     def test_calendar_month_year_markup(self) -> None:
@@ -289,3 +295,23 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("loadLayout().then(() => renderHome())", HOME_RUNTIME)
         self.assertIn("weather-place-form.is-collapsed", STYLE)
         self.assertIn("pointer-events: none", STYLE)
+
+    def test_journal_tab_and_first_page_checkin_band(self) -> None:
+        app = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        journal = (ROOT / "web" / "js" / "journal.js").read_text(encoding="utf-8")
+        self.assertIn("switchTab('journal')", app)
+        self.assertNotIn("ensureHomeWidget('journal')", app)
+        self.assertIn("tab?.classList.contains('active')", journal)
+        self.assertIn('id="homeBoard"', INDEX)
+        self.assertIn('id="homeGridAbove"', INDEX)
+        self.assertIn('id="homeCheckinBand"', INDEX)
+        self.assertIn('id="homeCheckinToggle"', INDEX)
+        self.assertIn('id="homeCheckinOther"', INDEX)
+        self.assertIn("syncCheckin", HOME_RUNTIME)
+        self.assertIn("dropRegion", HOME_RUNTIME)
+        self.assertIn("homeCheckinBand", HOME_RUNTIME)
+        self.assertIn("open-evening-checkin", HOME_RUNTIME)
+        self.assertNotIn("ensureHomeWidget('checklist')", HOME_RUNTIME)
+        self.assertIn("home-checkin-band", STYLE)
+        self.assertIn("is-empty-drop", STYLE)
+        self.assertIn("html[data-page='journal'] .tab-content.active", STYLE)

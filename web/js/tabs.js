@@ -1,8 +1,8 @@
 /**
- * Tab navigation — Home, Calendar, Settings.
+ * Tab navigation — Home, Journal, Calendar, Settings.
  */
 
-import { exitJournalFocus } from './journal.js';
+import { exitJournalFocus, loadPastEntries } from './journal.js';
 import { onSettingsTabShown } from './settings.js';
 import { onCalendarTabShown } from './calendar.js';
 import { onHomeTabShown, clearHomePageColors, closeHomeWork } from './home.js';
@@ -11,6 +11,7 @@ import { notifyNativeTab } from './appearance.js';
 const ID_MAP = {
     home: 'homeTab',
     today: 'homeTab',
+    journal: 'journalTab',
     calendar: 'calendarTab',
     settings: 'settingsTab',
 };
@@ -18,12 +19,13 @@ const ID_MAP = {
 const LABELS = {
     home: 'Home',
     today: 'Home',
+    journal: 'Journal',
     calendar: 'Calendar',
     settings: 'Settings',
 };
 
 function canonicalTab(name) {
-    if (name === 'today' || name === 'journal' || name === 'workout' || name === 'todo'
+    if (name === 'today' || name === 'workout' || name === 'todo'
         || name === 'goals' || name === 'allwork' || name === 'analytics' || name === 'timeline'
         || name === 'checklist' || name === 'word') {
         return 'home';
@@ -64,8 +66,8 @@ export function setupTabs() {
         if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
         const map = {
             1: 'home',
-            2: 'calendar',
-            3: 'settings',
+            2: 'journal',
+            3: 'calendar',
         };
         const tab = map[e.key];
         if (!tab) return;
@@ -79,7 +81,7 @@ export function setupTabs() {
 
     document.addEventListener('kosistenz:open-tab', (e) => {
         const tab = e.detail?.tab;
-        if (tab) switchTab(tab).catch((err) => console.error(err));
+        if (tab) switchTab(tab, e.detail || {}).catch((err) => console.error(err));
     });
 }
 
@@ -104,15 +106,19 @@ export async function switchTab(name, opts = {}) {
     setDocumentTitle(key);
     document.documentElement.setAttribute('data-page', key);
 
+    if (key !== 'journal') {
+        exitJournalFocus();
+    }
     if (key !== 'home') {
         closeHomeWork(true);
-        exitJournalFocus();
         clearHomePageColors();
     }
 
     try {
         if (key === 'home') {
             await onHomeTabShown(opts.homePageId);
+        } else if (key === 'journal') {
+            await loadPastEntries();
         } else if (key === 'calendar') {
             await onCalendarTabShown();
         } else if (key === 'settings') {
