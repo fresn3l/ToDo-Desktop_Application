@@ -5646,6 +5646,17 @@ html[data-motion='reduce'] *::after {
     gap: 8px;
 }
 
+.cluny-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.cluny-prompts .btn-ghost {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
 .cluny-answer {
     margin: 0;
     font-size: 14px;

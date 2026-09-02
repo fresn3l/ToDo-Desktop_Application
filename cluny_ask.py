@@ -19,6 +19,14 @@ from paths import data_directory
 
 PROPOSAL_SOURCE = "cluny_proposal"
 PROPOSAL_CALENDAR = "cluny"
+ASK_INSTRUCTION = (
+    "You are Cluny, the local brain. Kosistenz owns the list and the clock. "
+    "Answer from this context. When asked what is on today, list todos_today, "
+    "events_today, and overdue items. When asked about free time, recommend "
+    "open to-dos by title using estimates and free_minutes as capacity. "
+    "Never pick a clock time or say to do something at HH:MM. "
+    "The user still picks the day; Fill week places the gap."
+)
 
 
 def _inbox_path():
@@ -87,6 +95,53 @@ def _hhmm(raw: Any) -> Optional[str]:
     return text[:16]
 
 
+def _minutes(hhmm: Optional[str]) -> Optional[int]:
+    text = str(hhmm or "").strip()
+    if len(text) < 5 or text[2] != ":":
+        return None
+    try:
+        return int(text[:2]) * 60 + int(text[3:5])
+    except ValueError:
+        return None
+
+
+def _work_row(item: Dict[str, Any]) -> Dict[str, Any]:
+    due = str(item.get("due_at") or "").strip()
+    return {
+        "title": item.get("title") or "",
+        "due": due[:10] or None,
+        "estimate_minutes": item.get("estimate_minutes"),
+        "status": item.get("status") or "open",
+    }
+
+
+def free_minutes(events: List[Dict[str, Any]], day_start: str, day_end: str) -> int:
+    start = _minutes(day_start) or 7 * 60
+    end = _minutes(day_end) or 22 * 60
+    if end <= start:
+        return 0
+    busy_raw: List[tuple[int, int]] = []
+    for event in events:
+        begin = _minutes(event.get("start"))
+        finish = _minutes(event.get("end"))
+        if begin is None or finish is None:
+            continue
+        begin = max(start, begin)
+        finish = min(end, finish)
+        if finish <= begin:
+            continue
+        busy_raw.append((begin, finish))
+    busy_raw.sort()
+    busy: List[List[int]] = []
+    for begin, finish in busy_raw:
+        if busy and begin <= busy[-1][1]:
+            busy[-1][1] = max(busy[-1][1], finish)
+        else:
+            busy.append([begin, finish])
+    used = sum(finish - begin for begin, finish in busy)
+    return max(0, end - start - used)
+
+
 def build_context() -> Dict[str, Any]:
     import calclock
     import day_brief
@@ -94,30 +149,46 @@ def build_context() -> Dict[str, Any]:
     import work
 
     today = date.today().isoformat()
+    todos_today: List[Dict[str, Any]] = []
+    overdue: List[Dict[str, Any]] = []
+    backlog: List[Dict[str, Any]] = []
     deadline_todos: List[Dict[str, Any]] = []
     try:
-        for item in work.list_all_work_items():
-            if item.get("status") == "done":
-                continue
-            due = str(item.get("due_at") or "").strip()
-            if not due:
-                continue
-            deadline_todos.append({"title": item.get("title") or "", "due": due[:10]})
+        board = work.get_work_board(today)
+        todos_today = [_work_row(item) for item in board.get("today") or []][:40]
+        overdue = [_work_row(item) for item in board.get("overdue") or [] if item.get("status") != "done"][:20]
+        backlog = [_work_row(item) for item in board.get("backlog") or []][:20]
+        deadline_todos = [
+            {"title": item.get("title") or "", "due": str(item.get("due") or item.get("due_at") or "")[:10]}
+            for item in todos_today + overdue + backlog
+            if item.get("due")
+        ][:40]
     except Exception:
-        deadline_todos = []
+        todos_today, overdue, backlog, deadline_todos = [], [], [], []
     events_today: List[Dict[str, Any]] = []
+    unplaced: List[str] = []
+    day_start, day_end = "07:00", "22:00"
     try:
         agenda = calclock.get_day_agenda(today)
+        settings = agenda.get("settings") or {}
+        day_start = str(settings.get("day_start") or day_start)
+        day_end = str(settings.get("day_end") or day_end)
         for item in agenda.get("items") or []:
             events_today.append(
                 {
                     "title": item.get("title") or "",
+                    "kind": item.get("kind") or "",
                     "start": _hhmm(item.get("start_at")),
                     "end": _hhmm(item.get("end_at")),
                 }
             )
+        unplaced = [
+            str(item.get("title") or "").strip()
+            for item in (agenda.get("unplaced") or [])
+            if str(item.get("title") or "").strip()
+        ][:20]
     except Exception:
-        events_today = []
+        events_today, unplaced = [], []
     weekly_goals: List[str] = []
     try:
         for goal in goals.list_goals():
@@ -136,8 +207,14 @@ def build_context() -> Dict[str, Any]:
         notes = None
     return {
         "date": today,
+        "instruction": ASK_INSTRUCTION,
+        "todos_today": todos_today,
+        "overdue": overdue,
+        "backlog": backlog,
         "deadline_todos": deadline_todos[:40],
         "events_today": events_today[:40],
+        "unplaced": unplaced,
+        "free_minutes": free_minutes(events_today, day_start, day_end),
         "weekly_goals": weekly_goals[:20],
         "notes": notes,
     }

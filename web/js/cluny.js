@@ -127,6 +127,16 @@ async function askQuestion(event) {
     }
 }
 
+export async function promptCluny(question) {
+    const text = String(question || '').trim();
+    const input = document.getElementById('clunyAskInput');
+    if (input && text) input.value = text;
+    await refreshCluny();
+    if (text) {
+        await askQuestion({ preventDefault() {} });
+    }
+}
+
 async function suggestWork() {
     const btn = document.getElementById('clunySuggestBtn');
     if (!hasEel('suggest_cluny_work')) {
@@ -190,6 +200,12 @@ export function setupCluny() {
         void suggestWork();
     });
     root.addEventListener('click', (event) => {
+        const prompt = event.target.closest('[data-cluny-prompt]');
+        if (prompt) {
+            event.preventDefault();
+            void promptCluny(prompt.getAttribute('data-cluny-prompt'));
+            return;
+        }
         const accept = event.target.closest('[data-cluny-accept]');
         if (accept) {
             void acceptProposal(accept.getAttribute('data-cluny-accept'));

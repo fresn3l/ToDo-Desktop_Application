@@ -313,7 +313,7 @@ function todoHtml(data, size) {
             <div class="glance-row">
                 ${kpi(complete ? '✓' : open)}
                 <div class="glance-copy">
-                    ${line(complete ? 'All finished' : 'open today')}
+                    ${line(complete ? 'All finished' : open ? 'open today' : 'Nothing dated yet')}
                     ${done && !complete ? line(`${done} finished`, ' glance-line--muted') : ''}
                 </div>
             </div>
@@ -596,8 +596,28 @@ function timelineHtml(data, size) {
     return compactTile('timeline', size, label, String(n), when);
 }
 
-function clunyHtml(_data, size) {
-    return compactTile('cluny', size, 'Cluny', '?', 'Open to ask');
+function clunyHtml(data, size) {
+    const offline = data && data.ok === false;
+    const n = Number(data?.pending_count || 0);
+    const kpiText = offline ? 'Off' : n ? String(n) : 'Ask';
+    const lineText = offline
+        ? 'Journal and the clock still work'
+        : n
+            ? (n === 1 ? 'suggestion waiting' : 'suggestions waiting')
+            : 'Ask what’s on today';
+    const asks = size.action
+        ? `${actionBtn('cluny-ask', 'What’s on today?', ' data-q="What do I have to do today?"')}
+           ${actionBtn('cluny-ask', 'Free time', ' data-q="What should I do with my free time?"')}`
+        : '';
+    if (!size.action) {
+        return compactTile('cluny', size, 'Cluny', kpiText, lineText);
+    }
+    return tile('cluny', size, '', `
+        ${kicker('Cluny')}
+        ${kpi(kpiText)}
+        ${line(lineText)}
+        ${asks}
+        ${hint()}`);
 }
 
 function posterHtml(kind, _data, size) {
@@ -622,6 +642,11 @@ async function loadGlance(kind) {
     if (kind === 'heatmap') return eelCall('get_heatmap');
     if (kind === 'analytics') return eelCall('get_analytics', 7);
     if (kind === 'timeline') return eelCall('get_timeline_day', utils.localISODate());
+    if (kind === 'cluny') {
+        const inbox = await eelCall('get_cluny_inbox') || {};
+        const health = await eelCall('get_cluny_health') || {};
+        return { ...inbox, ...health };
+    }
     return null;
 }
 
@@ -688,6 +713,11 @@ export async function runGlanceAction(btn) {
             await eel.tap_counter(id, 1)();
         } else if (act === 'focus-keep' && hasEel('keep_daily_focus')) {
             await eel.keep_daily_focus(true)();
+        } else if (act === 'cluny-ask') {
+            document.dispatchEvent(new CustomEvent('kosistenz:open-cluny', {
+                detail: { question: btn.getAttribute('data-q') || '' },
+            }));
+            return;
         } else {
             return;
         }

@@ -162,6 +162,26 @@ class ClunyAskTests(unittest.TestCase):
         )
         self.assertEqual(row["id"], expected)
 
+    def test_free_minutes_subtracts_busy_blocks(self) -> None:
+        minutes = cluny_ask.free_minutes(
+            [{"start": "09:00", "end": "10:00"}, {"start": "09:30", "end": "11:00"}],
+            "07:00",
+            "12:00",
+        )
+        self.assertEqual(minutes, 180)
+
+    def test_context_lists_today_work_and_forbids_clock_times(self) -> None:
+        today = work._today().isoformat()
+        work.create_work_item("Essay", scheduled_date=today)
+        work.create_work_item("Spanish backlog")
+        ctx = cluny_ask.build_context()
+        self.assertEqual(ctx["date"], today)
+        self.assertIn("Essay", [row["title"] for row in ctx["todos_today"]])
+        self.assertIn("Spanish backlog", [row["title"] for row in ctx["backlog"]])
+        self.assertIn("Never pick a clock time", ctx["instruction"])
+        self.assertIn("free_minutes", ctx)
+        self.assertIsInstance(ctx["free_minutes"], int)
+
 
 if __name__ == "__main__":
     unittest.main()
