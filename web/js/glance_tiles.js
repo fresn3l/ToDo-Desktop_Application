@@ -295,7 +295,7 @@ function todayHtml(data, size) {
         ${kicker(`${label} · ${partLine}`)}
         ${kpi(`${shortWeek} ${dayNum}`)}
         ${line(pulse || (agenda.length ? `${agenda.length} on the clock` : 'Nothing timed yet'))}
-        ${rows || `<p class="glance-empty">${utils.escapeHtml(nextLine)}</p>`}
+        ${rows || ''}
         ${hint()}`);
 }
 
@@ -341,7 +341,7 @@ function todoHtml(data, size) {
         ${kicker(label)}
         ${kpi(complete ? 'Done' : open)}
         ${line(sub)}
-        ${rows || '<p class="glance-empty">Nothing dated yet.</p>'}
+        ${rows || ''}
         ${action}
         ${hint()}`);
 }

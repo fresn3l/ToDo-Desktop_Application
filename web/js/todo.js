@@ -103,7 +103,6 @@ function updateWhenHint() {
         hint.textContent = 'Pick a day this week.';
         return;
     }
-    const when = day.is_today ? 'today' : day.is_past ? `next ${day.label}` : day.label;
     hint.textContent = day.is_today ? 'Places today.' : `Places on ${when}.`;
 }
 
