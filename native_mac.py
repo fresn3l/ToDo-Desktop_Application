@@ -8,6 +8,7 @@ Swift host could not be compiled into the bundle.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -79,7 +80,7 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
 
     class NavigationDelegate(NSObject):
         def webView_decidePolicyForNavigationAction_decisionHandler_(
-            self, _webView, navigationAction, decisionHandler
+            self, webView, navigationAction, decisionHandler
         ):
             allow = 1
             cancel = 0
@@ -99,9 +100,50 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
                 ):
                     decisionHandler(allow)
                     return
+                # WKNavigationTypeOther == 5: paste/drop of a URL.
+                nav_type = int(navigationAction.navigationType())
+                if nav_type == 5 and scheme in ("http", "https", "webcal"):
+                    pasted = str(url.absoluteString())
+                    js = f"window.kosistenzInsertText && window.kosistenzInsertText({json.dumps(pasted)})"
+                    try:
+                        webView.evaluateJavaScript_completionHandler_(js, None)
+                    except Exception:
+                        pass
+                    decisionHandler(cancel)
+                    return
             except Exception:
                 pass
             decisionHandler(cancel)
+
+    class KosistenzWebView(WKWebView):
+        def paste_(self, sender):
+            from AppKit import NSPasteboard, NSPasteboardTypeString
+            from Foundation import NSURL
+
+            text = None
+            try:
+                pb = NSPasteboard.generalPasteboard()
+                types = [str(t) for t in (pb.types() or [])]
+                if "public.url" in types or "NSURLPboardType" in types:
+                    objs = pb.readObjectsForClasses_options_([NSURL], None)
+                    if objs:
+                        text = str(objs[0].absoluteString())
+                if not text:
+                    text = pb.stringForType_(NSPasteboardTypeString)
+            except Exception:
+                text = None
+            if text and (
+                "https://" in text.lower()
+                or "http://" in text.lower()
+                or "webcal://" in text.lower()
+            ):
+                js = f"window.kosistenzInsertText && window.kosistenzInsertText({json.dumps(str(text))})"
+                try:
+                    self.evaluateJavaScript_completionHandler_(js, None)
+                    return
+                except Exception:
+                    pass
+            WKWebView.paste_(self, sender)
 
     class UIDelegate(NSObject):
         def webView_runJavaScriptAlertPanelWithMessage_initiatedByFrame_completionHandler_(
@@ -212,7 +254,7 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     except Exception:
         pass
 
-    web = WKWebView.alloc().initWithFrame_configuration_(
+    web = KosistenzWebView.alloc().initWithFrame_configuration_(
         _rect(0, 0, width, height),
         config,
     )
@@ -235,7 +277,7 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
     web.loadRequest_(request)
 
     _KEEP.extend(
-        [app, app_delegate, window, win_delegate, nav_delegate, ui_delegate, config, web, script]
+        [app, app_delegate, window, win_delegate, nav_delegate, ui_delegate, config, web, script, KosistenzWebView]
     )
 
     window.makeKeyAndOrderFront_(None)

@@ -19,6 +19,7 @@ SETTINGS_JS = (ROOT / "web" / "js" / "settings.js").read_text(encoding="utf-8")
 STYLE = (ROOT / "web" / "style.css").read_text(encoding="utf-8")
 SWIFT = (ROOT / "macos" / "KosistenzWindow.swift").read_text(encoding="utf-8")
 NATIVE_MAC = (ROOT / "native_mac.py").read_text(encoding="utf-8")
+PASTE_JS = (ROOT / "web" / "js" / "paste_insert.js").read_text(encoding="utf-8")
 
 
 class HomeUiTests(unittest.TestCase):
@@ -269,6 +270,25 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("runJavaScriptTextInputPanelWithPrompt", SWIFT)
         self.assertIn("setUIDelegate_", NATIVE_MAC)
         self.assertIn("runJavaScriptTextInputPanelWithPrompt", NATIVE_MAC)
+
+    def test_calendar_ics_paste_inserts_url_instead_of_navigating(self) -> None:
+        self.assertIn('<input type="text" id="calIcsUrl"', INDEX)
+        self.assertIn("js/paste_insert.js", INDEX)
+        self.assertIn("window.kosistenzInsertText", PASTE_JS)
+        self.assertIn("kosistenzSanitizePastedUrl", PASTE_JS)
+        self.assertIn("class KosistenzWebView", SWIFT)
+        self.assertIn("pasteboardURLText", SWIFT)
+        self.assertIn("Inserted pasted URL instead of navigating", SWIFT)
+        self.assertIn("kosistenzInsertText", NATIVE_MAC)
+        self.assertIn("addEventListener('paste'", CAL_JS)
+        self.assertIn("kosistenzSanitizePastedUrl", CAL_JS)
+        self.assertIn('id="calSaveItem"', INDEX)
+        self.assertIn('id="calParkItem"', INDEX)
+        self.assertIn("Save for later", INDEX)
+        self.assertIn("update_calendar_event", CAL_JS)
+        self.assertIn("park_schedule_block", CAL_JS)
+        self.assertIn("schedule_work_at", CAL_JS)
+        self.assertIn("onBlockPointerMove", CAL_JS)
 
     def test_calendar_tab_uses_full_width_and_taller_cells(self) -> None:
         self.assertIn("html[data-page='calendar'] .tab-content.active", STYLE)

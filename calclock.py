@@ -32,6 +32,29 @@ CHUNK_MAX = 90
 DAY_START = "07:00"
 DAY_END = "22:00"
 BLOCK_STATUSES = ("proposed", "locked", "done", "skipped")
+_ICS_URL_RE = re.compile(r"(?:https?|webcal)://[^\s<>\"']+", re.I)
+
+
+def normalize_ics_url(raw: str, *, allow_empty: bool = False) -> str:
+    """Turn a pasted calendar link into an http(s) ICS URL."""
+    text = str(raw or "").replace("\ufeff", "").strip()
+    if not text:
+        if allow_empty:
+            return ""
+        raise ValueError("Paste a calendar URL")
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    text = lines[0] if lines else text
+    text = text.strip("<>").strip().strip("'\"").strip()
+    match = _ICS_URL_RE.search(text)
+    if match:
+        text = match.group(0)
+    lower = text.lower()
+    if lower.startswith("webcal://"):
+        text = "https://" + text[len("webcal://") :]
+    parsed = urlparse(text)
+    if parsed.scheme not in ("https", "http") or not parsed.netloc:
+        raise ValueError("Calendar URL must be http or https")
+    return text
 
 
 def _now() -> datetime:
@@ -124,11 +147,7 @@ def save_calendar_settings(partial: Dict[str, Any]) -> Dict[str, Any]:
     incoming = partial if isinstance(partial, dict) else {}
     if "ics_url" in incoming:
         url = str(incoming.get("ics_url") or "").strip()
-        if url:
-            parsed = urlparse(url)
-            if parsed.scheme not in ("https", "webcal"):
-                raise ValueError("Calendar URL must be https")
-        current["ics_url"] = url.replace("webcal://", "https://", 1) if url else ""
+        current["ics_url"] = normalize_ics_url(url, allow_empty=True) if url else ""
     if incoming.get("day_start"):
         current["day_start"] = _parse_hhmm(str(incoming["day_start"]))
     if incoming.get("day_end"):
@@ -383,12 +402,8 @@ def import_ics_text(text: str, calendar_id: str = "ics") -> Dict[str, Any]:
 @eel.expose
 def import_ics_url(url: str = "") -> Dict[str, Any]:
     settings = load_settings()
-    target = (url or settings.get("ics_url") or "").strip()
-    if target.startswith("webcal://"):
-        target = "https://" + target[len("webcal://") :]
+    target = normalize_ics_url(url or settings.get("ics_url") or "")
     parsed = urlparse(target)
-    if parsed.scheme != "https" or not parsed.netloc:
-        raise ValueError("Calendar URL must be https")
     if url:
         save_calendar_settings({"ics_url": target})
     req = Request(target, headers={"User-Agent": "Kosistenz/1.0"})
@@ -476,6 +491,97 @@ def delete_calendar_event(event_id: str) -> Dict[str, Any]:
         if cur.rowcount < 1:
             raise ValueError("Event not found")
     return {"ok": True, "id": event_id}
+
+
+def _load_event(event_id: str) -> Dict[str, Any]:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+    if row is None:
+        raise ValueError("Event not found")
+    return _row_event(row)
+
+
+def _load_block(block_id: str) -> Dict[str, Any]:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (block_id,)).fetchone()
+    if row is None:
+        raise ValueError("Block not found")
+    return _row_block(row)
+
+
+def _work_item(item_id: str) -> Dict[str, Any]:
+    items = work.get_work_items_by_ids([item_id])
+    if not items:
+        raise ValueError("Work item not found")
+    return items[0]
+
+
+def _validate_span(start: datetime, end: datetime, *, hard: bool) -> None:
+    if end <= start:
+        raise ValueError("End must be after start")
+    hours = (end - start).total_seconds() / 3600
+    if hard and hours > 12:
+        raise ValueError("Events longer than 12 hours are not lectures — check the times")
+    if not hard and hours > 12:
+        raise ValueError("Blocks longer than 12 hours need to be split")
+
+
+@eel.expose
+def update_calendar_event(
+    event_id: str,
+    title: str = "",
+    start_at: str = "",
+    end_at: str = "",
+    weekdays: Any = None,
+    occurrence_date: str = "",
+) -> Dict[str, Any]:
+    """Rename or move a lecture. Recurring series keep weekdays unless you pass new ones
+    or drag an occurrence onto another weekday."""
+    event = _load_event(event_id)
+    clean = (title or "").strip() or event["title"]
+    start = parse_datetime(start_at) if start_at else parse_datetime(event["start_at"])
+    end = parse_datetime(end_at) if end_at else parse_datetime(event["end_at"])
+    duration = end - start
+    rec = event.get("recurrence") if isinstance(event.get("recurrence"), dict) else None
+    if weekdays is not None:
+        days = _normalize_weekdays(weekdays)
+        rec = {"kind": "weekly", "weekdays": days} if days else None
+    elif rec and occurrence_date:
+        try:
+            old_day = date.fromisoformat(str(occurrence_date)[:10]).weekday()
+        except ValueError:
+            old_day = None
+        new_day = start.date().weekday()
+        days = _normalize_weekdays((rec or {}).get("weekdays"))
+        if old_day is not None and days and old_day != new_day:
+            days = sorted({new_day if d == old_day else d for d in days})
+            rec = {"kind": "weekly", "weekdays": days}
+        # Series template keeps its original date; only the clock time moves.
+        template = parse_datetime(event["start_at"])
+        start = datetime.combine(template.date(), start.time())
+        end = start + duration
+    _validate_span(start, end, hard=True)
+    now = _now().isoformat()
+    with _connect() as conn:
+        conn.execute(
+            """
+            UPDATE calendar_events
+            SET title = ?, start_at = ?, end_at = ?, recurrence_json = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                clean[:200],
+                start.isoformat(timespec="seconds"),
+                end.isoformat(timespec="seconds"),
+                json.dumps(rec) if rec else None,
+                now,
+                event_id,
+            ),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+    assert row is not None
+    return _row_event(row)
 
 
 def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
@@ -805,13 +911,97 @@ def set_block_status(block_id: str, status: str) -> Dict[str, Any]:
 
 
 @eel.expose
-def delete_schedule_block(block_id: str) -> Dict[str, Any]:
+def delete_schedule_block(block_id: str, force: bool = False) -> Dict[str, Any]:
     with _connect() as conn:
         row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (block_id,)).fetchone()
         if row is None:
             raise ValueError("Block not found")
-        if row["status"] == "locked":
+        if row["status"] == "locked" and not force:
             raise ValueError("Locked blocks stay until you unlock them")
         conn.execute("DELETE FROM schedule_blocks WHERE id = ?", (block_id,))
         conn.commit()
     return {"ok": True, "id": block_id}
+
+
+@eel.expose
+def update_schedule_block(
+    block_id: str,
+    title: str = "",
+    start_at: str = "",
+    end_at: str = "",
+    status: str = "",
+) -> Dict[str, Any]:
+    """Rename or move a work/workout block. Locked blocks can be moved by you."""
+    block = _load_block(block_id)
+    clean = (title or "").strip() or block["title"]
+    start = parse_datetime(start_at) if start_at else parse_datetime(block["start_at"])
+    end = parse_datetime(end_at) if end_at else parse_datetime(block["end_at"])
+    _validate_span(start, end, hard=False)
+    key = str(status or "").strip().lower()
+    next_status = key if key in BLOCK_STATUSES else block["status"]
+    now = _now().isoformat()
+    with _connect() as conn:
+        conn.execute(
+            """
+            UPDATE schedule_blocks
+            SET title = ?, local_date = ?, start_at = ?, end_at = ?, status = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                clean[:200],
+                start.date().isoformat(),
+                start.isoformat(timespec="seconds"),
+                end.isoformat(timespec="seconds"),
+                next_status,
+                now,
+                block_id,
+            ),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (block_id,)).fetchone()
+    if block.get("work_item_id") and clean != block["title"]:
+        work.update_work_item(block["work_item_id"], clean)
+    if block.get("work_item_id") and start.date().isoformat() != block.get("local_date"):
+        work.assign_work_item(block["work_item_id"], start.date().isoformat())
+    assert row is not None
+    return _row_block(row)
+
+
+@eel.expose
+def park_schedule_block(block_id: str) -> Dict[str, Any]:
+    """Save for later: take it off the clock into All Work."""
+    block = _load_block(block_id)
+    work_item_id = block.get("work_item_id")
+    with _connect() as conn:
+        if work_item_id:
+            conn.execute("DELETE FROM schedule_blocks WHERE work_item_id = ?", (work_item_id,))
+        else:
+            conn.execute("DELETE FROM schedule_blocks WHERE id = ?", (block_id,))
+        conn.commit()
+    parked = None
+    if work_item_id:
+        parked = work.assign_work_item(work_item_id, "")
+    return {"ok": True, "id": block_id, "parked": parked}
+
+
+@eel.expose
+def schedule_work_at(item_id: str, start_at: str, end_at: str = "") -> Dict[str, Any]:
+    """Place an unplaced work item at an exact time."""
+    item = _work_item(item_id)
+    start = parse_datetime(start_at)
+    if end_at:
+        end = parse_datetime(end_at)
+    else:
+        leftover = remaining_minutes(item) or int(load_settings().get("default_estimate_minutes") or DEFAULT_ESTIMATE)
+        end = start + timedelta(minutes=max(15, min(int(leftover), CHUNK_MAX)))
+    _validate_span(start, end, hard=False)
+    work.assign_work_item(item_id, start.date().isoformat())
+    block = add_block(
+        title=item["title"],
+        start=start,
+        end=end,
+        work_item_id=item_id,
+        kind="work",
+        status="proposed",
+    )
+    return {"ok": True, "block": block, "item": _work_item(item_id)}

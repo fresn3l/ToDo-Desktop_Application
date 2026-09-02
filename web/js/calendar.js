@@ -8,6 +8,9 @@ let weekStart = null;
 let calView = 'month';
 let monthCursor = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 let yearCursor = new Date().getFullYear();
+let lastSettings = {};
+let editor = { mode: 'new', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
+let dragState = null;
 
 function mondayISO(d = new Date()) {
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -216,11 +219,18 @@ function renderBlock(item, settings) {
     const topPct = (top / span) * 100;
     const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
     const locked = item.status === 'locked';
-    return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}"
+    const selected = editor.id && editor.id === item.id ? ' is-selected' : '';
+    return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${selected}"
         style="top:${topPct}%;height:${height}%"
         data-id="${utils.escapeHtml(item.id || '')}"
         data-kind="${kind}"
         data-status="${utils.escapeHtml(item.status || '')}"
+        data-title="${utils.escapeHtml(item.title || '')}"
+        data-start-at="${utils.escapeHtml(item.start_at || '')}"
+        data-end-at="${utils.escapeHtml(item.end_at || '')}"
+        data-work-item-id="${utils.escapeHtml(item.work_item_id || '')}"
+        data-occurrence-date="${utils.escapeHtml(item.occurrence_date || item.local_date || '')}"
+        data-weekdays="${utils.escapeHtml((item.recurrence && item.recurrence.weekdays ? item.recurrence.weekdays : []).join(','))}"
         title="${utils.escapeHtml(blockLabel(item))}">${utils.escapeHtml(blockLabel(item))}</button>`;
 }
 
@@ -261,12 +271,16 @@ function renderUnplaced(items) {
         .map((item) => {
             const due = item.due_at ? String(item.due_at).replace('T', ' ').slice(0, 16) : 'No due';
             const mins = item.remaining_minutes || item.estimate_minutes || 0;
-            return `<article class="cal-unplaced-item">
+            const selected = editor.mode === 'unplaced' && editor.id === item.id ? ' is-selected' : '';
+            return `<button type="button" class="cal-unplaced-item${selected}" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-minutes="${mins}">
                 <h4>${utils.escapeHtml(item.title)}</h4>
                 <p>${utils.escapeHtml(due)} · ${mins} min left</p>
-            </article>`;
+            </button>`;
         })
         .join('');
+    root.querySelectorAll('.cal-unplaced-item').forEach((btn) => {
+        btn.addEventListener('click', () => openUnplaced(btn));
+    });
 }
 
 async function loadWeek() {
@@ -275,6 +289,7 @@ async function loadWeek() {
     try {
         const week = await eel.get_week(weekStart)();
         weekStart = week.week_start || weekStart;
+        lastSettings = week.settings || {};
         renderGrid(week);
         renderUnplaced(week.unplaced || []);
         const url = document.getElementById('calIcsUrl');
@@ -287,51 +302,257 @@ async function loadWeek() {
     }
 }
 
-function bindGrid() {
-    document.querySelectorAll('.cal-block[data-kind="work"], .cal-block[data-kind="workout"]').forEach((btn) => {
-        btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id');
-            const status = btn.getAttribute('data-status');
-            const next = status === 'locked' ? 'proposed' : status === 'done' ? 'proposed' : 'locked';
-            try {
-                if (status === 'skipped') await eel.set_block_status(id, 'proposed')();
-                else if (e.shiftKey) await eel.set_block_status(id, 'skipped')();
-                else if (e.altKey) await eel.set_block_status(id, 'done')();
-                else await eel.set_block_status(id, next)();
-                utils.notifyDataChanged();
-                await loadCalendar();
-            } catch (err) {
-                utils.showErrorFeedback(err?.message || 'Could not update that block.');
-            }
-        });
+function selectedBlockStatus() {
+    return document.querySelector('#calBlockStatus .work-day-chip.is-selected')?.getAttribute('data-status') || 'proposed';
+}
+
+function setWeekdaySelection(days) {
+    const want = new Set((days || []).map((d) => String(d)));
+    document.querySelectorAll('#calEventWeekdays .work-day-chip').forEach((btn) => {
+        btn.classList.toggle('is-selected', want.has(btn.getAttribute('data-day')));
     });
-    document.querySelectorAll('.cal-block[data-kind="hard"]').forEach((btn) => {
-        btn.addEventListener('click', async (e) => {
+}
+
+function setStatusSelection(status) {
+    document.querySelectorAll('#calBlockStatus .work-day-chip').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-status') === status);
+    });
+}
+
+function toggleHidden(el, hide) {
+    if (el) el.classList.toggle('is-hidden', !!hide);
+}
+
+function paintEditor() {
+    const heading = document.getElementById('calEditorHeading');
+    const hint = document.getElementById('calEditorHint');
+    const weekdays = document.getElementById('calEventWeekdays');
+    const status = document.getElementById('calBlockStatus');
+    const park = document.getElementById('calParkItem');
+    const remove = document.getElementById('calRemoveItem');
+    const fresh = document.getElementById('calNewLecture');
+    const save = document.getElementById('calSaveItem');
+    const mode = editor.mode;
+    const isNew = mode === 'new';
+    const isHard = mode === 'hard' || isNew;
+    const isUnplaced = mode === 'unplaced';
+    const isBlock = mode === 'work' || mode === 'workout';
+    if (heading) {
+        heading.textContent = isNew
+            ? 'New lecture'
+            : isUnplaced
+                ? 'Place on the clock'
+                : (document.getElementById('calEventTitle')?.value?.trim() || 'Edit');
+    }
+    if (hint) {
+        hint.textContent = isNew
+            ? 'Click a block to edit it. Drag to move.'
+            : isUnplaced
+                ? 'Pick a start time, then Save to place this work.'
+                : 'Rename, change the times, or drag the block.';
+    }
+    toggleHidden(weekdays, !isHard);
+    toggleHidden(status, !isBlock);
+    toggleHidden(park, !(isBlock || isUnplaced));
+    toggleHidden(remove, isNew || isUnplaced);
+    toggleHidden(fresh, isNew);
+    if (save) {
+        save.textContent = isUnplaced ? 'Place' : 'Save';
+    }
+    if (park) park.textContent = isUnplaced ? 'Leave in All Work' : 'Save for later';
+}
+
+function resetEditor() {
+    editor = { mode: 'new', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
+    const titleEl = document.getElementById('calEventTitle');
+    if (titleEl) titleEl.value = '';
+    setWeekdaySelection([]);
+    setStatusSelection('proposed');
+    const start = document.getElementById('calEventStart');
+    const end = document.getElementById('calEventEnd');
+    if (start) start.value = '';
+    if (end) end.value = '';
+    defaultEventTimes(true);
+    paintEditor();
+    document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
+        el.classList.remove('is-selected');
+    });
+}
+
+function openEditorFromBlock(btn) {
+    const kind = btn.getAttribute('data-kind') || 'work';
+    editor = {
+        mode: kind,
+        kind,
+        id: btn.getAttribute('data-id') || '',
+        workItemId: btn.getAttribute('data-work-item-id') || '',
+        status: btn.getAttribute('data-status') || 'proposed',
+        occurrenceDate: btn.getAttribute('data-occurrence-date') || '',
+        minutes: 60,
+    };
+    const titleEl = document.getElementById('calEventTitle');
+    if (titleEl) titleEl.value = btn.getAttribute('data-title') || '';
+    const startEl = document.getElementById('calEventStart');
+    const endEl = document.getElementById('calEventEnd');
+    const startIso = btn.getAttribute('data-start-at') || '';
+    if (startEl) startEl.value = toLocalInput(startIso);
+    if (endEl) endEl.value = toLocalInput(btn.getAttribute('data-end-at'));
+    const rawDays = (btn.getAttribute('data-weekdays') || '').split(',').map((d) => d.trim()).filter(Boolean);
+    if (rawDays.length) {
+        setWeekdaySelection(rawDays);
+    } else if (kind === 'hard' && startIso) {
+        const d = new Date(startIso);
+        setWeekdaySelection(Number.isNaN(d.getTime()) ? [] : [String((d.getDay() + 6) % 7)]);
+    } else {
+        setWeekdaySelection([]);
+    }
+    setStatusSelection(editor.status);
+    paintEditor();
+    document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
+        el.classList.remove('is-selected');
+    });
+    btn.classList.add('is-selected');
+}
+
+function openUnplaced(btn) {
+    const minutes = Number(btn.getAttribute('data-minutes') || 60) || 60;
+    editor = {
+        mode: 'unplaced',
+        kind: 'work',
+        id: btn.getAttribute('data-id') || '',
+        workItemId: btn.getAttribute('data-id') || '',
+        status: 'proposed',
+        occurrenceDate: '',
+        minutes,
+    };
+    const titleEl = document.getElementById('calEventTitle');
+    if (titleEl) titleEl.value = btn.getAttribute('data-title') || '';
+    defaultEventTimes(true);
+    const start = document.getElementById('calEventStart');
+    const end = document.getElementById('calEventEnd');
+    if (start?.value && end) {
+        const d = new Date(start.value);
+        if (!Number.isNaN(d.getTime())) {
+            end.value = toLocalInput(new Date(d.getTime() + Math.max(15, minutes) * 60000));
+        }
+    }
+    setWeekdaySelection([]);
+    setStatusSelection('proposed');
+    paintEditor();
+    document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
+        el.classList.remove('is-selected');
+    });
+    btn.classList.add('is-selected');
+}
+
+function isoFromEditor() {
+    return {
+        title: document.getElementById('calEventTitle')?.value?.trim() || '',
+        start: fromLocalInput(document.getElementById('calEventStart')?.value),
+        end: fromLocalInput(document.getElementById('calEventEnd')?.value),
+    };
+}
+
+function bindGrid() {
+    document.querySelectorAll('.cal-block').forEach((btn) => {
+        btn.addEventListener('pointerdown', onBlockPointerDown);
+        btn.addEventListener('pointermove', onBlockPointerMove);
+        btn.addEventListener('pointerup', onBlockPointerUp);
+        btn.addEventListener('pointercancel', onBlockPointerUp);
+        btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (!(await utils.askConfirm({
-                title: 'Remove lecture',
-                message: 'Remove this lecture / hard event?',
-                ok: 'Remove',
-                danger: true,
-            }))) return;
-            try {
-                await eel.delete_calendar_event(btn.getAttribute('data-id'))();
-                utils.notifyDataChanged();
-                await loadCalendar();
-            } catch (err) {
-                utils.showErrorFeedback(err?.message || 'Could not delete that event.');
+            if (btn.dataset.didDrag === '1') {
+                btn.dataset.didDrag = '';
+                return;
             }
+            openEditorFromBlock(btn);
         });
     });
 }
 
-async function addLecture() {
-    const title = document.getElementById('calEventTitle')?.value?.trim();
-    const start = fromLocalInput(document.getElementById('calEventStart')?.value);
-    const end = fromLocalInput(document.getElementById('calEventEnd')?.value);
+function onBlockPointerDown(e) {
+    if (e.button !== 0) return;
+    const btn = e.currentTarget;
+    dragState = {
+        el: btn,
+        pointerId: e.pointerId,
+        originX: e.clientX,
+        originY: e.clientY,
+        moved: false,
+        preview: null,
+        id: btn.getAttribute('data-id'),
+        kind: btn.getAttribute('data-kind'),
+        startAt: btn.getAttribute('data-start-at'),
+        endAt: btn.getAttribute('data-end-at'),
+        occurrenceDate: btn.getAttribute('data-occurrence-date'),
+    };
+    try { btn.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+}
+
+function onBlockPointerMove(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+    const dx = e.clientX - dragState.originX;
+    const dy = e.clientY - dragState.originY;
+    if (!dragState.moved && (dx * dx + dy * dy) < 36) return;
+    dragState.moved = true;
+    dragState.el.dataset.didDrag = '1';
+    dragState.el.classList.add('is-dragging');
+    const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day-body');
+    if (!hit) return;
+    const day = hit.closest('.cal-day')?.getAttribute('data-date');
+    if (!day) return;
+    const rect = hit.getBoundingClientRect();
+    const { startHour, endHour } = hourRange(lastSettings);
+    const span = Math.max(60, (endHour - startHour) * 60);
+    const origStart = new Date(dragState.startAt);
+    const origEnd = new Date(dragState.endAt);
+    const dur = Math.max(15, Math.round((origEnd - origStart) / 60000));
+    let mins = Math.round((((e.clientY - rect.top) / rect.height) * span) / 15) * 15;
+    mins = Math.max(0, Math.min(span - dur, mins));
+    const topPct = (mins / span) * 100;
+    const heightPct = (dur / span) * 100;
+    if (hit !== dragState.el.parentElement) hit.appendChild(dragState.el);
+    dragState.el.style.top = `${topPct}%`;
+    dragState.el.style.height = `${heightPct}%`;
+    dragState.preview = { date: day, minutesFromStart: mins, duration: dur };
+}
+
+async function onBlockPointerUp(e) {
+    if (!dragState || e.pointerId !== dragState.pointerId) return;
+    const state = dragState;
+    dragState = null;
+    state.el.classList.remove('is-dragging');
+    try { state.el.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    if (!state.moved || !state.preview) return;
+    const { startHour } = hourRange(lastSettings);
+    const [y, m, d] = state.preview.date.split('-').map(Number);
+    const start = new Date(y, m - 1, d, startHour, 0, 0);
+    start.setMinutes(start.getMinutes() + state.preview.minutesFromStart);
+    const end = new Date(start.getTime() + state.preview.duration * 60000);
+    try {
+        if (state.kind === 'hard') {
+            await eel.update_calendar_event(state.id, '', toApiIso(start), toApiIso(end), null, state.occurrenceDate)();
+        } else {
+            await eel.update_schedule_block(state.id, '', toApiIso(start), toApiIso(end), '')();
+        }
+        utils.notifyDataChanged();
+        await loadCalendar();
+        utils.showSuccessFeedback('Moved.');
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not move that.');
+        await loadCalendar();
+    }
+}
+
+function toApiIso(d) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+}
+
+async function saveEditor() {
+    const { title, start, end } = isoFromEditor();
     if (!title) {
-        utils.showErrorFeedback('Name the lecture first.');
+        utils.showErrorFeedback('Name it first.');
         return;
     }
     if (!start || !end) {
@@ -339,20 +560,83 @@ async function addLecture() {
         return;
     }
     try {
-        await eel.create_calendar_event(title, start, end, selectedLectureDays())();
-        const titleEl = document.getElementById('calEventTitle');
-        if (titleEl) titleEl.value = '';
-        utils.showSuccessFeedback('Saved on the clock.');
+        if (editor.mode === 'new' || editor.mode === 'hard' && !editor.id) {
+            await eel.create_calendar_event(title, start, end, selectedLectureDays())();
+            resetEditor();
+            utils.showSuccessFeedback('Saved on the clock.');
+        } else if (editor.mode === 'hard') {
+            await eel.update_calendar_event(editor.id, title, start, end, selectedLectureDays(), editor.occurrenceDate)();
+            utils.showSuccessFeedback('Lecture updated.');
+        } else if (editor.mode === 'unplaced') {
+            await eel.schedule_work_at(editor.id, start, end)();
+            resetEditor();
+            utils.showSuccessFeedback('Placed on the clock.');
+        } else {
+            await eel.update_schedule_block(editor.id, title, start, end, selectedBlockStatus())();
+            utils.showSuccessFeedback('Saved.');
+        }
         utils.notifyDataChanged();
         await loadCalendar();
     } catch (e) {
-        utils.showErrorFeedback(e?.message || 'Could not save that event.');
+        utils.showErrorFeedback(e?.message || 'Could not save that.');
+    }
+}
+
+async function parkEditor() {
+    try {
+        if (editor.mode === 'unplaced' && editor.id) {
+            await eel.assign_work_item(editor.id, '')();
+            resetEditor();
+            utils.showSuccessFeedback('Left in All Work.');
+        } else if ((editor.mode === 'work' || editor.mode === 'workout') && editor.id) {
+            await eel.park_schedule_block(editor.id)();
+            resetEditor();
+            utils.showSuccessFeedback(editor.mode === 'workout' ? 'Taken off the clock.' : 'Saved for later in All Work.');
+        } else {
+            return;
+        }
+        utils.notifyDataChanged();
+        await loadCalendar();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not park that.');
+    }
+}
+
+async function removeEditor() {
+    if (!editor.id) return;
+    const lecture = editor.mode === 'hard';
+    if (!(await utils.askConfirm({
+        title: lecture ? 'Remove lecture' : 'Remove from clock',
+        message: lecture
+            ? 'Remove this lecture from the calendar?'
+            : 'Take this off the clock? The work stays in your lists.',
+        ok: 'Remove',
+        danger: true,
+    }))) return;
+    try {
+        if (lecture) {
+            await eel.delete_calendar_event(editor.id)();
+        } else {
+            await eel.delete_schedule_block(editor.id, true)();
+        }
+        resetEditor();
+        utils.notifyDataChanged();
+        await loadCalendar();
+        utils.showSuccessFeedback('Removed.');
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not remove that.');
     }
 }
 
 async function importIcs() {
     const status = document.getElementById('calImportStatus');
-    const url = document.getElementById('calIcsUrl')?.value?.trim();
+    const raw = document.getElementById('calIcsUrl')?.value || '';
+    const url = (typeof window.kosistenzSanitizePastedUrl === 'function')
+        ? window.kosistenzSanitizePastedUrl(raw)
+        : raw.trim();
+    if (url && document.getElementById('calIcsUrl')) {
+        document.getElementById('calIcsUrl').value = url;
+    }
     if (!url) {
         utils.showErrorFeedback('Paste the class calendar URL.');
         return;
@@ -382,10 +666,10 @@ function importApple() {
     }
 }
 
-function defaultEventTimes() {
+function defaultEventTimes(force = false) {
     const start = document.getElementById('calEventStart');
     const end = document.getElementById('calEventEnd');
-    if (!start || start.value) return;
+    if (!start || (!force && start.value)) return;
     const d = new Date();
     d.setMinutes(0, 0, 0);
     d.setHours(9, 30, 0, 0);
@@ -396,6 +680,7 @@ function defaultEventTimes() {
 
 export function setupCalendar() {
     setCalView(calView);
+    paintEditor();
     document.getElementById('calViewGroup')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-cal-view]');
         if (!btn) return;
@@ -421,11 +706,59 @@ export function setupCalendar() {
             utils.showErrorFeedback(e?.message || 'Could not fill the week.');
         }
     });
-    document.getElementById('calAddEvent')?.addEventListener('click', () => {
-        void addLecture();
+    document.getElementById('calSaveItem')?.addEventListener('click', () => {
+        void saveEditor();
+    });
+    document.getElementById('calParkItem')?.addEventListener('click', () => {
+        void parkEditor();
+    });
+    document.getElementById('calRemoveItem')?.addEventListener('click', () => {
+        void removeEditor();
+    });
+    document.getElementById('calNewLecture')?.addEventListener('click', () => {
+        resetEditor();
+    });
+    document.getElementById('calBlockStatus')?.addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-status]');
+        if (!chip) return;
+        setStatusSelection(chip.getAttribute('data-status'));
     });
     document.getElementById('calImportIcs')?.addEventListener('click', () => {
         void importIcs();
+    });
+    document.getElementById('calIcsUrl')?.addEventListener('paste', (e) => {
+        const dt = e.clipboardData;
+        if (!dt) return;
+        const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
+        const cleaned = (typeof window.kosistenzSanitizePastedUrl === 'function')
+            ? window.kosistenzSanitizePastedUrl(raw)
+            : String(raw || '').trim();
+        if (!cleaned) return;
+        e.preventDefault();
+        const field = e.target;
+        field.value = cleaned;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    document.addEventListener('paste', (e) => {
+        const tab = document.getElementById('calendarTab');
+        if (!tab?.classList.contains('active')) return;
+        const tag = (e.target?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+        const dt = e.clipboardData;
+        if (!dt) return;
+        const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
+        const cleaned = (typeof window.kosistenzSanitizePastedUrl === 'function')
+            ? window.kosistenzSanitizePastedUrl(raw)
+            : '';
+        if (!cleaned) return;
+        const ics = document.getElementById('calIcsUrl');
+        if (!ics) return;
+        e.preventDefault();
+        ics.value = cleaned;
+        ics.dispatchEvent(new Event('input', { bubbles: true }));
+        ics.focus();
+        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load dues.');
     });
     document.getElementById('calImportApple')?.addEventListener('click', importApple);
     document.getElementById('calEventWeekdays')?.addEventListener('click', (e) => {
