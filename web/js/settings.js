@@ -481,6 +481,9 @@ export function setupSettings() {
     document.getElementById('clunySaveBtn')?.addEventListener('click', () => {
         void saveClunySettings();
     });
+    document.getElementById('clunyTestBtn')?.addEventListener('click', () => {
+        void testClunyConnection();
+    });
 
     document.getElementById('icloudAutoToggle')?.addEventListener('change', async (e) => {
         if (typeof eel === 'undefined' || !eel.save_icloud_sync_settings) return;
@@ -662,9 +665,21 @@ function setupSettingsResize() {
     });
 }
 
+function paintClunyHealth(probe) {
+    const el = document.getElementById('clunyHealthStatus');
+    if (!el) return;
+    if (probe?.brain_ready) {
+        const ollama = probe.ollama_ok ? 'Ollama is up.' : 'Ollama is not ready.';
+        el.textContent = `Brain ready. ${ollama}`;
+        return;
+    }
+    el.textContent = probe?.offline_copy || 'Cluny is off. Journal, to-dos, and the clock still work.';
+}
+
 function paintClunySettings(cfg) {
     const sqlite = document.getElementById('clunySqlitePath');
     const url = document.getElementById('clunyIngestUrl');
+    const brain = document.getElementById('clunyBrainUrl');
     const key = document.getElementById('clunyApiKey');
     const journal = document.getElementById('clunyJournalToggle');
     const checklist = document.getElementById('clunyChecklistToggle');
@@ -673,6 +688,10 @@ function paintClunySettings(cfg) {
     if (sqlite) {
         sqlite.value = cfg.sqlite_path || '';
         sqlite.readOnly = !!cfg.env_overrides?.sqlite_path;
+    }
+    if (brain) {
+        brain.value = cfg.brain_url || 'http://127.0.0.1:8787';
+        brain.readOnly = !!cfg.env_overrides?.brain_url;
     }
     if (url) {
         url.value = cfg.ingest_url || '';
@@ -690,12 +709,43 @@ function paintClunySettings(cfg) {
     }
 }
 
+async function refreshClunyHealth() {
+    if (typeof eel === 'undefined' || !eel.get_cluny_health) return;
+    try {
+        paintClunyHealth(await eel.get_cluny_health()());
+    } catch (_) {
+        paintClunyHealth({ brain_ready: false });
+    }
+}
+
 async function loadClunySettings() {
     if (typeof eel === 'undefined' || !eel.get_cluny_settings) return;
     try {
         paintClunySettings(await eel.get_cluny_settings()());
     } catch (_) {
         /* eel not ready */
+    }
+    void refreshClunyHealth();
+}
+
+async function testClunyConnection() {
+    const el = document.getElementById('clunyHealthStatus');
+    if (el) el.textContent = 'Checking Cluny…';
+    if (typeof eel === 'undefined' || !eel.probe_cluny_connection) {
+        paintClunyHealth({ brain_ready: false });
+        return;
+    }
+    try {
+        const probe = await eel.probe_cluny_connection()();
+        paintClunyHealth(probe);
+        if (probe?.brain_ready) {
+            utils.showSuccessFeedback('Cluny is reachable.');
+        } else {
+            utils.showErrorFeedback(probe?.offline_copy || 'Cluny is off.');
+        }
+    } catch (err) {
+        paintClunyHealth({ brain_ready: false });
+        utils.showErrorFeedback(err?.message || 'Cluny is off.');
     }
 }
 
@@ -704,6 +754,7 @@ async function saveClunySettings() {
     const payload = {
         sqlite_path: document.getElementById('clunySqlitePath')?.value || '',
         ingest_url: document.getElementById('clunyIngestUrl')?.value || '',
+        brain_url: document.getElementById('clunyBrainUrl')?.value || '',
         api_key: document.getElementById('clunyApiKey')?.value || '',
         journal_enabled: !!document.getElementById('clunyJournalToggle')?.checked,
         checklist_enabled: !!document.getElementById('clunyChecklistToggle')?.checked,
@@ -712,6 +763,7 @@ async function saveClunySettings() {
         const saved = await eel.save_cluny_settings(payload)();
         paintClunySettings(saved);
         utils.showSuccessFeedback('Cluny settings saved.');
+        void refreshClunyHealth();
     } catch (err) {
         utils.showErrorFeedback(err?.message || 'Could not save Cluny settings.');
     }

@@ -239,6 +239,8 @@ def build_app() -> None:
         "geventwebsocket",
         "setuptools",
         "journal",
+        "cluny_ask",
+        "cluny_client",
         "cluny_sync",
         "insights",
         "timeline",

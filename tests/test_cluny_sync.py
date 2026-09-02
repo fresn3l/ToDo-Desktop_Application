@@ -27,6 +27,7 @@ class ClunySettingsTests(unittest.TestCase):
             "CLUNY_SQLITE_PATH",
             "CLUNY_DATABASE_PATH",
             "CLUNY_INGEST_URL",
+            "CLUNY_BRAIN_URL",
             "CLUNY_CHECKLIST_INGEST_URL",
             "CLUNY_API_KEY",
         ):
@@ -74,8 +75,10 @@ class ClunySettingsTests(unittest.TestCase):
             }
         )
         with mock.patch.object(cluny_sync, "_sync_sqlite") as sqlite_sync:
-            cluny_sync.sync_journal_entry_safe({"id": "j1", "content": "hi"})
-            sqlite_sync.assert_not_called()
+            with mock.patch.object(cluny_sync, "_sync_http") as http_sync:
+                cluny_sync.sync_journal_entry_safe({"id": "j1", "content": "hi"})
+                sqlite_sync.assert_not_called()
+                http_sync.assert_not_called()
 
     def test_ingest_url_rejects_plain_http_remote(self) -> None:
         with self.assertRaises(ValueError):
@@ -88,6 +91,47 @@ class ClunySettingsTests(unittest.TestCase):
             cluny_sync._validate_ingest_url("http://localhost:9/ingest"),
             "http://localhost:9/ingest",
         )
+
+    def test_brain_url_allows_loopback_http_not_remote(self) -> None:
+        import cluny_client
+
+        self.assertEqual(cluny_client.validate_brain_url("http://127.0.0.1:8787"), "http://127.0.0.1:8787")
+        self.assertEqual(cluny_client.validate_brain_url("http://localhost:8787"), "http://localhost:8787")
+        self.assertEqual(
+            cluny_client.validate_brain_url("https://example.com"),
+            "https://example.com",
+        )
+        with self.assertRaises(ValueError):
+            cluny_client.validate_brain_url("http://example.com")
+
+    def test_journal_ingest_payload_is_text_catalog(self) -> None:
+        import cluny_client
+
+        payload = cluny_client.journal_ingest_payload(
+            {"content": "Wrote about Spanish.", "date": "2026-09-02", "id": "j1"}
+        )
+        self.assertEqual(payload["text"], "Wrote about Spanish.")
+        self.assertTrue(payload["catalog"])
+        self.assertEqual(payload["source"], "kosistenz-journal")
+        self.assertEqual(payload["collection"], "journal")
+        self.assertEqual(payload["title"], "2026-09-02 journal")
+
+    def test_journal_http_runs_without_sqlite_or_ingest_url(self) -> None:
+        cluny_sync.save_cluny_settings({"journal_enabled": True, "sqlite_path": "", "ingest_url": ""})
+        with mock.patch.object(cluny_sync, "_sync_http") as http_sync:
+            with mock.patch.object(cluny_sync, "_sync_sqlite") as sqlite_sync:
+                cluny_sync.sync_journal_entry_safe(
+                    {"id": "j1", "content": "hi", "date": "2026-09-02"}
+                )
+                http_sync.assert_called_once()
+                sqlite_sync.assert_not_called()
+
+    def test_journal_save_swallows_cluny_down(self) -> None:
+        cluny_sync.save_cluny_settings({"journal_enabled": True})
+        with mock.patch("cluny_client.ingest_text", side_effect=ValueError("Cluny is off")):
+            cluny_sync.sync_journal_entry_safe(
+                {"id": "j1", "content": "still saved", "date": "2026-09-02"}
+            )
 
 
 if __name__ == "__main__":

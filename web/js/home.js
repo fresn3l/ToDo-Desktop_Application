@@ -20,6 +20,7 @@ import { refreshDayBrief } from './day_brief.js';
 import { refreshCounters } from './counters.js';
 import { refreshReading } from './reading.js';
 import { onWordTabShown } from './word.js';
+import { onClunyTabShown } from './cluny.js';
 import { openChecklistTemplate } from './daily_checklist.js';
 
 const FALLBACK_LAYOUT = {
@@ -300,6 +301,7 @@ async function refreshKinds(kinds) {
     if (set.has('counters')) await run(refreshCounters);
     if (set.has('reading')) await run(refreshReading);
     if (set.has('word')) await run(onWordTabShown);
+    if (set.has('cluny')) await run(onClunyTabShown);
     await run(refreshToday);
     await run(() => refreshGlances([...set]));
 }
@@ -902,6 +904,12 @@ export function setupHome() {
         document.dispatchEvent(new CustomEvent('kosistenz:open-tab', {
             detail: { tab: 'home', homePageId: firstId },
         }));
+    });
+    document.addEventListener('kosistenz:open-cluny', () => {
+        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', {
+            detail: { tab: 'home' },
+        }));
+        void ensureHomeWidget('cluny');
     });
 }
 

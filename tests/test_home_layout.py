@@ -41,6 +41,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("counters", kinds)
         self.assertIn("reading", kinds)
         self.assertIn("word", kinds)
+        self.assertIn("cluny", kinds)
         self.assertNotIn("checklist", kinds)
         self.assertNotIn("settings", kinds)
         self.assertNotIn("calendar", kinds)
@@ -257,6 +258,7 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.add_home_widget(page_id, "day_brief")
         layout = home_layout.add_home_widget(page_id, "counters")
         layout = home_layout.add_home_widget(page_id, "reading")
+        layout = home_layout.add_home_widget(page_id, "cluny")
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
         self.assertIn("weather", kinds)
         self.assertIn("focus", kinds)
@@ -267,6 +269,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("counters", kinds)
         self.assertIn("reading", kinds)
         self.assertIn("word", kinds)
+        self.assertIn("cluny", kinds)
         self.assertNotIn("checklist", kinds)
         self.assertEqual(home_layout.coerce_size("countdown", 4, 2), (4, 2))
         self.assertEqual(home_layout.coerce_size("heatmap", 2, 2), (2, 2))

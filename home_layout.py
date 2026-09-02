@@ -105,6 +105,11 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (4, 2)),
         "default": (1, 1),
     },
+    "cluny": {
+        "label": "Ask Cluny",
+        "sizes": ((2, 2), (2, 3), (4, 3), (4, 4)),
+        "default": (2, 3),
+    },
 }
 
 SOURCE_TAB = {
@@ -124,6 +129,7 @@ SOURCE_TAB = {
     "counters": "countersSource",
     "reading": "readingSource",
     "word": "wordTab",
+    "cluny": "clunySource",
 }
 
 

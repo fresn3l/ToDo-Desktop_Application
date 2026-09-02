@@ -17,6 +17,7 @@ const POSTERS = {
     habits: { kicker: 'Habits', line: 'Small things, every day' },
     heatmap: { kicker: 'Heatmap', line: 'A year at a glance' },
     day_brief: { kicker: 'Day', line: 'Morning brief, evening review' },
+    cluny: { kicker: 'Brain', line: 'Ask Cluny' },
     counters: { kicker: 'Counters', line: 'Tap to keep count' },
     reading: { kicker: 'Reading', line: 'The book in your hands' },
 };
@@ -504,6 +505,16 @@ function posterCopy(kind, data, meta) {
         const slot = data?.slot === 'evening' ? 'Evening' : 'Morning';
         return { kpi: slot.slice(0, 1), line: `${slot} ${data?.slot === 'evening' ? 'review' : 'brief'}`, tiny: slot.slice(0, 3) };
     }
+    if (kind === 'cluny') {
+        const n = Number(data?.pending_count || 0);
+        if (n) {
+            return { kpi: String(n), line: n === 1 ? 'suggestion waiting' : 'suggestions waiting', tiny: String(n) };
+        }
+        if (data && data.ok === false) {
+            return { kpi: 'Off', line: 'Journal and the clock still work', tiny: 'Off' };
+        }
+        return { kpi: 'Ask', line: meta.line, tiny: 'Ask' };
+    }
     return { kpi: specLetter(kind), line: meta.line, tiny: meta.kicker.slice(0, 4) };
 }
 
@@ -525,6 +536,11 @@ async function loadGlance(kind) {
     if (kind === 'goals') return eelCall('list_goals');
     if (kind === 'allwork') return eelCall('list_backlog');
     if (kind === 'day_brief') return eelCall('get_day_brief');
+    if (kind === 'cluny') {
+        const inbox = await eelCall('get_cluny_inbox') || {};
+        const health = await eelCall('get_cluny_health') || {};
+        return { ...inbox, ...health };
+    }
     return null;
 }
 
