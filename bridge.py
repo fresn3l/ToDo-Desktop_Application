@@ -11,6 +11,7 @@ import eel
 
 import appearance  # noqa: F401
 import brain  # noqa: F401
+import library  # noqa: F401
 import cluny_brain  # noqa: F401
 import cluny_ask  # noqa: F401
 import cluny_sync  # noqa: F401

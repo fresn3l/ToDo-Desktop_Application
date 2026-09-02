@@ -46,6 +46,7 @@ _FILE_DEFAULTS: Dict[str, Any] = {
     "checklist_enabled": True,
     "auto_start_brain": True,
     "cluny_binary_path": "",
+    "cluny_data_dir": "",
 }
 
 
@@ -92,6 +93,7 @@ def _read_file_settings() -> Dict[str, Any]:
             "checklist_enabled": raw.get("checklist_enabled") is not False,
             "auto_start_brain": raw.get("auto_start_brain") is not False,
             "cluny_binary_path": str(raw.get("cluny_binary_path") or "").strip(),
+            "cluny_data_dir": str(raw.get("cluny_data_dir") or "").strip(),
         }
 
 
@@ -108,6 +110,9 @@ def _sanitize_file_settings(raw: Dict[str, Any]) -> Dict[str, Any]:
         import cluny_client
 
         brain_url = cluny_client.validate_brain_url(brain_url)
+    cluny_data_dir = str(raw.get("cluny_data_dir") or "").strip()
+    if cluny_data_dir:
+        cluny_data_dir = _validate_data_dir(cluny_data_dir)
     return {
         "sqlite_path": sqlite_path,
         "ingest_url": ingest_url[:500],
@@ -117,6 +122,7 @@ def _sanitize_file_settings(raw: Dict[str, Any]) -> Dict[str, Any]:
         "checklist_enabled": raw.get("checklist_enabled") is not False,
         "auto_start_brain": raw.get("auto_start_brain") is not False,
         "cluny_binary_path": str(raw.get("cluny_binary_path") or "").strip()[:500],
+        "cluny_data_dir": cluny_data_dir,
     }
 
 
@@ -146,6 +152,22 @@ def _validate_sqlite_path(raw: str) -> str:
     return str(resolved)
 
 
+def _validate_data_dir(raw: str) -> str:
+    path = Path(raw).expanduser()
+    if ".." in path.parts:
+        raise ValueError("Cluny data directory cannot contain ..")
+    try:
+        resolved = path.resolve()
+    except OSError as exc:
+        raise ValueError("Invalid Cluny data directory") from exc
+    home = Path.home().resolve()
+    try:
+        resolved.relative_to(home)
+    except ValueError as exc:
+        raise ValueError("Cluny data directory must be inside your home folder") from exc
+    return str(resolved)
+
+
 def _validate_ingest_url(raw: str) -> str:
     text = str(raw or "").strip()
     if not text:
@@ -168,6 +190,7 @@ def effective_cluny_config() -> Dict[str, Any]:
     env_brain = (os.environ.get("CLUNY_BRAIN_URL") or "").strip()
     env_checklist = (os.environ.get("CLUNY_CHECKLIST_INGEST_URL") or "").strip()
     env_key = (os.environ.get("CLUNY_API_KEY") or "").strip()
+    env_data_dir = (os.environ.get("CLUNY_DATA_DIR") or "").strip()
     sqlite_path = env_sqlite or stored["sqlite_path"]
     ingest_url = env_ingest or stored["ingest_url"]
     brain_url = env_brain or stored["brain_url"] or "http://127.0.0.1:8787"
@@ -186,6 +209,7 @@ def effective_cluny_config() -> Dict[str, Any]:
             "ingest_url": bool(env_ingest),
             "brain_url": bool(env_brain),
             "api_key": bool(env_key),
+            "cluny_data_dir": bool(env_data_dir),
         },
     }
 
@@ -217,6 +241,7 @@ def public_cluny_settings() -> Dict[str, Any]:
         "ingest_url": "ingest URL",
         "brain_url": "brain URL",
         "api_key": "API key",
+        "cluny_data_dir": "data directory",
     }
     if env_bits:
         env_note = "Environment variables override Settings for: " + ", ".join(
@@ -231,6 +256,7 @@ def public_cluny_settings() -> Dict[str, Any]:
         "checklist_enabled": cfg["checklist_enabled"],
         "auto_start_brain": _read_file_settings().get("auto_start_brain", True),
         "cluny_binary_path": _read_file_settings().get("cluny_binary_path", ""),
+        "cluny_data_dir": _read_file_settings().get("cluny_data_dir", ""),
         "env_overrides": cfg["env_overrides"],
         "status_note": f"{journal}. {check[0].upper() + check[1:]}." if has_sink else "Ask uses http://127.0.0.1:8787 when Cluny is running. SQLite copy is optional.",
         "env_note": env_note,
@@ -265,6 +291,8 @@ def save_cluny_settings(raw: Dict[str, Any]) -> Dict[str, Any]:
         incoming["auto_start_brain"] = bool(raw.get("auto_start_brain"))
     if "cluny_binary_path" in raw:
         incoming["cluny_binary_path"] = str(raw.get("cluny_binary_path") or "").strip()
+    if "cluny_data_dir" in raw:
+        incoming["cluny_data_dir"] = str(raw.get("cluny_data_dir") or "").strip()
     _write_file_settings(incoming)
     return public_cluny_settings()
 

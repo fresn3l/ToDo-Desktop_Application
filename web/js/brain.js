@@ -1,5 +1,5 @@
 /**
- * Brain tab — full Cluny GUI (library sidebar, streaming chat, brain editor, propose).
+ * Brain tab — Cluny chat, streaming, brain editor, propose.
  */
 
 import * as utils from './utils.js';
@@ -78,37 +78,10 @@ function applyStats(stats) {
     if (model) model.textContent = stats?.chat_model ?? '—';
 }
 
-function paintLibrary(docs) {
-    const list = document.getElementById('brainLibraryList');
-    if (!list) return;
-    const rows = docs?.documents || [];
-    if (!rows.length) {
-        list.innerHTML = '<li class="brain-library-empty">No documents</li>';
-        return;
-    }
-    list.innerHTML = rows
-        .map((doc) => {
-            const id = utils.escapeHtml(doc.id || '');
-            const title = utils.escapeHtml(doc.title || doc.path || doc.id || 'Untitled');
-            const meta = [
-                doc.chunk_count != null ? `${doc.chunk_count} chunks` : '',
-                (doc.collections || []).join(', '),
-            ].filter(Boolean).join(' · ');
-            return `<li class="brain-library-row">
-                <div>
-                    <strong>${title}</strong>
-                    ${meta ? `<p class="checklist-hint small">${utils.escapeHtml(meta)}</p>` : ''}
-                </div>
-                <button type="button" class="btn-ghost" data-brain-delete="${id}" title="Remove from library">Delete</button>
-            </li>`;
-        })
-        .join('');
-}
-
 function fillSelect(id, values, current) {
     const el = document.getElementById(id);
     if (!el) return;
-    const opts = ['<option value="">All</option>']
+    const opts = ['<option value="">All collections</option>']
         .concat((values || []).map((v) => {
             const val = utils.escapeHtml(String(v));
             const sel = current && current === v ? ' selected' : '';
@@ -117,16 +90,12 @@ function fillSelect(id, values, current) {
     el.innerHTML = opts.join('');
 }
 
-export async function refreshBrainLibrary() {
+async function refreshBrainCollections() {
     if (!hasEel('brain_library_filters')) return;
     const collection = document.getElementById('brainCollectionFilter')?.value || '';
-    const source = document.getElementById('brainSourceFilter')?.value || '';
     try {
         const filters = await eel.brain_library_filters()();
         fillSelect('brainCollectionFilter', filters?.collections || [], collection);
-        fillSelect('brainSourceFilter', filters?.sources || [], source);
-        const docs = await eel.brain_library(collection, source)();
-        paintLibrary(docs);
     } catch (err) {
         console.error(err);
     }
@@ -151,7 +120,16 @@ export async function refreshBrain() {
                 console.error(err);
             }
         }
-        await refreshBrainLibrary();
+        await refreshBrainCollections();
+        if (hasEel('brain_user_config_get')) {
+            try {
+                const cfg = await eel.brain_user_config_get()();
+                const mode = document.getElementById('brainAgentMode');
+                if (mode && cfg?.agent_mode) mode.value = cfg.agent_mode;
+            } catch (err) {
+                console.error(err);
+            }
+        }
     } catch (err) {
         console.error(err);
         applyHealth({ brain_ready: false });
@@ -282,35 +260,6 @@ function closeBrainModal(id) {
     el.hidden = true;
 }
 
-async function uploadFiles(fileList) {
-    if (!brainReady) {
-        utils.showErrorFeedback('Cluny is off.');
-        return;
-    }
-    if (!hasEel('brain_ingest_file_b64')) {
-        utils.showErrorFeedback('File ingest is unavailable. Restart Kosistenz.');
-        return;
-    }
-    for (const file of fileList) {
-        const buf = await file.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        let binary = '';
-        for (let i = 0; i < bytes.length; i += 1) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        const b64 = btoa(binary);
-        const collection = document.getElementById('brainCollectionFilter')?.value || 'journal';
-        try {
-            await eel.brain_ingest_file_b64(file.name, b64, file.name, collection)();
-            utils.showSuccessFeedback(`Indexed ${file.name}`);
-        } catch (err) {
-            console.error(err);
-            utils.showErrorFeedback(err?.message || `Could not index ${file.name}`);
-        }
-    }
-    await refreshBrainLibrary();
-}
-
 async function openBrainEditor() {
     if (!hasEel('brain_config_get')) {
         utils.showErrorFeedback('Brain editor unavailable. Restart Kosistenz.');
@@ -398,9 +347,6 @@ export function setupBrain() {
     document.getElementById('brainProposeBtn')?.addEventListener('click', () => {
         void runPropose();
     });
-    document.getElementById('brainRefreshLibraryBtn')?.addEventListener('click', () => {
-        void refreshBrainLibrary();
-    });
     document.getElementById('brainNewSessionBtn')?.addEventListener('click', () => {
         if (hasEel('brain_new_session')) {
             eel.brain_new_session('Kosistenz')().then(() => {
@@ -411,19 +357,8 @@ export function setupBrain() {
     document.getElementById('brainStartServeBtn')?.addEventListener('click', () => {
         void refreshBrain();
     });
-    document.getElementById('brainCollectionFilter')?.addEventListener('change', () => {
-        void refreshBrainLibrary();
-    });
-    document.getElementById('brainSourceFilter')?.addEventListener('change', () => {
-        void refreshBrainLibrary();
-    });
-    document.getElementById('brainAddDocsBtn')?.addEventListener('click', () => {
-        document.getElementById('brainFileInput')?.click();
-    });
-    document.getElementById('brainFileInput')?.addEventListener('change', (e) => {
-        const files = e.target.files;
-        if (files?.length) void uploadFiles(files);
-        e.target.value = '';
+    document.getElementById('brainOpenLibraryBtn')?.addEventListener('click', () => {
+        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'library' } }));
     });
     document.getElementById('brainOpenBrainEditorBtn')?.addEventListener('click', () => {
         void openBrainEditor();
@@ -477,15 +412,6 @@ export function setupBrain() {
     });
 
     root.addEventListener('click', (event) => {
-        const del = event.target.closest('[data-brain-delete]');
-        if (del && hasEel('brain_delete_doc')) {
-            const id = del.getAttribute('data-brain-delete');
-            eel.brain_delete_doc(id)().then(() => refreshBrainLibrary()).catch((err) => {
-                console.error(err);
-                utils.showErrorFeedback(err?.message || 'Delete failed.');
-            });
-            return;
-        }
         const accept = event.target.closest('[data-brain-accept]');
         if (accept) {
             void acceptProposal(accept.getAttribute('data-brain-accept'));

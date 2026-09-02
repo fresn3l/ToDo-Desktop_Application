@@ -330,6 +330,41 @@ def library_delete(doc_id: str) -> Dict[str, Any]:
     return _request("DELETE", _api_url(f"library/{doc_id}"), timeout=30.0)
 
 
+def library_get(doc_id: str) -> Dict[str, Any]:
+    return _request("GET", _api_url(f"library/{doc_id}"), timeout=15.0)
+
+
+def library_update(doc_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    return _request("PATCH", _api_url(f"library/{doc_id}"), payload, timeout=15.0)
+
+
+def library_create_collection(name: str) -> Dict[str, Any]:
+    return _request("POST", _api_url("library/collections"), {"name": name}, timeout=10.0)
+
+
+def library_delete_collection(name: str, *, force: bool = False) -> Dict[str, Any]:
+    url = _api_url(f"library/collections/{quote(name)}")
+    if force:
+        url = url + "?force=true"
+    return _request("DELETE", url, timeout=10.0)
+
+
+def library_search(
+    q: str,
+    *,
+    collection: Optional[str] = None,
+    source: Optional[str] = None,
+    limit: int = 50,
+) -> Dict[str, Any]:
+    params = [f"q={quote(q)}", f"limit={int(limit)}"]
+    if collection:
+        params.append(f"collection={quote(collection)}")
+    if source:
+        params.append(f"source={quote(source)}")
+    url = _api_url("library/search") + "?" + "&".join(params)
+    return _request("GET", url, timeout=15.0)
+
+
 def brain_config_get() -> Dict[str, Any]:
     return _request("GET", _api_url("brain/config"), timeout=10.0)
 

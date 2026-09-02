@@ -539,6 +539,7 @@ export function onSettingsTabShown() {
     void loadIcloudSync();
     void loadHomeLayoutForColors();
     void loadClunySettings();
+    void refreshClunyLiveStats();
 }
 
 function paintIcloudStatus(status) {
@@ -694,6 +695,7 @@ function paintClunySettings(cfg) {
     const checklist = document.getElementById('clunyChecklistToggle');
     const autoStart = document.getElementById('clunyAutoStartToggle');
     const binaryPath = document.getElementById('clunyBinaryPath');
+    const dataDir = document.getElementById('clunyDataDir');
     const status = document.getElementById('clunyStatus');
     const envNote = document.getElementById('clunyEnvNote');
     if (sqlite) {
@@ -716,9 +718,32 @@ function paintClunySettings(cfg) {
     if (checklist) checklist.checked = cfg.checklist_enabled !== false;
     if (autoStart) autoStart.checked = cfg.auto_start_brain !== false;
     if (binaryPath) binaryPath.value = cfg.cluny_binary_path || '';
+    if (dataDir) {
+        dataDir.value = cfg.cluny_data_dir || '';
+        dataDir.readOnly = !!cfg.env_overrides?.cluny_data_dir;
+    }
     if (status) status.textContent = cfg.status_note || '';
     if (envNote) {
         envNote.textContent = cfg.env_note || '';
+    }
+}
+
+async function refreshClunyLiveStats() {
+    const el = document.getElementById('clunyLiveStats');
+    if (!el || typeof eel === 'undefined' || !eel.brain_stats) return;
+    try {
+        const stats = await eel.brain_stats()();
+        if (stats?.error) {
+            el.textContent = stats.error;
+            return;
+        }
+        const parts = [];
+        if (stats.data_dir) parts.push(`Live data dir: ${stats.data_dir}`);
+        if (stats.doc_count != null) parts.push(`${stats.doc_count} documents`);
+        if (stats.chunk_count != null) parts.push(`${stats.chunk_count} chunks`);
+        el.textContent = parts.join(' · ') || '';
+    } catch (_) {
+        el.textContent = 'Cluny stats unavailable (brain may be off).';
     }
 }
 
@@ -786,12 +811,14 @@ async function saveClunySettings() {
         checklist_enabled: !!document.getElementById('clunyChecklistToggle')?.checked,
         auto_start_brain: !!document.getElementById('clunyAutoStartToggle')?.checked,
         cluny_binary_path: document.getElementById('clunyBinaryPath')?.value || '',
+        cluny_data_dir: document.getElementById('clunyDataDir')?.value || '',
     };
     try {
         const saved = await eel.save_cluny_settings(payload)();
         paintClunySettings(saved);
         utils.showSuccessFeedback('Cluny settings saved.');
         void refreshClunyHealth();
+        void refreshClunyLiveStats();
     } catch (err) {
         utils.showErrorFeedback(err?.message || 'Could not save Cluny settings.');
     }

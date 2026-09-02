@@ -45,7 +45,14 @@ def _brain_host_port() -> tuple[str, int]:
 
 
 def _data_dir() -> str:
-    return os.environ.get("CLUNY_DATA_DIR") or str(DEFAULT_DATA_DIR)
+    env = os.environ.get("CLUNY_DATA_DIR", "").strip()
+    if env:
+        return env
+    stored = cluny_sync._read_file_settings()
+    configured = str(stored.get("cluny_data_dir") or "").strip()
+    if configured:
+        return str(Path(configured).expanduser())
+    return str(DEFAULT_DATA_DIR)
 
 
 def _auto_start_enabled() -> bool:

@@ -39,6 +39,10 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3a4 4 0 0 0-4 4v1.1A4.9 4.9 0 0 0 4 12.9V14a4 4 0 0 0 4 4h1"/><path d="M12 3a4 4 0 0 1 4 4v1.1A4.9 4.9 0 0 1 20 12.9V14a4 4 0 0 1-4 4h-1"/><path d="M9.5 10.5h5M10 14h4"/></svg>
                     <span class="nav-label">Brain</span>
                 </button>
+                <button type="button" class="nav-item" data-tab="library">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 6.5h15v11a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4.5 17.5v-11Z"/><path d="M8 6.5V5a1.5 1.5 0 0 1 1.5-1.5h5A1.5 1.5 0 0 1 16 5v1.5"/></svg>
+                    <span class="nav-label">Library</span>
+                </button>
             </nav>
 
             <div class="sidebar-footer">
@@ -706,71 +710,123 @@
                 </section>
 
                 <section id="brainTab" class="tab-content" aria-label="Brain">
-                    <div class="brain-shell">
-                        <aside class="brain-sidebar" aria-label="Library and stats">
-                            <div class="brain-sidebar-head">
+                    <div class="brain-shell brain-shell--chat">
+                        <header class="brain-chat-head">
+                            <div>
                                 <p class="today-kicker">Cluny</p>
                                 <h2>Brain</h2>
                                 <p id="brainStatusLine" class="panel-sub">Checking brain…</p>
+                            </div>
+                            <div class="brain-chat-head-actions">
                                 <div id="brainHealthPill" class="brain-health-pill">…</div>
-                            </div>
-                            <dl class="brain-stats" id="brainStats">
-                                <div><dt>Docs</dt><dd id="brainDocCount">—</dd></div>
-                                <div><dt>Chunks</dt><dd id="brainChunkCount">—</dd></div>
-                                <div><dt>Model</dt><dd id="brainChatModel">—</dd></div>
-                            </dl>
-                            <div class="brain-filter-row">
-                                <label class="checklist-field-label" for="brainCollectionFilter">Collection</label>
+                                <label class="checklist-field-label" for="brainCollectionFilter">Scope</label>
                                 <select id="brainCollectionFilter" class="checklist-text-input">
-                                    <option value="">All</option>
+                                    <option value="">All collections</option>
                                 </select>
-                                <label class="checklist-field-label" for="brainSourceFilter">Source</label>
-                                <select id="brainSourceFilter" class="checklist-text-input">
-                                    <option value="">All</option>
-                                </select>
-                            </div>
-                            <div class="brain-sidebar-actions">
-                                <button type="button" id="brainRefreshLibraryBtn" class="btn-ghost">Refresh library</button>
-                                <button type="button" id="brainAddDocsBtn" class="btn-secondary">Add documents</button>
-                                <input type="file" id="brainFileInput" multiple hidden accept=".pdf,.md,.txt,.markdown,.text">
-                            </div>
-                            <ul id="brainLibraryList" class="brain-library-list"></ul>
-                            <div class="brain-sidebar-foot">
+                                <button type="button" id="brainOpenLibraryBtn" class="btn-ghost">Manage library →</button>
                                 <button type="button" id="brainOpenBrainEditorBtn" class="btn-ghost">Edit instructions</button>
                                 <button type="button" id="brainOpenSettingsBtn" class="btn-ghost">Brain settings</button>
                             </div>
-                        </aside>
-                        <div class="brain-main">
-                            <header class="brain-main-head">
-                                <div class="brain-mode-row">
-                                    <label class="checklist-field-label" for="brainAgentMode">Mode</label>
-                                    <select id="brainAgentMode" class="checklist-text-input">
-                                        <option value="ask">Ask</option>
-                                        <option value="chat">Chat</option>
-                                        <option value="knowledge">Knowledge</option>
-                                        <option value="planner">Planner</option>
-                                    </select>
-                                    <button type="button" id="brainNewSessionBtn" class="btn-ghost">New chat</button>
-                                </div>
-                                <div id="brainOffline" class="brain-offline is-hidden">
-                                    <p class="checklist-empty">Cluny is off. Journal, to-dos, and the clock still work.</p>
-                                    <button type="button" id="brainStartServeBtn" class="btn-secondary">Try starting Cluny</button>
-                                </div>
-                            </header>
-                            <div id="brainChatLog" class="brain-chat-log" aria-live="polite"></div>
-                            <form id="brainChatForm" class="brain-chat-form">
-                                <label class="visually-hidden" for="brainChatInput">Message Cluny</label>
-                                <textarea id="brainChatInput" class="checklist-textarea" rows="3" placeholder="Ask with live Kosistenz context…"></textarea>
-                                <div class="brain-chat-actions">
-                                    <button type="submit" class="btn-primary" id="brainSendBtn">Send</button>
-                                    <button type="button" class="btn-secondary" id="brainProposeBtn">Propose work</button>
-                                </div>
-                            </form>
-                            <div id="brainProposePanel" class="brain-propose-panel is-hidden">
-                                <h3>Suggestions</h3>
-                                <div id="brainProposeSources" class="cluny-sources" hidden></div>
-                                <ul id="brainProposeList" class="cluny-inbox"></ul>
+                        </header>
+                        <dl class="brain-stats brain-stats--inline" id="brainStats">
+                            <div><dt>Docs</dt><dd id="brainDocCount">—</dd></div>
+                            <div><dt>Chunks</dt><dd id="brainChunkCount">—</dd></div>
+                            <div><dt>Model</dt><dd id="brainChatModel">—</dd></div>
+                        </dl>
+                        <div id="brainOffline" class="brain-offline is-hidden">
+                            <p class="checklist-empty">Cluny is off. Journal, to-dos, and the clock still work.</p>
+                            <button type="button" id="brainStartServeBtn" class="btn-secondary">Try starting Cluny</button>
+                        </div>
+                        <div class="brain-mode-row">
+                            <label class="checklist-field-label" for="brainAgentMode">Mode</label>
+                            <select id="brainAgentMode" class="checklist-text-input">
+                                <option value="ask">Ask</option>
+                                <option value="chat">Chat</option>
+                                <option value="knowledge">Knowledge</option>
+                                <option value="planner">Planner</option>
+                            </select>
+                            <button type="button" id="brainNewSessionBtn" class="btn-ghost">New chat</button>
+                        </div>
+                        <div id="brainChatLog" class="brain-chat-log" aria-live="polite"></div>
+                        <form id="brainChatForm" class="brain-chat-form">
+                            <label class="visually-hidden" for="brainChatInput">Message Cluny</label>
+                            <textarea id="brainChatInput" class="checklist-textarea" rows="3" placeholder="Ask with live Kosistenz context…"></textarea>
+                            <div class="brain-chat-actions">
+                                <button type="submit" class="btn-primary" id="brainSendBtn">Send</button>
+                                <button type="button" class="btn-secondary" id="brainProposeBtn">Propose work</button>
                             </div>
+                        </form>
+                        <div id="brainProposePanel" class="brain-propose-panel is-hidden">
+                            <h3>Suggestions</h3>
+                            <div id="brainProposeSources" class="cluny-sources" hidden></div>
+                            <ul id="brainProposeList" class="cluny-inbox"></ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="libraryTab" class="tab-content" aria-label="Library">
+                    <div class="library-shell">
+                        <header class="library-head">
+                            <div>
+                                <p class="today-kicker">Cluny</p>
+                                <h2>Library</h2>
+                                <p id="libraryStorageLine" class="panel-sub">Browse and organize indexed documents.</p>
+                            </div>
+                            <div class="library-head-actions">
+                                <button type="button" id="libraryOpenDataDirBtn" class="btn-ghost">Open data folder</button>
+                                <button type="button" id="libraryUploadBtn" class="btn-primary">Upload documents</button>
+                                <button type="button" id="libraryRefreshBtn" class="btn-ghost">Refresh</button>
+                            </div>
+                        </header>
+                        <dl class="library-stats" id="libraryStats">
+                            <div><dt>Documents</dt><dd id="libraryDocCount">—</dd></div>
+                            <div><dt>Chunks</dt><dd id="libraryChunkCount">—</dd></div>
+                            <div><dt>Data dir</dt><dd id="libraryDataDir" class="library-data-dir">—</dd></div>
+                        </dl>
+                        <div class="library-layout">
+                            <aside class="library-collections" aria-label="Collections">
+                                <div class="library-panel-head">
+                                    <h3>Collections</h3>
+                                    <button type="button" id="libraryNewCollectionBtn" class="btn-ghost">New</button>
+                                </div>
+                                <ul id="libraryCollectionList" class="library-collection-list"></ul>
+                                <div class="library-panel-head">
+                                    <h3>Sources</h3>
+                                </div>
+                                <ul id="librarySourceList" class="library-collection-list"></ul>
+                            </aside>
+                            <div class="library-main">
+                                <div class="library-toolbar">
+                                    <input type="search" id="librarySearchInput" class="checklist-text-input" placeholder="Search title or path…" autocomplete="off">
+                                    <button type="button" id="libraryBulkDeleteBtn" class="btn-ghost" disabled>Delete selected</button>
+                                </div>
+                                <ul id="libraryDocList" class="library-doc-list"></ul>
+                            </div>
+                            <aside class="library-detail" aria-label="Document details">
+                                <div id="libraryDetailEmpty" class="library-detail-empty">
+                                    <p class="checklist-hint">Select a document to view and edit metadata.</p>
+                                </div>
+                                <form id="libraryDetailForm" class="library-detail-form is-hidden" hidden>
+                                    <h3 id="libraryDetailTitle">Document</h3>
+                                    <label class="checklist-field-label" for="libraryDetailTitleInput">Title</label>
+                                    <input type="text" id="libraryDetailTitleInput" class="checklist-text-input" autocomplete="off">
+                                    <label class="checklist-field-label" for="libraryDetailCollectionsInput">Collections (comma-separated)</label>
+                                    <input type="text" id="libraryDetailCollectionsInput" class="checklist-text-input" autocomplete="off">
+                                    <label class="checklist-field-label" for="libraryDetailTagsInput">Tags (comma-separated)</label>
+                                    <input type="text" id="libraryDetailTagsInput" class="checklist-text-input" autocomplete="off">
+                                    <dl class="library-detail-meta">
+                                        <div><dt>Kind</dt><dd id="libraryDetailKind">—</dd></div>
+                                        <div><dt>Chunks</dt><dd id="libraryDetailChunks">—</dd></div>
+                                        <div><dt>Ingested</dt><dd id="libraryDetailIngested">—</dd></div>
+                                        <div><dt>Path</dt><dd id="libraryDetailPath" class="library-detail-path">—</dd></div>
+                                    </dl>
+                                    <div class="library-detail-actions">
+                                        <button type="submit" class="btn-primary">Save</button>
+                                        <button type="button" id="libraryRevealPathBtn" class="btn-ghost">Reveal in Finder</button>
+                                        <button type="button" id="libraryDeleteDocBtn" class="btn-ghost">Delete</button>
+                                    </div>
+                                </form>
+                            </aside>
                         </div>
                     </div>
                 </section>
@@ -1062,6 +1118,12 @@
                                 <input type="text" id="clunyBinaryPath" class="checklist-text-input" placeholder="/path/to/cluny or leave blank for PATH" autocomplete="off">
                             </div>
                             <div class="settings-block">
+                                <label class="checklist-field-label" for="clunyDataDir">Cluny data directory (optional)</label>
+                                <input type="text" id="clunyDataDir" class="checklist-text-input" placeholder="~/Library/Application Support/Cluny" autocomplete="off">
+                                <p class="checklist-hint small">Where Cluny stores library, vectors, and config. Restart Kosistenz after changing.</p>
+                                <p id="clunyLiveStats" class="checklist-hint small"></p>
+                            </div>
+                            <div class="settings-block">
                                 <label class="checklist-checkbox-label">
                                     <input type="checkbox" id="clunyJournalToggle" checked>
                                     Index a copy of journal entries after save
@@ -1119,6 +1181,40 @@
                 <button type="button" class="btn-primary" id="workScopeSeries">Entire series</button>
                 <button type="button" class="btn-ghost" id="workScopeCancel">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <div id="libraryUploadDialog" class="app-dialog is-hidden" hidden>
+        <div class="app-dialog-card brain-dialog-card" role="dialog" aria-modal="true" aria-labelledby="libraryUploadTitle">
+            <form id="libraryUploadForm" class="brain-dialog-body">
+                <header class="brain-dialog-head">
+                    <h2 id="libraryUploadTitle">Upload documents</h2>
+                    <button type="button" class="btn-ghost" id="libraryUploadClose">Close</button>
+                </header>
+                <label class="checklist-field-label" for="libraryUploadCollection">Collection</label>
+                <input type="text" id="libraryUploadCollection" class="checklist-text-input" placeholder="journal" autocomplete="off">
+                <label class="checklist-checkbox-label">
+                    <input type="checkbox" id="libraryUploadCopyToggle">
+                    Keep a copy in Cluny library folder
+                </label>
+                <button type="button" id="libraryUploadPickBtn" class="btn-secondary">Choose files</button>
+                <input type="file" id="libraryUploadFileInput" multiple hidden accept=".pdf,.md,.txt,.markdown,.text">
+                <p id="libraryUploadStatus" class="checklist-hint small"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="libraryNewCollectionDialog" class="app-dialog is-hidden" hidden>
+        <div class="app-dialog-card" role="dialog" aria-modal="true" aria-labelledby="libraryNewCollectionTitle">
+            <form id="libraryNewCollectionForm" class="brain-dialog-body">
+                <h2 id="libraryNewCollectionTitle">New collection</h2>
+                <label class="checklist-field-label" for="libraryNewCollectionInput">Name</label>
+                <input type="text" id="libraryNewCollectionInput" class="checklist-text-input" autocomplete="off" required>
+                <div class="brain-dialog-actions">
+                    <button type="button" id="libraryNewCollectionCancel" class="btn-ghost">Cancel</button>
+                    <button type="submit" class="btn-primary">Create</button>
+                </div>
+            </form>
         </div>
     </div>
 
