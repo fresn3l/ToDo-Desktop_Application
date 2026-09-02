@@ -22,6 +22,7 @@ export const WIDGET_CATALOG = {
     counters: { label: 'Counters', sizes: [[1, 1], [2, 1], [2, 2], [4, 2], [4, 3]], default: [2, 1], source: 'countersSource' },
     reading: { label: 'Reading', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [4, 2]], default: [2, 1], source: 'readingSource' },
     word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [4, 2]], default: [1, 1], source: 'wordTab' },
+    cluny: { label: 'Ask Cluny', sizes: [[2, 2], [2, 3], [4, 3], [4, 4]], default: [2, 3], source: 'clunySource' },
 };
 
 export function catalogList() {

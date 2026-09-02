@@ -98,14 +98,50 @@ function paint(data) {
     `;
 }
 
+async function paintClunyHook() {
+    const el = document.getElementById('dayBriefCluny');
+    if (!el) return;
+    if (typeof eel === 'undefined' || !eel.get_cluny_inbox) {
+        el.classList.add('is-hidden');
+        el.innerHTML = '';
+        return;
+    }
+    try {
+        const inbox = await eel.get_cluny_inbox()();
+        const n = Number(inbox?.pending_count || 0);
+        if (!n) {
+            el.classList.add('is-hidden');
+            el.innerHTML = '';
+            return;
+        }
+        const label = n === 1 ? '1 suggestion from Cluny' : `${n} suggestions from Cluny`;
+        el.classList.remove('is-hidden');
+        el.innerHTML = `<p class="day-brief-cluny-line">${utils.escapeHtml(label)}</p>
+            <button type="button" class="btn-ghost" id="dayBriefOpenCluny">Open Ask</button>`;
+    } catch (_) {
+        el.classList.add('is-hidden');
+        el.innerHTML = '';
+    }
+}
+
+async function paintBrief(data) {
+    paint(data);
+    await paintClunyHook();
+}
+
 export async function refreshDayBrief() {
     const body = document.getElementById('dayBriefBody');
     if (!body || typeof eel === 'undefined' || !eel.get_day_brief) return;
     try {
-        paint(await eel.get_day_brief()());
+        await paintBrief(await eel.get_day_brief()());
     } catch (err) {
         console.error(err);
         body.innerHTML = '<p class="checklist-error">Could not load today’s brief.</p>';
+        const hook = document.getElementById('dayBriefCluny');
+        if (hook) {
+            hook.classList.add('is-hidden');
+            hook.innerHTML = '';
+        }
     }
 }
 
@@ -117,7 +153,7 @@ export function setupDayBrief() {
         const btn = event.target.closest('[data-slot]');
         if (!btn) return;
         try {
-            paint(await eel.set_day_brief_override(btn.getAttribute('data-slot'))());
+            await paintBrief(await eel.set_day_brief_override(btn.getAttribute('data-slot'))());
         } catch (err) {
             console.error(err);
             utils.showErrorFeedback('Could not switch brief and review.');
@@ -131,12 +167,12 @@ export function setupDayBrief() {
             if (form.id === 'morningBriefForm') {
                 const ids = selectedIds(root);
                 const text = document.getElementById('morningIntention')?.value || '';
-                paint(await eel.save_morning_brief(text, ids)());
+                await paintBrief(await eel.save_morning_brief(text, ids)());
                 utils.notifyDataChanged();
                 utils.showSuccessFeedback('Morning brief saved.');
             } else if (form.id === 'eveningReviewForm') {
                 const text = document.getElementById('eveningRecap')?.value || '';
-                paint(await eel.save_evening_review(text)());
+                await paintBrief(await eel.save_evening_review(text)());
                 utils.notifyDataChanged();
                 utils.showSuccessFeedback('Evening review saved.');
             }
@@ -146,10 +182,14 @@ export function setupDayBrief() {
         }
     });
     root.addEventListener('click', async (event) => {
+        if (event.target.closest('#dayBriefOpenCluny')) {
+            document.dispatchEvent(new CustomEvent('kosistenz:open-cluny'));
+            return;
+        }
         const btn = event.target.closest('[data-roll]');
         if (!btn) return;
         try {
-            paint(await eel.roll_brief_item_to_tomorrow(btn.getAttribute('data-roll'))());
+            await paintBrief(await eel.roll_brief_item_to_tomorrow(btn.getAttribute('data-roll'))());
             utils.notifyDataChanged();
             utils.showSuccessFeedback('Moved to tomorrow.');
         } catch (err) {

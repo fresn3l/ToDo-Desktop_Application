@@ -561,6 +561,7 @@
                             </div>
                         </div>
                         <div id="dayBriefBody"></div>
+                        <div id="dayBriefCluny" class="day-brief-cluny is-hidden"></div>
                     </div>
                 </section>
 
@@ -634,6 +635,33 @@
                     <div id="wordCard" class="word-card">
                         <p class="today-kicker">Word of the day</p>
                         <p class="checklist-hint small">Loading…</p>
+                    </div>
+                </section>
+
+                <section id="clunySource" class="widget-source" aria-label="Ask Cluny">
+                    <div class="compact-widget cluny-widget">
+                        <div class="panel-header compact-widget-head">
+                            <div>
+                                <p class="today-kicker">Brain</p>
+                                <h2>Ask Cluny</h2>
+                                <p class="panel-sub" id="clunyWidgetStatus">Cluny is the brain. Kosistenz stays the list and the clock.</p>
+                            </div>
+                        </div>
+                        <div id="clunyOffline" class="cluny-offline is-hidden">
+                            <p class="checklist-empty">Cluny is off. Journal, to-dos, and the clock still work.</p>
+                        </div>
+                        <form id="clunyAskForm" class="cluny-ask-form">
+                            <label class="visually-hidden" for="clunyAskInput">Ask Cluny</label>
+                            <textarea id="clunyAskInput" class="checklist-textarea" rows="2" placeholder="What’s due this week? What did I write about Spanish?"></textarea>
+                            <button type="submit" class="btn-primary" id="clunyAskBtn">Ask</button>
+                        </form>
+                        <div id="clunyAnswer" class="cluny-answer" hidden></div>
+                        <div id="clunySources" class="cluny-sources" hidden></div>
+                        <div class="cluny-suggest-row">
+                            <button type="button" class="btn-secondary" id="clunySuggestBtn">Suggest work</button>
+                            <p class="checklist-hint small" id="clunySuggestHint">Proposals land in All Work. You pick the day.</p>
+                        </div>
+                        <ul id="clunyInbox" class="cluny-inbox"></ul>
                     </div>
                 </section>
 
@@ -962,11 +990,22 @@
                                     <p class="panel-sub">The local brain. Kosistenz stays the planner. Cluny only gets copies to index.</p>
                                 </div>
                             </div>
-                            <p class="checklist-hint small">After you save a journal entry or check-in, Kosistenz can push a copy into Cluny’s SQLite or an ingest URL. Cluny does not schedule, and it does not own the live to-do list.</p>
+                            <p class="checklist-hint small">Cluny is the brain. Kosistenz stays the planner. Suggestions become to-dos only when you accept them. Cluny never picks a clock time.</p>
+                            <div class="settings-block">
+                                <p id="clunyHealthStatus" class="checklist-hint small">Checking Cluny…</p>
+                                <div class="reminder-actions">
+                                    <button type="button" id="clunyTestBtn" class="btn-secondary">Test connection</button>
+                                </div>
+                            </div>
+                            <div class="settings-block">
+                                <label class="checklist-field-label" for="clunyBrainUrl">Brain URL</label>
+                                <input type="url" id="clunyBrainUrl" class="checklist-text-input" placeholder="http://127.0.0.1:8787" autocomplete="off">
+                                <p class="checklist-hint small">Default is localhost. HTTPS, or HTTP on this Mac only.</p>
+                            </div>
                             <div class="settings-block">
                                 <label class="checklist-checkbox-label">
                                     <input type="checkbox" id="clunyJournalToggle" checked>
-                                    Push journal entries after save
+                                    Index a copy of journal entries after save
                                 </label>
                                 <label class="checklist-checkbox-label">
                                     <input type="checkbox" id="clunyChecklistToggle" checked>
@@ -974,14 +1013,13 @@
                                 </label>
                             </div>
                             <div class="settings-block">
-                                <label class="checklist-field-label" for="clunySqlitePath">Cluny SQLite path</label>
+                                <label class="checklist-field-label" for="clunySqlitePath">Cluny SQLite path (optional copy)</label>
                                 <input type="text" id="clunySqlitePath" class="checklist-text-input" placeholder="/Users/you/.cluny/cluny.sqlite" autocomplete="off">
-                                <p class="checklist-hint small">Must stay inside your home folder. Same as CLUNY_SQLITE_PATH.</p>
+                                <p class="checklist-hint small">Sidecar table only. Ask uses the brain URL, not this file.</p>
                             </div>
                             <div class="settings-block">
-                                <label class="checklist-field-label" for="clunyIngestUrl">Ingest URL</label>
-                                <input type="url" id="clunyIngestUrl" class="checklist-text-input" placeholder="https://… or http://127.0.0.1:…" autocomplete="off">
-                                <p class="checklist-hint small">HTTPS, or HTTP on localhost. Same as CLUNY_INGEST_URL.</p>
+                                <label class="checklist-field-label" for="clunyIngestUrl">Ingest URL override (optional)</label>
+                                <input type="url" id="clunyIngestUrl" class="checklist-text-input" placeholder="Leave blank to use Brain URL /ingest/text" autocomplete="off">
                             </div>
                             <div class="settings-block">
                                 <label class="checklist-field-label" for="clunyApiKey">API key (optional)</label>

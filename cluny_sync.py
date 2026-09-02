@@ -3,17 +3,21 @@ Push journal entries into Cluny's storage after local save.
 
 Configure from Settings → Cluny, or with environment variables (env wins):
 
-  CLUNY_SQLITE_PATH — Path to Cluny's SQLite database file. Entries are inserted
-      into table CLUNY_JOURNAL_TABLE (default: cluny_journal_entries), created if missing.
+  CLUNY_BRAIN_URL — Base URL for `cluny serve` (default http://127.0.0.1:8787).
+      HTTPS, or HTTP on localhost. Ask, propose, and journal ingest use this.
 
-  CLUNY_INGEST_URL — HTTP endpoint that accepts POST JSON (same shape as the entry dict).
-      Optional: CLUNY_API_KEY sent as Authorization: Bearer <key>.
-      HTTPS, or HTTP on localhost.
+  CLUNY_SQLITE_PATH — Optional sidecar copy into Cluny's SQLite file. Not the RAG path.
+      Entries go into CLUNY_JOURNAL_TABLE (default: cluny_journal_entries).
 
-Checklist submissions sync to CLUNY_CHECKLIST_TABLE (default: cluny_checklist_entries)
-when a SQLite path is set, or to CLUNY_CHECKLIST_INGEST_URL / CLUNY_INGEST_URL.
+  CLUNY_INGEST_URL — Optional override for POST /ingest/text. Default is {brain}/ingest/text.
+      Body is { text, catalog, source, title, collection }. HTTPS, or HTTP on localhost.
+      Optional: CLUNY_API_KEY as X-Cluny-Token and Authorization: Bearer.
 
-Sync failures are logged; they do not block saving locally.
+Checklist submissions sync to CLUNY_CHECKLIST_TABLE when a SQLite path is set,
+or to CLUNY_CHECKLIST_INGEST_URL / CLUNY_INGEST_URL.
+
+Sync failures are logged; they do not block saving locally. The app stays usable
+if Cluny is quit.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ from paths import data_directory
 _FILE_DEFAULTS: Dict[str, Any] = {
     "sqlite_path": "",
     "ingest_url": "",
+    "brain_url": "",
     "api_key": "",
     "journal_enabled": True,
     "checklist_enabled": True,
@@ -79,6 +84,7 @@ def _read_file_settings() -> Dict[str, Any]:
         return {
             "sqlite_path": str(raw.get("sqlite_path") or "").strip(),
             "ingest_url": str(raw.get("ingest_url") or "").strip(),
+            "brain_url": str(raw.get("brain_url") or "").strip(),
             "api_key": str(raw.get("api_key") or "").strip()[:200],
             "journal_enabled": raw.get("journal_enabled") is not False,
             "checklist_enabled": raw.get("checklist_enabled") is not False,
@@ -88,14 +94,20 @@ def _read_file_settings() -> Dict[str, Any]:
 def _sanitize_file_settings(raw: Dict[str, Any]) -> Dict[str, Any]:
     sqlite_path = str(raw.get("sqlite_path") or "").strip()
     ingest_url = str(raw.get("ingest_url") or "").strip()
+    brain_url = str(raw.get("brain_url") or "").strip()
     api_key = str(raw.get("api_key") or "").strip()
     if sqlite_path:
         sqlite_path = _validate_sqlite_path(sqlite_path)
     if ingest_url:
         ingest_url = _validate_ingest_url(ingest_url)
+    if brain_url:
+        import cluny_client
+
+        brain_url = cluny_client.validate_brain_url(brain_url)
     return {
         "sqlite_path": sqlite_path,
         "ingest_url": ingest_url[:500],
+        "brain_url": brain_url[:500],
         "api_key": api_key[:200],
         "journal_enabled": raw.get("journal_enabled") is not False,
         "checklist_enabled": raw.get("checklist_enabled") is not False,
@@ -147,15 +159,18 @@ def effective_cluny_config() -> Dict[str, Any]:
     stored = _read_file_settings()
     env_sqlite = (os.environ.get("CLUNY_SQLITE_PATH") or os.environ.get("CLUNY_DATABASE_PATH") or "").strip()
     env_ingest = (os.environ.get("CLUNY_INGEST_URL") or "").strip()
+    env_brain = (os.environ.get("CLUNY_BRAIN_URL") or "").strip()
     env_checklist = (os.environ.get("CLUNY_CHECKLIST_INGEST_URL") or "").strip()
     env_key = (os.environ.get("CLUNY_API_KEY") or "").strip()
     sqlite_path = env_sqlite or stored["sqlite_path"]
     ingest_url = env_ingest or stored["ingest_url"]
+    brain_url = env_brain or stored["brain_url"] or "http://127.0.0.1:8787"
     checklist_url = env_checklist or env_ingest or stored["ingest_url"]
     api_key = env_key or stored["api_key"]
     return {
         "sqlite_path": sqlite_path,
         "ingest_url": ingest_url,
+        "brain_url": brain_url,
         "checklist_ingest_url": checklist_url,
         "api_key": api_key,
         "journal_enabled": stored["journal_enabled"],
@@ -163,6 +178,7 @@ def effective_cluny_config() -> Dict[str, Any]:
         "env_overrides": {
             "sqlite_path": bool(env_sqlite),
             "ingest_url": bool(env_ingest),
+            "brain_url": bool(env_brain),
             "api_key": bool(env_key),
         },
     }
@@ -190,19 +206,25 @@ def public_cluny_settings() -> Dict[str, Any]:
         check = "not configured"
     env_bits = [name for name, on in cfg["env_overrides"].items() if on]
     env_note = ""
+    labels = {
+        "sqlite_path": "SQLite path",
+        "ingest_url": "ingest URL",
+        "brain_url": "brain URL",
+        "api_key": "API key",
+    }
     if env_bits:
         env_note = "Environment variables override Settings for: " + ", ".join(
-            {"sqlite_path": "SQLite path", "ingest_url": "ingest URL", "api_key": "API key"}[name]
-            for name in env_bits
+            labels[name] for name in env_bits
         )
     return {
         "sqlite_path": cfg["sqlite_path"],
         "ingest_url": cfg["ingest_url"],
+        "brain_url": cfg["brain_url"],
         "api_key": cfg["api_key"],
         "journal_enabled": cfg["journal_enabled"],
         "checklist_enabled": cfg["checklist_enabled"],
         "env_overrides": cfg["env_overrides"],
-        "status_note": f"{journal}. {check[0].upper() + check[1:]}." if has_sink else "Off until you set a SQLite path or ingest URL.",
+        "status_note": f"{journal}. {check[0].upper() + check[1:]}." if has_sink else "Ask uses http://127.0.0.1:8787 when Cluny is running. SQLite copy is optional.",
         "env_note": env_note,
         "configured": has_sink,
     }
@@ -223,6 +245,8 @@ def save_cluny_settings(raw: Dict[str, Any]) -> Dict[str, Any]:
         incoming["sqlite_path"] = str(raw.get("sqlite_path") or "").strip()
     if "ingest_url" in raw:
         incoming["ingest_url"] = str(raw.get("ingest_url") or "").strip()
+    if "brain_url" in raw:
+        incoming["brain_url"] = str(raw.get("brain_url") or "").strip()
     if "api_key" in raw:
         incoming["api_key"] = str(raw.get("api_key") or "").strip()
     if "journal_enabled" in raw:
@@ -289,11 +313,17 @@ def _post_json(url: str, payload: Dict[str, Any], api_key: str) -> None:
 
 
 def _sync_http(entry: Dict[str, Any]) -> None:
-    cfg = effective_cluny_config()
-    url = cfg["ingest_url"]
-    if not url:
+    import cluny_client
+
+    payload = cluny_client.journal_ingest_payload(entry)
+    if not str(payload.get("text") or "").strip():
         return
-    _post_json(url, entry, cfg["api_key"])
+    cluny_client.ingest_text(
+        payload["text"],
+        title=str(payload.get("title") or ""),
+        source=str(payload.get("source") or "kosistenz-journal"),
+        collection=str(payload.get("collection") or "journal"),
+    )
 
 
 def _checklist_table_name() -> str:
@@ -383,8 +413,7 @@ def sync_journal_entry_to_cluny(entry: Dict[str, Any]) -> None:
         return
     if cfg["sqlite_path"]:
         _sync_sqlite(entry)
-    if cfg["ingest_url"]:
-        _sync_http(entry)
+    _sync_http(entry)
 
 
 def sync_journal_entry_safe(entry: Dict[str, Any]) -> None:
@@ -392,8 +421,6 @@ def sync_journal_entry_safe(entry: Dict[str, Any]) -> None:
     try:
         cfg = effective_cluny_config()
         if not cfg["journal_enabled"]:
-            return
-        if not (cfg["sqlite_path"] or cfg["ingest_url"]):
             return
         sync_journal_entry_to_cluny(entry)
     except (OSError, sqlite3.Error, urllib.error.URLError, ValueError) as e:

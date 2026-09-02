@@ -49,6 +49,7 @@ class HomeUiTests(unittest.TestCase):
             "countersSource",
             "readingSource",
             "wordTab",
+            "clunySource",
             "checklistTab",
         ):
             self.assertIn(f'id="{source_id}"', INDEX)
@@ -113,6 +114,7 @@ class HomeUiTests(unittest.TestCase):
             "counters",
             "reading",
             "word",
+            "cluny",
         ):
             self.assertIn(f"{kind}:", HOME_JS)
         self.assertNotIn("journal:", HOME_JS)
@@ -268,6 +270,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("cursor: col-resize", STYLE)
         self.assertIn("setupSettingsResize", SETTINGS_JS)
         self.assertIn("saveClunySettings", SETTINGS_JS)
+        self.assertIn("clunyBrainUrl", SETTINGS_JS)
+        self.assertIn("probe_cluny_connection", SETTINGS_JS)
         self.assertIn("setPageColorSlot", SETTINGS_JS)
 
     def test_home_widgets_are_dense_and_scroll_the_page(self) -> None:
@@ -315,3 +319,25 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("home-checkin-band", STYLE)
         self.assertIn("is-empty-drop", STYLE)
         self.assertIn("html[data-page='journal'] .tab-content.active", STYLE)
+
+    def test_cluny_ask_widget_and_day_hook(self) -> None:
+        app = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        cluny = (ROOT / "web" / "js" / "cluny.js").read_text(encoding="utf-8")
+        day = (ROOT / "web" / "js" / "day_brief.js").read_text(encoding="utf-8")
+        self.assertIn('id="clunySource"', INDEX)
+        self.assertIn('id="clunyAskForm"', INDEX)
+        self.assertIn('id="clunyInbox"', INDEX)
+        self.assertIn('id="clunyBrainUrl"', INDEX)
+        self.assertIn('id="clunyTestBtn"', INDEX)
+        self.assertIn('id="dayBriefCluny"', INDEX)
+        self.assertIn("setupCluny", app)
+        self.assertIn("if (set.has('cluny'))", HOME_RUNTIME)
+        self.assertIn("kosistenz:open-cluny", HOME_RUNTIME)
+        self.assertIn("ensureHomeWidget('cluny')", HOME_RUNTIME)
+        self.assertNotIn("ensureHomeWidget('journal')", HOME_RUNTIME)
+        self.assertIn("ask_cluny", cluny)
+        self.assertIn("accept_cluny_proposal", cluny)
+        self.assertIn("dayBriefOpenCluny", day)
+        self.assertIn("kosistenz:open-cluny", day)
+        self.assertIn("cluny-chip", STYLE)
+        self.assertIn("kind === 'cluny'", GLANCE_TILES)

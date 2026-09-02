@@ -20,6 +20,7 @@ import { setupWorkouts } from './js/workouts.js';
 import { setupGoals } from './js/goals.js';
 import { setupHeatmap } from './js/heatmap.js';
 import { setupDayBrief } from './js/day_brief.js';
+import { setupCluny } from './js/cluny.js';
 import { setupCounters } from './js/counters.js';
 import { setupReading } from './js/reading.js';
 import { setupWord } from './js/word.js';
@@ -46,6 +47,7 @@ async function init() {
     setupTimeline();
     setupHeatmap();
     setupDayBrief();
+    setupCluny();
     setupCounters();
     setupReading();
     document.addEventListener('kosistenz:command', (e) => {
