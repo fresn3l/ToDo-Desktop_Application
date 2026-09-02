@@ -181,6 +181,14 @@ def default_layout() -> Dict[str, Any]:
                         "w": 1,
                         "h": 1,
                     },
+                    {
+                        "id": _new_id(),
+                        "kind": "cluny",
+                        "x": 2,
+                        "y": 0,
+                        "w": 2,
+                        "h": 2,
+                    },
                 ],
             }
         ],
@@ -409,6 +417,28 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
     return {"columns": GRID_COLUMNS, "active_page_id": active, "pages": pages}
 
 
+STOCK_HOME_KINDS = frozenset({"todo", "today_calendar", "weather", "word"})
+
+
+def seed_ask_cluny(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
+    """Put Ask Cluny on a stock first Home page that does not have it yet."""
+    packed = sanitize_layout(layout)
+    page = packed["pages"][0]
+    kinds = {item["kind"] for item in page["widgets"]}
+    if "cluny" in kinds:
+        return packed, False
+    if kinds != STOCK_HOME_KINDS:
+        return packed, False
+    occupied = region_widgets(page["widgets"], "below", True)
+    spot = first_fit(occupied, 2, 2)
+    if spot is None:
+        return packed, False
+    page["widgets"].append(
+        {"id": _new_id(), "kind": "cluny", "x": spot[0], "y": spot[1], "w": 2, "h": 2}
+    )
+    return packed, True
+
+
 def _page(layout: Dict[str, Any], page_id: str) -> Optional[Dict[str, Any]]:
     for page in layout["pages"]:
         if page["id"] == page_id:
@@ -605,7 +635,10 @@ def get_home_layout() -> Dict[str, Any]:
         return _write(default_layout())
     try:
         with open(path, "r", encoding="utf-8") as handle:
-            return sanitize_layout(json.load(handle))
+            packed, added = seed_ask_cluny(json.load(handle))
+        if added:
+            return _write(packed)
+        return packed
     except (OSError, json.JSONDecodeError):
         return _write(default_layout())
 

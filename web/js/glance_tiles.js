@@ -17,7 +17,7 @@ const POSTERS = {
     habits: { kicker: 'Habits', line: 'Small things, every day' },
     heatmap: { kicker: 'Heatmap', line: 'A year at a glance' },
     day_brief: { kicker: 'Day', line: 'Morning brief, evening review' },
-    cluny: { kicker: 'Brain', line: 'Ask Cluny' },
+    cluny: { kicker: 'Brain', line: 'Ask what’s on today' },
     counters: { kicker: 'Counters', line: 'Tap to keep count' },
     reading: { kicker: 'Reading', line: 'The book in your hands' },
 };
@@ -544,6 +544,28 @@ async function loadGlance(kind) {
     return null;
 }
 
+function clunyHtml(data, size) {
+    const meta = POSTERS.cluny;
+    const offline = data && data.ok === false;
+    const n = Number(data?.pending_count || 0);
+    const kpiText = offline ? 'Off' : n ? String(n) : 'Ask';
+    const lineText = offline
+        ? 'Journal and the clock still work'
+        : n
+            ? (n === 1 ? 'suggestion waiting' : 'suggestions waiting')
+            : meta.line;
+    const asks = size.action
+        ? `${actionBtn('cluny-ask', 'What’s on today?', ' data-q="What do I have to do today?"')}
+           ${actionBtn('cluny-ask', 'Free time', ' data-q="What should I do with my free time?"')}`
+        : '';
+    return tile('cluny', size, '', `
+        ${kicker(meta.kicker)}
+        ${kpi(kpiText)}
+        ${line(lineText)}
+        ${asks}
+        ${hint()}`);
+}
+
 function renderKind(kind, data, size) {
     if (kind === 'weather') return weatherHtml(data, size);
     if (kind === 'word') return wordHtml(data, size);
@@ -552,6 +574,7 @@ function renderKind(kind, data, size) {
     if (kind === 'habits') return habitsHtml(data, size);
     if (kind === 'counters') return countersHtml(data, size);
     if (kind === 'focus') return focusHtml(data, size);
+    if (kind === 'cluny') return clunyHtml(data, size);
     return posterHtml(kind, data, size);
 }
 
@@ -597,6 +620,11 @@ export async function runGlanceAction(btn) {
             await eel.tap_counter(id, 1)();
         } else if (act === 'focus-keep' && hasEel('keep_daily_focus')) {
             await eel.keep_daily_focus(true)();
+        } else if (act === 'cluny-ask') {
+            document.dispatchEvent(new CustomEvent('kosistenz:open-cluny', {
+                detail: { question: btn.getAttribute('data-q') || '' },
+            }));
+            return;
         } else {
             return;
         }

@@ -635,7 +635,11 @@
                         </div>
                         <form id="clunyAskForm" class="cluny-ask-form">
                             <label class="visually-hidden" for="clunyAskInput">Ask Cluny</label>
-                            <textarea id="clunyAskInput" class="checklist-textarea" rows="2" placeholder="What’s due this week? What did I write about Spanish?"></textarea>
+                            <textarea id="clunyAskInput" class="checklist-textarea" rows="2" placeholder="What do I have to do today?"></textarea>
+                            <div id="clunyPrompts" class="cluny-prompts">
+                                <button type="button" class="btn-ghost" data-cluny-prompt="What do I have to do today?">What’s on today?</button>
+                                <button type="button" class="btn-ghost" data-cluny-prompt="What should I do with my free time?">Free time</button>
+                            </div>
                             <button type="submit" class="btn-primary" id="clunyAskBtn">Ask</button>
                         </form>
                         <div id="clunyAnswer" class="cluny-answer" hidden></div>

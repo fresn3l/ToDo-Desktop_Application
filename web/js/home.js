@@ -20,7 +20,7 @@ import { refreshDayBrief } from './day_brief.js';
 import { refreshCounters } from './counters.js';
 import { refreshReading } from './reading.js';
 import { onWordTabShown } from './word.js';
-import { onClunyTabShown } from './cluny.js';
+import { onClunyTabShown, promptCluny } from './cluny.js';
 import { openChecklistTemplate } from './daily_checklist.js';
 
 const FALLBACK_LAYOUT = {
@@ -35,6 +35,7 @@ const FALLBACK_LAYOUT = {
                 { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2, region: 'above' },
                 { id: 'w-weather', kind: 'weather', x: 0, y: 0, w: 1, h: 1 },
                 { id: 'w-word', kind: 'word', x: 1, y: 0, w: 1, h: 1 },
+                { id: 'w-cluny', kind: 'cluny', x: 2, y: 0, w: 2, h: 2 },
             ],
         },
     ],
@@ -905,11 +906,14 @@ export function setupHome() {
             detail: { tab: 'home', homePageId: firstId },
         }));
     });
-    document.addEventListener('kosistenz:open-cluny', () => {
+    document.addEventListener('kosistenz:open-cluny', (event) => {
         document.dispatchEvent(new CustomEvent('kosistenz:open-tab', {
             detail: { tab: 'home' },
         }));
-        void ensureHomeWidget('cluny');
+        const question = event.detail?.question || '';
+        void ensureHomeWidget('cluny').then(() => {
+            if (question) void promptCluny(question);
+        });
     });
 }
 

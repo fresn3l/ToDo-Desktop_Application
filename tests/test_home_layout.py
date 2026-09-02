@@ -51,11 +51,12 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertEqual(len(layout["pages"]), 1)
         self.assertEqual(layout["pages"][0]["name"], "Home")
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
-        self.assertEqual(kinds, ["todo", "today_calendar", "weather", "word"])
+        self.assertEqual(kinds, ["todo", "today_calendar", "weather", "word", "cluny"])
         todo = layout["pages"][0]["widgets"][0]
         today = layout["pages"][0]["widgets"][1]
         weather = layout["pages"][0]["widgets"][2]
         word = layout["pages"][0]["widgets"][3]
+        cluny = layout["pages"][0]["widgets"][4]
         self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 2, 2))
         self.assertEqual(todo.get("region"), "above")
         self.assertEqual((today["x"], today["y"], today["w"], today["h"]), (2, 0, 2, 2))
@@ -63,15 +64,19 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertEqual((weather["x"], weather["y"], weather["w"], weather["h"]), (0, 0, 1, 1))
         self.assertNotEqual(weather.get("region"), "above")
         self.assertEqual((word["x"], word["y"], word["w"], word["h"]), (1, 0, 1, 1))
+        self.assertEqual((cluny["x"], cluny["y"], cluny["w"], cluny["h"]), (2, 0, 2, 2))
+        self.assertEqual(cluny["kind"], "cluny")
         self.assertFalse(home_layout.boxes_overlap(todo, today))
         self.assertFalse(home_layout.boxes_overlap(weather, word))
+        self.assertFalse(home_layout.boxes_overlap(weather, cluny))
+        self.assertFalse(home_layout.boxes_overlap(word, cluny))
 
     def test_fresh_file_writes_the_default(self) -> None:
         layout = home_layout.get_home_layout()
         self.assertTrue((self.root / "home_layout.json").exists())
         self.assertEqual(
             [item["kind"] for item in layout["pages"][0]["widgets"]],
-            ["todo", "today_calendar", "weather", "word"],
+            ["todo", "today_calendar", "weather", "word", "cluny"],
         )
 
     def test_each_kind_has_a_few_allowed_sizes(self) -> None:
@@ -202,7 +207,7 @@ class HomeLayoutTests(unittest.TestCase):
         today = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "today_calendar")
         layout = home_layout.remove_home_widget(page_id, today["id"])
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
-        self.assertEqual(kinds, ["todo", "weather", "word"])
+        self.assertEqual(kinds, ["todo", "weather", "word", "cluny"])
 
     def test_today_can_move_down_without_hitting_todo(self) -> None:
         layout = home_layout.get_home_layout()
@@ -258,7 +263,6 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.add_home_widget(page_id, "day_brief")
         layout = home_layout.add_home_widget(page_id, "counters")
         layout = home_layout.add_home_widget(page_id, "reading")
-        layout = home_layout.add_home_widget(page_id, "cluny")
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
         self.assertIn("weather", kinds)
         self.assertIn("focus", kinds)
@@ -283,7 +287,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertEqual(len(layout["pages"]), 1)
         self.assertEqual(
             [item["kind"] for item in layout["pages"][0]["widgets"]],
-            ["todo", "today_calendar", "weather", "word"],
+            ["todo", "today_calendar", "weather", "word", "cluny"],
         )
 
     def test_sanitize_drops_journal_and_checklist_widgets(self) -> None:
@@ -322,3 +326,26 @@ class HomeLayoutTests(unittest.TestCase):
             home_layout.add_widget(layout, page_id, "journal")
         with self.assertRaises(ValueError):
             home_layout.add_widget(layout, page_id, "checklist")
+
+    def test_stock_home_seeds_ask_cluny(self) -> None:
+        raw = {
+            "pages": [
+                {
+                    "id": "p1",
+                    "name": "Home",
+                    "widgets": [
+                        {"id": "a", "kind": "todo", "x": 0, "y": 0, "w": 2, "h": 2, "region": "above"},
+                        {"id": "b", "kind": "today_calendar", "x": 2, "y": 0, "w": 2, "h": 2, "region": "above"},
+                        {"id": "c", "kind": "weather", "x": 0, "y": 0, "w": 1, "h": 1},
+                        {"id": "d", "kind": "word", "x": 1, "y": 0, "w": 1, "h": 1},
+                    ],
+                }
+            ]
+        }
+        packed, added = home_layout.seed_ask_cluny(raw)
+        self.assertTrue(added)
+        kinds = [item["kind"] for item in packed["pages"][0]["widgets"]]
+        self.assertIn("cluny", kinds)
+        again, added_again = home_layout.seed_ask_cluny(packed)
+        self.assertFalse(added_again)
+        self.assertEqual(len(again["pages"][0]["widgets"]), len(packed["pages"][0]["widgets"]))
