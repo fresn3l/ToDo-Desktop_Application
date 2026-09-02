@@ -298,6 +298,50 @@ END:VCALENDAR
         junk = calclock.get_year("later")
         self.assertEqual(junk["year"], date.today().year)
 
+    def test_normalize_ics_url_accepts_webcal_wrappers_and_uri_lists(self) -> None:
+        self.assertEqual(
+            calclock.normalize_ics_url("<webcal://cal.example.edu/x.ics>"),
+            "https://cal.example.edu/x.ics",
+        )
+        self.assertEqual(
+            calclock.normalize_ics_url("# comment\nhttps://cal.example.edu/x.ics?token=1\n"),
+            "https://cal.example.edu/x.ics?token=1",
+        )
+        self.assertEqual(
+            calclock.normalize_ics_url('Copy this: https://cal.example.edu/feed.ics'),
+            "https://cal.example.edu/feed.ics",
+        )
+        self.assertEqual(
+            calclock.normalize_ics_url("http://cal.example.edu/feed.ics"),
+            "http://cal.example.edu/feed.ics",
+        )
+        self.assertEqual(calclock.normalize_ics_url("  ", allow_empty=True), "")
+        with self.assertRaises(ValueError):
+            calclock.normalize_ics_url("javascript:alert(1)")
+        with self.assertRaises(ValueError):
+            calclock.normalize_ics_url("")
+
+    def test_import_ics_url_fetches_normalized_https_link(self) -> None:
+        ics = """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:essay-paste
+SUMMARY:Essay pasted
+DTSTART;VALUE=DATE:20260904
+END:VEVENT
+END:VCALENDAR
+"""
+        resp = mock.MagicMock()
+        resp.read.return_value = ics.encode("utf-8")
+        cm = mock.MagicMock()
+        cm.__enter__.return_value = resp
+        cm.__exit__.return_value = False
+        with mock.patch.object(calclock, "urlopen", return_value=cm) as opener:
+            result = calclock.import_ics_url("<webcal://cal.example.edu/class.ics>")
+        self.assertGreaterEqual(result["created"], 1)
+        req = opener.call_args[0][0]
+        self.assertEqual(req.full_url, "https://cal.example.edu/class.ics")
+        self.assertEqual(calclock.load_settings()["ics_url"], "https://cal.example.edu/class.ics")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,72 @@ import WebKit
 import WidgetKit
 #endif
 
+/// WKWebView treats a copied http(s)/webcal link as “go to this URL”.
+/// Kosistenz blocks off-app navigation, so Cmd+V of a calendar ICS link
+/// used to do nothing. Insert the link as text instead.
+final class KosistenzWebView: WKWebView {
+    override func paste(_ sender: Any?) {
+        if let text = Self.pasteboardURLText() {
+            insertTextIntoPage(text)
+            return
+        }
+        super.paste(sender)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.type == .keyDown,
+           event.modifierFlags.contains(.command),
+           !event.modifierFlags.contains(.shift),
+           !event.modifierFlags.contains(.option),
+           event.charactersIgnoringModifiers == "v",
+           let text = Self.pasteboardURLText() {
+            insertTextIntoPage(text)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    static func pasteboardURLText() -> String? {
+        let pb = NSPasteboard.general
+        if let urls = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL],
+           let url = urls.first {
+            let scheme = url.scheme?.lowercased() ?? ""
+            if ["http", "https", "webcal"].contains(scheme) {
+                return url.absoluteString
+            }
+        }
+        guard let raw = pb.string(forType: .string) else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count <= 2000 else { return nil }
+        let first = trimmed.split(whereSeparator: \.isNewline)
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+            .first(where: { !$0.isEmpty && !$0.hasPrefix("#") }) ?? trimmed
+        let cleaned = first.trimmingCharacters(in: CharacterSet(charactersIn: "<>\"' "))
+        let lower = cleaned.lowercased()
+        if lower.hasPrefix("http://") || lower.hasPrefix("https://") || lower.hasPrefix("webcal://") {
+            return raw
+        }
+        return nil
+    }
+
+    func insertTextIntoPage(_ text: String) {
+        let payload = jsStringLiteral(text)
+        let js = "window.kosistenzInsertText && window.kosistenzInsertText(\(payload))"
+        evaluateJavaScript(js, completionHandler: nil)
+    }
+}
+
+private func jsStringLiteral(_ value: String) -> String {
+    let escaped = value
+        .replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\"", with: "\\\"")
+        .replacingOccurrences(of: "\n", with: "\\n")
+        .replacingOccurrences(of: "\r", with: "\\r")
+        .replacingOccurrences(of: "\u{2028}", with: "\\u2028")
+        .replacingOccurrences(of: "\u{2029}", with: "\\u2029")
+    return "\"\(escaped)\""
+}
+
 /// Native Mac host for Kosistenz: Cocoa window + WKWebView + menu bar.
 /// Python (kosistenz-bridge) only serves the local UI; it does not create the window.
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, NSMenuDelegate, WKScriptMessageHandler, NSToolbarDelegate {
@@ -101,6 +167,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         if isUiURL(url) {
             decisionHandler(.allow)
+            return
+        }
+        // Paste/drop of a calendar link is navigationType .other. Do not
+        // navigate; put the URL in the focused field (ICS box on Calendar).
+        if navigationAction.navigationType == .other,
+           ["http", "https", "webcal"].contains(scheme) {
+            let pasted = url.absoluteString
+            if let host = webView as? KosistenzWebView {
+                host.insertTextIntoPage(pasted)
+            }
+            log("Inserted pasted URL instead of navigating: \(pasted)")
+            decisionHandler(.cancel)
             return
         }
         log("Blocked navigation to \(url.absoluteString)")
@@ -218,7 +296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         effect.state = .active
         effect.autoresizingMask = [.width, .height]
 
-        let webView = WKWebView(frame: effect.bounds, configuration: config)
+        let webView = KosistenzWebView(frame: effect.bounds, configuration: config)
         webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
         webView.uiDelegate = self

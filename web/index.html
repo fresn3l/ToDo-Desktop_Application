@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="tokens.css">
     <link rel="stylesheet" href="style.css">
     <script src="js/boot-appearance.js"></script>
+    <script src="js/paste_insert.js"></script>
 </head>
 <body>
     <div class="app-shell">
@@ -175,7 +176,7 @@
                             <div class="cal-aside-block">
                                 <h3>Due dates</h3>
                                 <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
-                                <input type="url" id="calIcsUrl" class="checklist-text-input" placeholder="https://…" autocomplete="off">
+                                <input type="text" id="calIcsUrl" class="checklist-text-input" placeholder="Paste https:// or webcal:// calendar link" autocomplete="off" spellcheck="false" inputmode="url">
                                 <div class="reminder-actions">
                                     <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
                                     <button type="button" id="calImportApple" class="btn-ghost">Import Apple calendars</button>

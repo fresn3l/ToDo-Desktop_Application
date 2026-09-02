@@ -5267,6 +5267,11 @@ html[data-motion='reduce'] *::after {
     font-size: 13px;
 }
 
+#calIcsUrl {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
 .cal-aside .work-day-chip {
     min-height: 2rem;
     padding: 4px 8px;

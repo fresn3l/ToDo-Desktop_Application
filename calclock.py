@@ -32,6 +32,29 @@ CHUNK_MAX = 90
 DAY_START = "07:00"
 DAY_END = "22:00"
 BLOCK_STATUSES = ("proposed", "locked", "done", "skipped")
+_ICS_URL_RE = re.compile(r"(?:https?|webcal)://[^\s<>\"']+", re.I)
+
+
+def normalize_ics_url(raw: str, *, allow_empty: bool = False) -> str:
+    """Turn a pasted calendar link into an http(s) ICS URL."""
+    text = str(raw or "").replace("\ufeff", "").strip()
+    if not text:
+        if allow_empty:
+            return ""
+        raise ValueError("Paste a calendar URL")
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    text = lines[0] if lines else text
+    text = text.strip("<>").strip().strip("'\"").strip()
+    match = _ICS_URL_RE.search(text)
+    if match:
+        text = match.group(0)
+    lower = text.lower()
+    if lower.startswith("webcal://"):
+        text = "https://" + text[len("webcal://") :]
+    parsed = urlparse(text)
+    if parsed.scheme not in ("https", "http") or not parsed.netloc:
+        raise ValueError("Calendar URL must be http or https")
+    return text
 
 
 def _now() -> datetime:
@@ -124,11 +147,7 @@ def save_calendar_settings(partial: Dict[str, Any]) -> Dict[str, Any]:
     incoming = partial if isinstance(partial, dict) else {}
     if "ics_url" in incoming:
         url = str(incoming.get("ics_url") or "").strip()
-        if url:
-            parsed = urlparse(url)
-            if parsed.scheme not in ("https", "webcal"):
-                raise ValueError("Calendar URL must be https")
-        current["ics_url"] = url.replace("webcal://", "https://", 1) if url else ""
+        current["ics_url"] = normalize_ics_url(url, allow_empty=True) if url else ""
     if incoming.get("day_start"):
         current["day_start"] = _parse_hhmm(str(incoming["day_start"]))
     if incoming.get("day_end"):
@@ -383,12 +402,8 @@ def import_ics_text(text: str, calendar_id: str = "ics") -> Dict[str, Any]:
 @eel.expose
 def import_ics_url(url: str = "") -> Dict[str, Any]:
     settings = load_settings()
-    target = (url or settings.get("ics_url") or "").strip()
-    if target.startswith("webcal://"):
-        target = "https://" + target[len("webcal://") :]
+    target = normalize_ics_url(url or settings.get("ics_url") or "")
     parsed = urlparse(target)
-    if parsed.scheme != "https" or not parsed.netloc:
-        raise ValueError("Calendar URL must be https")
     if url:
         save_calendar_settings({"ics_url": target})
     req = Request(target, headers={"User-Agent": "Kosistenz/1.0"})

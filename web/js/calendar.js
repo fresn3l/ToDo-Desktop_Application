@@ -352,7 +352,13 @@ async function addLecture() {
 
 async function importIcs() {
     const status = document.getElementById('calImportStatus');
-    const url = document.getElementById('calIcsUrl')?.value?.trim();
+    const raw = document.getElementById('calIcsUrl')?.value || '';
+    const url = (typeof window.kosistenzSanitizePastedUrl === 'function')
+        ? window.kosistenzSanitizePastedUrl(raw)
+        : raw.trim();
+    if (url && document.getElementById('calIcsUrl')) {
+        document.getElementById('calIcsUrl').value = url;
+    }
     if (!url) {
         utils.showErrorFeedback('Paste the class calendar URL.');
         return;
@@ -426,6 +432,40 @@ export function setupCalendar() {
     });
     document.getElementById('calImportIcs')?.addEventListener('click', () => {
         void importIcs();
+    });
+    document.getElementById('calIcsUrl')?.addEventListener('paste', (e) => {
+        const dt = e.clipboardData;
+        if (!dt) return;
+        const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
+        const cleaned = (typeof window.kosistenzSanitizePastedUrl === 'function')
+            ? window.kosistenzSanitizePastedUrl(raw)
+            : String(raw || '').trim();
+        if (!cleaned) return;
+        e.preventDefault();
+        const field = e.target;
+        field.value = cleaned;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    document.addEventListener('paste', (e) => {
+        const tab = document.getElementById('calendarTab');
+        if (!tab?.classList.contains('active')) return;
+        const tag = (e.target?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+        const dt = e.clipboardData;
+        if (!dt) return;
+        const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
+        const cleaned = (typeof window.kosistenzSanitizePastedUrl === 'function')
+            ? window.kosistenzSanitizePastedUrl(raw)
+            : '';
+        if (!cleaned) return;
+        const ics = document.getElementById('calIcsUrl');
+        if (!ics) return;
+        e.preventDefault();
+        ics.value = cleaned;
+        ics.dispatchEvent(new Event('input', { bubbles: true }));
+        ics.focus();
+        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load dues.');
     });
     document.getElementById('calImportApple')?.addEventListener('click', importApple);
     document.getElementById('calEventWeekdays')?.addEventListener('click', (e) => {
