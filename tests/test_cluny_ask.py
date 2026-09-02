@@ -181,6 +181,8 @@ class ClunyAskTests(unittest.TestCase):
         self.assertIn("Never pick a clock time", ctx["instruction"])
         self.assertIn("free_minutes", ctx)
         self.assertIsInstance(ctx["free_minutes"], int)
+        self.assertIn("analytics", ctx)
+        self.assertIn("period", ctx["analytics"])
 
 
 if __name__ == "__main__":

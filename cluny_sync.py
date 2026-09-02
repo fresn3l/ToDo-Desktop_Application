@@ -44,6 +44,8 @@ _FILE_DEFAULTS: Dict[str, Any] = {
     "api_key": "",
     "journal_enabled": True,
     "checklist_enabled": True,
+    "auto_start_brain": True,
+    "cluny_binary_path": "",
 }
 
 
@@ -88,6 +90,8 @@ def _read_file_settings() -> Dict[str, Any]:
             "api_key": str(raw.get("api_key") or "").strip()[:200],
             "journal_enabled": raw.get("journal_enabled") is not False,
             "checklist_enabled": raw.get("checklist_enabled") is not False,
+            "auto_start_brain": raw.get("auto_start_brain") is not False,
+            "cluny_binary_path": str(raw.get("cluny_binary_path") or "").strip(),
         }
 
 
@@ -111,6 +115,8 @@ def _sanitize_file_settings(raw: Dict[str, Any]) -> Dict[str, Any]:
         "api_key": api_key[:200],
         "journal_enabled": raw.get("journal_enabled") is not False,
         "checklist_enabled": raw.get("checklist_enabled") is not False,
+        "auto_start_brain": raw.get("auto_start_brain") is not False,
+        "cluny_binary_path": str(raw.get("cluny_binary_path") or "").strip()[:500],
     }
 
 
@@ -223,6 +229,8 @@ def public_cluny_settings() -> Dict[str, Any]:
         "api_key": cfg["api_key"],
         "journal_enabled": cfg["journal_enabled"],
         "checklist_enabled": cfg["checklist_enabled"],
+        "auto_start_brain": _read_file_settings().get("auto_start_brain", True),
+        "cluny_binary_path": _read_file_settings().get("cluny_binary_path", ""),
         "env_overrides": cfg["env_overrides"],
         "status_note": f"{journal}. {check[0].upper() + check[1:]}." if has_sink else "Ask uses http://127.0.0.1:8787 when Cluny is running. SQLite copy is optional.",
         "env_note": env_note,
@@ -253,6 +261,10 @@ def save_cluny_settings(raw: Dict[str, Any]) -> Dict[str, Any]:
         incoming["journal_enabled"] = bool(raw.get("journal_enabled"))
     if "checklist_enabled" in raw:
         incoming["checklist_enabled"] = bool(raw.get("checklist_enabled"))
+    if "auto_start_brain" in raw:
+        incoming["auto_start_brain"] = bool(raw.get("auto_start_brain"))
+    if "cluny_binary_path" in raw:
+        incoming["cluny_binary_path"] = str(raw.get("cluny_binary_path") or "").strip()
     _write_file_settings(incoming)
     return public_cluny_settings()
 
@@ -425,3 +437,110 @@ def sync_journal_entry_safe(entry: Dict[str, Any]) -> None:
         sync_journal_entry_to_cluny(entry)
     except (OSError, sqlite3.Error, urllib.error.URLError, ValueError) as e:
         print(f"[Cluny sync] Failed (entry still saved locally): {e}")
+
+
+def _analytics_sync_path() -> Path:
+    return data_directory() / "cluny_analytics_sync.json"
+
+
+def _load_analytics_sync_state() -> Dict[str, Any]:
+    path = _analytics_sync_path()
+    if not path.exists():
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            raw = json.load(handle)
+        return raw if isinstance(raw, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_analytics_sync_state(state: Dict[str, Any]) -> None:
+    path = _analytics_sync_path()
+    tmp = str(path) + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as handle:
+        json.dump(state, handle, indent=2)
+    os.replace(tmp, path)
+
+
+def sync_analytics_rollup_safe() -> Dict[str, Any]:
+    """Weekly analytics rollup into Cluny library (collection: analytics)."""
+    import cluny_client
+    import insights
+
+    try:
+        data = insights.get_analytics(7)
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    week_key = str(data.get("week_key") or "")
+    if not week_key:
+        return {"ok": False, "error": "missing week_key"}
+    state = _load_analytics_sync_state()
+    if state.get("week_key") == week_key:
+        return {"ok": True, "skipped": True, "week_key": week_key}
+    work_stats = data.get("work") or {}
+    journal = data.get("journal") or {}
+    lines = [
+        f"Weekly analytics {week_key}",
+        f"Period: {data.get('period_start')} – {data.get('period_end')}",
+        f"Journal entries: {journal.get('entries', 0)}",
+        f"Journal streak: {journal.get('streak', 0)} days",
+        f"Writing minutes: {journal.get('minutes', 0)}",
+        f"Dated tasks done: {work_stats.get('dated_done', 0)}",
+        f"Repeat missed: {work_stats.get('repeat_missed', 0)}",
+        f"Show-up streak: {data.get('show_up_streak', 0)}",
+    ]
+    text = "\n".join(str(line) for line in lines if line)
+    try:
+        cluny_client.ingest_text(
+            text,
+            title=f"analytics-{week_key}",
+            source="kosistenz-analytics",
+            collection="analytics",
+        )
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc), "week_key": week_key}
+    _save_analytics_sync_state({"week_key": week_key, "synced_at": data.get("period_end")})
+    return {"ok": True, "synced": True, "week_key": week_key}
+
+
+def sync_task_mirror_safe(item: Dict[str, Any]) -> None:
+    """Mirror a Kosistenz todo to Cluny /tasks/sync (best-effort)."""
+    import cluny_client
+
+    item_id = str(item.get("id") or "").strip()
+    title = str(item.get("title") or "").strip()
+    if not item_id or not title:
+        return
+    status = str(item.get("status") or "open")
+    mirror_status = "done" if status == "done" else "open"
+    due = item.get("due_at") or item.get("due")
+    due_at = str(due)[:19] if due else None
+    notes = str(item.get("notes") or "").strip() or None
+    try:
+        if not cluny_client.health().get("brain_ready"):
+            return
+        cluny_client.sync_task(
+            external_id=item_id,
+            title=title,
+            status=mirror_status,
+            due_at=due_at,
+            notes=notes,
+        )
+    except ValueError as exc:
+        print(f"[Cluny sync] Task mirror failed: {exc}")
+
+
+def delete_task_mirror_safe(external_id: str) -> None:
+    import cluny_client
+
+    item_id = str(external_id or "").strip()
+    if not item_id:
+        return
+    try:
+        if not cluny_client.health().get("brain_ready"):
+            return
+        cluny_client.delete_synced_task(item_id)
+    except ValueError as exc:
+        print(f"[Cluny sync] Task delete mirror failed: {exc}")
+

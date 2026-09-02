@@ -33,6 +33,10 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
                     <span class="nav-label">Calendar</span>
                 </button>
+                <button type="button" class="nav-item" data-tab="brain">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3a4 4 0 0 0-4 4v1.1A4.9 4.9 0 0 0 4 12.9V14a4 4 0 0 0 4 4h1"/><path d="M12 3a4 4 0 0 1 4 4v1.1A4.9 4.9 0 0 1 20 12.9V14a4 4 0 0 1-4 4h-1"/><path d="M9.5 10.5h5M10 14h4"/></svg>
+                    <span class="nav-label">Brain</span>
+                </button>
             </nav>
 
             <div class="sidebar-footer">
@@ -698,6 +702,116 @@
                     </div>
                 </section>
 
+                <section id="brainTab" class="tab-content" aria-label="Brain">
+                    <div class="brain-shell">
+                        <aside class="brain-sidebar" aria-label="Library and stats">
+                            <div class="brain-sidebar-head">
+                                <p class="today-kicker">Cluny</p>
+                                <h2>Brain</h2>
+                                <p id="brainStatusLine" class="panel-sub">Checking brain…</p>
+                                <div id="brainHealthPill" class="brain-health-pill">…</div>
+                            </div>
+                            <dl class="brain-stats" id="brainStats">
+                                <div><dt>Docs</dt><dd id="brainDocCount">—</dd></div>
+                                <div><dt>Chunks</dt><dd id="brainChunkCount">—</dd></div>
+                                <div><dt>Model</dt><dd id="brainChatModel">—</dd></div>
+                            </dl>
+                            <div class="brain-filter-row">
+                                <label class="checklist-field-label" for="brainCollectionFilter">Collection</label>
+                                <select id="brainCollectionFilter" class="checklist-text-input">
+                                    <option value="">All</option>
+                                </select>
+                                <label class="checklist-field-label" for="brainSourceFilter">Source</label>
+                                <select id="brainSourceFilter" class="checklist-text-input">
+                                    <option value="">All</option>
+                                </select>
+                            </div>
+                            <div class="brain-sidebar-actions">
+                                <button type="button" id="brainRefreshLibraryBtn" class="btn-ghost">Refresh library</button>
+                                <label class="btn-secondary brain-file-btn">
+                                    Add documents
+                                    <input type="file" id="brainFileInput" multiple hidden accept=".pdf,.md,.txt,.markdown,.text">
+                                </label>
+                            </div>
+                            <ul id="brainLibraryList" class="brain-library-list"></ul>
+                            <div class="brain-sidebar-foot">
+                                <button type="button" id="brainOpenBrainEditorBtn" class="btn-ghost">Edit instructions</button>
+                                <button type="button" id="brainOpenSettingsBtn" class="btn-ghost">Brain settings</button>
+                            </div>
+                        </aside>
+                        <div class="brain-main">
+                            <header class="brain-main-head">
+                                <div class="brain-mode-row">
+                                    <label class="checklist-field-label" for="brainAgentMode">Mode</label>
+                                    <select id="brainAgentMode" class="checklist-text-input">
+                                        <option value="ask">Ask</option>
+                                        <option value="chat">Chat</option>
+                                        <option value="knowledge">Knowledge</option>
+                                        <option value="planner">Planner</option>
+                                    </select>
+                                    <button type="button" id="brainNewSessionBtn" class="btn-ghost">New chat</button>
+                                </div>
+                                <div id="brainOffline" class="brain-offline is-hidden">
+                                    <p class="checklist-empty">Cluny is off. Journal, to-dos, and the clock still work.</p>
+                                    <button type="button" id="brainStartServeBtn" class="btn-secondary">Try starting Cluny</button>
+                                </div>
+                            </header>
+                            <div id="brainChatLog" class="brain-chat-log" aria-live="polite"></div>
+                            <form id="brainChatForm" class="brain-chat-form">
+                                <label class="visually-hidden" for="brainChatInput">Message Cluny</label>
+                                <textarea id="brainChatInput" class="checklist-textarea" rows="3" placeholder="Ask with live Kosistenz context…"></textarea>
+                                <div class="brain-chat-actions">
+                                    <button type="submit" class="btn-primary" id="brainSendBtn">Send</button>
+                                    <button type="button" class="btn-secondary" id="brainProposeBtn">Propose work</button>
+                                </div>
+                            </form>
+                            <div id="brainProposePanel" class="brain-propose-panel is-hidden">
+                                <h3>Suggestions</h3>
+                                <div id="brainProposeSources" class="cluny-sources" hidden></div>
+                                <ul id="brainProposeList" class="cluny-inbox"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <dialog id="brainEditorDialog" class="brain-dialog">
+                        <form method="dialog" class="brain-dialog-body" id="brainEditorForm">
+                            <header class="brain-dialog-head">
+                                <h2>Brain instructions</h2>
+                                <button type="button" class="btn-ghost" id="brainEditorClose">Close</button>
+                            </header>
+                            <label class="checklist-field-label" for="brainPersona">Global persona</label>
+                            <textarea id="brainPersona" class="checklist-textarea" rows="3"></textarea>
+                            <label class="checklist-field-label" for="brainRagSystem">RAG system prompt</label>
+                            <textarea id="brainRagSystem" class="checklist-textarea" rows="5"></textarea>
+                            <div class="brain-dialog-actions">
+                                <button type="button" id="brainExportConfigBtn" class="btn-ghost">Export JSON</button>
+                                <button type="button" id="brainImportConfigBtn" class="btn-ghost">Import JSON</button>
+                                <input type="file" id="brainImportFile" accept="application/json,.json" hidden>
+                                <button type="button" id="brainResetConfigBtn" class="btn-ghost">Reset defaults</button>
+                                <button type="submit" class="btn-primary">Save</button>
+                            </div>
+                        </form>
+                    </dialog>
+                    <dialog id="brainSettingsDialog" class="brain-dialog">
+                        <form method="dialog" class="brain-dialog-body" id="brainSettingsForm">
+                            <header class="brain-dialog-head">
+                                <h2>Brain settings</h2>
+                                <button type="button" class="btn-ghost" id="brainSettingsClose">Close</button>
+                            </header>
+                            <label class="checklist-field-label" for="brainChatModelInput">Chat model</label>
+                            <input type="text" id="brainChatModelInput" class="checklist-text-input" autocomplete="off">
+                            <label class="checklist-field-label" for="brainEmbedModelInput">Embed model</label>
+                            <input type="text" id="brainEmbedModelInput" class="checklist-text-input" autocomplete="off">
+                            <label class="checklist-field-label" for="brainRetrievalK">Retrieval k</label>
+                            <input type="number" id="brainRetrievalK" class="checklist-text-input" min="1" max="50">
+                            <label class="checklist-field-label" for="brainHybridWeight">Hybrid vector weight</label>
+                            <input type="number" id="brainHybridWeight" class="checklist-text-input" min="0" max="1" step="0.05">
+                            <label class="checklist-field-label" for="brainAskCollection">Default collection</label>
+                            <input type="text" id="brainAskCollection" class="checklist-text-input" placeholder="journal">
+                            <button type="submit" class="btn-primary">Save settings</button>
+                        </form>
+                    </dialog>
+                </section>
+
                 <section id="settingsTab" class="tab-content" aria-label="Settings">
                     <div class="settings-board" id="settingsBoard">
                         <div class="settings-col" data-settings-col="appearance">
@@ -965,12 +1079,24 @@
                                 <p id="clunyHealthStatus" class="checklist-hint small">Checking Cluny…</p>
                                 <div class="reminder-actions">
                                     <button type="button" id="clunyTestBtn" class="btn-secondary">Test connection</button>
+                                    <button type="button" id="clunyRestartBtn" class="btn-ghost">Restart Cluny</button>
                                 </div>
                             </div>
                             <div class="settings-block">
                                 <label class="checklist-field-label" for="clunyBrainUrl">Brain URL</label>
                                 <input type="url" id="clunyBrainUrl" class="checklist-text-input" placeholder="http://127.0.0.1:8787" autocomplete="off">
                                 <p class="checklist-hint small">Default is localhost. HTTPS, or HTTP on this Mac only.</p>
+                            </div>
+                            <div class="settings-block">
+                                <label class="checklist-checkbox-label">
+                                    <input type="checkbox" id="clunyAutoStartToggle" checked>
+                                    Keep Cluny running while Kosistenz is open
+                                </label>
+                                <p class="checklist-hint small">Kosistenz starts and supervises <code>cluny serve</code> in the background. Quitting Kosistenz stops only the copy Kosistenz started.</p>
+                            </div>
+                            <div class="settings-block">
+                                <label class="checklist-field-label" for="clunyBinaryPath">Cluny binary path (optional)</label>
+                                <input type="text" id="clunyBinaryPath" class="checklist-text-input" placeholder="/path/to/cluny or leave blank for PATH" autocomplete="off">
                             </div>
                             <div class="settings-block">
                                 <label class="checklist-checkbox-label">

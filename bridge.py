@@ -10,6 +10,8 @@ import os
 import eel
 
 import appearance  # noqa: F401
+import brain  # noqa: F401
+import cluny_brain  # noqa: F401
 import cluny_ask  # noqa: F401
 import cluny_sync  # noqa: F401
 import calclock  # noqa: F401
@@ -40,12 +42,20 @@ def run_bridge(port: int, web_dir: str) -> None:
     os.environ["KOSISTENZ_UI_PORT"] = str(int(port))
     api_port = local_api.start_background_server()
     print(f"KOSISTENZ_API_PORT={api_port}", flush=True)
+    cluny_brain.start_supervisor()
+
+    def _on_close(page: str, sockets: list) -> None:  # noqa: ARG001
+        cluny_brain.stop_supervisor()
+
     eel.init(web_dir)
-    eel.start(
-        "index.html",
-        host="127.0.0.1",
-        port=port,
-        mode=None,
-        block=True,
-        close_callback=lambda *_args: None,
-    )
+    try:
+        eel.start(
+            "index.html",
+            host="127.0.0.1",
+            port=port,
+            mode=None,
+            block=True,
+            close_callback=_on_close,
+        )
+    finally:
+        cluny_brain.stop_supervisor()

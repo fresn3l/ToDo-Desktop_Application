@@ -484,6 +484,9 @@ export function setupSettings() {
     document.getElementById('clunyTestBtn')?.addEventListener('click', () => {
         void testClunyConnection();
     });
+    document.getElementById('clunyRestartBtn')?.addEventListener('click', () => {
+        void restartClunyBrain();
+    });
 
     document.getElementById('icloudAutoToggle')?.addEventListener('change', async (e) => {
         if (typeof eel === 'undefined' || !eel.save_icloud_sync_settings) return;
@@ -670,10 +673,15 @@ function paintClunyHealth(probe) {
     if (!el) return;
     if (probe?.brain_ready) {
         const ollama = probe.ollama_ok ? 'Ollama is up.' : 'Ollama is not ready.';
-        el.textContent = `Brain ready. ${ollama}`;
+        const managed = probe.managed ? 'Kosistenz is running Cluny.' : 'Cluny was already running.';
+        el.textContent = `Brain ready. ${managed} ${ollama}`;
         return;
     }
-    el.textContent = probe?.offline_copy || 'Cluny is off. Journal, to-dos, and the clock still work.';
+    if (probe?.auto_start === false) {
+        el.textContent = 'Auto-start is off. Start Cluny manually or enable it below.';
+        return;
+    }
+    el.textContent = probe?.message || probe?.offline_copy || 'Cluny is starting…';
 }
 
 function paintClunySettings(cfg) {
@@ -683,6 +691,8 @@ function paintClunySettings(cfg) {
     const key = document.getElementById('clunyApiKey');
     const journal = document.getElementById('clunyJournalToggle');
     const checklist = document.getElementById('clunyChecklistToggle');
+    const autoStart = document.getElementById('clunyAutoStartToggle');
+    const binaryPath = document.getElementById('clunyBinaryPath');
     const status = document.getElementById('clunyStatus');
     const envNote = document.getElementById('clunyEnvNote');
     if (sqlite) {
@@ -703,6 +713,8 @@ function paintClunySettings(cfg) {
     }
     if (journal) journal.checked = cfg.journal_enabled !== false;
     if (checklist) checklist.checked = cfg.checklist_enabled !== false;
+    if (autoStart) autoStart.checked = cfg.auto_start_brain !== false;
+    if (binaryPath) binaryPath.value = cfg.cluny_binary_path || '';
     if (status) status.textContent = cfg.status_note || '';
     if (envNote) {
         envNote.textContent = cfg.env_note || '';
@@ -749,6 +761,19 @@ async function testClunyConnection() {
     }
 }
 
+async function restartClunyBrain() {
+    const el = document.getElementById('clunyHealthStatus');
+    if (el) el.textContent = 'Restarting Cluny…';
+    if (typeof eel === 'undefined' || !eel.restart_cluny_brain) return;
+    try {
+        const probe = await eel.restart_cluny_brain()();
+        paintClunyHealth(probe);
+    } catch (err) {
+        console.error(err);
+        if (el) el.textContent = err?.message || 'Could not restart Cluny.';
+    }
+}
+
 async function saveClunySettings() {
     if (typeof eel === 'undefined' || !eel.save_cluny_settings) return;
     const payload = {
@@ -758,6 +783,8 @@ async function saveClunySettings() {
         api_key: document.getElementById('clunyApiKey')?.value || '',
         journal_enabled: !!document.getElementById('clunyJournalToggle')?.checked,
         checklist_enabled: !!document.getElementById('clunyChecklistToggle')?.checked,
+        auto_start_brain: !!document.getElementById('clunyAutoStartToggle')?.checked,
+        cluny_binary_path: document.getElementById('clunyBinaryPath')?.value || '',
     };
     try {
         const saved = await eel.save_cluny_settings(payload)();

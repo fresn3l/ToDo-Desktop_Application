@@ -205,6 +205,7 @@ def build_context() -> Dict[str, Any]:
         notes = text or None
     except Exception:
         notes = None
+    analytics = _analytics_for_context()
     return {
         "date": today,
         "instruction": ASK_INSTRUCTION,
@@ -217,21 +218,67 @@ def build_context() -> Dict[str, Any]:
         "free_minutes": free_minutes(events_today, day_start, day_end),
         "weekly_goals": weekly_goals[:20],
         "notes": notes,
+        "analytics": analytics,
+    }
+
+
+def _analytics_for_context() -> Dict[str, Any]:
+    import insights
+
+    try:
+        data = insights.get_analytics(7)
+    except Exception:
+        return {}
+    work_stats = data.get("work") or {}
+    journal = data.get("journal") or {}
+    goal_progress: List[Dict[str, Any]] = []
+    try:
+        import goals as _goals
+
+        for goal in _goals.list_goals():
+            if goal.get("horizon") != "week" or goal.get("archived"):
+                continue
+            title = str(goal.get("title") or "").strip()
+            if not title:
+                continue
+            pct = goal.get("progress_pct")
+            goal_progress.append(
+                {"goal": title, "percent": float(pct) if isinstance(pct, (int, float)) else None}
+            )
+    except Exception:
+        goal_progress = []
+    return {
+        "period": data.get("week_key"),
+        "tasks_completed": work_stats.get("dated_done"),
+        "tasks_slipped": work_stats.get("repeat_missed"),
+        "focus_hours": round(float(journal.get("minutes") or 0) / 60.0, 1),
+        "journal_streak_days": journal.get("streak"),
+        "goal_progress": goal_progress[:20],
     }
 
 
 @eel.expose
 def get_cluny_health() -> Dict[str, Any]:
-    probe = cluny_client.health()
+    import cluny_brain
+
+    probe = cluny_brain.supervisor_status()
     settings = cluny_sync.public_cluny_settings()
+    managed = "Kosistenz is keeping Cluny running." if probe.get("managed") else ""
+    auto = (
+        "Auto-start is on."
+        if probe.get("auto_start")
+        else "Auto-start is off — start Cluny manually or enable it in Settings."
+    )
+    offline = "Cluny is off. Journal, to-dos, and the clock still work."
     return {
         **settings,
+        **probe,
         "ok": probe.get("ok"),
         "brain_ready": probe.get("brain_ready"),
         "ollama_ok": probe.get("ollama_ok"),
         "health_status": probe.get("status"),
         "health_message": probe.get("message"),
-        "offline_copy": "Cluny is off. Journal, to-dos, and the clock still work.",
+        "offline_copy": offline if not probe.get("brain_ready") else f"{managed} {auto}".strip(),
     }
 
 
@@ -269,8 +316,9 @@ def suggest_cluny_work(question: str = "") -> Dict[str, Any]:
     closed = _closed_ids(inbox)
     pending_ids = {proposal_uid(row) for row in inbox.get("pending") or []}
     proposals = cluny_client.propose(question or "What should I tackle next?", context_json=build_context())
+    rows = proposals.get("proposals") if isinstance(proposals, dict) else proposals
     added = 0
-    for row in proposals:
+    for row in rows:
         uid = proposal_uid(row)
         if uid in closed or uid in pending_ids:
             continue

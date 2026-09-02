@@ -7,12 +7,14 @@ import { onSettingsTabShown } from './settings.js';
 import { onCalendarTabShown } from './calendar.js';
 import { onHomeTabShown, clearHomePageColors, closeHomeWork } from './home.js';
 import { notifyNativeTab } from './appearance.js';
+import { onBrainTabShown } from './brain.js';
 
 const ID_MAP = {
     home: 'homeTab',
     today: 'homeTab',
     journal: 'journalTab',
     calendar: 'calendarTab',
+    brain: 'brainTab',
     settings: 'settingsTab',
 };
 
@@ -21,6 +23,7 @@ const LABELS = {
     today: 'Home',
     journal: 'Journal',
     calendar: 'Calendar',
+    brain: 'Brain',
     settings: 'Settings',
 };
 
@@ -68,6 +71,7 @@ export function setupTabs() {
             1: 'home',
             2: 'journal',
             3: 'calendar',
+            4: 'brain',
         };
         const tab = map[e.key];
         if (!tab) return;
@@ -121,6 +125,8 @@ export async function switchTab(name, opts = {}) {
             await loadPastEntries();
         } else if (key === 'calendar') {
             await onCalendarTabShown();
+        } else if (key === 'brain') {
+            await onBrainTabShown();
         } else if (key === 'settings') {
             onSettingsTabShown();
         }

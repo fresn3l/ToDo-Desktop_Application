@@ -26,6 +26,24 @@ from paths import data_directory
 STATUSES = ("open", "active", "done")
 
 
+def _mirror_task(item: Dict[str, Any]) -> None:
+    try:
+        import cluny_sync
+
+        cluny_sync.sync_task_mirror_safe(item)
+    except Exception:
+        pass
+
+
+def _mirror_task_delete(item_id: str) -> None:
+    try:
+        import cluny_sync
+
+        cluny_sync.delete_task_mirror_safe(item_id)
+    except Exception:
+        pass
+
+
 def _data_dir() -> Path:
     return data_directory()
 
@@ -746,7 +764,9 @@ def create_work_item(
             ).fetchone()
             if existing:
                 fetched = _fetch(conn, existing["id"])
-                return _row_to_dict(fetched or existing)
+                packed = _row_to_dict(fetched or existing)
+                _mirror_task(packed)
+                return packed
         if cadence:
             start = target or _today().isoformat()
             series_id = str(uuid.uuid4())
@@ -821,7 +841,9 @@ def create_work_item(
             row = _fetch(conn, item_id)
     _write_widget_snapshot()
     assert row is not None
-    return _row_to_dict(row)
+    packed = _row_to_dict(row)
+    _mirror_task(packed)
+    return packed
 
 
 @eel.expose
@@ -1194,7 +1216,9 @@ def update_work_item(
         row = _fetch(conn, item_id)
     _write_widget_snapshot()
     assert row is not None
-    return _row_to_dict(row)
+    packed = _row_to_dict(row)
+    _mirror_task(packed)
+    return packed
 
 
 @eel.expose
@@ -1224,6 +1248,7 @@ def delete_work_item(item_id: str, scope: str = "occurrence") -> Dict[str, Any]:
                 _upsert_exception(conn, series_id, occurrence, "skip")
             conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
     _write_widget_snapshot()
+    _mirror_task_delete(item_id)
     return {"ok": True, "id": item_id, "scope": scope}
 
 
@@ -1311,7 +1336,9 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
                 row = _fetch(conn, item_id)
     _write_widget_snapshot()
     assert row is not None
-    return _row_to_dict(row)
+    packed = _row_to_dict(row)
+    _mirror_task(packed)
+    return packed
 
 
 @eel.expose
@@ -1335,7 +1362,9 @@ def reopen_work_item(item_id: str) -> Dict[str, Any]:
         row = _fetch(conn, item_id)
     _write_widget_snapshot()
     assert row is not None
-    return _row_to_dict(row)
+    packed = _row_to_dict(row)
+    _mirror_task(packed)
+    return packed
 
 
 def apply_evening_plan(answers: Dict[str, Any]) -> Dict[str, Any]:
