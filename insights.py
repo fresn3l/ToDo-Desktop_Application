@@ -175,12 +175,22 @@ def get_today_home() -> Dict[str, Any]:
         writing_streak = int(timeline.compute_streaks(today).get("writing") or 0)
     except Exception:
         pass
+    intention = None
+    try:
+        import day_brief
+
+        brief = day_brief.get_brief(iso, "morning") or {}
+        text = str(brief.get("intention_text") or "").strip()
+        intention = text or None
+    except Exception:
+        intention = None
     return {
         **status,
         "today": board.get("today") or [],
         "counts": board.get("counts") or {},
         "workout_day": workout,
         "journal_streak": writing_streak,
+        "intention": intention,
     }
 
 

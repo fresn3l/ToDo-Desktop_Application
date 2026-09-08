@@ -14,19 +14,13 @@ from typing import Any, Dict, List, Optional
 import eel
 
 import cluny_client
+import cluny_snapshot
 import cluny_sync
 from paths import data_directory
 
 PROPOSAL_SOURCE = "cluny_proposal"
 PROPOSAL_CALENDAR = "cluny"
-ASK_INSTRUCTION = (
-    "You are Cluny, the local brain. Kosistenz owns the list and the clock. "
-    "Answer from this context. When asked what is on today, list todos_today, "
-    "events_today, and overdue items. When asked about free time, recommend "
-    "open to-dos by title using estimates and free_minutes as capacity. "
-    "Never pick a clock time or say to do something at HH:MM. "
-    "The user still picks the day; Fill week places the gap."
-)
+ASK_INSTRUCTION = cluny_snapshot.ASK_INSTRUCTION
 
 
 def _inbox_path():
@@ -116,145 +110,37 @@ def _work_row(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def free_minutes(events: List[Dict[str, Any]], day_start: str, day_end: str) -> int:
-    start = _minutes(day_start) or 7 * 60
-    end = _minutes(day_end) or 22 * 60
-    if end <= start:
-        return 0
-    busy_raw: List[tuple[int, int]] = []
-    for event in events:
-        begin = _minutes(event.get("start"))
-        finish = _minutes(event.get("end"))
-        if begin is None or finish is None:
-            continue
-        begin = max(start, begin)
-        finish = min(end, finish)
-        if finish <= begin:
-            continue
-        busy_raw.append((begin, finish))
-    busy_raw.sort()
-    busy: List[List[int]] = []
-    for begin, finish in busy_raw:
-        if busy and begin <= busy[-1][1]:
-            busy[-1][1] = max(busy[-1][1], finish)
-        else:
-            busy.append([begin, finish])
-    used = sum(finish - begin for begin, finish in busy)
-    return max(0, end - start - used)
+    return cluny_snapshot.free_minutes(events, day_start, day_end)
 
 
-def build_context() -> Dict[str, Any]:
-    import calclock
-    import day_brief
-    import goals
-    import work
-
-    today = date.today().isoformat()
-    todos_today: List[Dict[str, Any]] = []
-    overdue: List[Dict[str, Any]] = []
-    backlog: List[Dict[str, Any]] = []
-    deadline_todos: List[Dict[str, Any]] = []
+def build_context(focus: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     try:
-        board = work.get_work_board(today)
-        todos_today = [_work_row(item) for item in board.get("today") or []][:40]
-        overdue = [_work_row(item) for item in board.get("overdue") or [] if item.get("status") != "done"][:20]
-        backlog = [_work_row(item) for item in board.get("backlog") or []][:20]
-        deadline_todos = [
-            {"title": item.get("title") or "", "due": str(item.get("due") or item.get("due_at") or "")[:10]}
-            for item in todos_today + overdue + backlog
-            if item.get("due")
-        ][:40]
+        ctx = cluny_snapshot.build_life_snapshot()
     except Exception:
-        todos_today, overdue, backlog, deadline_todos = [], [], [], []
-    events_today: List[Dict[str, Any]] = []
-    unplaced: List[str] = []
-    day_start, day_end = "05:30", "21:30"
-    try:
-        agenda = calclock.get_day_agenda(today)
-        settings = agenda.get("settings") or {}
-        day_start = str(settings.get("day_start") or day_start)
-        day_end = str(settings.get("day_end") or day_end)
-        for item in agenda.get("items") or []:
-            events_today.append(
-                {
-                    "title": item.get("title") or "",
-                    "kind": item.get("kind") or "",
-                    "start": _hhmm(item.get("start_at")),
-                    "end": _hhmm(item.get("end_at")),
-                }
-            )
-        unplaced = [
-            str(item.get("title") or "").strip()
-            for item in (agenda.get("unplaced") or [])
-            if str(item.get("title") or "").strip()
-        ][:20]
-    except Exception:
-        events_today, unplaced = [], []
-    weekly_goals: List[str] = []
-    try:
-        for goal in goals.list_goals():
-            if goal.get("horizon") == "week" and not goal.get("archived"):
-                title = str(goal.get("title") or "").strip()
-                if title:
-                    weekly_goals.append(title)
-    except Exception:
-        weekly_goals = []
-    notes = None
-    try:
-        brief = day_brief.get_brief(today, "morning") or {}
-        text = str(brief.get("intention_text") or "").strip()
-        notes = text or None
-    except Exception:
-        notes = None
-    analytics = _analytics_for_context()
-    return {
-        "date": today,
-        "instruction": ASK_INSTRUCTION,
-        "todos_today": todos_today,
-        "overdue": overdue,
-        "backlog": backlog,
-        "deadline_todos": deadline_todos[:40],
-        "events_today": events_today[:40],
-        "unplaced": unplaced,
-        "free_minutes": free_minutes(events_today, day_start, day_end),
-        "weekly_goals": weekly_goals[:20],
-        "notes": notes,
-        "analytics": analytics,
-    }
-
-
-def _analytics_for_context() -> Dict[str, Any]:
-    import insights
-
-    try:
-        data = insights.get_analytics(7)
-    except Exception:
-        return {}
-    work_stats = data.get("work") or {}
-    journal = data.get("journal") or {}
-    goal_progress: List[Dict[str, Any]] = []
-    try:
-        import goals as _goals
-
-        for goal in _goals.list_goals():
-            if goal.get("horizon") != "week" or goal.get("archived"):
-                continue
-            title = str(goal.get("title") or "").strip()
-            if not title:
-                continue
-            pct = goal.get("progress_pct")
-            goal_progress.append(
-                {"goal": title, "percent": float(pct) if isinstance(pct, (int, float)) else None}
-            )
-    except Exception:
-        goal_progress = []
-    return {
-        "period": data.get("week_key"),
-        "tasks_completed": work_stats.get("dated_done"),
-        "tasks_slipped": work_stats.get("repeat_missed"),
-        "focus_hours": round(float(journal.get("minutes") or 0) / 60.0, 1),
-        "journal_streak_days": journal.get("streak"),
-        "goal_progress": goal_progress[:20],
-    }
+        ctx = {
+            "date": date.today().isoformat(),
+            "instruction": ASK_INSTRUCTION,
+            "todos_today": [],
+            "overdue": [],
+            "backlog": [],
+            "deadline_todos": [],
+            "events_today": [],
+            "unplaced": [],
+            "free_minutes": 0,
+            "weekly_goals": [],
+            "notes": None,
+            "analytics": {},
+            "journal": [],
+            "work": {},
+            "calendar": {},
+            "workouts": [],
+            "goals": [],
+            "briefs": [],
+        }
+    ctx["instruction"] = ASK_INSTRUCTION
+    if focus:
+        ctx["focus"] = focus
+    return ctx
 
 
 @eel.expose
@@ -303,11 +189,12 @@ def get_cluny_inbox() -> Dict[str, Any]:
 
 
 @eel.expose
-def ask_cluny(question: str) -> Dict[str, Any]:
+def ask_cluny(question: str, focus: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     text = str(question or "").strip()
     if not text:
         raise ValueError("Ask a question first")
-    return cluny_client.chat(text, context_json=build_context())
+    packed = focus if isinstance(focus, dict) else None
+    return cluny_client.chat(text, context_json=build_context(packed))
 
 
 @eel.expose
@@ -359,15 +246,21 @@ def accept_cluny_proposal(proposal_id: str) -> Dict[str, Any]:
         source_calendar=PROPOSAL_CALENDAR,
     )
     inbox["pending"] = [row for row in inbox["pending"] if proposal_uid(row) != uid]
+    kosistenz_id = f"kosistenz:{item.get('id')}"
     inbox["closed"].append(
         {
             **match,
             "status": "accepted",
             "work_item_id": item.get("id"),
+            "kosistenz_id": kosistenz_id,
         }
     )
     _save_inbox(inbox)
-    return {"ok": True, "duplicate": False, "item": item, "inbox": get_cluny_inbox()}
+    try:
+        cluny_sync.sync_task_mirror_safe({**item, "id": kosistenz_id})
+    except Exception:
+        pass
+    return {"ok": True, "duplicate": False, "item": item, "inbox": get_cluny_inbox(), "kosistenz_id": kosistenz_id}
 
 
 @eel.expose

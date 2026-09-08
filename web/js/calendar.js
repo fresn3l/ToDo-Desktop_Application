@@ -19,12 +19,29 @@ function mondayISO(d = new Date()) {
     return utils.localISODate(day);
 }
 
+function humanWeekRange(startIso, endIso) {
+    // The week label is human, like Sep 1 – 7.
+    const start = new Date(`${startIso}T12:00:00`);
+    const end = new Date(`${endIso}T12:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return `${startIso} – ${endIso}`;
+    }
+    const sameMonth = start.getMonth() === end.getMonth();
+    const left = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const right = end.toLocaleDateString(undefined, sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' });
+    return `${left} – ${right}`;
+}
+
 function setCalView(next) {
     calView = next === 'week' || next === 'year' ? next : 'month';
+    // Fill week stays visible in month and year; it still packs this week.
     document.getElementById('calGrid')?.classList.toggle('is-hidden', calView !== 'week');
     document.getElementById('calMonthGrid')?.classList.toggle('is-hidden', calView !== 'month');
     document.getElementById('calYearGrid')?.classList.toggle('is-hidden', calView !== 'year');
-    document.getElementById('calFillWeek')?.classList.toggle('is-hidden', calView !== 'week');
+    // Month and year views hide the week-clock hint.
+    document.getElementById('calClockHint')?.classList.toggle('is-hidden', calView !== 'week');
+    // Month and year views show the lecture / placed / due legend.
+    document.getElementById('calMonthLegend')?.classList.toggle('is-hidden', calView === 'week');
     document.querySelectorAll('#calViewGroup [data-cal-view]').forEach((btn) => {
         btn.classList.toggle('is-selected', btn.getAttribute('data-cal-view') === calView);
     });
@@ -283,7 +300,7 @@ function renderGrid(week) {
     if (label) {
         const start = week.week_start || '';
         const end = week.week_end || '';
-        label.textContent = start && end ? `${start} – ${end}` : 'This week';
+        label.textContent = start && end ? humanWeekRange(start, end) : 'This week';
     }
     const hourLines = hourMarks(startMin, endMin)
         .filter((mark) => mark.min !== startMin)
@@ -377,6 +394,7 @@ function paintEditor() {
     const park = document.getElementById('calParkItem');
     const remove = document.getElementById('calRemoveItem');
     const fresh = document.getElementById('calNewLecture');
+    const ask = document.getElementById('calAskCluny');
     const save = document.getElementById('calSaveItem');
     const mode = editor.mode;
     const isNew = mode === 'new';
@@ -402,6 +420,7 @@ function paintEditor() {
     toggleHidden(park, !(isBlock || isUnplaced));
     toggleHidden(remove, isNew || isUnplaced);
     toggleHidden(fresh, isNew);
+    toggleHidden(ask, isNew || isUnplaced || !editor.id);
     if (save) {
         save.textContent = isUnplaced ? 'Place' : 'Save';
     }
@@ -849,6 +868,26 @@ export function setupCalendar() {
     });
     document.getElementById('calNewLecture')?.addEventListener('click', () => {
         resetEditor();
+    });
+    document.getElementById('calAskCluny')?.addEventListener('click', () => {
+        // Ask about this week or this event from the editor. Never auto-placement.
+        // Ask about this month stays a seeded question, never Fill week.
+        const title = (document.getElementById('calEventTitle')?.value || '').trim() || 'this';
+        const date = editor.occurrenceDate || String(document.getElementById('calEventStart')?.value || '').slice(0, 10);
+        const start = document.getElementById('calEventStart')?.value || '';
+        const end = document.getElementById('calEventEnd')?.value || '';
+        const question = date
+            ? `What should I know about ${title} on ${date}?`
+            : `What should I know about ${title}?`;
+        const focus = {
+            title,
+            date,
+            kind: editor.kind,
+            id: editor.id,
+            start_at: start,
+            end_at: end,
+        };
+        document.dispatchEvent(new CustomEvent('kosistenz:open-cluny', { detail: { question, focus } }));
     });
     document.getElementById('calBlockStatus')?.addEventListener('click', (e) => {
         const chip = e.target.closest('[data-status]');

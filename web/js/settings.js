@@ -488,6 +488,10 @@ export function setupSettings() {
     document.getElementById('clunyRestartBtn')?.addEventListener('click', () => {
         void restartClunyBrain();
     });
+    // Cluny backfill button
+    document.getElementById('clunyBackfillBtn')?.addEventListener('click', () => {
+        void backfillClunyJournals();
+    });
 
     document.getElementById('icloudAutoToggle')?.addEventListener('change', async (e) => {
         if (typeof eel === 'undefined' || !eel.save_icloud_sync_settings) return;
@@ -737,6 +741,17 @@ function paintClunySettings(cfg) {
     if (envNote) {
         envNote.textContent = cfg.env_note || '';
     }
+    // Cluny snapshot line
+    const snap = document.getElementById('clunySnapshotStatus');
+    if (snap) {
+        if (cfg.snapshot_updated_at) {
+            snap.textContent = `Life snapshot ${cfg.snapshot_updated_at}${cfg.snapshot_path ? ` · ${cfg.snapshot_path}` : ''}`;
+        } else if (cfg.snapshot_path) {
+            snap.textContent = `Life snapshot will write to ${cfg.snapshot_path}`;
+        } else {
+            snap.textContent = '';
+        }
+    }
 }
 
 async function refreshClunyLiveStats() {
@@ -808,6 +823,40 @@ async function restartClunyBrain() {
     } catch (err) {
         console.error(err);
         if (el) el.textContent = err?.message || 'Could not restart Cluny.';
+    }
+}
+
+async function backfillClunyJournals() {
+    const el = document.getElementById('clunyBackfillStatus');
+    const btn = document.getElementById('clunyBackfillBtn');
+    if (el) el.textContent = 'Indexing journals…';
+    if (typeof eel === 'undefined' || !eel.backfill_cluny_journals) {
+        if (el) el.textContent = 'Cluny is off.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    try {
+        const result = await eel.backfill_cluny_journals(180)();
+        if (result?.error) {
+            if (el) el.textContent = result.error;
+            utils.showErrorFeedback(result.error);
+            return;
+        }
+        const copied = result?.copied || 0;
+        const skipped = result?.skipped || 0;
+        const total = result?.total || 0;
+        if (el) {
+            el.textContent = skipped
+                ? `Indexed ${copied} of ${total}. ${skipped} skipped because Cluny was off.`
+                : `Indexed ${copied} of ${total} journals.`;
+        }
+        utils.showSuccessFeedback('Journal index finished.');
+        void loadClunySettings();
+    } catch (err) {
+        if (el) el.textContent = err?.message || 'Could not index journals.';
+        utils.showErrorFeedback(err?.message || 'Could not index journals.');
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
 

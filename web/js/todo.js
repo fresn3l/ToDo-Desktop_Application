@@ -95,15 +95,33 @@ function selectedWhenDate() {
     return chip?.getAttribute('data-date') || selectedDoDate || utils.localISODate();
 }
 
+const WEEKDAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function addButtonLabel() {
+    if (document.getElementById('todoRepeatToggle')?.checked) return 'Save repeating to-do';
+    const iso = selectedWhenDate();
+    const day = whenDays.find((row) => row.place_date === iso);
+    if (day?.is_today) return 'Add to today';
+    if (day && Number.isInteger(day.weekday)) return `Add to ${WEEKDAY_FULL[day.weekday] || day.label}`;
+    return 'Add to today';
+}
+
+function updateAddButton() {
+    const btn = document.getElementById('todoAddBtn');
+    if (btn) btn.textContent = addButtonLabel();
+}
+
 function updateWhenHint() {
     const hint = document.querySelector('.todo-when-hint');
     if (!hint) return;
-    const day = whenDays.find((row) => row.place_date === selectedDoDate);
+    const iso = selectedWhenDate();
+    const day = whenDays.find((row) => row.place_date === iso);
     if (!day) {
         hint.textContent = 'Pick a day this week.';
         return;
     }
-    hint.textContent = day.is_today ? 'Places today.' : `Places on ${when}.`;
+    hint.textContent = day.is_today ? 'Places today.' : `Places on ${WEEKDAY_FULL[day.weekday] || day.label}.`;
+    updateAddButton();
 }
 
 function paintWhenChips() {
@@ -374,9 +392,12 @@ async function addTodayTask() {
         if (est) est.value = '';
         if (dueEl) dueEl.value = '';
         if (goalEl) goalEl.value = '';
-        const message = result?.message || (repeat ? 'Repeating to do saved.' : 'Added to the calendar.');
+        const message = result?.message || (repeat ? 'Repeating to-do saved.' : 'Added.');
         if (result?.placed || repeat || result?.item?.is_repeating) {
-            utils.showSuccessFeedback(message);
+            const extra = (repeat || result?.item?.is_repeating)
+                ? ' Rename or delete will ask this day or the whole series.'
+                : '';
+            utils.showSuccessFeedback(message + extra);
         } else {
             utils.showErrorFeedback(message);
         }
@@ -400,7 +421,10 @@ export function setupTodo() {
             void addTodayTask();
         }
     });
-    document.getElementById('todoRepeatToggle')?.addEventListener('change', syncRepeatPanel);
+    document.getElementById('todoRepeatToggle')?.addEventListener('change', () => {
+        syncRepeatPanel();
+        updateAddButton();
+    });
     document.getElementById('todoRepeatKind')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-value]');
         if (!btn) return;
@@ -434,6 +458,7 @@ export function setupTodo() {
         }
     });
     syncRepeatPanel();
+    updateAddButton();
     void loadGoalOptions('todoNewGoal');
 }
 

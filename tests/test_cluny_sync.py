@@ -108,13 +108,21 @@ class ClunySettingsTests(unittest.TestCase):
         import cluny_client
 
         payload = cluny_client.journal_ingest_payload(
-            {"content": "Wrote about Spanish.", "date": "2026-09-02", "id": "j1"}
+            {
+                "content": "Wrote about Spanish.",
+                "date": "2026-09-02",
+                "id": "j1",
+                "kind": "evening_review",
+                "tags": ["spanish"],
+            }
         )
-        self.assertEqual(payload["text"], "Wrote about Spanish.")
+        self.assertIn("Wrote about Spanish.", payload["text"])
+        self.assertIn("kind=evening_review", payload["text"])
+        self.assertIn("tags=spanish", payload["text"])
         self.assertTrue(payload["catalog"])
         self.assertEqual(payload["source"], "kosistenz-journal")
         self.assertEqual(payload["collection"], "journal")
-        self.assertEqual(payload["title"], "2026-09-02 journal")
+        self.assertEqual(payload["title"], "2026-09-02 evening_review")
 
     def test_journal_http_runs_without_sqlite_or_ingest_url(self) -> None:
         cluny_sync.save_cluny_settings({"journal_enabled": True, "sqlite_path": "", "ingest_url": ""})
@@ -132,6 +140,31 @@ class ClunySettingsTests(unittest.TestCase):
             cluny_sync.sync_journal_entry_safe(
                 {"id": "j1", "content": "still saved", "date": "2026-09-02"}
             )
+
+    def test_checkin_hits_brain_ingest_without_custom_url(self) -> None:
+        import cluny_client
+
+        cluny_sync.save_cluny_settings(
+            {
+                "checklist_enabled": True,
+                "sqlite_path": "",
+                "ingest_url": "",
+            }
+        )
+        with mock.patch.object(cluny_client, "ingest_text") as ingest:
+            cluny_sync.sync_checklist_submission_safe(
+                {
+                    "id": 1,
+                    "checklist_id": "morning",
+                    "local_date": "2026-09-02",
+                    "answers": {"intentions": "go"},
+                }
+            )
+        ingest.assert_called_once()
+        args, kwargs = ingest.call_args
+        self.assertIn("kind=check-in", args[0])
+        self.assertEqual(kwargs.get("collection"), "check-in")
+        self.assertEqual(kwargs.get("source"), "kosistenz-checkin")
 
 
 if __name__ == "__main__":

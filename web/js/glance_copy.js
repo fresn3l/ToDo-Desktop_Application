@@ -30,7 +30,8 @@ export const copy = {
     noForecast: 'No forecast yet.',
     couldNotLoad: 'Could not load.',
     noWord: 'No word yet.',
-    clunyOff: 'Journal and timer still available.',
+    clunyOff: 'Off', // Glance Cluny is the health line when the brain is down
+    noBrief: 'No brief yet',
     unscheduled: 'unscheduled',
     usedTonight: 'Used tonight.',
     heldToday: 'Held for today.',

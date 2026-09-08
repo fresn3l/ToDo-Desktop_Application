@@ -682,6 +682,12 @@ def _write_widget_snapshot() -> Dict[str, Any]:
         icloud_sync.export_if_enabled()
     except Exception:
         pass
+    try:
+        import cluny_snapshot
+
+        cluny_snapshot.refresh_life_snapshot_safe()
+    except Exception:
+        pass
     return snapshot
 
 

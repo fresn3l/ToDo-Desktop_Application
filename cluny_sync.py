@@ -247,7 +247,14 @@ def public_cluny_settings() -> Dict[str, Any]:
         env_note = "Environment variables override Settings for: " + ", ".join(
             labels[name] for name in env_bits
         )
-    return {
+    if has_sink:
+        status_note = f"{journal}. {check[0].upper() + check[1:]}."
+    else:
+        status_note = (
+            "Ask uses http://127.0.0.1:8787 when Cluny is running. "
+            "Journals and check-ins copy after save. SQLite copy is optional."
+        )
+    packed = {
         "sqlite_path": cfg["sqlite_path"],
         "ingest_url": cfg["ingest_url"],
         "brain_url": cfg["brain_url"],
@@ -258,10 +265,19 @@ def public_cluny_settings() -> Dict[str, Any]:
         "cluny_binary_path": _read_file_settings().get("cluny_binary_path", ""),
         "cluny_data_dir": _read_file_settings().get("cluny_data_dir", ""),
         "env_overrides": cfg["env_overrides"],
-        "status_note": f"{journal}. {check[0].upper() + check[1:]}." if has_sink else "Ask uses http://127.0.0.1:8787 when Cluny is running. SQLite copy is optional.",
+        "status_note": status_note,
         "env_note": env_note,
-        "configured": has_sink,
+        "configured": True,
+        "snapshot_path": "",
+        "snapshot_updated_at": None,
     }
+    try:
+        import cluny_snapshot
+
+        packed.update(cluny_snapshot.snapshot_public_status())
+    except Exception:
+        pass
+    return packed
 
 
 @eel.expose
@@ -413,15 +429,25 @@ def _sync_checklist_sqlite(submission: Dict[str, Any]) -> None:
 
 
 def _sync_checklist_http(submission: Dict[str, Any]) -> None:
+    import cluny_client
+
+    payload = cluny_client.checklist_ingest_payload(submission)
+    if str(payload.get("text") or "").strip():
+        cluny_client.ingest_text(
+            payload["text"],
+            title=str(payload.get("title") or "check-in"),
+            source=str(payload.get("source") or "kosistenz-checkin"),
+            collection=str(payload.get("collection") or "check-in"),
+        )
     cfg = effective_cluny_config()
     url = cfg["checklist_ingest_url"]
     if not url:
         return
-    payload = {
-        "type": "checklist_submission",
-        **submission,
-    }
-    _post_json(url, payload, cfg["api_key"])
+    _post_json(
+        url,
+        {"type": "checklist_submission", **submission},
+        cfg["api_key"],
+    )
 
 
 def sync_checklist_submission_to_cluny(submission: Dict[str, Any]) -> None:
@@ -430,16 +456,13 @@ def sync_checklist_submission_to_cluny(submission: Dict[str, Any]) -> None:
         return
     if cfg["sqlite_path"]:
         _sync_checklist_sqlite(submission)
-    if cfg["checklist_ingest_url"]:
-        _sync_checklist_http(submission)
+    _sync_checklist_http(submission)
 
 
 def sync_checklist_submission_safe(submission: Dict[str, Any]) -> None:
     try:
         cfg = effective_cluny_config()
         if not cfg["checklist_enabled"]:
-            return
-        if not (cfg["sqlite_path"] or cfg["checklist_ingest_url"]):
             return
         sync_checklist_submission_to_cluny(submission)
     except (OSError, sqlite3.Error, urllib.error.URLError, ValueError) as e:
@@ -557,6 +580,32 @@ def sync_task_mirror_safe(item: Dict[str, Any]) -> None:
         )
     except ValueError as exc:
         print(f"[Cluny sync] Task mirror failed: {exc}")
+
+
+@eel.expose
+def backfill_cluny_journals(days: int = 180) -> Dict[str, Any]:
+    """Index existing journal files into Cluny. Never moves or deletes files."""
+    import journal
+
+    window = max(1, min(int(days or 180), 400))
+    try:
+        entries = journal.get_recent_entries(window)
+    except Exception as exc:
+        return {"copied": 0, "skipped": 0, "total": 0, "error": str(exc)}
+    copied = 0
+    skipped = 0
+    for entry in entries:
+        try:
+            sync_journal_entry_to_cluny(entry)
+            copied += 1
+        except (OSError, sqlite3.Error, urllib.error.URLError, ValueError):
+            skipped += 1
+    return {
+        "copied": copied,
+        "skipped": skipped,
+        "total": len(entries),
+        "days": window,
+    }
 
 
 def delete_task_mirror_safe(external_id: str) -> None:

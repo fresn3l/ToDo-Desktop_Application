@@ -154,15 +154,59 @@ def ingest_text(
     return _request("POST", ingest_endpoint(), body, timeout=60.0)
 
 
+def _normalize_journal_kind(raw: Any) -> str:
+    key = str(raw or "journal").strip().lower().replace("-", "_")
+    if key in ("morning", "brief", "morning_brief"):
+        return "morning_brief"
+    if key in ("evening", "review", "evening_review"):
+        return "evening_review"
+    if key in ("reading", "reading_note", "book"):
+        return "reading"
+    return "journal"
+
+
 def journal_ingest_payload(entry: Dict[str, Any]) -> Dict[str, Any]:
     day = str(entry.get("date") or entry.get("created_at") or "")[:10]
-    title = f"{day} journal" if day else "journal"
+    kind = _normalize_journal_kind(entry.get("kind"))
+    title = f"{day} {kind}" if day else kind
+    tags = entry.get("tags") if isinstance(entry.get("tags"), list) else []
+    tag_bits = [str(t).strip() for t in tags if str(t).strip()]
+    header = [f"kind={kind}"]
+    if tag_bits:
+        header.append("tags=" + ",".join(tag_bits[:12]))
+    brief = entry.get("brief") if isinstance(entry.get("brief"), dict) else {}
+    if brief.get("slot"):
+        header.append(f"slot={brief.get('slot')}")
+    for key in ("focus", "done", "rolled"):
+        ids = brief.get(f"{key}_ids") or brief.get(key)
+        if isinstance(ids, list) and ids:
+            header.append(f"{key}=" + ",".join(str(i) for i in ids[:8]))
+    body = str(entry.get("content") or "").strip()
+    text = " ".join(header) + ("\n\n" + body if body else "")
     return {
-        "text": str(entry.get("content") or ""),
+        "text": text,
         "catalog": True,
         "source": "kosistenz-journal",
         "title": title,
         "collection": "journal",
+    }
+
+
+def checklist_ingest_payload(submission: Dict[str, Any]) -> Dict[str, Any]:
+    day = str(submission.get("local_date") or "")[:10]
+    title = f"{day} check-in" if day else "check-in"
+    lines = [f"kind=check-in checklist={submission.get('checklist_id') or ''}"]
+    answers = submission.get("answers")
+    if isinstance(answers, dict):
+        for key, value in answers.items():
+            lines.append(f"{key}: {value}")
+    elif answers:
+        lines.append(str(answers))
+    return {
+        "text": "\n".join(lines),
+        "title": title,
+        "source": "kosistenz-checkin",
+        "collection": "check-in",
     }
 
 

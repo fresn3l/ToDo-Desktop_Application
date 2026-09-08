@@ -148,11 +148,13 @@
                                     <button type="button" id="calPrevWeek" class="btn-ghost">Prev</button>
                                     <button type="button" id="calThisWeek" class="btn-ghost">Today</button>
                                     <button type="button" id="calNextWeek" class="btn-ghost">Next</button>
-                                    <button type="button" id="calFillWeek" class="btn-primary is-hidden" title="Places study around lectures">Fill week</button>
+                                    <button type="button" id="calFillWeek" class="btn-primary" title="Places open estimates around lectures this week.">Fill week</button>
                                 </div>
                             </div>
                             <div id="calGrid" class="cal-grid is-hidden"></div>
+                            <p id="calClockHint" class="cal-clock-hint is-hidden">Click to lock. Shift-click skips. Alt-click marks done.</p>
                             <div id="calMonthGrid" class="cal-month-grid"></div>
+                            <p id="calMonthLegend" class="cal-month-legend">Lecture · placed · due</p>
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
@@ -188,6 +190,7 @@
                                     <button type="button" id="calSaveItem" class="btn-primary">Save</button>
                                     <button type="button" id="calParkItem" class="btn-ghost is-hidden">Save for later</button>
                                     <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
+                                    <button type="button" id="calAskCluny" class="btn-ghost is-hidden">Ask about this</button>
                                     <button type="button" id="calNewLecture" class="btn-ghost is-hidden">New lecture</button>
                                 </div>
                             </div>
@@ -344,40 +347,45 @@
                             </div>
                             <div class="work-add-row">
                                 <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="45 mins calculus" autocomplete="off">
-                                <button type="button" id="todoAddBtn" class="btn-primary">Add to calendar</button>
+                                <button type="button" id="todoAddBtn" class="btn-primary">Add to today</button>
                             </div>
+                            <p class="todo-when-label">Do this week</p>
                             <div id="todoWhen" class="todo-when work-weekdays" role="radiogroup" aria-label="Do this week"></div>
                             <p class="todo-when-hint"></p>
-                            <div class="work-add-row work-add-optional">
-                                <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="5" placeholder="Min" title="Override minutes if the title has none">
-                                <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date (optional)">
-                                <select id="todoNewGoal" class="checklist-text-input" title="Attach to a goal">
-                                    <option value="">Goal (optional)</option>
-                                </select>
-                            </div>
-                            <label class="checklist-checkbox-label work-repeat-toggle">
-                                <input type="checkbox" id="todoRepeatToggle"> Repeat this to do
-                            </label>
-                            <div id="todoRepeatPanel" class="work-repeat-panel is-hidden">
-                                <div class="segmented" id="todoRepeatKind" role="group" aria-label="Repeat cadence">
-                                    <button type="button" data-value="daily" class="is-selected">Every day</button>
-                                    <button type="button" data-value="weekdays">Weekdays</button>
-                                    <button type="button" data-value="interval">Every other day</button>
-                                    <button type="button" data-value="custom">Custom days</button>
+                            <details class="todo-more">
+                                <summary>More</summary>
+                                <div class="work-add-row work-add-optional">
+                                    <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Override minutes if the title has none">
+                                    <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date (optional)">
+                                    <select id="todoNewGoal" class="checklist-text-input" title="Attach to a goal">
+                                        <option value="">Goal (optional)</option>
+                                    </select>
                                 </div>
-                                <div id="todoWeekdays" class="work-weekdays is-hidden" role="group" aria-label="Days of the week">
-                                    <button type="button" class="work-day-chip" data-day="0">Mon</button>
-                                    <button type="button" class="work-day-chip" data-day="1">Tue</button>
-                                    <button type="button" class="work-day-chip" data-day="2">Wed</button>
-                                    <button type="button" class="work-day-chip" data-day="3">Thu</button>
-                                    <button type="button" class="work-day-chip" data-day="4">Fri</button>
-                                    <button type="button" class="work-day-chip" data-day="5">Sat</button>
-                                    <button type="button" class="work-day-chip" data-day="6">Sun</button>
-                                </div>
-                                <label id="todoIntervalWrap" class="checklist-field-label work-interval-wrap is-hidden" for="todoEveryDays">
-                                    Every <input type="number" id="todoEveryDays" class="checklist-text-input work-interval-input" min="2" max="30" value="2"> days
+                                <label class="checklist-checkbox-label work-repeat-toggle">
+                                    <input type="checkbox" id="todoRepeatToggle"> Repeat this to do
                                 </label>
-                            </div>
+                                <div id="todoRepeatPanel" class="work-repeat-panel is-hidden">
+                                    <div class="segmented" id="todoRepeatKind" role="group" aria-label="Repeat cadence">
+                                        <button type="button" data-value="daily" class="is-selected">Every day</button>
+                                        <button type="button" data-value="weekdays">Weekdays</button>
+                                        <button type="button" data-value="interval">Every other day</button>
+                                        <button type="button" data-value="custom">Custom days</button>
+                                    </div>
+                                    <p class="todo-when-label">Repeat on these days</p>
+                                    <div id="todoWeekdays" class="work-weekdays is-hidden" role="group" aria-label="Repeat on these days">
+                                        <button type="button" class="work-day-chip" data-day="0">Mon</button>
+                                        <button type="button" class="work-day-chip" data-day="1">Tue</button>
+                                        <button type="button" class="work-day-chip" data-day="2">Wed</button>
+                                        <button type="button" class="work-day-chip" data-day="3">Thu</button>
+                                        <button type="button" class="work-day-chip" data-day="4">Fri</button>
+                                        <button type="button" class="work-day-chip" data-day="5">Sat</button>
+                                        <button type="button" class="work-day-chip" data-day="6">Sun</button>
+                                    </div>
+                                    <label id="todoIntervalWrap" class="checklist-field-label work-interval-wrap is-hidden" for="todoEveryDays">
+                                        Every <input type="number" id="todoEveryDays" class="checklist-text-input work-interval-input" min="2" max="30" value="2"> days
+                                    </label>
+                                </div>
+                            </details>
                             <div id="todoList" class="work-list"></div>
                         </div>
                         <aside class="work-aside">
@@ -629,7 +637,7 @@
                             <div>
                                 <p class="today-kicker">Brain</p>
                                 <h2>Ask Cluny</h2>
-                                <p class="panel-sub" id="clunyWidgetStatus">Cluny is the brain. Kosistenz stays the list and the clock.</p>
+                                <p class="panel-sub" id="clunyWidgetStatus">Ask about the week. You still pick the day.</p>
                             </div>
                         </div>
                         <div id="clunyOffline" class="cluny-offline is-hidden">
@@ -985,7 +993,7 @@
                             <div class="settings-block">
                                 <h3>Shortcuts</h3>
                                 <ul class="shortcut-list">
-                                    <li><kbd>⌘</kbd><kbd>1</kbd> Today · <kbd>2</kbd>–<kbd>7</kbd> other tabs</li>
+                                    <li><kbd>⌘</kbd><kbd>1</kbd> Home · <kbd>2</kbd> Journal · <kbd>3</kbd> Calendar · <kbd>4</kbd> Brain · <kbd>5</kbd> Library</li>
                                     <li><kbd>⌘</kbd><kbd>,</kbd> Settings</li>
                                     <li><kbd>⌘</kbd><kbd>Enter</kbd> Save journal entry</li>
                                     <li><kbd>Esc</kbd> Pause timer, then clear with confirm</li>
@@ -1102,10 +1110,9 @@
                             <div class="panel-header">
                                 <div>
                                     <h2>Cluny</h2>
-                                    <p class="panel-sub">The local brain. Kosistenz stays the planner. Cluny only gets copies to index.</p>
+                                    <p class="panel-sub">The local brain. Kosistenz stays the planner. Suggestions become to-dos only when you accept them.</p>
                                 </div>
                             </div>
-                            <p class="checklist-hint small">Cluny is the brain. Kosistenz stays the planner. Suggestions become to-dos only when you accept them. Cluny never picks a clock time.</p>
                             <div class="settings-block">
                                 <p id="clunyHealthStatus" class="checklist-hint small">Checking Cluny…</p>
                                 <div class="reminder-actions">
@@ -1144,6 +1151,11 @@
                                     <input type="checkbox" id="clunyChecklistToggle" checked>
                                     Push check-in submissions after save
                                 </label>
+                                <p id="clunySnapshotStatus" class="checklist-hint small"></p>
+                                <div class="reminder-actions">
+                                    <button type="button" id="clunyBackfillBtn" class="btn-secondary">Index existing journals</button>
+                                </div>
+                                <p id="clunyBackfillStatus" class="checklist-hint small"></p>
                             </div>
                             <div class="settings-block">
                                 <label class="checklist-field-label" for="clunySqlitePath">Cluny SQLite path (optional copy)</label>

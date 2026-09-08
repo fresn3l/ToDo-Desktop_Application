@@ -31,7 +31,8 @@ function clip(text, n) {
 function sizeOf(card) {
     const w = Math.max(1, Number(card?.dataset.w) || 1);
     const h = Math.max(1, Number(card?.dataset.h) || 1);
-    return { w, h, cells: w * h, wide: w >= 2, tall: h >= 2, board: w >= 3 || h >= 3, action: w >= 2 && h >= 2 };
+    // Glance tiles need a 2×1 cell to count as actionable (Start/Finish/Ask).
+    return { w, h, cells: w * h, wide: w >= 2, tall: h >= 2, board: w >= 3 || h >= 3, action: w >= 2 };
 }
 
 export function dayPart(hour) {
@@ -218,19 +219,20 @@ function todayHtml(data, size) {
     const dayNum = Number.isNaN(d.getTime()) ? '' : String(d.getDate());
     const month = Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short' });
     const agenda = data?.agenda || [];
+    // Glance Day shows the morning intention, or “No brief yet.”
+    const intention = String(data?.intention || '').trim();
+    const briefLine = intention ? clip(intention, 48) : copy.noBrief;
     if (!size.wide && !size.tall) {
-        return shellHtml({ kind, size, label, primary: dayNum, hero: true, body: `<p class="glance-message">${utils.escapeHtml(shortWeek)}</p>` });
+        return shellHtml({ kind, size, label, primary: dayNum, hero: true, body: `<p class="glance-message">${utils.escapeHtml(briefLine)}</p>` });
     }
     if (!size.tall) {
-        const next = agenda[0];
-        const line = next ? `${formatAgendaTime(next)} ${clip(next.title || '', 28)}`.trim() : copy.noEvents;
         return shellHtml({
             kind,
             size,
             label,
             primary: `${shortWeek} ${dayNum}`,
             hero: true,
-            body: `<p class="glance-message">${utils.escapeHtml(line)}</p>`,
+            body: `<p class="glance-message">${utils.escapeHtml(briefLine)}</p>`,
         });
     }
     const limit = 4;
@@ -247,7 +249,8 @@ function todayHtml(data, size) {
         primary: `${shortWeek} ${dayNum}`,
         hero: true,
         body: `
-            <p class="glance-message">${utils.escapeHtml(eventsToday(agenda.length))}</p>
+            <p class="glance-message">${utils.escapeHtml(briefLine)}</p>
+            <p class="glance-message glance-message--quiet">${utils.escapeHtml(eventsToday(agenda.length))}</p>
             ${rows || ''}
             ${more}`,
     });
@@ -560,15 +563,16 @@ function timelineHtml(data, size) {
 function clunyHtml(data, size) {
     const kind = 'cluny';
     const label = 'Ask Cluny';
-    const offline = data && data.ok === false;
+    // Glance Cluny stays a health tile when the brain is off.
+    const offline = data && data.brain_ready === false;
     if (offline) {
         return shellHtml({
             kind,
             size,
             state: 'error',
             label,
-            primary: copy.clunyOff,
-            action: { act: 'open-settings', label: copy.openSettings },
+            primary: copy.clunyOff, // Glance Cluny is Off
+            action: size.wide ? { act: 'open-settings', label: copy.openSettings } : null,
         });
     }
     const n = Number(data?.pending_count || 0);

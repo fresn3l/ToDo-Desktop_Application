@@ -890,8 +890,9 @@ export function setupHome() {
             detail: { tab: 'home' },
         }));
         const question = event.detail?.question || '';
+        const focus = event.detail?.focus || null;
         void ensureHomeWidget('cluny').then(() => {
-            if (question) void promptCluny(question);
+            if (question) void promptCluny(question, focus);
         });
     });
 }
