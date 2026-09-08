@@ -52,6 +52,11 @@
         var ics = document.getElementById('calIcsUrl');
         var calActive = !!(document.getElementById('calendarTab') && document.getElementById('calendarTab').classList.contains('active'));
 
+        if (/BEGIN:VCALENDAR/i.test(raw) && typeof global.kosistenzImportIcsText === 'function') {
+            global.kosistenzImportIcsText(raw);
+            return true;
+        }
+
         if (asUrl && ics && (el === ics || (calActive && !isEditableField(el)))) {
             ics.value = url;
             ics.dispatchEvent(new Event('input', { bubbles: true }));

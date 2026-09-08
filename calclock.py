@@ -29,8 +29,8 @@ DEFAULT_ESTIMATE = 60
 MAX_ICS_BYTES = 2 * 1024 * 1024
 CHUNK_MIN = 50
 CHUNK_MAX = 90
-DAY_START = "07:00"
-DAY_END = "22:00"
+DAY_START = "05:30"
+DAY_END = "21:30"
 BLOCK_STATUSES = ("proposed", "locked", "done", "skipped")
 _ICS_URL_RE = re.compile(r"(?:https?|webcal)://[^\s<>\"']+", re.I)
 
@@ -165,14 +165,17 @@ def save_calendar_settings(partial: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _parse_hhmm(raw: str) -> str:
-    text = str(raw or "").strip()
+    text = str(raw or "").strip().replace(".", ":").replace(" ", "")
+    if re.fullmatch(r"\d{3,4}", text):
+        text = text.zfill(4)
+        text = f"{text[:2]}:{text[2:]}"
     match = re.fullmatch(r"(\d{1,2}):(\d{2})", text)
     if not match:
-        raise ValueError("Time must be HH:MM")
+        raise ValueError("Time must be HH:MM or HHMM (24-hour, like 0530 or 2130)")
     hour = int(match.group(1))
     minute = int(match.group(2))
     if hour > 23 or minute > 59:
-        raise ValueError("Time must be HH:MM")
+        raise ValueError("Time must be HH:MM or HHMM (24-hour, like 0530 or 2130)")
     return f"{hour:02d}:{minute:02d}"
 
 
@@ -413,6 +416,17 @@ def import_ics_url(url: str = "") -> Dict[str, Any]:
         raise ValueError("Calendar file is too large")
     text = data.decode("utf-8", errors="replace")
     return import_ics_text(text, calendar_id="ics:" + (parsed.netloc + parsed.path)[:80])
+
+
+@eel.expose
+def import_pasted_calendar(raw: str = "") -> Dict[str, Any]:
+    """ICS URL or a pasted BEGIN:VCALENDAR blob from the Due dates box."""
+    text = str(raw or "").replace("\ufeff", "").strip()
+    if "BEGIN:VCALENDAR" in text.upper():
+        if len(text.encode("utf-8")) > MAX_ICS_BYTES:
+            raise ValueError("Calendar file is too large")
+        return import_ics_text(text, calendar_id="paste")
+    return import_ics_url(text)
 
 
 @eel.expose

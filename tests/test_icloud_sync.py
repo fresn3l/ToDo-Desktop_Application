@@ -55,6 +55,16 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertEqual(item["id"], work.list_all_work_items()[0]["id"])
         self.assertTrue((self.pack / "calendar.json").is_file())
 
+    def test_calendar_pack_includes_awake_window(self):
+        import calclock
+
+        self._use(self.src)
+        calclock.save_calendar_settings({"day_start": "0530", "day_end": "2130"})
+        icloud_sync.write_pack(self.pack)
+        payload = icloud_sync._read_json(self.pack / "calendar.json", {})
+        self.assertEqual(payload.get("day_start"), "05:30")
+        self.assertEqual(payload.get("day_end"), "21:30")
+
     def test_newer_updated_at_wins(self):
         self._use(self.src)
         item = work.create_work_item("Keep", scheduled_date=work._today().isoformat())

@@ -417,6 +417,78 @@ END:VCALENDAR
         week = calclock.get_week("2026-09-07")
         self.assertEqual([b for day in week["days"] for b in day["blocks"]], [])
 
+    def test_awake_window_defaults_to_0530_2130(self) -> None:
+        settings = calclock.load_settings()
+        self.assertEqual(settings["day_start"], "05:30")
+        self.assertEqual(settings["day_end"], "21:30")
+
+    def test_awake_window_accepts_military_hhmm(self) -> None:
+        saved = calclock.save_calendar_settings({"day_start": "0530", "day_end": "2130"})
+        self.assertEqual(saved["day_start"], "05:30")
+        self.assertEqual(saved["day_end"], "21:30")
+        again = calclock.save_calendar_settings({"day_start": "5:30", "day_end": "21:30"})
+        self.assertEqual(again["day_start"], "05:30")
+        with self.assertRaises(ValueError):
+            calclock.save_calendar_settings({"day_start": "25:00"})
+
+    def test_packer_stays_inside_awake_window(self) -> None:
+        calclock.save_calendar_settings({"day_start": "05:30", "day_end": "21:30"})
+        monday = date(2026, 9, 7)
+        work.create_work_item(
+            "Study",
+            due_at="2026-09-11T23:59:00",
+            estimate_minutes=90,
+        )
+        week = self._fill(monday.isoformat(), datetime(2026, 9, 7, 6, 0, 0))
+        blocks = [b for day in week["days"] for b in day["blocks"] if b["kind"] == "work"]
+        self.assertTrue(blocks)
+        for block in blocks:
+            start = calclock.parse_datetime(block["start_at"])
+            end = calclock.parse_datetime(block["end_at"])
+            self.assertGreaterEqual(start.hour * 60 + start.minute, 5 * 60 + 30)
+            self.assertLessEqual(end.hour * 60 + end.minute, 21 * 60 + 30)
+
+    def test_import_pasted_calendar_accepts_ics_blob(self) -> None:
+        ics = """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:paste-blob
+SUMMARY:Quiz pasted
+DTSTART;VALUE=DATE:20260904
+END:VEVENT
+END:VCALENDAR
+"""
+        result = calclock.import_pasted_calendar(ics)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["created"], 1)
+        titles = [row["title"] for row in work.list_all_work_items()]
+        self.assertIn("Quiz pasted", titles)
+
+    def test_import_pasted_calendar_treats_url_as_ics_url(self) -> None:
+        with mock.patch.object(
+            calclock,
+            "import_ics_url",
+            return_value={"ok": True, "created": 2, "updated": 0},
+        ) as mocked:
+            result = calclock.import_pasted_calendar("https://canvas.example/calendar.ics")
+        mocked.assert_called_once_with("https://canvas.example/calendar.ics")
+        self.assertEqual(result["created"], 2)
+
+    def test_default_packer_leaves_nights_empty(self) -> None:
+        monday = date(2026, 9, 7)
+        work.create_work_item(
+            "Study",
+            due_at="2026-09-11T23:59:00",
+            estimate_minutes=90,
+        )
+        week = self._fill(monday.isoformat(), datetime(2026, 9, 7, 6, 0, 0))
+        blocks = [b for day in week["days"] for b in day["blocks"] if b["kind"] == "work"]
+        self.assertTrue(blocks)
+        for block in blocks:
+            start = calclock.parse_datetime(block["start_at"])
+            end = calclock.parse_datetime(block["end_at"])
+            self.assertGreaterEqual(start.hour * 60 + start.minute, 5 * 60 + 30)
+            self.assertLessEqual(end.hour * 60 + end.minute, 21 * 60 + 30)
+
 
 if __name__ == "__main__":
     unittest.main()

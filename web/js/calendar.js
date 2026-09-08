@@ -94,6 +94,7 @@ async function loadMonth() {
         monthCursor = { year: payload.year, month: payload.month };
         renderMonthGrid(payload);
         renderUnplaced(payload.unplaced || []);
+        paintAwakeFields(payload.settings);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calMonthGrid');
@@ -108,6 +109,7 @@ async function loadYear() {
         yearCursor = payload.year;
         renderYearGrid(payload);
         renderUnplaced(payload.unplaced || []);
+        paintAwakeFields(payload.settings);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calYearGrid');
@@ -178,21 +180,51 @@ function fromLocalInput(value) {
     return `${value}:00`;
 }
 
-function minutesFromMidnight(iso, dayStartHour) {
+function minutesFromClock(iso, startMin) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return 0;
-    return d.getHours() * 60 + d.getMinutes() - dayStartHour * 60;
+    return d.getHours() * 60 + d.getMinutes() - startMin;
 }
 
 function parseHHMM(raw) {
-    const [h, m] = String(raw || '07:00').split(':').map(Number);
-    return { hour: h || 7, minute: m || 0 };
+    let text = String(raw || '05:30').trim().replace('.', ':').replace(/\s/g, '');
+    if (/^\d{3,4}$/.test(text)) {
+        text = text.padStart(4, '0');
+        text = `${text.slice(0, 2)}:${text.slice(2)}`;
+    }
+    const [h, m] = text.split(':').map(Number);
+    return { hour: h || 0, minute: Number.isFinite(m) ? m : 0 };
 }
 
-function hourRange(settings) {
-    const start = parseHHMM(settings?.day_start || '07:00');
-    const end = parseHHMM(settings?.day_end || '22:00');
-    return { startHour: start.hour, endHour: Math.max(start.hour + 1, end.hour) };
+function formatHHMM(raw) {
+    const { hour, minute } = parseHHMM(raw);
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function clockWindow(settings) {
+    const start = parseHHMM(settings?.day_start || '05:30');
+    const end = parseHHMM(settings?.day_end || '21:30');
+    const startMin = start.hour * 60 + start.minute;
+    let endMin = end.hour * 60 + end.minute;
+    if (endMin <= startMin) endMin = startMin + 60;
+    return { startMin, endMin, span: endMin - startMin };
+}
+
+function hourMarks(startMin, endMin) {
+    const marks = [{ min: startMin }];
+    let t = Math.floor(startMin / 60) * 60 + 60;
+    while (t < endMin) {
+        marks.push({ min: t });
+        t += 60;
+    }
+    return marks;
+}
+
+function formatMilitary(min) {
+    const wrapped = ((min % (24 * 60)) + 24 * 60) % (24 * 60);
+    const h = Math.floor(wrapped / 60);
+    const m = wrapped % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 function selectedLectureDays() {
@@ -209,9 +241,8 @@ function blockLabel(item) {
 }
 
 function renderBlock(item, settings) {
-    const { startHour, endHour } = hourRange(settings);
-    const span = (endHour - startHour) * 60;
-    const top = Math.max(0, minutesFromMidnight(item.start_at, startHour));
+    const { startMin, span } = clockWindow(settings);
+    const top = Math.max(0, minutesFromClock(item.start_at, startMin));
     const start = new Date(item.start_at);
     const end = new Date(item.end_at);
     const dur = Math.max(20, (end - start) / 60000);
@@ -239,21 +270,35 @@ function renderGrid(week) {
     const label = document.getElementById('calWeekLabel');
     if (!root) return;
     const settings = week.settings || {};
-    const { startHour, endHour } = hourRange(settings);
-    const hours = [];
-    for (let h = startHour; h < endHour; h += 1) hours.push(h);
+    const { startMin, endMin, span } = clockWindow(settings);
+    const hourPct = (60 / span) * 100;
+    const offsetMin = (60 - (startMin % 60)) % 60;
+    const offsetPct = (offsetMin / span) * 100;
+    const marks = hourMarks(startMin, endMin)
+        .map((mark) => {
+            const top = ((mark.min - startMin) / span) * 100;
+            return `<span style="top:${top}%">${formatMilitary(mark.min)}</span>`;
+        })
+        .join('');
     if (label) {
         const start = week.week_start || '';
         const end = week.week_end || '';
         label.textContent = start && end ? `${start} – ${end}` : 'This week';
     }
-    const hourCol = `<div class="cal-hours">${hours.map((h) => `<span>${String(h).padStart(2, '0')}:00</span>`).join('')}</div>`;
+    const hourLines = hourMarks(startMin, endMin)
+        .filter((mark) => mark.min !== startMin)
+        .map((mark) => {
+            const top = ((mark.min - startMin) / span) * 100;
+            return `<span class="cal-hour-line" style="top:${top}%"></span>`;
+        })
+        .join('');
+    const hourCol = `<div class="cal-hours"><div class="cal-hours-scale">${marks}</div></div>`;
     const days = (week.days || [])
         .map((day) => {
             const items = [...(day.events || []), ...(day.blocks || [])];
             return `<div class="cal-day${day.is_today ? ' is-today' : ''}" data-date="${utils.escapeHtml(day.date)}">
                 <header class="cal-day-head"><strong>${utils.escapeHtml(day.weekday)}</strong><span>${utils.escapeHtml(day.date.slice(8))}</span></header>
-                <div class="cal-day-body">${items.map((item) => renderBlock(item, settings)).join('')}</div>
+                <div class="cal-day-body" style="--cal-hour-pct:${hourPct}%;--cal-hour-offset:${offsetPct}%">${hourLines}${items.map((item) => renderBlock(item, settings)).join('')}</div>
             </div>`;
         })
         .join('');
@@ -290,6 +335,7 @@ async function loadWeek() {
         const week = await eel.get_week(weekStart)();
         weekStart = week.week_start || weekStart;
         lastSettings = week.settings || {};
+        paintAwakeFields(lastSettings);
         renderGrid(week);
         renderUnplaced(week.unplaced || []);
         const url = document.getElementById('calIcsUrl');
@@ -502,8 +548,7 @@ function onBlockPointerMove(e) {
     const day = hit.closest('.cal-day')?.getAttribute('data-date');
     if (!day) return;
     const rect = hit.getBoundingClientRect();
-    const { startHour, endHour } = hourRange(lastSettings);
-    const span = Math.max(60, (endHour - startHour) * 60);
+    const { startMin, span } = clockWindow(lastSettings);
     const origStart = new Date(dragState.startAt);
     const origEnd = new Date(dragState.endAt);
     const dur = Math.max(15, Math.round((origEnd - origStart) / 60000));
@@ -524,10 +569,10 @@ async function onBlockPointerUp(e) {
     state.el.classList.remove('is-dragging');
     try { state.el.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
     if (!state.moved || !state.preview) return;
-    const { startHour } = hourRange(lastSettings);
+    const { startMin } = clockWindow(lastSettings);
     const [y, m, d] = state.preview.date.split('-').map(Number);
-    const start = new Date(y, m - 1, d, startHour, 0, 0);
-    start.setMinutes(start.getMinutes() + state.preview.minutesFromStart);
+    const start = new Date(y, m - 1, d, 0, 0, 0);
+    start.setMinutes(startMin + state.preview.minutesFromStart);
     const end = new Date(start.getTime() + state.preview.duration * 60000);
     try {
         if (state.kind === 'hard') {
@@ -628,32 +673,100 @@ async function removeEditor() {
     }
 }
 
-async function importIcs() {
+function paintAwakeFields(settings) {
+    if (settings && typeof settings === 'object') {
+        lastSettings = { ...lastSettings, ...settings };
+    }
+    const start = document.getElementById('calDayStart');
+    const end = document.getElementById('calDayEnd');
+    if (start && document.activeElement !== start) {
+        start.value = formatHHMM(lastSettings.day_start || '05:30');
+    }
+    if (end && document.activeElement !== end) {
+        end.value = formatHHMM(lastSettings.day_end || '21:30');
+    }
+}
+
+async function saveAwake() {
+    if (typeof eel === 'undefined' || !eel.save_calendar_settings) return;
+    const start = document.getElementById('calDayStart')?.value;
+    const end = document.getElementById('calDayEnd')?.value;
+    try {
+        const saved = await eel.save_calendar_settings({ day_start: start, day_end: end })();
+        lastSettings = { ...lastSettings, ...saved };
+        paintAwakeFields(saved);
+        utils.showSuccessFeedback('Awake window saved. Fill week stays inside it; nights stay empty.');
+        if (calView === 'week') await loadWeek();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Time must be 24-hour, like 0530 or 21:30.');
+    }
+}
+
+async function applyPastedCalendar(raw) {
+    const text = String(raw || '');
+    const isIcs = /BEGIN:VCALENDAR/i.test(text);
+    const cleaned = (typeof window.kosistenzSanitizePastedUrl === 'function')
+        ? window.kosistenzSanitizePastedUrl(text)
+        : text.trim();
+    const field = document.getElementById('calIcsUrl');
+    if (!isIcs && cleaned) {
+        if (field) {
+            field.value = cleaned;
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+            try { field.focus(); } catch (err) { /* ignore */ }
+        }
+        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load dues.');
+        return true;
+    }
+    if (isIcs) {
+        if (field) field.value = '';
+        return importPasted(text);
+    }
+    return false;
+}
+
+async function importPasted(raw) {
     const status = document.getElementById('calImportStatus');
-    const raw = document.getElementById('calIcsUrl')?.value || '';
-    const url = (typeof window.kosistenzSanitizePastedUrl === 'function')
-        ? window.kosistenzSanitizePastedUrl(raw)
-        : raw.trim();
-    if (url && document.getElementById('calIcsUrl')) {
-        document.getElementById('calIcsUrl').value = url;
-    }
-    if (!url) {
-        utils.showErrorFeedback('Paste the class calendar URL.');
-        return;
-    }
     if (status) status.textContent = 'Importing…';
     try {
-        const result = await eel.import_ics_url(url)();
+        const result = await eel.import_pasted_calendar(raw)();
         if (status) {
             status.textContent = `Imported ${result.created || 0} new, updated ${result.updated || 0}. Due dates only — not busy time.`;
         }
         utils.showSuccessFeedback('Due dates are in the unplaced list.');
         utils.notifyDataChanged();
         await loadCalendar();
+        return true;
     } catch (e) {
         if (status) status.textContent = '';
         utils.showErrorFeedback(e?.message || 'Could not import that calendar.');
+        return false;
     }
+}
+
+function requestNativeIcsPaste() {
+    try {
+        if (!window.webkit?.messageHandlers?.kosistenz) return false;
+        window.webkit.messageHandlers.kosistenz.postMessage({ type: 'icsPaste' });
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+async function pasteIcsButton() {
+    if (requestNativeIcsPaste()) return;
+    if (navigator.clipboard?.readText) {
+        try {
+            const raw = await navigator.clipboard.readText();
+            if (raw) {
+                await applyPastedCalendar(raw);
+                return;
+            }
+        } catch (_) { /* fall through */ }
+    }
+    utils.showErrorFeedback('Paste the URL into the ICS box, or use Cmd+V in the installed app.');
 }
 
 function importApple() {
@@ -676,6 +789,25 @@ function defaultEventTimes(force = false) {
     start.value = toLocalInput(d);
     const e = new Date(d.getTime() + 50 * 60000);
     if (end) end.value = toLocalInput(e);
+}
+
+function importIcs() {
+    const raw = document.getElementById('calIcsUrl')?.value || '';
+    if (/BEGIN:VCALENDAR/i.test(raw)) {
+        void importPasted(raw);
+        return;
+    }
+    const url = (typeof window.kosistenzSanitizePastedUrl === 'function')
+        ? window.kosistenzSanitizePastedUrl(raw)
+        : raw.trim();
+    if (url && document.getElementById('calIcsUrl')) {
+        document.getElementById('calIcsUrl').value = url;
+    }
+    if (!url) {
+        utils.showErrorFeedback('Paste the class calendar URL, or use Paste.');
+        return;
+    }
+    void importPasted(url);
 }
 
 export function setupCalendar() {
@@ -726,19 +858,26 @@ export function setupCalendar() {
     document.getElementById('calImportIcs')?.addEventListener('click', () => {
         void importIcs();
     });
+    document.getElementById('calPasteIcs')?.addEventListener('click', () => {
+        void pasteIcsButton();
+    });
+    ['calDayStart', 'calDayEnd'].forEach((id) => {
+        const field = document.getElementById(id);
+        field?.addEventListener('change', () => { void saveAwake(); });
+        field?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                void saveAwake();
+            }
+        });
+    });
     document.getElementById('calIcsUrl')?.addEventListener('paste', (e) => {
         const dt = e.clipboardData;
         if (!dt) return;
         const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
-        const cleaned = (typeof window.kosistenzSanitizePastedUrl === 'function')
-            ? window.kosistenzSanitizePastedUrl(raw)
-            : String(raw || '').trim();
-        if (!cleaned) return;
+        if (!raw) return;
         e.preventDefault();
-        const field = e.target;
-        field.value = cleaned;
-        field.dispatchEvent(new Event('input', { bubbles: true }));
-        field.dispatchEvent(new Event('change', { bubbles: true }));
+        void applyPastedCalendar(raw);
     });
     document.addEventListener('paste', (e) => {
         const tab = document.getElementById('calendarTab');
@@ -748,17 +887,9 @@ export function setupCalendar() {
         const dt = e.clipboardData;
         if (!dt) return;
         const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
-        const cleaned = (typeof window.kosistenzSanitizePastedUrl === 'function')
-            ? window.kosistenzSanitizePastedUrl(raw)
-            : '';
-        if (!cleaned) return;
-        const ics = document.getElementById('calIcsUrl');
-        if (!ics) return;
+        if (!raw) return;
         e.preventDefault();
-        ics.value = cleaned;
-        ics.dispatchEvent(new Event('input', { bubbles: true }));
-        ics.focus();
-        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load dues.');
+        void applyPastedCalendar(raw);
     });
     document.getElementById('calImportApple')?.addEventListener('click', importApple);
     document.getElementById('calEventWeekdays')?.addEventListener('click', (e) => {
@@ -796,6 +927,10 @@ export function setupCalendar() {
             void loadCalendar();
         }
     });
+    window.kosistenzImportIcsText = (raw) => {
+        void applyPastedCalendar(raw);
+        return true;
+    };
 }
 
 export async function onCalendarTabShown() {

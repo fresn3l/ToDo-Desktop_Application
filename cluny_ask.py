@@ -167,7 +167,7 @@ def build_context() -> Dict[str, Any]:
         todos_today, overdue, backlog, deadline_todos = [], [], [], []
     events_today: List[Dict[str, Any]] = []
     unplaced: List[str] = []
-    day_start, day_end = "07:00", "22:00"
+    day_start, day_end = "05:30", "21:30"
     try:
         agenda = calclock.get_day_agenda(today)
         settings = agenda.get("settings") or {}

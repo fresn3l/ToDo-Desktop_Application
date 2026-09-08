@@ -5145,6 +5145,27 @@ html[data-motion='reduce'] *::after {
     gap: 8px;
 }
 
+.cal-awake {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cal-awake .checklist-field-label {
+    margin: 0;
+}
+
+.cal-awake-input {
+    width: 4.6rem;
+    min-width: 4.6rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.cal-awake-sep {
+    color: var(--text-muted);
+}
+
 .cal-grid {
     display: grid;
     grid-template-columns: 52px minmax(0, 1fr);
@@ -5154,14 +5175,25 @@ html[data-motion='reduce'] *::after {
 }
 
 .cal-hours {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    position: relative;
     padding-top: 36px;
     font-family: inherit;
-    font-size: 12px;
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
     color: var(--text-muted);
+}
+
+.cal-hours-scale {
+    position: relative;
+    height: min(720px, calc(100vh - 220px));
+    min-height: 560px;
+}
+
+.cal-hours-scale span {
+    position: absolute;
+    right: 0;
+    transform: translateY(-50%);
+    white-space: nowrap;
 }
 
 .cal-days {
@@ -5193,13 +5225,18 @@ html[data-motion='reduce'] *::after {
     height: min(720px, calc(100vh - 220px));
     min-height: 560px;
     margin: 0 4px 8px;
-    background: repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent calc(100% / 15 - 1px),
-        var(--border-subtle) calc(100% / 15 - 1px),
-        var(--border-subtle) calc(100% / 15)
-    );
+    --cal-hour-pct: 6.25%;
+    --cal-hour-offset: 0%;
+}
+
+.cal-hour-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border-subtle);
+    pointer-events: none;
+    z-index: 0;
 }
 
 .cal-block {
@@ -5216,6 +5253,7 @@ html[data-motion='reduce'] *::after {
     color: var(--text-primary);
     cursor: grab;
     touch-action: none;
+    z-index: 1;
     background: color-mix(in srgb, var(--accent, #4F8FCF) 28%, var(--bg-elevated));
 }
 
