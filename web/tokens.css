@@ -2,6 +2,7 @@
    Midnight is the pasted warm palette. Home CSS must use these names. */
 :root {
     --bg: var(--bg-canvas);
+    --surface: var(--bg-panel);
     --surface-1: var(--bg-elevated);
     --surface-2: var(--bg-panel);
     --surface-hover: var(--bg-input);
@@ -31,6 +32,6 @@
     --s-3: 12px;
     --s-4: 16px;
     --s-5: 24px;
-    --grid-gap: 12px;
-    --row-h: 88px;
+    --grid-gap: 14px;
+    --row-h: 108px;
 }

@@ -224,8 +224,11 @@ function itemRow(item, { showDate = false } = {}) {
             <div class="work-item-actions">
                 ${actions}
                 ${repeatActions}
-                <button type="button" class="btn-ghost" data-act="park">All Work</button>
-                <button type="button" class="btn-ghost" data-act="delete">Delete</button>
+                <details class="work-more">
+                    <summary>More</summary>
+                    <button type="button" class="btn-ghost" data-act="park">All Work</button>
+                    <button type="button" class="btn-ghost" data-act="delete">Delete</button>
+                </details>
             </div>
         </article>
     `;

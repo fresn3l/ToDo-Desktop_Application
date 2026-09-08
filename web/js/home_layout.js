@@ -6,8 +6,8 @@
 export const GRID_COLUMNS = 4;
 
 export const WIDGET_CATALOG = {
-    todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'todoTab' },
-    today_calendar: { label: 'Today', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 2], source: 'todayCalendarSource' },
+    todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'todoTab' },
+    today_calendar: { label: 'Today', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 3], source: 'todayCalendarSource' },
     workout: { label: 'Workout', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'workoutTab' },
     goals: { label: 'Goals', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'goalsTab' },
     allwork: { label: 'All Work', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'allWorkTab' },
@@ -21,8 +21,8 @@ export const WIDGET_CATALOG = {
     day_brief: { label: 'Day', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'dayBriefSource' },
     counters: { label: 'Counters', sizes: [[1, 1], [2, 1], [2, 2], [3, 2], [3, 3]], default: [2, 1], source: 'countersSource' },
     reading: { label: 'Reading', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'readingSource' },
-    word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 2], source: 'wordTab' },
-    cluny: { label: 'Ask Cluny', sizes: [[2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'clunySource' },
+    word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'wordTab' },
+    cluny: { label: 'Ask Cluny', sizes: [[2, 2], [2, 3], [3, 2], [3, 3], [4, 2]], default: [4, 2], source: 'clunySource' },
 };
 
 export function catalogList() {

@@ -474,9 +474,13 @@ def _parse_ics_datetime(value: str, params: str) -> Tuple[datetime, bool]:
     return datetime.combine(day, datetime.min.time()), True
 
 
+def _cal_today() -> date:
+    return work._today()
+
+
 def _ics_window(today: Optional[date] = None) -> Tuple[date, date]:
-    day = today or date.today()
-    return day - timedelta(days=21), day + timedelta(days=120)
+    day = today or _cal_today()
+    return day, day + timedelta(days=120)
 
 
 def _ics_calendar_title(text: str, fallback: str = "") -> str:
@@ -772,13 +776,9 @@ def parse_ics_events(text: str, *, today: Optional[date] = None) -> List[Dict[st
                     }
                 )
             continue
-        # One-shot: dues keep every historical date; timed busy events stay near now.
-        if not all_day and not (window_start <= start.date() <= window_end):
-            # 11:59 stubs are dues and should not be window-filtered later; keep them.
-            minute_stub = start.hour == 23 and start.minute >= 50
-            short = duration <= timedelta(minutes=15) and (start.minute == 59 or start.hour == 23)
-            if not (minute_stub or short):
-                continue
+        # One-shot: drop anything already past. Recurring series stay for this week forward.
+        if start.date() < window_start or start.date() > window_end:
+            continue
         events.append(
             {
                 "uid": uid,
@@ -826,6 +826,10 @@ def ingest_events(
             skipped += 1
             continue
         due = due_at_for_imported(all_day=all_day, start_at=start, end_at=end)
+        due_day = str(due or "")[:10]
+        if not due_day or due_day < _cal_today().isoformat():
+            skipped += 1
+            continue
         rows.append(
             {
                 "title": title,
@@ -872,6 +876,8 @@ def replace_imported_hard_events(calendar_id: str, events: List[Dict[str, Any]])
             if _busy_event_too_long(start, end):
                 continue
             rec = raw.get("recurrence") if isinstance(raw.get("recurrence"), dict) else None
+            if not rec and end.date() < _cal_today():
+                continue
             conn.execute(
                 """
                 INSERT INTO calendar_events (
@@ -894,6 +900,35 @@ def replace_imported_hard_events(calendar_id: str, events: List[Dict[str, Any]])
             stored += 1
         conn.commit()
     return stored
+
+
+def delete_past_imported_one_shots() -> int:
+    """Drop timed feed events that already ended and are not a recurring series."""
+    today = _cal_today().isoformat()
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            DELETE FROM calendar_events
+            WHERE source != 'kosistenz'
+              AND (recurrence_json IS NULL OR TRIM(recurrence_json) IN ('', '{}', 'null'))
+              AND substr(end_at, 1, 10) < ?
+            """,
+            (today,),
+        )
+        conn.commit()
+        return int(cur.rowcount or 0)
+
+
+def purge_stale_imports() -> Dict[str, Any]:
+    result = work.delete_stale_imported_work()
+    delete_blocks_for_work_items(result.get("ids") or [])
+    events_deleted = delete_past_imported_one_shots()
+    return {
+        "ok": True,
+        "deleted": int(result.get("deleted") or 0),
+        "ids": result.get("ids") or [],
+        "events_deleted": events_deleted,
+    }
 
 
 def delete_imported_hard_events(calendar_id: str) -> int:
@@ -952,6 +987,7 @@ def import_ics_text(
         url=url,
         title=label,
     )
+    purge_stale_imports()
     return {
         "ok": True,
         "calendar_id": calendar_id,
@@ -1014,7 +1050,8 @@ def ingest_calendar_events(payload: Dict[str, Any]) -> Dict[str, Any]:
         kind="apple",
         title=str(body.get("calendar_title") or calendar_id),
     )
-    return {"ok": True, "calendar_id": calendar_id, **counts}
+    purged = purge_stale_imports()
+    return {"ok": True, "calendar_id": calendar_id, **counts, "purged": purged["deleted"]}
 
 
 def delete_blocks_for_work_items(item_ids: List[str]) -> int:
@@ -1138,8 +1175,7 @@ def unsubscribe_calendar_feed(feed_id: str = "", url: str = "") -> Dict[str, Any
 
 @eel.expose
 def delete_undated_imported_assignments() -> Dict[str, Any]:
-    result = work.delete_undated_imported_work()
-    delete_blocks_for_work_items(result.get("ids") or [])
+    result = purge_stale_imports()
     return {
         "ok": True,
         "deleted": int(result.get("deleted") or 0),
@@ -1520,14 +1556,16 @@ def _unplaced_ui(rows: Optional[List[Dict[str, Any]]] = None) -> Tuple[List[Dict
 
 @eel.expose
 def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, Any]:
+    purge_stale_imports()
     settings = load_settings()
-    start = date.fromisoformat(week_start) if week_start else monday_of(date.today())
+    start = date.fromisoformat(week_start) if week_start else monday_of(_cal_today())
     start = monday_of(start)
     end = start + timedelta(days=6)
     hard = expand_hard_events(start, end)
     blocks = list_blocks(start, end)
     dues = _dues_by_day(start, end)
     days = []
+    today_iso = _cal_today().isoformat()
     for offset in range(7):
         day = start + timedelta(days=offset)
         iso = day.isoformat()
@@ -1535,7 +1573,7 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
             {
                 "date": iso,
                 "weekday": day.strftime("%a"),
-                "is_today": iso == date.today().isoformat(),
+                "is_today": iso == today_iso,
                 "events": [item for item in hard if item["occurrence_date"] == iso],
                 "blocks": [item for item in blocks if item["local_date"] == iso],
                 "dues": dues.get(iso, []),
@@ -1578,7 +1616,7 @@ def _slim_due(item: Dict[str, Any], *, is_overdue: bool = False) -> Dict[str, An
 
 def _today_column() -> Dict[str, Any]:
     settings = load_settings()
-    today = date.today()
+    today = _cal_today()
     iso = today.isoformat()
     hard = expand_hard_events(today, today)
     blocks = list_blocks(today, today)
@@ -1660,7 +1698,7 @@ def _month_weeks(
     first = date(year, month, 1)
     cursor = monday_of(first)
     weeks: List[List[Dict[str, Any]]] = []
-    today = date.today().isoformat()
+    today = _cal_today().isoformat()
     events_by_day: Dict[str, int] = Counter()
     for item in hard:
         iso = item.get("occurrence_date")
@@ -1696,7 +1734,7 @@ def _month_weeks(
 
 
 def _clamp_year_month(year: Any, month: Any) -> Tuple[int, int]:
-    today = date.today()
+    today = _cal_today()
     try:
         y = int(year) if year else today.year
     except (TypeError, ValueError):
@@ -1714,6 +1752,7 @@ def _clamp_year_month(year: Any, month: Any) -> Tuple[int, int]:
 
 @eel.expose
 def get_month(year: int = 0, month: int = 0) -> Dict[str, Any]:
+    purge_stale_imports()
     y, m = _clamp_year_month(year, month)
     first = date(y, m, 1)
     grid_start = monday_of(first)
@@ -1734,6 +1773,7 @@ def get_month(year: int = 0, month: int = 0) -> Dict[str, Any]:
 
 @eel.expose
 def get_year(year: int = 0) -> Dict[str, Any]:
+    purge_stale_imports()
     y, _ = _clamp_year_month(year, 1)
     start = date(y, 1, 1)
     grid_start = monday_of(start)
@@ -1765,7 +1805,7 @@ def get_year(year: int = 0) -> Dict[str, Any]:
 
 @eel.expose
 def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
-    iso = work._parse_date(local_date) or date.today().isoformat()
+    iso = work._parse_date(local_date) or _cal_today().isoformat()
     day = date.fromisoformat(iso)
     week = get_week(monday_of(day).isoformat(), include_unplaced=False)
     match = next((row for row in week["days"] if row["date"] == iso), None)
@@ -1777,7 +1817,7 @@ def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
         items.sort(key=lambda row: row["start_at"])
         dues = list(match.get("dues") or [])
     overdue = []
-    if iso == date.today().isoformat():
+    if iso == _cal_today().isoformat():
         overdue = [
             _slim_due(item, is_overdue=True)
             for item in work.list_overdue_work()
@@ -1952,7 +1992,7 @@ def schedule_work_at(item_id: str, start_at: str, end_at: str = "") -> Dict[str,
 def place_work_after_lecture(item_id: str, local_date: str = "") -> Dict[str, Any]:
     """Drop optional work time after that day's first lecture, or at wake-up."""
     item = _work_item(item_id)
-    iso = work._parse_date(local_date) or str(item.get("due_at") or "")[:10] or date.today().isoformat()
+    iso = work._parse_date(local_date) or str(item.get("due_at") or "")[:10] or _cal_today().isoformat()
     day = date.fromisoformat(iso)
     week = get_week(monday_of(day).isoformat(), include_unplaced=False)
     match = next((row for row in week["days"] if row["date"] == iso), None)

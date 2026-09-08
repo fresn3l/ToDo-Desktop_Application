@@ -1027,6 +1027,7 @@ def get_work_board(local_date: str = "") -> Dict[str, Any]:
         _goals.ensure_weekly_goal_todos()
     except Exception:
         pass
+    delete_stale_imported_work(write_snapshot=False)
     today = _today()
     target = _parse_date(local_date) or today.isoformat()
     tomorrow = (today + timedelta(days=1)).isoformat()
@@ -1150,6 +1151,10 @@ def upsert_imported_work(
     due = _parse_due_at(due_at)
     if not due:
         raise ValueError("Imported work needs a due time")
+    due_day = _due_day(due)
+    today = _today().isoformat()
+    if not due_day or due_day < today:
+        raise ValueError("Imported work that is already past is discarded")
     now = _now().isoformat()
     with _connect() as conn:
         existing = conn.execute(
@@ -1210,12 +1215,15 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
 
     Calling upsert_imported_work per event used to open SQLite, rewrite the
     widget snapshot, export iCloud, and refresh Cluny once per Canvas due.
+    Past and undated calendar imports are skipped; they never become to-dos.
     """
     created = 0
     updated = 0
+    skipped = 0
     if not rows:
-        return {"created": 0, "updated": 0}
+        return {"created": 0, "updated": 0, "skipped": 0}
     now = _now().isoformat()
+    today = _today().isoformat()
     with _connect() as conn:
         for raw in rows:
             clean = str(raw.get("title") or "").strip()
@@ -1223,9 +1231,13 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
             calendar_key = str(raw.get("source_calendar") or "").strip()
             due = _parse_due_at(raw.get("due_at"))
             if not clean or not uid or not calendar_key or not due:
+                skipped += 1
                 continue
             notes = str(raw.get("notes") or "")
             due_day = _due_day(due)
+            if not due_day or due_day < today:
+                skipped += 1
+                continue
             existing = conn.execute(
                 """
                 SELECT * FROM work_items
@@ -1272,7 +1284,7 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
                 )
                 created += 1
     _write_widget_snapshot()
-    return {"created": created, "updated": updated}
+    return {"created": created, "updated": updated, "skipped": skipped}
 
 
 def count_undated_imported_work() -> int:
@@ -1288,25 +1300,36 @@ def count_undated_imported_work() -> int:
     return int(row["n"] or 0)
 
 
-def delete_undated_imported_work() -> Dict[str, Any]:
-    """Remove open calendar imports that never landed on a day."""
+def delete_stale_imported_work(*, write_snapshot: bool = True) -> Dict[str, Any]:
+    """Remove open calendar imports that are undated or already past."""
+    today = _today().isoformat()
     with _connect() as conn:
         rows = conn.execute(
             """
             SELECT id FROM work_items
             WHERE source = 'calendar'
               AND status != 'done'
-              AND (scheduled_date IS NULL OR due_at IS NULL OR TRIM(due_at) = '')
-            """
+              AND (
+                scheduled_date IS NULL
+                OR due_at IS NULL OR TRIM(due_at) = ''
+                OR substr(due_at, 1, 10) < ?
+              )
+            """,
+            (today,),
         ).fetchall()
         ids = [str(row["id"]) for row in rows]
         for item_id in ids:
             conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
     for item_id in ids:
         _mirror_task_delete(item_id)
-    if ids:
+    if ids and write_snapshot:
         _write_widget_snapshot()
     return {"ok": True, "deleted": len(ids), "ids": ids}
+
+
+def delete_undated_imported_work() -> Dict[str, Any]:
+    """Remove open calendar imports that never landed on a day, or are past."""
+    return delete_stale_imported_work()
 
 
 def delete_open_imported_work(source_calendar: str) -> Dict[str, Any]:

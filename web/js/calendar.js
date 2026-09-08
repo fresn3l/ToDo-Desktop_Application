@@ -5,7 +5,7 @@
 import * as utils from './utils.js';
 
 let weekStart = null;
-let calView = 'month';
+let calView = 'week';
 let monthCursor = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 let yearCursor = new Date().getFullYear();
 let lastSettings = {};
@@ -1323,9 +1323,6 @@ export function setupCalendar() {
         void applyPastedCalendar(raw);
     });
     document.getElementById('calImportApple')?.addEventListener('click', importApple);
-    document.getElementById('calDeleteUndated')?.addEventListener('click', () => {
-        void utils.deleteUndatedImportedAssignments();
-    });
     document.getElementById('calEventWeekdays')?.addEventListener('click', (e) => {
         const chip = e.target.closest('.work-day-chip');
         if (!chip) return;
