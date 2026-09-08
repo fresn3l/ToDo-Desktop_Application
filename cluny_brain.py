@@ -151,6 +151,8 @@ def _our_process_running() -> bool:
 
 def ensure_running(*, wait: bool = False) -> dict[str, Any]:
     """Start Cluny serve if auto-start is on and nothing is listening."""
+    global _SERVE_PROC  # noqa: PLW0603
+
     with _LOCK:
         if not _auto_start_enabled():
             probe = cluny_client.health()

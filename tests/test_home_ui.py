@@ -219,7 +219,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("on the clock", GLANCE_TILES)
         self.assertNotIn("waiting to be dated", GLANCE_TILES)
         self.assertIn("1 event today.", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
-        self.assertIn("Journal and timer still available.", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
+        self.assertIn("clunyOff: 'Off'", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
+        self.assertIn("noBrief: 'No brief yet'", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
         self.assertIn("unscheduled", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
 
     def test_live_home_opens_work_edit_home_moves(self) -> None:
