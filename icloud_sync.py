@@ -519,6 +519,8 @@ def _dump_calendar() -> Dict[str, Any]:
     return {
         "week_start": week.get("week_start"),
         "week_end": week.get("week_end"),
+        "day_start": (week.get("settings") or {}).get("day_start") or "",
+        "day_end": (week.get("settings") or {}).get("day_end") or "",
         "days": days,
         "unplaced": unplaced[:40],
     }

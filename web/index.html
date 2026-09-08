@@ -134,6 +134,12 @@
                             <div class="cal-toolbar">
                                 <h2 id="calWeekLabel">This month</h2>
                                 <div class="cal-toolbar-actions">
+                                    <div class="cal-awake" title="Fill week only uses this window. Nights stay empty.">
+                                        <label class="checklist-field-label" for="calDayStart">Awake</label>
+                                        <input type="text" id="calDayStart" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="0530" maxlength="5" aria-label="Day starts (24-hour)">
+                                        <span class="cal-awake-sep">–</span>
+                                        <input type="text" id="calDayEnd" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="2130" maxlength="5" aria-label="Day ends (24-hour)">
+                                    </div>
                                     <div class="segmented" id="calViewGroup" role="group" aria-label="Calendar view">
                                         <button type="button" data-cal-view="week">Week</button>
                                         <button type="button" data-cal-view="month" class="is-selected">Month</button>
@@ -193,7 +199,9 @@
                                 <h3>Due dates</h3>
                                 <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
                                 <input type="text" id="calIcsUrl" class="checklist-text-input" placeholder="Paste https:// or webcal:// calendar link" autocomplete="off" spellcheck="false" inputmode="url">
+                                <p class="checklist-hint small">24-hour awake window is in the week toolbar (0530–2130). Paste a link or an .ics file; Cmd+V should land here.</p>
                                 <div class="reminder-actions">
+                                    <button type="button" id="calPasteIcs" class="btn-ghost">Paste</button>
                                     <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
                                     <button type="button" id="calImportApple" class="btn-ghost">Import Apple calendars</button>
                                 </div>

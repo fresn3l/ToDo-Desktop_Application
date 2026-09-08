@@ -132,6 +132,13 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
                     text = pb.stringForType_(NSPasteboardTypeString)
             except Exception:
                 text = None
+            if text and "BEGIN:VCALENDAR" in str(text).upper():
+                js = f"window.kosistenzImportIcsText && window.kosistenzImportIcsText({json.dumps(str(text))})"
+                try:
+                    self.evaluateJavaScript_completionHandler_(js, None)
+                    return
+                except Exception:
+                    pass
             if text and (
                 "https://" in text.lower()
                 or "http://" in text.lower()

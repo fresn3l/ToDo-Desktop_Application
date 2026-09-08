@@ -11,8 +11,8 @@ import WidgetKit
 /// used to do nothing. Insert the link as text instead.
 final class KosistenzWebView: WKWebView {
     override func paste(_ sender: Any?) {
-        if let text = Self.pasteboardURLText() {
-            insertTextIntoPage(text)
+        if Self.pasteboardIcsText() != nil || Self.pasteboardURLText() != nil {
+            pasteCalendarPayload()
             return
         }
         super.paste(sender)
@@ -24,8 +24,8 @@ final class KosistenzWebView: WKWebView {
            !event.modifierFlags.contains(.shift),
            !event.modifierFlags.contains(.option),
            event.charactersIgnoringModifiers == "v",
-           let text = Self.pasteboardURLText() {
-            insertTextIntoPage(text)
+           Self.pasteboardIcsText() != nil || Self.pasteboardURLText() != nil {
+            pasteCalendarPayload()
             return true
         }
         return super.performKeyEquivalent(with: event)
@@ -42,16 +42,49 @@ final class KosistenzWebView: WKWebView {
         }
         guard let raw = pb.string(forType: .string) else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count <= 2000 else { return nil }
+        guard trimmed.count <= 8000 else { return nil }
         let first = trimmed.split(whereSeparator: \.isNewline)
             .map { String($0).trimmingCharacters(in: .whitespaces) }
             .first(where: { !$0.isEmpty && !$0.hasPrefix("#") }) ?? trimmed
         let cleaned = first.trimmingCharacters(in: CharacterSet(charactersIn: "<>\"' "))
         let lower = cleaned.lowercased()
-        if lower.hasPrefix("http://") || lower.hasPrefix("https://") || lower.hasPrefix("webcal://") {
-            return raw
+        if lower.contains("http://") || lower.contains("https://") || lower.contains("webcal://") {
+            if let match = cleaned.range(of: #"(?:https?|webcal)://[^\s<>"']+"#, options: .regularExpression) {
+                return String(cleaned[match])
+            }
+            return cleaned
         }
         return nil
+    }
+
+    static func pasteboardIcsText() -> String? {
+        let pb = NSPasteboard.general
+        guard let raw = pb.string(forType: .string) else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.uppercased().contains("BEGIN:VCALENDAR") else { return nil }
+        guard trimmed.utf8.count <= 2_097_152 else { return nil }
+        return trimmed
+    }
+
+    func insertIcsIntoPage(_ text: String) {
+        let payload = jsStringLiteral(text)
+        let js = "window.kosistenzImportIcsText && window.kosistenzImportIcsText(\(payload))"
+        evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    func pasteCalendarPayload() {
+        if let ics = Self.pasteboardIcsText() {
+            insertIcsIntoPage(ics)
+            return
+        }
+        if let text = Self.pasteboardURLText() {
+            insertTextIntoPage(text)
+            return
+        }
+        if let raw = NSPasteboard.general.string(forType: .string),
+           !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            insertTextIntoPage(raw)
+        }
     }
 
     func insertTextIntoPage(_ text: String) {
@@ -152,6 +185,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             refreshToolbarStatus()
         } else if type == "calendarImport" {
             importAppleCalendars()
+        } else if type == "icsPaste" {
+            (webView as? KosistenzWebView)?.pasteCalendarPayload()
         }
     }
 
@@ -509,7 +544,7 @@ private func buildMenu() {
     editMenu.addItem(NSMenuItem.separator())
     editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
     editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-    editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+    editMenu.addItem(withTitle: "Paste", action: #selector(NSResponder.paste(_:)), keyEquivalent: "v")
     editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
     editItem.submenu = editMenu
 
