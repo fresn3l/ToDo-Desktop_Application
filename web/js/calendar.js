@@ -320,8 +320,16 @@ function renderGrid(week) {
     const days = (week.days || [])
         .map((day) => {
             const items = [...(day.events || []), ...(day.blocks || [])];
+            const dues = day.dues || [];
+            const shown = dues.slice(0, 8);
+            const extra = dues.length - shown.length;
+            const chips = shown.map((due) => {
+                const done = due.status === 'done';
+                return `<span class="cal-due-chip${done ? ' is-done' : ''}" title="${utils.escapeHtml(due.title || '')}">${utils.escapeHtml(due.title || 'Due')}</span>`;
+            }).join('') + (extra > 0 ? `<span class="cal-due-chip is-more">+${extra}</span>` : '');
             return `<div class="cal-day${day.is_today ? ' is-today' : ''}" data-date="${utils.escapeHtml(day.date)}">
                 <header class="cal-day-head"><strong>${utils.escapeHtml(day.weekday)}</strong><span>${utils.escapeHtml(day.date.slice(8))}</span></header>
+                <div class="cal-due-list">${chips || '<span class="cal-due-empty">No dues</span>'}</div>
                 <div class="cal-day-body" style="--cal-hour-pct:${hourPct}%;--cal-hour-offset:${offsetPct}%">${hourLines}${items.map((item) => renderBlock(item, settings)).join('')}</div>
             </div>`;
         })
@@ -941,6 +949,9 @@ export function setupCalendar() {
         void applyPastedCalendar(raw);
     });
     document.getElementById('calImportApple')?.addEventListener('click', importApple);
+    document.getElementById('calDeleteUndated')?.addEventListener('click', () => {
+        void utils.deleteUndatedImportedAssignments();
+    });
     document.getElementById('calEventWeekdays')?.addEventListener('click', (e) => {
         const chip = e.target.closest('.work-day-chip');
         if (!chip) return;

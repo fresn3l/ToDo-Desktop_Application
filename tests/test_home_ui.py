@@ -336,6 +336,14 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("schedule_work_at", CAL_JS)
         self.assertIn("onBlockPointerMove", CAL_JS)
         self.assertIn("unplaced_total", CAL_JS)
+        self.assertIn("cal-due-chip", CAL_JS)
+        self.assertIn("day.dues", CAL_JS)
+        self.assertIn('id="deleteUndatedImportsBtn"', INDEX)
+        self.assertIn('id="calendarFeedsList"', INDEX)
+        self.assertIn("unsubscribe_calendar_feed", SETTINGS_JS)
+        self.assertIn("deleteUndatedImportedAssignments", UTILS)
+        self.assertIn('id="allWorkDeleteUndated"', INDEX)
+        self.assertIn('id="calDeleteUndated"', INDEX)
 
     def test_calendar_tab_uses_full_width_and_taller_cells(self) -> None:
         self.assertIn("html[data-page='calendar'] .tab-content.active", STYLE)

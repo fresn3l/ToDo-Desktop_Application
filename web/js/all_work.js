@@ -126,6 +126,11 @@ export function setupAllWork() {
             void addBacklogTask();
         }
     });
+    document.getElementById('allWorkDeleteUndated')?.addEventListener('click', () => {
+        void utils.deleteUndatedImportedAssignments().then((result) => {
+            if (result) void refreshAllWork();
+        });
+    });
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('allWorkTab')?.classList.contains('active')) {
             void refreshAllWork();

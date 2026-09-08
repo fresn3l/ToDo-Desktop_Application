@@ -174,3 +174,23 @@ export function askText({ title, message = '', value = '', ok = 'Save', cancel =
 export function askConfirm({ title, message = '', ok = 'OK', cancel = 'Cancel', danger = false } = {}) {
     return openDialog({ mode: 'confirm', title, message, ok, cancel, danger }).then((value) => value === true);
 }
+
+export async function deleteUndatedImportedAssignments() {
+    const ok = await askConfirm({
+        title: 'Delete undated imports?',
+        message: 'Removes open class-calendar assignments that never landed on a day. Completed items stay.',
+        ok: 'Delete them',
+        cancel: 'Keep',
+        danger: true,
+    });
+    if (!ok) return null;
+    if (typeof eel === 'undefined' || !eel.delete_undated_imported_assignments) {
+        showErrorFeedback('Could not delete those assignments.');
+        return null;
+    }
+    const result = await eel.delete_undated_imported_assignments()();
+    const n = Number(result?.deleted || 0);
+    showSuccessFeedback(n ? `Deleted ${n} undated assignment${n === 1 ? '' : 's'}.` : 'Nothing undated to delete.');
+    notifyDataChanged();
+    return result;
+}

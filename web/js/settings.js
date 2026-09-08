@@ -333,6 +333,7 @@ export function setupSettings() {
         void loadAdvancedPaths();
         void loadHomeLayoutForColors();
         void loadClunySettings();
+        void loadCalendarFeeds();
         return;
     }
     document.body.dataset.settingsReady = '1';
@@ -543,6 +544,8 @@ export function setupSettings() {
     void loadIcloudSync();
     void loadHomeLayoutForColors();
     void loadClunySettings();
+    void loadCalendarFeeds();
+    bindCalendarFeeds();
     setupSettingsResize();
 }
 
@@ -553,6 +556,7 @@ export function onSettingsTabShown() {
     void loadHomeLayoutForColors();
     void loadClunySettings();
     void refreshClunyLiveStats();
+    void loadCalendarFeeds();
 }
 
 function paintIcloudStatus(status) {
@@ -582,6 +586,80 @@ async function loadIcloudSync() {
     } catch (_) {
         /* eel not ready */
     }
+}
+
+function paintCalendarFeeds(payload) {
+    const list = document.getElementById('calendarFeedsList');
+    const empty = document.getElementById('calendarFeedsEmpty');
+    const note = document.getElementById('undatedImportNote');
+    const feeds = payload?.feeds || [];
+    const undated = Number(payload?.undated_imported || 0);
+    if (note) {
+        note.textContent = undated
+            ? `${undated} imported assignment${undated === 1 ? '' : 's'} never landed on a day.`
+            : '';
+    }
+    if (!list) return;
+    if (!feeds.length) {
+        list.innerHTML = '';
+        if (empty) empty.hidden = false;
+        return;
+    }
+    if (empty) empty.hidden = true;
+    list.innerHTML = feeds.map((feed) => {
+        const title = utils.escapeHtml(feed.title || feed.id || 'Calendar');
+        const open = Number(feed.open_count || 0);
+        const total = Number(feed.total || 0);
+        const kind = feed.kind === 'apple' ? 'Apple Calendar' : 'ICS';
+        return `<article class="calendar-feed-row" data-feed-id="${utils.escapeHtml(feed.id || '')}" data-feed-url="${utils.escapeHtml(feed.url || '')}">
+            <div>
+                <h4>${title}</h4>
+                <p>${kind} · ${open} open · ${total} total</p>
+            </div>
+            <button type="button" class="btn-ghost" data-unsub>Unsubscribe</button>
+        </article>`;
+    }).join('');
+    list.querySelectorAll('[data-unsub]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const row = btn.closest('[data-feed-id]');
+            const feedId = row?.getAttribute('data-feed-id') || '';
+            const feedUrl = row?.getAttribute('data-feed-url') || '';
+            const ok = await utils.askConfirm({
+                title: 'Unsubscribe?',
+                message: 'Removes open imported to-dos from this feed. Completed ones stay.',
+                ok: 'Unsubscribe',
+                cancel: 'Keep',
+                danger: true,
+            });
+            if (!ok) return;
+            try {
+                const result = await eel.unsubscribe_calendar_feed(feedId, feedUrl)();
+                const n = Number(result?.deleted || 0);
+                utils.showSuccessFeedback(n ? `Unsubscribed. Removed ${n} open assignment${n === 1 ? '' : 's'}.` : 'Unsubscribed.');
+                utils.notifyDataChanged();
+                paintCalendarFeeds(result);
+            } catch (err) {
+                utils.showErrorFeedback('Could not unsubscribe.');
+            }
+        });
+    });
+}
+
+async function loadCalendarFeeds() {
+    if (typeof eel === 'undefined' || !eel.list_calendar_feeds) return;
+    try {
+        paintCalendarFeeds(await eel.list_calendar_feeds()());
+    } catch (_) {
+        /* eel not ready */
+    }
+}
+
+function bindCalendarFeeds() {
+    document.getElementById('deleteUndatedImportsBtn')?.addEventListener('click', async () => {
+        const result = await utils.deleteUndatedImportedAssignments();
+        if (result) paintCalendarFeeds(result);
+        else void loadCalendarFeeds();
+    });
 }
 
 async function loadAdvancedPaths() {
