@@ -119,6 +119,7 @@ def _install_swift_host(app_path: str) -> bool:
 
     cmd = compiler + [
         "-O",
+        "-parse-as-library",
         "-o", python_exe,
         "-framework", "Cocoa",
         "-framework", "WebKit",

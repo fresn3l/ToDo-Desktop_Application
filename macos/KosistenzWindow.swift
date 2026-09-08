@@ -170,10 +170,13 @@ final class KosistenzWebView: WKWebView {
             let pb = NSPasteboard.general
             pb.clearContents()
             pb.setString(text, forType: .string)
-            insertText(text)
+        }
+        // Never send paste: to this subclass — that re-enters pasteFromClipboard.
+        // WKContentView (a descendant) still implements insertText:/paste: in AppKit.
+        if performWebEdit("insertText:", on: self, sender: text ?? "", skip: self) {
             return
         }
-        insertText("")
+        _ = performWebEdit("paste:", on: self, skip: self)
     }
 }
 
@@ -188,16 +191,19 @@ final class KosistenzMainWindow: NSWindow {
             return
         }
         if Self.isPlainCommand(event, letter: "c") {
-            hostWebView?.copy(nil)
-            return
+            if performWebEdit("copy:", on: hostWebView) {
+                return
+            }
         }
         if Self.isPlainCommand(event, letter: "x") {
-            hostWebView?.cut(nil)
-            return
+            if performWebEdit("cut:", on: hostWebView) {
+                return
+            }
         }
         if Self.isPlainCommand(event, letter: "a") {
-            hostWebView?.selectAll(nil)
-            return
+            if performWebEdit("selectAll:", on: hostWebView) {
+                return
+            }
         }
         super.sendEvent(event)
     }
@@ -211,6 +217,45 @@ final class KosistenzMainWindow: NSWindow {
         let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
         return chars == letter.lowercased()
     }
+}
+
+/// macOS 26's Swift overlay no longer exposes AppKit edit actions on
+/// WKWebView, and `.copy(nil)` binds to NSCopying.copy(with:). Call those
+/// actions by selector and prefer the focused descendant (WKContentView)
+/// over WKWebView itself.
+@discardableResult
+private func performWebEdit(
+    _ name: String,
+    on view: NSObject?,
+    sender: Any? = nil,
+    skip: NSObject? = nil
+) -> Bool {
+    let sel = NSSelectorFromString(name)
+    if let fr = (view as? NSView)?.window?.firstResponder as NSObject?,
+       fr !== skip,
+       fr.responds(to: sel) {
+        _ = fr.perform(sel, with: sender)
+        return true
+    }
+    if let root = view as? NSView, let found = firstDescendant(root, respondingTo: sel, skip: skip) {
+        _ = found.perform(sel, with: sender)
+        return true
+    }
+    guard let view, view !== skip, view.responds(to: sel) else { return false }
+    _ = view.perform(sel, with: sender)
+    return true
+}
+
+private func firstDescendant(_ view: NSView, respondingTo sel: Selector, skip: NSObject?) -> NSView? {
+    for sub in view.subviews {
+        if sub !== skip, sub.responds(to: sel) {
+            return sub
+        }
+        if let nested = firstDescendant(sub, respondingTo: sel, skip: skip) {
+            return nested
+        }
+    }
+    return nil
 }
 
 private func jsStringLiteral(_ value: String) -> String {
@@ -290,11 +335,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     @objc func copy(_ sender: Any?) {
-        webView?.copy(sender)
+        _ = performWebEdit("copy:", on: webView, sender: sender)
     }
 
     @objc func cut(_ sender: Any?) {
-        webView?.cut(sender)
+        _ = performWebEdit("cut:", on: webView, sender: sender)
     }
 
     @objc func paste(_ sender: Any?) {
@@ -302,11 +347,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             host.pasteFromClipboard()
             return
         }
-        webView?.paste(sender)
+        _ = performWebEdit("paste:", on: webView, sender: sender, skip: webView)
     }
 
     @objc func selectAll(_ sender: Any?) {
-        webView?.selectAll(sender)
+        _ = performWebEdit("selectAll:", on: webView, sender: sender)
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -689,13 +734,15 @@ private func buildMenu() {
     let editItem = NSMenuItem()
     mainMenu.addItem(editItem)
     let editMenu = NSMenu(title: "Edit")
-    editMenu.addItem(withTitle: "Undo", action: Selector("undo:"), keyEquivalent: "z")
-    editMenu.addItem(withTitle: "Redo", action: Selector("redo:"), keyEquivalent: "Z")
+    editMenu.addItem(withTitle: "Undo", action: NSSelectorFromString("undo:"), keyEquivalent: "z")
+    editMenu.addItem(withTitle: "Redo", action: NSSelectorFromString("redo:"), keyEquivalent: "Z")
     editMenu.addItem(NSMenuItem.separator())
-    editMenu.addItem(withTitle: "Cut", action: #selector(NSResponder.cut(_:)), keyEquivalent: "x")
-    editMenu.addItem(withTitle: "Copy", action: #selector(NSResponder.copy(_:)), keyEquivalent: "c")
-    editMenu.addItem(withTitle: "Paste", action: #selector(NSResponder.paste(_:)), keyEquivalent: "v")
-    editMenu.addItem(withTitle: "Select All", action: #selector(NSResponder.selectAll(_:)), keyEquivalent: "a")
+    editMenu.addItem(withTitle: "Cut", action: NSSelectorFromString("cut:"), keyEquivalent: "x")
+    editMenu.addItem(withTitle: "Copy", action: NSSelectorFromString("copy:"), keyEquivalent: "c")
+    let pasteItem = NSMenuItem(title: "Paste", action: #selector(AppDelegate.paste(_:)), keyEquivalent: "v")
+    pasteItem.target = retainedDelegate
+    editMenu.addItem(pasteItem)
+    editMenu.addItem(withTitle: "Select All", action: NSSelectorFromString("selectAll:"), keyEquivalent: "a")
     editItem.submenu = editMenu
 
     NSApp.mainMenu = mainMenu
