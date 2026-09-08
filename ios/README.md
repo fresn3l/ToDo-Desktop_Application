@@ -6,7 +6,7 @@ The Mac writes a JSON pack (`work.json`, `workouts.json`, `journal.json`, `calen
 
 Ask Cluny stays on the Mac. If the laptop is asleep, Cluny is off on the phone on purpose. To-dos, journal, and workouts still save.
 
-Home Screen widgets are **not** in this sprint. Sync the folder first; a stale widget is worse than none.
+Today shows a **read-only timeline** of today’s lectures and packed blocks (plus unplaced under that). It does not move clock times. Home Screen widgets are the next sprint.
 
 ## What you need
 
@@ -34,7 +34,7 @@ Until you pick the folder, the app says **On this iPhone only**.
 
 | Tab | What it is |
 | --- | --- |
-| Today | Dated to-dos, today’s clock, expected workout chips, journal teaser |
+| Today | Read-only day timeline, dated to-dos, expected workout chips, journal teaser |
 | Week | This week’s lectures and blocks (read-only) |
 | Journal | Full-screen editor; edits today’s entry instead of minting a second one |
 | Inbox | Park a thought in All Work + goals from the pack |

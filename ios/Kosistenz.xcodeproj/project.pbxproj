@@ -17,6 +17,7 @@
 		A10000000000000000000008 /* WeekScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* WeekScreen.swift */; };
 		A10000000000000000000009 /* InboxScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* InboxScreen.swift */; };
 		A1000000000000000000000A /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* SettingsScreen.swift */; };
+		A1000000000000000000000B /* DayTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* DayTimeline.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		A20000000000000000000009 /* InboxScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxScreen.swift; sourceTree = "<group>"; };
 		A2000000000000000000000A /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A2000000000000000000000C /* DayTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTimeline.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* Kosistenz.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kosistenz.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -58,6 +60,7 @@
 			children = (
 				A20000000000000000000005 /* KosistenzApp.swift */,
 				A20000000000000000000006 /* TodayScreen.swift */,
+				A2000000000000000000000C /* DayTimeline.swift */,
 				A20000000000000000000008 /* WeekScreen.swift */,
 				A20000000000000000000007 /* JournalScreen.swift */,
 				A20000000000000000000009 /* InboxScreen.swift */,
@@ -153,6 +156,7 @@
 				A10000000000000000000004 /* SyncPack.swift in Sources */,
 				A10000000000000000000005 /* KosistenzApp.swift in Sources */,
 				A10000000000000000000006 /* TodayScreen.swift in Sources */,
+				A1000000000000000000000B /* DayTimeline.swift in Sources */,
 				A10000000000000000000007 /* JournalScreen.swift in Sources */,
 				A10000000000000000000008 /* WeekScreen.swift in Sources */,
 				A10000000000000000000009 /* InboxScreen.swift in Sources */,
