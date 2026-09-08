@@ -285,7 +285,10 @@ extension AppDelegate {
     func isTrustedScriptOrigin(_ origin: WKSecurityOrigin) -> Bool {
         let host = origin.host.lowercased()
         guard host == "127.0.0.1" || host == "localhost" else { return false }
-        return origin.port == Int(uiPort)
+        if origin.port == Int(uiPort) { return true }
+        // WKWebView sometimes reports port 0 for http://127.0.0.1:uiPort.
+        let proto = origin.protocol.lowercased()
+        return origin.port == 0 && (proto == "http" || proto == "https")
     }
 
     func applyNativeAppearance(dark: Bool) {

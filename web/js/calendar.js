@@ -189,12 +189,19 @@ function toLocalInput(value) {
     const d = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(d.getTime())) return '';
     const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
 function fromLocalInput(value) {
-    if (!value) return '';
-    return `${value}:00`;
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const match = raw.match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{1,2}):?(\d{2}))?/);
+    if (!match) {
+        return raw.length === 16 && raw.includes('T') ? `${raw}:00` : raw;
+    }
+    const hour = String(match[2] || '00').padStart(2, '0');
+    const minute = match[3] || '00';
+    return `${match[1]}T${hour}:${minute}:00`;
 }
 
 function minutesFromClock(iso, startMin) {

@@ -86,7 +86,7 @@ extension AppDelegate {
         let payload = (try? JSONSerialization.data(withJSONObject: body, options: [])) ?? Data()
         for port in apiPort...UInt16(min(Int(apiPort) + 9, 18750)) {
             guard let url = URL(string: "http://127.0.0.1:\(port)/api/calendar/ingest") else { continue }
-            var request = URLRequest(url: url, timeoutInterval: 12)
+            var request = URLRequest(url: url, timeoutInterval: 120)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = payload
@@ -108,7 +108,7 @@ extension AppDelegate {
             }
             sem.signal()
         }.resume()
-        _ = sem.wait(timeout: .now() + 15)
+        _ = sem.wait(timeout: .now() + 120)
         return result
     }
 

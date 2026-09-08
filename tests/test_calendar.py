@@ -85,6 +85,23 @@ END:VCALENDAR
         self.assertIsNone(by_title["Essay 2 due"]["scheduled_date"])
         self.assertEqual(by_title["Essay 2 due"]["source_uid"], "essay-2")
 
+    def test_ics_import_writes_widget_snapshot_once(self) -> None:
+        events = [
+            {
+                "title": f"HW {i}",
+                "uid": f"uid-{i}",
+                "start_at": datetime(2026, 9, 10, 23, 59),
+                "all_day": False,
+            }
+            for i in range(80)
+        ]
+        with mock.patch.object(work, "_write_widget_snapshot", wraps=work._write_widget_snapshot) as snap:
+            counts = calclock.ingest_events(events, calendar_id="canvas", role="deadlines")
+        self.assertEqual(counts["created"], 80)
+        self.assertEqual(counts["skipped"], 0)
+        self.assertEqual(snap.call_count, 1)
+        self.assertEqual(len(work.list_all_work_items()), 80)
+
     def test_second_import_does_not_reopen_done(self) -> None:
         ics = """BEGIN:VCALENDAR
 BEGIN:VEVENT

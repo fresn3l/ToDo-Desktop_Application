@@ -1111,6 +1111,7 @@ def upsert_imported_work(
     source_calendar: str,
     estimate_minutes: Optional[int] = 60,
     notes: str = "",
+    write_snapshot: bool = True,
 ) -> Dict[str, Any]:
     """Insert or refresh a deadline-backed to-do. Does not reopen done items."""
     clean = (title or "").strip()
@@ -1168,9 +1169,79 @@ def upsert_imported_work(
                 ),
             )
             row = _fetch(conn, item_id)
-    _write_widget_snapshot()
+    if write_snapshot:
+        _write_widget_snapshot()
     assert row is not None
     return _row_to_dict(row)
+
+
+def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Insert or refresh many deadline to-dos in one SQLite session.
+
+    Calling upsert_imported_work per event used to open SQLite, rewrite the
+    widget snapshot, export iCloud, and refresh Cluny once per Canvas due.
+    """
+    created = 0
+    updated = 0
+    if not rows:
+        return {"created": 0, "updated": 0}
+    now = _now().isoformat()
+    with _connect() as conn:
+        sort_order = _next_sort(conn, None)
+        for raw in rows:
+            clean = str(raw.get("title") or "").strip()
+            uid = str(raw.get("source_uid") or "").strip()
+            calendar_key = str(raw.get("source_calendar") or "").strip()
+            due = _parse_due_at(raw.get("due_at"))
+            if not clean or not uid or not calendar_key or not due:
+                continue
+            notes = str(raw.get("notes") or "")
+            existing = conn.execute(
+                """
+                SELECT * FROM work_items
+                WHERE source_calendar = ? AND source_uid = ?
+                LIMIT 1
+                """,
+                (calendar_key, uid),
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    """
+                    UPDATE work_items
+                    SET title = ?, due_at = ?, notes = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (clean, due, (notes or existing["notes"] or "").strip(), now, existing["id"]),
+                )
+                updated += 1
+            else:
+                item_id = str(uuid.uuid4())
+                conn.execute(
+                    """
+                    INSERT INTO work_items (
+                        id, title, notes, scheduled_date, status,
+                        active_started_at, finished_at, duration_seconds, sort_order,
+                        created_at, updated_at, source, series_id, occurrence_date,
+                        due_at, estimate_minutes, source_uid, source_calendar
+                    ) VALUES (?, ?, ?, NULL, 'open', NULL, NULL, 0, ?, ?, ?, 'calendar', NULL, NULL, ?, ?, ?, ?)
+                    """,
+                    (
+                        item_id,
+                        clean,
+                        notes.strip(),
+                        sort_order,
+                        now,
+                        now,
+                        due,
+                        _parse_estimate(raw.get("estimate_minutes")),
+                        uid,
+                        calendar_key,
+                    ),
+                )
+                sort_order += 1
+                created += 1
+    _write_widget_snapshot()
+    return {"created": created, "updated": updated}
 
 
 @eel.expose

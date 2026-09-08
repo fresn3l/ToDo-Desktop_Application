@@ -354,6 +354,7 @@ def ingest_events(
     created = 0
     updated = 0
     skipped = 0
+    rows: List[Dict[str, Any]] = []
     for raw in events:
         title = str(raw.get("title") or raw.get("summary") or "").strip()
         uid = str(raw.get("uid") or "").strip()
@@ -376,25 +377,19 @@ def ingest_events(
             skipped += 1
             continue
         due = due_at_for_imported(all_day=all_day, start_at=start, end_at=end)
-        before = None
-        with work._connect() as conn:
-            before = conn.execute(
-                "SELECT id FROM work_items WHERE source_calendar = ? AND source_uid = ?",
-                (calendar_id, uid),
-            ).fetchone()
-        item = work.upsert_imported_work(
-            title=title,
-            due_at=due,
-            source_uid=uid,
-            source_calendar=calendar_id,
-            estimate_minutes=estimate,
-            notes=str(raw.get("location") or ""),
+        rows.append(
+            {
+                "title": title,
+                "due_at": due,
+                "source_uid": uid,
+                "source_calendar": calendar_id,
+                "estimate_minutes": estimate,
+                "notes": str(raw.get("location") or ""),
+            }
         )
-        if before:
-            updated += 1
-        else:
-            created += 1
-        _ = item
+    counts = work.ingest_imported_work_batch(rows)
+    created = int(counts.get("created") or 0)
+    updated = int(counts.get("updated") or 0)
     return {"created": created, "updated": updated, "skipped": skipped, "total": len(events)}
 
 

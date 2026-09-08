@@ -7,32 +7,29 @@ import WidgetKit
 #endif
 
 /// WKWebView treats a copied http(s)/webcal link as “go to this URL”.
-/// Kosistenz blocks off-app navigation, so Cmd+V of a calendar ICS link
-/// used to do nothing. Insert the link as text instead.
+/// The focused HTML field’s first responder is WebKit’s private
+/// WKContentView, not this subclass, so paste:/Cmd+V never reached us
+/// and the URL vanished. The window intercepts Cmd+V and we insert.
 final class KosistenzWebView: WKWebView {
+    override var acceptsFirstResponder: Bool { true }
+
     override func paste(_ sender: Any?) {
-        if Self.pasteboardIcsText() != nil || Self.pasteboardURLText() != nil {
-            pasteCalendarPayload()
-            return
-        }
-        super.paste(sender)
+        pasteFromClipboard()
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.type == .keyDown,
-           event.modifierFlags.contains(.command),
-           !event.modifierFlags.contains(.shift),
-           !event.modifierFlags.contains(.option),
-           event.charactersIgnoringModifiers == "v",
-           Self.pasteboardIcsText() != nil || Self.pasteboardURLText() != nil {
-            pasteCalendarPayload()
+        if KosistenzMainWindow.isPlainCommand(event, letter: "v") {
+            pasteFromClipboard()
             return true
         }
         return super.performKeyEquivalent(with: event)
     }
 
     static func pasteboardURLText() -> String? {
-        let pb = NSPasteboard.general
+        extractURL(fromPasteboard: NSPasteboard.general)
+    }
+
+    static func extractURL(fromPasteboard pb: NSPasteboard) -> String? {
         if let urls = pb.readObjects(forClasses: [NSURL.self], options: nil) as? [URL],
            let url = urls.first {
             let scheme = url.scheme?.lowercased() ?? ""
@@ -40,19 +37,61 @@ final class KosistenzWebView: WKWebView {
                 return url.absoluteString
             }
         }
-        guard let raw = pb.string(forType: .string) else { return nil }
+        if let urlString = pb.string(forType: .URL), let url = extractURL(from: urlString) {
+            return url
+        }
+        if let html = htmlString(from: pb), let url = extractURL(from: html) {
+            return url
+        }
+        let stringTypes: [NSPasteboard.PasteboardType] = [
+            .string,
+            NSPasteboard.PasteboardType("public.utf8-plain-text"),
+            NSPasteboard.PasteboardType("public.utf16-plain-text"),
+        ]
+        for type in stringTypes {
+            if let raw = pb.string(forType: type), let url = extractURL(from: raw) {
+                return url
+            }
+        }
+        return nil
+    }
+
+    static func htmlString(from pb: NSPasteboard) -> String? {
+        let htmlTypes: [NSPasteboard.PasteboardType] = [
+            .html,
+            NSPasteboard.PasteboardType("public.html"),
+        ]
+        for htmlType in htmlTypes {
+            if let html = pb.string(forType: htmlType), !html.isEmpty {
+                return html
+            }
+            if let data = pb.data(forType: htmlType) {
+                if let html = String(data: data, encoding: .utf8), !html.isEmpty {
+                    return html
+                }
+                if let html = String(data: data, encoding: .utf16), !html.isEmpty {
+                    return html
+                }
+            }
+        }
+        return nil
+    }
+
+    static func extractURL(from raw: String) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count <= 8000 else { return nil }
+        guard !trimmed.isEmpty, trimmed.count <= 8000 else { return nil }
         let first = trimmed.split(whereSeparator: \.isNewline)
             .map { String($0).trimmingCharacters(in: .whitespaces) }
             .first(where: { !$0.isEmpty && !$0.hasPrefix("#") }) ?? trimmed
         let cleaned = first.trimmingCharacters(in: CharacterSet(charactersIn: "<>\"' "))
-        let lower = cleaned.lowercased()
-        if lower.contains("http://") || lower.contains("https://") || lower.contains("webcal://") {
-            if let match = cleaned.range(of: #"(?:https?|webcal)://[^\s<>"']+"#, options: .regularExpression) {
-                return String(cleaned[match])
+        if let match = cleaned.range(of: #"(?:https?|webcal)://[^\s<>"']+"#, options: .regularExpression) {
+            return String(cleaned[match])
+        }
+        if let match = raw.range(of: #"href=["']((?:https?|webcal)://[^"']+)"#, options: [.regularExpression, .caseInsensitive]) {
+            let href = String(raw[match])
+            if let inner = href.range(of: #"(?:https?|webcal)://[^"']+"#, options: .regularExpression) {
+                return String(href[inner])
             }
-            return cleaned
         }
         return nil
     }
@@ -66,31 +105,109 @@ final class KosistenzWebView: WKWebView {
         return trimmed
     }
 
+    static func pasteboardPlainText() -> String? {
+        let pb = NSPasteboard.general
+        guard let raw = pb.string(forType: .string) else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     func insertIcsIntoPage(_ text: String) {
         let payload = jsStringLiteral(text)
         let js = "window.kosistenzImportIcsText && window.kosistenzImportIcsText(\(payload))"
-        evaluateJavaScript(js, completionHandler: nil)
+        evaluateJavaScript(js) { _, error in
+            if let error {
+                log("ICS JS insert failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func pasteFromClipboard() {
+        pasteCalendarPayload()
     }
 
     func pasteCalendarPayload() {
+        let types = NSPasteboard.general.types?.map(\.rawValue).joined(separator: ", ") ?? "none"
+        log("Pasteboard types: \(types)")
         if let ics = Self.pasteboardIcsText() {
+            log("Paste ICS blob (\(ics.utf8.count) bytes)")
             insertIcsIntoPage(ics)
             return
         }
         if let text = Self.pasteboardURLText() {
+            log("Paste URL instead of navigating: \(text)")
             insertTextIntoPage(text)
             return
         }
-        if let raw = NSPasteboard.general.string(forType: .string),
-           !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if let raw = Self.pasteboardPlainText() {
+            log("Paste plain text (\(raw.count) chars)")
             insertTextIntoPage(raw)
+            return
         }
+        pastePlainStringThroughWebKit(nil)
     }
 
     func insertTextIntoPage(_ text: String) {
         let payload = jsStringLiteral(text)
-        let js = "window.kosistenzInsertText && window.kosistenzInsertText(\(payload))"
-        evaluateJavaScript(js, completionHandler: nil)
+        let js = "(function(){try{return !!(window.kosistenzInsertText && window.kosistenzInsertText(\(payload)));}catch(e){return false;}})()"
+        evaluateJavaScript(js) { result, error in
+            if let error {
+                log("Paste JS insert failed: \(error.localizedDescription)")
+            }
+            let ok = (result as? Bool) ?? false
+            if !ok {
+                DispatchQueue.main.async {
+                    log("Paste JS insert missed; falling back to plain-text paste")
+                    self.pastePlainStringThroughWebKit(text)
+                }
+            }
+        }
+    }
+
+    /// Strip public.url so WebKit inserts characters instead of navigating.
+    func pastePlainStringThroughWebKit(_ text: String?) {
+        if let text {
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.setString(text, forType: .string)
+        }
+        super.paste(nil)
+    }
+}
+
+/// Cmd+V must be taken here. WKContentView implements paste: and never
+/// calls super, so a WKWebView subclass never sees the menu key equivalent.
+final class KosistenzMainWindow: NSWindow {
+    weak var hostWebView: KosistenzWebView?
+
+    override func sendEvent(_ event: NSEvent) {
+        if Self.isPlainCommand(event, letter: "v") {
+            hostWebView?.pasteFromClipboard()
+            return
+        }
+        if Self.isPlainCommand(event, letter: "c") {
+            hostWebView?.copy(nil)
+            return
+        }
+        if Self.isPlainCommand(event, letter: "x") {
+            hostWebView?.cut(nil)
+            return
+        }
+        if Self.isPlainCommand(event, letter: "a") {
+            hostWebView?.selectAll(nil)
+            return
+        }
+        super.sendEvent(event)
+    }
+
+    static func isPlainCommand(_ event: NSEvent, letter: String) -> Bool {
+        guard event.type == .keyDown else { return false }
+        guard event.modifierFlags.contains(.command) else { return false }
+        if event.modifierFlags.contains(.option) || event.modifierFlags.contains(.shift) {
+            return false
+        }
+        let chars = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        return chars == letter.lowercased()
     }
 }
 
@@ -162,7 +279,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     func applicationDidBecomeActive(_ notification: Notification) {
         refreshToolbarStatus()
+        window?.makeFirstResponder(webView)
         webView?.evaluateJavaScript("window.kosistenzPullPhone && window.kosistenzPullPhone()")
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        window?.makeFirstResponder(webView)
+    }
+
+    @objc func copy(_ sender: Any?) {
+        webView?.copy(sender)
+    }
+
+    @objc func cut(_ sender: Any?) {
+        webView?.cut(sender)
+    }
+
+    @objc func paste(_ sender: Any?) {
+        if let host = webView as? KosistenzWebView {
+            host.pasteFromClipboard()
+            return
+        }
+        webView?.paste(sender)
+    }
+
+    @objc func selectAll(_ sender: Any?) {
+        webView?.selectAll(sender)
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -205,10 +347,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             decisionHandler(.allow)
             return
         }
-        // Paste/drop of a calendar link is navigationType .other. Do not
-        // navigate; put the URL in the focused field (ICS box on Calendar).
-        if navigationAction.navigationType == .other,
-           ["http", "https", "webcal"].contains(scheme) {
+        // Paste, drop, or Cmd+click of a calendar link must never navigate
+        // away. Put the URL in the page (ICS box when Calendar is open).
+        if ["http", "https", "webcal"].contains(scheme) {
             let pasted = url.absoluteString
             if let host = webView as? KosistenzWebView {
                 host.insertTextIntoPage(pasted)
@@ -219,6 +360,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         log("Blocked navigation to \(url.absoluteString)")
         decisionHandler(.cancel)
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        window?.makeFirstResponder(webView)
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -291,7 +436,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             height: height
         )
         let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
-        let window = NSWindow(
+        let window = KosistenzMainWindow(
             contentRect: rect,
             styleMask: style,
             backing: .buffered,
@@ -349,8 +494,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         window.contentView = effect
         setupToolbar(on: window)
         window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(webView)
         NSApp.activate(ignoringOtherApps: true)
 
+        window.hostWebView = webView
         self.effectView = effect
         self.window = window
         self.webView = webView
@@ -371,6 +518,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
                     log("UI server ready on \(port)")
                     self.webView?.load(URLRequest(url: url))
                     log("Loading \(url.absoluteString)")
+                    self.window?.makeFirstResponder(self.webView)
                     self.reloadWidgets()
                 } else {
                     self.fail("The UI server did not start on port \(port). See ~/Library/Logs/Kosistenz.log")
@@ -542,10 +690,10 @@ private func buildMenu() {
     editMenu.addItem(withTitle: "Undo", action: Selector("undo:"), keyEquivalent: "z")
     editMenu.addItem(withTitle: "Redo", action: Selector("redo:"), keyEquivalent: "Z")
     editMenu.addItem(NSMenuItem.separator())
-    editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-    editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+    editMenu.addItem(withTitle: "Cut", action: #selector(NSResponder.cut(_:)), keyEquivalent: "x")
+    editMenu.addItem(withTitle: "Copy", action: #selector(NSResponder.copy(_:)), keyEquivalent: "c")
     editMenu.addItem(withTitle: "Paste", action: #selector(NSResponder.paste(_:)), keyEquivalent: "v")
-    editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+    editMenu.addItem(withTitle: "Select All", action: #selector(NSResponder.selectAll(_:)), keyEquivalent: "a")
     editItem.submenu = editMenu
 
     NSApp.mainMenu = mainMenu
