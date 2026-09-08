@@ -85,6 +85,23 @@ END:VCALENDAR
         self.assertIsNone(by_title["Essay 2 due"]["scheduled_date"])
         self.assertEqual(by_title["Essay 2 due"]["source_uid"], "essay-2")
 
+    def test_ics_import_writes_widget_snapshot_once(self) -> None:
+        events = [
+            {
+                "title": f"HW {i}",
+                "uid": f"uid-{i}",
+                "start_at": datetime(2026, 9, 10, 23, 59),
+                "all_day": False,
+            }
+            for i in range(80)
+        ]
+        with mock.patch.object(work, "_write_widget_snapshot", wraps=work._write_widget_snapshot) as snap:
+            counts = calclock.ingest_events(events, calendar_id="canvas", role="deadlines")
+        self.assertEqual(counts["created"], 80)
+        self.assertEqual(counts["skipped"], 0)
+        self.assertEqual(snap.call_count, 1)
+        self.assertEqual(len(work.list_all_work_items()), 80)
+
     def test_second_import_does_not_reopen_done(self) -> None:
         ics = """BEGIN:VCALENDAR
 BEGIN:VEVENT
@@ -488,6 +505,47 @@ END:VCALENDAR
             end = calclock.parse_datetime(block["end_at"])
             self.assertGreaterEqual(start.hour * 60 + start.minute, 5 * 60 + 30)
             self.assertLessEqual(end.hour * 60 + end.minute, 21 * 60 + 30)
+
+    def test_unplaced_subtracts_placed_minutes_without_per_item_queries(self) -> None:
+        item = work.create_work_item(
+            "Study",
+            due_at="2026-09-11T23:59:00",
+            estimate_minutes=90,
+        )
+        calclock.add_block(
+            title="Study",
+            start=datetime(2026, 9, 8, 9, 0, 0),
+            end=datetime(2026, 9, 8, 9, 50, 0),
+            work_item_id=item["id"],
+            kind="work",
+        )
+        with mock.patch.object(calclock, "blocks_for_item", side_effect=AssertionError("per-item query")):
+            rows = calclock.unplaced_work()
+        match = next(row for row in rows if row["id"] == item["id"])
+        self.assertEqual(match["remaining_minutes"], 40)
+
+    def test_calendar_payload_caps_unplaced_and_skips_per_todo_block_queries(self) -> None:
+        extra = 25
+        count = calclock.UNPLACED_UI_LIMIT + extra
+        for i in range(count):
+            work.create_work_item(
+                f"Quiz {i}",
+                due_at="2026-12-01T23:59:00",
+                estimate_minutes=60,
+            )
+        with mock.patch.object(calclock, "blocks_for_item", side_effect=AssertionError("per-item query")):
+            month = calclock.get_month(2026, 9)
+            week = calclock.get_week("2026-09-07")
+        self.assertEqual(month["unplaced_total"], count)
+        self.assertEqual(len(month["unplaced"]), calclock.UNPLACED_UI_LIMIT)
+        self.assertEqual(week["unplaced_total"], count)
+        self.assertEqual(len(week["unplaced"]), calclock.UNPLACED_UI_LIMIT)
+
+    def test_day_agenda_does_not_scan_unplaced_work(self) -> None:
+        with mock.patch.object(calclock, "unplaced_work", side_effect=AssertionError("unplaced on agenda")):
+            agenda = calclock.get_day_agenda("2026-09-08")
+        self.assertEqual(agenda["local_date"], "2026-09-08")
+        self.assertEqual(agenda["unplaced"], [])
 
 
 if __name__ == "__main__":
