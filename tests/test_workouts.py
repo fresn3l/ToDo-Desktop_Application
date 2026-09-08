@@ -34,9 +34,10 @@ class WorkoutStoreTests(unittest.TestCase):
         self.assertEqual(day["sessions"][0]["label"], "Pickleball")
 
     def test_weight_and_multiple_sessions(self) -> None:
-        workouts.save_body_weight("2026-08-28", 182.4)
-        workouts.add_workout_session("2026-08-28", "push")
-        day = workouts.add_workout_session("2026-08-28", "running", miles=1)
+        today = date.today().isoformat()
+        workouts.save_body_weight(today, 182.4)
+        workouts.add_workout_session(today, "push")
+        day = workouts.add_workout_session(today, "running", miles=1)
         self.assertEqual(day["body_weight"], 182.4)
         self.assertEqual(day["session_count"], 2)
         metrics = workouts.workout_metrics(7)
