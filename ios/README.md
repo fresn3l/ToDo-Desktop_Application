@@ -6,7 +6,13 @@ The Mac writes a JSON pack (`work.json`, `workouts.json`, `journal.json`, `calen
 
 Ask Cluny stays on the Mac. If the laptop is asleep, Cluny is off on the phone on purpose. To-dos, journal, and workouts still save.
 
-Today shows a **read-only timeline** of today’s lectures and packed blocks (plus unplaced under that). It does not move clock times. Home Screen widgets are the next sprint.
+Today shows a **read-only timeline** of today’s lectures and packed blocks (plus unplaced under that). It does not move clock times.
+
+**Shortcuts / Siri / Action Button:** Park in All Work, check off today’s first to-do, log the expected workout. **Home Screen widget:** today’s to-dos; tap the circle to toggle. The widget reads a snapshot in the App Group; open the app once after installing so it fills.
+
+## Signing extra for this sprint
+
+Both the app and **KosistenzWidget** need the same Team. Add **App Groups** → `group.com.kosistenz.app` on both targets if Xcode complains. Widget bundle id is `com.kosistenz.app.widget` (or `your.id.widget` if you changed the app id).
 
 ## What you need
 
@@ -44,4 +50,4 @@ The compact layout is for iPhone. On iPad (and Catalyst) a sidebar lists the sam
 
 ## Out of scope here
 
-Analytics, Timeline, Brain/Library, Ask Cluny over the internet, CloudKit, App Store / TestFlight, editing repeating series or the week workout template from the phone.
+Analytics, Timeline tab, Brain/Library, Ask Cluny over the internet, CloudKit, App Store / TestFlight, editing repeating series or the week workout template from the phone.

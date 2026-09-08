@@ -5,9 +5,15 @@ import UniformTypeIdentifiers
 enum FolderBookmark {
     static let defaultsKey = "kosistenz.icloud.folder.bookmark"
     static let folderName = "Kosistenz"
+    static let groupId = WidgetBridge.groupId
+
+    static var store: UserDefaults {
+        UserDefaults(suiteName: groupId) ?? .standard
+    }
 
     static func savedURL() -> URL? {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey) else { return nil }
+        let data = store.data(forKey: defaultsKey) ?? UserDefaults.standard.data(forKey: defaultsKey)
+        guard let data else { return nil }
         var stale = false
         guard let url = try? URL(
             resolvingBookmarkData: data,
@@ -17,16 +23,20 @@ enum FolderBookmark {
         ) else { return nil }
         if stale {
             try? save(url)
+        } else if store.data(forKey: defaultsKey) == nil {
+            store.set(data, forKey: defaultsKey)
         }
         return url
     }
 
     static func save(_ url: URL) throws {
         let data = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+        store.set(data, forKey: defaultsKey)
         UserDefaults.standard.set(data, forKey: defaultsKey)
     }
 
     static func clear() {
+        store.removeObject(forKey: defaultsKey)
         UserDefaults.standard.removeObject(forKey: defaultsKey)
     }
 

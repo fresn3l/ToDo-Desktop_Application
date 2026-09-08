@@ -59,36 +59,10 @@ struct InboxScreen: View {
     }
 
     private func park() {
-        guard var pack = store.pack else { return }
-        let title = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        let now = DayStamp.isoNow()
-        pack.work.items.insert(
-            WorkItem(
-                id: UUID().uuidString,
-                title: title,
-                notes: "",
-                scheduled_date: nil,
-                status: "open",
-                active_started_at: nil,
-                finished_at: nil,
-                duration_seconds: 0,
-                sort_order: 0,
-                created_at: now,
-                updated_at: now,
-                source: "iphone",
-                series_id: nil,
-                occurrence_date: nil,
-                due_at: nil,
-                estimate_minutes: nil,
-                goal_id: nil
-            ),
-            at: 0
-        )
+        let title = draft
         draft = ""
         do {
-            try SyncPack.saveWork(pack.work)
-            store.pack = pack
+            store.pack = try PackActions.park(title)
             store.error = nil
         } catch {
             store.error = error.localizedDescription
