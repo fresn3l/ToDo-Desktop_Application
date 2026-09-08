@@ -23,8 +23,11 @@ class CalendarStoreTests(unittest.TestCase):
         self.kinds.start()
         self.today = mock.patch.object(work, "_today", return_value=date(2026, 9, 1))
         self.today.start()
+        calclock.reset_purge_cache()
+        work.invalidate_work_board_cache()
 
     def tearDown(self) -> None:
+        work.cancel_heavy_snapshot_side_effects()
         self.kinds.stop()
         self.patcher.stop()
         self.today.stop()

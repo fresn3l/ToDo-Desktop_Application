@@ -454,9 +454,21 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("getElementById('todayCalendarSource')", TODAY_JS)
         self.assertNotIn("getElementById('todayHome')", TODAY_JS)
         self.assertNotIn("paintCustomize()", TODAY_JS)
-        self.assertIn("loadLayout().then(() => renderHome())", HOME_RUNTIME)
+        self.assertIn("void loadLayout()", HOME_RUNTIME)
+        self.assertNotIn("loadLayout().then(() => renderHome())", HOME_RUNTIME)
         self.assertIn("weather-place-form.is-collapsed", STYLE)
         self.assertIn("pointer-events: none", STYLE)
+
+    def test_app_opens_home_without_startup_delays(self) -> None:
+        app = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+        bridge = (ROOT / "bridge.py").read_text(encoding="utf-8")
+        self.assertNotIn("setTimeout(resolve, 100)", app)
+        self.assertNotIn("setTimeout(() => init().catch(handleInitError), 50)", app)
+        self.assertIn("void setupDailyChecklist()", app)
+        self.assertIn("void pullPhoneOnOpen()", app)
+        self.assertNotIn("await pullPhoneOnOpen()", app)
+        self.assertNotIn("maybe_pull_icloud_on_open()", bridge)
+        self.assertIn("cluny_brain.start_supervisor()", bridge)
 
     def test_journal_tab_and_first_page_checkin_band(self) -> None:
         app = (ROOT / "web" / "app.js").read_text(encoding="utf-8")

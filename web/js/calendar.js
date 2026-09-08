@@ -116,7 +116,7 @@ async function loadMonth() {
         renderMonthGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
-        await refreshFeedToggles();
+        paintFeedToggles(payload.feeds || []);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calMonthGrid');
@@ -132,7 +132,7 @@ async function loadYear() {
         renderYearGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
-        await refreshFeedToggles();
+        paintFeedToggles(payload.feeds || []);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calYearGrid');

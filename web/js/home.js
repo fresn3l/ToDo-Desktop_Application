@@ -863,7 +863,7 @@ export function setupHome() {
             syncPageColors();
         }
     });
-    void loadLayout().then(() => renderHome());
+    void loadLayout();
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
             const page = activePage();

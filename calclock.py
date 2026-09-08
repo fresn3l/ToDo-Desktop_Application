@@ -36,6 +36,7 @@ DAY_START = "05:30"
 DAY_END = "21:30"
 UNPLACED_UI_LIMIT = 80
 BLOCK_STATUSES = ("proposed", "locked", "done", "skipped")
+_last_purge_day: Optional[str] = None
 _ICS_URL_RE = re.compile(r"(?:https?|webcal)://[^\s<>\"']+", re.I)
 _ICS_FETCH_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Kosistenz/1.0",
@@ -164,6 +165,12 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE calendar_events ADD COLUMN source_calendar TEXT")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_cal_events_source ON calendar_events(source_calendar)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cal_events_start ON calendar_events(start_at)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cal_events_end ON calendar_events(end_at)"
     )
 
 
@@ -919,16 +926,31 @@ def delete_past_imported_one_shots() -> int:
         return int(cur.rowcount or 0)
 
 
+def reset_purge_cache() -> None:
+    global _last_purge_day
+    _last_purge_day = None
+
+
 def purge_stale_imports() -> Dict[str, Any]:
+    global _last_purge_day
     result = work.delete_stale_imported_work()
     delete_blocks_for_work_items(result.get("ids") or [])
     events_deleted = delete_past_imported_one_shots()
+    _last_purge_day = work._today().isoformat()
     return {
         "ok": True,
         "deleted": int(result.get("deleted") or 0),
         "ids": result.get("ids") or [],
         "events_deleted": events_deleted,
     }
+
+
+def maybe_purge_stale_imports() -> Dict[str, Any]:
+    """Drop past imports at most once per local day on read paths."""
+    today = work._today().isoformat()
+    if _last_purge_day == today:
+        return {"ok": True, "deleted": 0, "ids": [], "events_deleted": 0, "skipped": True}
+    return purge_stale_imports()
 
 
 def delete_imported_hard_events(calendar_id: str) -> int:
@@ -1058,12 +1080,13 @@ def delete_blocks_for_work_items(item_ids: List[str]) -> int:
     ids = [str(item) for item in item_ids if str(item or "").strip()]
     if not ids:
         return 0
-    removed = 0
+    placeholders = ",".join("?" * len(ids))
     with _connect() as conn:
-        for item_id in ids:
-            cur = conn.execute("DELETE FROM schedule_blocks WHERE work_item_id = ?", (item_id,))
-            removed += int(cur.rowcount or 0)
-    return removed
+        cur = conn.execute(
+            f"DELETE FROM schedule_blocks WHERE work_item_id IN ({placeholders})",
+            ids,
+        )
+        return int(cur.rowcount or 0)
 
 
 @eel.expose
@@ -1368,7 +1391,20 @@ def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
     """Timed busy occurrences in [start, end] inclusive."""
     out: List[Dict[str, Any]] = []
     with _connect() as conn:
-        rows = conn.execute("SELECT * FROM calendar_events").fetchall()
+        rows = conn.execute(
+            """
+            SELECT * FROM calendar_events
+            WHERE (
+                recurrence_json IS NOT NULL
+                AND TRIM(recurrence_json) NOT IN ('', '{}', 'null')
+            )
+            OR (
+                substr(COALESCE(NULLIF(TRIM(end_at), ''), start_at), 1, 10) >= ?
+                AND substr(start_at, 1, 10) <= ?
+            )
+            """,
+            (start.isoformat(), end.isoformat()),
+        ).fetchall()
     for row in rows:
         event = _row_event(row)
         if _is_hidden_source(event.get("source_calendar")):
@@ -1556,7 +1592,7 @@ def _unplaced_ui(rows: Optional[List[Dict[str, Any]]] = None) -> Tuple[List[Dict
 
 @eel.expose
 def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, Any]:
-    purge_stale_imports()
+    maybe_purge_stale_imports()
     settings = load_settings()
     start = date.fromisoformat(week_start) if week_start else monday_of(_cal_today())
     start = monday_of(start)
@@ -1586,7 +1622,7 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
         "week_end": end.isoformat(),
         "settings": settings,
         "days": days,
-        "today": _today_column(),
+        "today": _today_from_days(days, settings),
         "feeds": list_calendar_feeds().get("feeds") or [],
         "unplaced": shown,
         "unplaced_total": total,
@@ -1595,6 +1631,31 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
             for item in rows
             if item.get("due_at") and item["due_at"][:10] <= end.isoformat()
         ],
+    }
+
+
+def _today_from_days(days: List[Dict[str, Any]], settings: Dict[str, Any]) -> Dict[str, Any]:
+    today = _cal_today()
+    iso = today.isoformat()
+    match = next((row for row in days if row.get("date") == iso), None)
+    if match is None:
+        return _today_column()
+    items = list(match.get("events") or []) + list(match.get("blocks") or [])
+    items.sort(key=lambda row: str(row.get("start_at") or ""))
+    overdue = [
+        _slim_due(item, is_overdue=True)
+        for item in work.list_overdue_work()
+        if not _is_hidden_source(item.get("source_calendar"))
+    ]
+    return {
+        "date": iso,
+        "weekday": today.strftime("%a"),
+        "label": f"{today.strftime('%A')}, {today.strftime('%b')} {today.day}",
+        "day_start": settings.get("day_start") or DAY_START,
+        "day_end": settings.get("day_end") or DAY_END,
+        "overdue": overdue,
+        "dues": list(match.get("dues") or []),
+        "items": items,
     }
 
 
@@ -1752,7 +1813,7 @@ def _clamp_year_month(year: Any, month: Any) -> Tuple[int, int]:
 
 @eel.expose
 def get_month(year: int = 0, month: int = 0) -> Dict[str, Any]:
-    purge_stale_imports()
+    maybe_purge_stale_imports()
     y, m = _clamp_year_month(year, month)
     first = date(y, m, 1)
     grid_start = monday_of(first)
@@ -1768,12 +1829,13 @@ def get_month(year: int = 0, month: int = 0) -> Dict[str, Any]:
         "settings": load_settings(),
         "unplaced": shown,
         "unplaced_total": total,
+        "feeds": list_calendar_feeds().get("feeds") or [],
     }
 
 
 @eel.expose
 def get_year(year: int = 0) -> Dict[str, Any]:
-    purge_stale_imports()
+    maybe_purge_stale_imports()
     y, _ = _clamp_year_month(year, 1)
     start = date(y, 1, 1)
     grid_start = monday_of(start)
@@ -1800,22 +1862,18 @@ def get_year(year: int = 0) -> Dict[str, Any]:
         "settings": load_settings(),
         "unplaced": shown,
         "unplaced_total": total,
+        "feeds": list_calendar_feeds().get("feeds") or [],
     }
 
 
 @eel.expose
 def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
+    maybe_purge_stale_imports()
     iso = work._parse_date(local_date) or _cal_today().isoformat()
     day = date.fromisoformat(iso)
-    week = get_week(monday_of(day).isoformat(), include_unplaced=False)
-    match = next((row for row in week["days"] if row["date"] == iso), None)
-    items = []
-    dues: List[Dict[str, Any]] = []
-    if match:
-        items.extend(match["events"])
-        items.extend(match["blocks"])
-        items.sort(key=lambda row: row["start_at"])
-        dues = list(match.get("dues") or [])
+    settings = load_settings()
+    items = list(expand_hard_events(day, day)) + list(list_blocks(day, day))
+    items.sort(key=lambda row: str(row.get("start_at") or ""))
     overdue = []
     if iso == _cal_today().isoformat():
         overdue = [
@@ -1826,10 +1884,10 @@ def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
     return {
         "local_date": iso,
         "items": items,
-        "dues": dues,
+        "dues": _dues_by_day(day, day).get(iso, []),
         "overdue": overdue,
-        "unplaced": week["unplaced"],
-        "settings": week["settings"],
+        "unplaced": [],
+        "settings": settings,
     }
 
 

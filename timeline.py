@@ -212,10 +212,10 @@ def compute_streaks(today: Optional[date] = None) -> Dict[str, int]:
             checkin_dates.add(d)
 
     journal_dates = set()
-    for entry in journal.get_recent_entries(days=400):
-        d = _parse_date(entry.get("date") or entry.get("created_at") or "")
-        if d:
-            journal_dates.add(d)
+    try:
+        journal_dates = set(journal.entry_dates(days=400))
+    except Exception:
+        journal_dates = set()
 
     workout_dates = set()
     for iso in workouts.list_workout_dates():

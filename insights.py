@@ -72,16 +72,10 @@ def save_weekly_pattern_note(note: str) -> None:
 
 
 def _journal_count_for(today: date) -> int:
-    count = 0
-    for entry in journal.get_recent_entries(days=2):
-        raw = entry.get("date") or entry.get("created_at") or ""
-        try:
-            ed = datetime.fromisoformat(raw).date()
-        except (ValueError, TypeError):
-            continue
-        if ed == today:
-            count += 1
-    return count
+    try:
+        return int(journal.count_entries_on(today) or 0)
+    except Exception:
+        return 0
 
 
 def _expected_payload(today: date) -> Dict[str, Any]:
@@ -121,11 +115,11 @@ def _last_workout_session(today_iso: str, today_workout: Dict[str, Any]) -> Opti
 
 
 @eel.expose
-def get_today_status() -> Dict[str, Any]:
+def get_today_status(board: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Workout, to-do, and journal counts for today."""
     today = date.today()
     iso = today.isoformat()
-    work_board = work.get_work_board(iso)
+    work_board = board if isinstance(board, dict) else work.get_work_board(iso)
     work_open = int(work_board.get("counts", {}).get("today_open") or 0)
     work_done = int(work_board.get("counts", {}).get("today_done") or 0)
     work_total = int(work_board.get("counts", {}).get("today_total") or 0)
@@ -165,8 +159,8 @@ def get_today_home() -> Dict[str, Any]:
     """Full Today home payload: to-dos, expected workout, journal count."""
     today = date.today()
     iso = today.isoformat()
-    status = get_today_status()
     board = work.get_work_board(iso)
+    status = get_today_status(board)
     workout = workouts.get_workout_day(iso)
     writing_streak = 0
     try:
