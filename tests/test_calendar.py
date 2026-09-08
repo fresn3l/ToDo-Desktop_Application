@@ -334,6 +334,16 @@ END:VCALENDAR
             "http://cal.example.edu/feed.ics",
         )
         self.assertEqual(calclock.normalize_ics_url("  ", allow_empty=True), "")
+        self.assertEqual(
+            calclock.normalize_ics_url(
+                "webcal://p103-caldav.icloud.com/published/2/FakeTokenNotASecret."
+            ),
+            "https://p103-caldav.icloud.com/published/2/FakeTokenNotASecret",
+        )
+        long_url = "https://p103-caldav.icloud.com/published/2/" + ("A" * 90)
+        feed_id = calclock._feed_id_for_url(long_url)
+        self.assertTrue(feed_id.startswith("ics:p103-caldav.icloud.com:"))
+        self.assertLess(len(feed_id), 80)
         with self.assertRaises(ValueError):
             calclock.normalize_ics_url("javascript:alert(1)")
         with self.assertRaises(ValueError):
@@ -358,7 +368,9 @@ END:VCALENDAR
         self.assertGreaterEqual(result["created"], 1)
         req = opener.call_args[0][0]
         self.assertEqual(req.full_url, "https://cal.example.edu/class.ics")
+        self.assertIn("text/calendar", req.get_header("Accept") or "")
         self.assertEqual(calclock.load_settings()["ics_url"], "https://cal.example.edu/class.ics")
+        self.assertEqual(result["calendar_id"], "ics:cal.example.edu/class.ics")
 
     def test_rename_and_move_lecture(self) -> None:
         event = calclock.create_calendar_event(
@@ -726,6 +738,165 @@ END:VCALENDAR
         week = calclock.get_week("2026-09-07")
         self.assertIn("today", week)
         self.assertTrue(any(feed.get("id") == "class" for feed in week["feeds"]))
+
+    def test_weekly_icloud_lecture_lands_on_the_clock(self) -> None:
+        ics = """BEGIN:VCALENDAR
+X-WR-CALNAME:Classes
+BEGIN:VEVENT
+UID:chem-109
+SUMMARY:CHEM 109
+DTSTART;TZID=America/Chicago:20200114T093000
+DTEND;TZID=America/Chicago:20200114T102000
+RRULE:FREQ=WEEKLY;WKST=SU;BYDAY=TU,TH;UNTIL=20261215T235959Z
+END:VEVENT
+BEGIN:VEVENT
+UID:essay-due
+SUMMARY:Essay 2 due
+DTSTART;VALUE=DATE:20260911
+DTEND;VALUE=DATE:20260912
+END:VEVENT
+END:VCALENDAR
+"""
+        with mock.patch.object(
+            calclock, "_ics_window", return_value=(date(2026, 8, 18), date(2027, 1, 6))
+        ):
+            result = calclock.import_ics_text(ics, calendar_id="icloud-class")
+        self.assertEqual(result["created"], 1)
+        self.assertEqual(result["events_created"], 1)
+        self.assertEqual([row["title"] for row in work.list_all_work_items()], ["Essay 2 due"])
+        week = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
+        thursday = next(day for day in week["days"] if day["date"] == "2026-09-10")
+        self.assertEqual(tuesday["events"][0]["title"], "CHEM 109")
+        self.assertTrue(tuesday["events"][0]["start_at"].startswith("2026-09-08T09:30"))
+        self.assertEqual(thursday["events"][0]["title"], "CHEM 109")
+        friday = next(day for day in week["days"] if day["date"] == "2026-09-11")
+        self.assertEqual(friday["dues"][0]["title"], "Essay 2 due")
+        with mock.patch.object(
+            calclock, "_ics_window", return_value=(date(2026, 8, 18), date(2027, 1, 6))
+        ):
+            calclock.import_ics_text(
+                ics.replace("CHEM 109", "CHEM 109 lecture"), calendar_id="icloud-class"
+            )
+        again = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in again["days"] if day["date"] == "2026-09-08")
+        self.assertEqual(tuesday["events"][0]["title"], "CHEM 109 lecture")
+        self.assertEqual(len(work.list_all_work_items()), 1)
+
+    def test_weekly_until_and_exdate_are_honored(self) -> None:
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:span-110
+SUMMARY:SPAN 110
+DTSTART:20260908T110000
+DTEND:20260908T115000
+RRULE:FREQ=WEEKLY;BYDAY=TU,TH
+EXDATE:20260908T110000
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="icloud-ex",
+        )
+        week = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
+        thursday = next(day for day in week["days"] if day["date"] == "2026-09-10")
+        self.assertEqual(tuesday["events"], [])
+        self.assertEqual(thursday["events"][0]["title"], "SPAN 110")
+        calclock.unsubscribe_calendar_feed("icloud-ex")
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:lab-1
+SUMMARY:Lab
+DTSTART:20260908T130000
+DTEND:20260908T150000
+RRULE:FREQ=WEEKLY;BYDAY=TU,TH;UNTIL=20260908T235959Z
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="icloud-until",
+        )
+        week = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
+        thursday = next(day for day in week["days"] if day["date"] == "2026-09-10")
+        self.assertEqual(tuesday["events"][0]["title"], "Lab")
+        self.assertEqual(thursday["events"], [])
+
+    def test_reimport_moves_timed_event_off_dues(self) -> None:
+        work.upsert_imported_work(
+            title="CHEM 109",
+            due_at="2026-09-08T09:30:00",
+            source_uid="chem-109",
+            source_calendar="icloud-class",
+        )
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:chem-109
+SUMMARY:CHEM 109
+DTSTART:20260908T093000
+DTEND:20260908T102000
+RRULE:FREQ=WEEKLY;BYDAY=TU,TH
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="icloud-class",
+        )
+        self.assertEqual(work.list_all_work_items(), [])
+        week = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
+        self.assertEqual(tuesday["events"][0]["title"], "CHEM 109")
+
+    def test_hidden_ics_feed_hides_imported_lectures(self) -> None:
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:chem-109
+SUMMARY:CHEM 109
+DTSTART:20260908T093000
+DTEND:20260908T102000
+RRULE:FREQ=WEEKLY;BYDAY=TU,TH
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="icloud-class",
+        )
+        calclock.create_calendar_event("Office hours", "2026-09-08T14:00:00", "2026-09-08T15:00:00")
+        calclock.set_calendar_feed_enabled("icloud-class", False)
+        week = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
+        titles = [item["title"] for item in tuesday["events"]]
+        self.assertEqual(titles, ["Office hours"])
+
+    def test_yearly_all_day_still_becomes_a_due(self) -> None:
+        ics = """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:xmas
+SUMMARY:Holiday
+DTSTART;VALUE=DATE:20201225
+RRULE:FREQ=YEARLY
+END:VEVENT
+END:VCALENDAR
+"""
+        with mock.patch.object(
+            calclock, "_ics_window", return_value=(date(2026, 8, 18), date(2027, 1, 6))
+        ):
+            result = calclock.import_ics_text(ics, calendar_id="holidays")
+        self.assertEqual(result["created"], 1)
+        self.assertEqual(result["events_created"], 0)
+        item = work.list_all_work_items()[0]
+        self.assertEqual(item["due_at"][:10], "2026-12-25")
+
+    def test_import_ics_url_rejects_non_calendar_body(self) -> None:
+        resp = mock.MagicMock()
+        resp.read.return_value = b"<html>login</html>"
+        cm = mock.MagicMock()
+        cm.__enter__.return_value = resp
+        cm.__exit__.return_value = False
+        with mock.patch.object(calclock, "urlopen", return_value=cm):
+            with self.assertRaises(ValueError):
+                calclock.import_ics_url("https://cal.example.edu/class.ics")
 
 
 if __name__ == "__main__":

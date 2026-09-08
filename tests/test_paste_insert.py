@@ -20,6 +20,10 @@ class PasteInsertJsTests(unittest.TestCase):
             ["# comment\nhttps://cal.example.edu/x.ics?token=1\n", "https://cal.example.edu/x.ics?token=1"],
             ["Copy this: https://cal.example.edu/feed.ics", "https://cal.example.edu/feed.ics"],
             ["http://cal.example.edu/feed.ics", "http://cal.example.edu/feed.ics"],
+            [
+                "webcal://p103-caldav.icloud.com/published/2/FakeTokenNotASecret.",
+                "https://p103-caldav.icloud.com/published/2/FakeTokenNotASecret",
+            ],
             ["not a link", "not a link"],
             ["", ""],
         ]

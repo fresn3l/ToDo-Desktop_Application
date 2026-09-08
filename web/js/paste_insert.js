@@ -23,6 +23,9 @@
         if (href) s = href[1];
         var match = s.match(/(?:https?|webcal):\/\/[^\s<>"']+/i);
         if (match) s = match[0];
+        while (/[.,;)\]}>"']$/.test(s)) {
+            s = s.slice(0, -1);
+        }
         if (s.toLowerCase().indexOf('webcal://') === 0) {
             s = 'https://' + s.slice('webcal://'.length);
         }
@@ -52,6 +55,8 @@
             || /\.ics(\?|#|$)/.test(u)
             || u.indexOf('/calendar') !== -1
             || u.indexOf('feeds/calendars') !== -1
+            || u.indexOf('caldav.icloud.com') !== -1
+            || u.indexOf('/published/') !== -1
             || u.indexOf('webcal') !== -1;
     }
 

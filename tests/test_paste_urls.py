@@ -30,6 +30,7 @@ def sanitize_pasted_url(raw: str) -> str:
     match = URL_RE.search(s)
     if match:
         s = match.group(0)
+    s = s.rstrip(".,;)]}>\"'")
     if s.lower().startswith("webcal://"):
         s = "https://" + s[len("webcal://") :]
     return s
@@ -44,6 +45,8 @@ def looks_like_calendar_url(text: str) -> bool:
         or bool(re.search(r"\.ics(\?|#|$)", u))
         or "/calendar" in u
         or "feeds/calendars" in u
+        or "caldav.icloud.com" in u
+        or "/published/" in u
         or "webcal" in u
     )
 
@@ -86,6 +89,19 @@ class PasteUrlTests(unittest.TestCase):
             sanitize_pasted_url("<https://school.edu/calendar.ics>"),
             "https://school.edu/calendar.ics",
         )
+
+    def test_icloud_webcal_published_feed(self) -> None:
+        url = "webcal://p103-caldav.icloud.com/published/2/FakeTokenNotASecret."
+        cleaned = sanitize_pasted_url(url)
+        self.assertEqual(
+            cleaned,
+            "https://p103-caldav.icloud.com/published/2/FakeTokenNotASecret",
+        )
+        self.assertTrue(looks_like_calendar_url(url))
+        self.assertTrue(looks_like_calendar_url(cleaned))
+        self.assertIn("caldav.icloud.com", PASTE_JS)
+        self.assertIn("/published/", PASTE_JS)
+        self.assertIn("events_created", CAL_JS)
 
     def test_lecture_times_are_24_hour_not_datetime_local(self) -> None:
         self.assertIn("pad(d.getHours())}${pad(d.getMinutes())}", CAL_JS)

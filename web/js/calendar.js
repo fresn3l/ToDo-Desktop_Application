@@ -1003,7 +1003,7 @@ async function applyPastedCalendar(raw) {
             field.dispatchEvent(new Event('change', { bubbles: true }));
             try { field.focus(); } catch (err) { /* ignore */ }
         }
-        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load dues.');
+        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load lectures and due dates.');
         return true;
     }
     if (isIcs) {
@@ -1018,10 +1018,21 @@ async function importPasted(raw) {
     if (status) status.textContent = 'Importing…';
     try {
         const result = await eel.import_pasted_calendar(raw)();
+        const duesNew = result.created || 0;
+        const duesUp = result.updated || 0;
+        const clock = result.events_created || 0;
         if (status) {
-            status.textContent = `Imported ${result.created || 0} new, updated ${result.updated || 0}. Due dates only — not busy time.`;
+            status.textContent = `Imported ${duesNew} due date${duesNew === 1 ? '' : 's'} (${duesUp} updated), ${clock} on the clock.`;
         }
-        utils.showSuccessFeedback('Due dates are in the unplaced list.');
+        if (clock || duesNew || duesUp) {
+            utils.showSuccessFeedback(
+                clock
+                    ? 'Timed events are on the week clock. Due dates stay as chips.'
+                    : 'Due dates are on that day’s To Do and as chips on the week.'
+            );
+        } else {
+            utils.showSuccessFeedback('Imported the feed. No new events in range.');
+        }
         utils.notifyDataChanged();
         await loadCalendar();
         return true;
