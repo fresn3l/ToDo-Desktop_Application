@@ -616,9 +616,28 @@ function paintCalendarFeeds(payload) {
                 <h4>${title}</h4>
                 <p>${kind} · ${open} open · ${total} total</p>
             </div>
-            <button type="button" class="btn-ghost" data-unsub>Unsubscribe</button>
+            <div class="calendar-feed-actions">
+                <label class="cal-feed-toggle">
+                    <input type="checkbox" data-feed-enabled ${feed.enabled !== false ? 'checked' : ''}>
+                    <span>Show</span>
+                </label>
+                <button type="button" class="btn-ghost" data-unsub>Unsubscribe</button>
+            </div>
         </article>`;
     }).join('');
+    list.querySelectorAll('[data-feed-enabled]').forEach((input) => {
+        input.addEventListener('change', async () => {
+            const row = input.closest('[data-feed-id]');
+            const feedId = row?.getAttribute('data-feed-id') || '';
+            try {
+                const result = await eel.set_calendar_feed_enabled(feedId, input.checked)();
+                utils.notifyDataChanged();
+                paintCalendarFeeds(result);
+            } catch (err) {
+                utils.showErrorFeedback('Could not update that calendar.');
+            }
+        });
+    });
     list.querySelectorAll('[data-unsub]').forEach((btn) => {
         btn.addEventListener('click', async () => {
             const row = btn.closest('[data-feed-id]');

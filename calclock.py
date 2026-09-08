@@ -35,6 +35,24 @@ DAY_END = "21:30"
 UNPLACED_UI_LIMIT = 80
 BLOCK_STATUSES = ("proposed", "locked", "done", "skipped")
 _ICS_URL_RE = re.compile(r"(?:https?|webcal)://[^\s<>\"']+", re.I)
+_COURSE_RE = re.compile(r"\[([A-Za-z]{2,10})\s*[-–]\s*(\d{2,4})")
+
+
+def course_code_from_title(title: str) -> str:
+    match = _COURSE_RE.search(str(title or ""))
+    if not match:
+        return ""
+    return f"{match.group(1).upper()}-{match.group(2)}"
+
+
+def course_hue(code: str) -> int:
+    key = str(code or "").strip()
+    if not key:
+        return 32
+    acc = 0
+    for ch in key:
+        acc = (acc * 31 + ord(ch)) & 0xFFFFFFFF
+    return int(acc % 360)
 
 
 def normalize_ics_url(raw: str, *, allow_empty: bool = False) -> str:
@@ -139,10 +157,17 @@ def load_settings() -> Dict[str, Any]:
     }
 
 
-def _normalize_feeds(raw: Any) -> List[Dict[str, str]]:
+def _feed_enabled(item: Dict[str, Any]) -> bool:
+    val = item.get("enabled", True)
+    if val in (False, 0, "0", "false", "False", "off", "no"):
+        return False
+    return True
+
+
+def _normalize_feeds(raw: Any) -> List[Dict[str, Any]]:
     if not isinstance(raw, list):
         return []
-    out: List[Dict[str, str]] = []
+    out: List[Dict[str, Any]] = []
     seen = set()
     for item in raw:
         if not isinstance(item, dict):
@@ -157,6 +182,7 @@ def _normalize_feeds(raw: Any) -> List[Dict[str, str]]:
                 "kind": str(item.get("kind") or "ics").strip() or "ics",
                 "url": str(item.get("url") or "").strip(),
                 "title": str(item.get("title") or "").strip() or feed_id,
+                "enabled": _feed_enabled(item),
             }
         )
     return out
@@ -211,10 +237,45 @@ def register_calendar_feed(
                 "kind": kind or "ics",
                 "url": url,
                 "title": title or key,
+                "enabled": True,
             }
         )
     current["feeds"] = feeds
     return _write_settings(current)
+
+
+def _disabled_feed_ids() -> set[str]:
+    return {
+        str(feed.get("id") or "")
+        for feed in load_settings().get("feeds") or []
+        if feed.get("id") and not _feed_enabled(feed)
+    }
+
+
+def _is_hidden_source(source_calendar: Any) -> bool:
+    key = str(source_calendar or "").strip()
+    return bool(key) and key in _disabled_feed_ids()
+
+
+@eel.expose
+def set_calendar_feed_enabled(feed_id: str = "", enabled: bool = True) -> Dict[str, Any]:
+    key = str(feed_id or "").strip()
+    if not key:
+        return {"ok": False, "error": "Missing calendar.", **list_calendar_feeds()}
+    current = load_settings()
+    feeds = list(current.get("feeds") or [])
+    found = False
+    for feed in feeds:
+        if feed.get("id") != key:
+            continue
+        feed["enabled"] = bool(enabled)
+        found = True
+        break
+    if not found:
+        feeds.append({"id": key, "kind": "ics", "url": "", "title": key, "enabled": bool(enabled)})
+    current["feeds"] = feeds
+    _write_settings(current)
+    return {"ok": True, "feed_id": key, "enabled": bool(enabled), **list_calendar_feeds()}
 
 
 @eel.expose
@@ -554,6 +615,7 @@ def list_calendar_feeds() -> Dict[str, Any]:
                 "kind": meta.get("kind") or ("apple" if not str(feed_id).startswith("ics:") else "ics"),
                 "url": meta.get("url") or "",
                 "title": meta.get("title") or feed_id,
+                "enabled": _feed_enabled(meta) if meta else True,
                 "open_count": source["open_count"],
                 "undated_count": source["undated_count"],
                 "total": source["total"],
@@ -568,6 +630,7 @@ def list_calendar_feeds() -> Dict[str, Any]:
                 "kind": meta.get("kind") or "ics",
                 "url": meta.get("url") or "",
                 "title": meta.get("title") or feed_id,
+                "enabled": _feed_enabled(meta),
                 "open_count": 0,
                 "undated_count": 0,
                 "total": 0,
@@ -581,6 +644,7 @@ def list_calendar_feeds() -> Dict[str, Any]:
                 "kind": "ics",
                 "url": ics_url,
                 "title": ics_url,
+                "enabled": True,
                 "open_count": 0,
                 "undated_count": 0,
                 "total": 0,
@@ -1013,6 +1077,8 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
         "week_end": end.isoformat(),
         "settings": settings,
         "days": days,
+        "today": _today_column(),
+        "feeds": list_calendar_feeds().get("feeds") or [],
         "unplaced": shown,
         "unplaced_total": total,
         "at_risk": [
@@ -1023,9 +1089,51 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
     }
 
 
+def _slim_due(item: Dict[str, Any], *, is_overdue: bool = False) -> Dict[str, Any]:
+    title = item.get("title") or ""
+    course = course_code_from_title(title)
+    return {
+        "id": item.get("id"),
+        "title": title,
+        "status": item.get("status") or "open",
+        "due_at": item.get("due_at"),
+        "estimate_minutes": int(item.get("estimate_minutes") or DEFAULT_ESTIMATE),
+        "source_calendar": item.get("source_calendar") or "",
+        "course": course,
+        "hue": course_hue(course),
+        "is_overdue": bool(is_overdue or item.get("is_overdue")),
+    }
+
+
+def _today_column() -> Dict[str, Any]:
+    settings = load_settings()
+    today = date.today()
+    iso = today.isoformat()
+    hard = expand_hard_events(today, today)
+    blocks = list_blocks(today, today)
+    items = list(hard) + list(blocks)
+    items.sort(key=lambda row: str(row.get("start_at") or ""))
+    overdue = [
+        _slim_due(item, is_overdue=True)
+        for item in work.list_overdue_work()
+        if not _is_hidden_source(item.get("source_calendar"))
+    ]
+    return {
+        "date": iso,
+        "weekday": today.strftime("%a"),
+        "label": f"{today.strftime('%A')}, {today.strftime('%b')} {today.day}",
+        "day_start": settings.get("day_start") or DAY_START,
+        "day_end": settings.get("day_end") or DAY_END,
+        "overdue": overdue,
+        "dues": _dues_by_day(today, today).get(iso, []),
+        "items": items,
+    }
+
+
 def _dues_by_day(start: date, end: date) -> Dict[str, List[Dict[str, Any]]]:
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     now = work._now()
+    hidden = _disabled_feed_ids()
     with work._connect() as conn:
         rows = conn.execute(
             work._ITEM_SELECT
@@ -1040,27 +1148,27 @@ def _dues_by_day(start: date, end: date) -> Dict[str, List[Dict[str, Any]]]:
         ).fetchall()
     for row in rows:
         item = work._row_to_dict(row, now)
+        src = str(item.get("source_calendar") or "")
+        if src and src in hidden:
+            continue
         day = str(item.get("due_at") or "")[:10]
         if len(day) != 10:
             continue
-        grouped.setdefault(day, []).append(
-            {
-                "id": item["id"],
-                "title": item.get("title") or "",
-                "status": item.get("status") or "open",
-                "due_at": item.get("due_at"),
-            }
-        )
+        grouped.setdefault(day, []).append(_slim_due(item))
     return grouped
 
 
 def _due_counts() -> Dict[str, int]:
     counts: Counter[str] = Counter()
+    hidden = _disabled_feed_ids()
     with work._connect() as conn:
         rows = conn.execute(
-            "SELECT due_at, scheduled_date, status FROM work_items WHERE status != 'done'"
+            "SELECT due_at, scheduled_date, status, source_calendar FROM work_items WHERE status != 'done'"
         ).fetchall()
     for row in rows:
+        src = str(row["source_calendar"] or "")
+        if src and src in hidden:
+            continue
         due = str(row["due_at"] or "")[:10]
         if len(due) == 10:
             counts[due] += 1
@@ -1191,13 +1299,24 @@ def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
     week = get_week(monday_of(day).isoformat(), include_unplaced=False)
     match = next((row for row in week["days"] if row["date"] == iso), None)
     items = []
+    dues: List[Dict[str, Any]] = []
     if match:
         items.extend(match["events"])
         items.extend(match["blocks"])
         items.sort(key=lambda row: row["start_at"])
+        dues = list(match.get("dues") or [])
+    overdue = []
+    if iso == date.today().isoformat():
+        overdue = [
+            _slim_due(item, is_overdue=True)
+            for item in work.list_overdue_work()
+            if not _is_hidden_source(item.get("source_calendar"))
+        ]
     return {
         "local_date": iso,
         "items": items,
+        "dues": dues,
+        "overdue": overdue,
         "unplaced": week["unplaced"],
         "settings": week["settings"],
     }
@@ -1345,7 +1464,8 @@ def schedule_work_at(item_id: str, start_at: str, end_at: str = "") -> Dict[str,
         leftover = remaining_minutes(item) or int(load_settings().get("default_estimate_minutes") or DEFAULT_ESTIMATE)
         end = start + timedelta(minutes=max(15, min(int(leftover), CHUNK_MAX)))
     _validate_span(start, end, hard=False)
-    work.assign_work_item(item_id, start.date().isoformat())
+    if str(item.get("source") or "") != "calendar":
+        work.assign_work_item(item_id, start.date().isoformat())
     block = add_block(
         title=item["title"],
         start=start,
@@ -1355,3 +1475,23 @@ def schedule_work_at(item_id: str, start_at: str, end_at: str = "") -> Dict[str,
         status="proposed",
     )
     return {"ok": True, "block": block, "item": _work_item(item_id)}
+
+
+@eel.expose
+def place_work_after_lecture(item_id: str, local_date: str = "") -> Dict[str, Any]:
+    """Drop optional work time after that day's first lecture, or at wake-up."""
+    item = _work_item(item_id)
+    iso = work._parse_date(local_date) or str(item.get("due_at") or "")[:10] or date.today().isoformat()
+    day = date.fromisoformat(iso)
+    week = get_week(monday_of(day).isoformat(), include_unplaced=False)
+    match = next((row for row in week["days"] if row["date"] == iso), None)
+    lectures = sorted(match["events"] if match else [], key=lambda row: str(row.get("start_at") or ""))
+    leftover = remaining_minutes(item) or int(load_settings().get("default_estimate_minutes") or DEFAULT_ESTIMATE)
+    duration = max(15, min(int(leftover), CHUNK_MAX))
+    if lectures:
+        start = parse_datetime(lectures[0]["end_at"])
+    else:
+        hour, minute = parse_clock(str(load_settings().get("day_start") or DAY_START))
+        start = datetime(day.year, day.month, day.day, hour, minute, 0)
+    end = start + timedelta(minutes=duration)
+    return schedule_work_at(item_id, start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds"))

@@ -354,6 +354,16 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("deleteUndatedImportedAssignments", UTILS)
         self.assertIn('id="allWorkDeleteUndated"', INDEX)
         self.assertIn('id="calDeleteUndated"', INDEX)
+        self.assertIn('id="calTodayRail"', INDEX)
+        self.assertIn('id="calFeedToggles"', INDEX)
+        self.assertIn('id="calDueMenu"', INDEX)
+        self.assertIn("renderDueChip", CAL_JS)
+        self.assertIn("place_work_after_lecture", CAL_JS)
+        self.assertIn("set_calendar_feed_enabled", CAL_JS)
+        self.assertIn("--due-h", CAL_JS)
+        self.assertIn("kosistenz:open-todo", CAL_JS)
+        self.assertIn("Open in To Do", INDEX)
+        self.assertIn("data-feed-enabled", SETTINGS_JS)
 
     def test_calendar_tab_uses_full_width_and_taller_cells(self) -> None:
         self.assertIn("html[data-page='calendar'] .tab-content.active", STYLE)

@@ -636,6 +636,97 @@ END:VCALENDAR
         self.assertEqual([row["title"] for row in left], ["Done quiz"])
         self.assertEqual(left[0]["status"], "done")
 
+    def test_course_code_from_canvas_title(self) -> None:
+        self.assertEqual(calclock.course_code_from_title("VHL Lección 2 [SPAN-110.701.26FA]"), "SPAN-110")
+        self.assertEqual(calclock.course_code_from_title("Section 1.4 [MATH-208.110.26FA]"), "MATH-208")
+        self.assertEqual(calclock.course_hue("SPAN-110"), calclock.course_hue("SPAN-110"))
+        self.assertNotEqual(calclock.course_hue("SPAN-110"), calclock.course_hue("MATH-208"))
+
+    def test_hidden_feed_hides_dues_without_unsubscribing(self) -> None:
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:essay-hide
+SUMMARY:Essay [ENGL-101.001]
+DTSTART;VALUE=DATE:20260908
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="class",
+        )
+        week = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
+        self.assertEqual(tuesday["dues"][0]["course"], "ENGL-101")
+        calclock.set_calendar_feed_enabled("class", False)
+        hidden = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in hidden["days"] if day["date"] == "2026-09-08")
+        self.assertEqual(tuesday["dues"], [])
+        self.assertEqual(len(work.list_all_work_items()), 1)
+        calclock.set_calendar_feed_enabled("class", True)
+        shown = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in shown["days"] if day["date"] == "2026-09-08")
+        self.assertEqual(len(tuesday["dues"]), 1)
+
+    def test_placing_a_calendar_due_keeps_the_due_day(self) -> None:
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:essay-place
+SUMMARY:Essay 2
+DTSTART;VALUE=DATE:20260904
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="class",
+        )
+        item = work.list_all_work_items()[0]
+        self.assertEqual(item["scheduled_date"], "2026-09-04")
+        result = calclock.schedule_work_at(item["id"], "2026-09-08T14:00:00", "2026-09-08T15:00:00")
+        again = work.list_all_work_items()[0]
+        self.assertEqual(again["scheduled_date"], "2026-09-04")
+        self.assertEqual(again["due_at"][:10], "2026-09-04")
+        self.assertEqual(result["block"]["local_date"], "2026-09-08")
+
+    def test_place_work_after_first_lecture(self) -> None:
+        calclock.create_calendar_event("CHEM 109", "2026-09-08T09:30:00", "2026-09-08T10:20:00", [1])
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:chem-hw
+SUMMARY:Homework
+DTSTART;VALUE=DATE:20260908
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="class",
+        )
+        item = work.list_all_work_items()[0]
+        placed = calclock.place_work_after_lecture(item["id"], "2026-09-08")
+        self.assertTrue(placed["block"]["start_at"].startswith("2026-09-08T10:20"))
+
+    def test_today_column_includes_overdue_and_clock_items(self) -> None:
+        real = date
+
+        class FrozenDate(real):
+            @classmethod
+            def today(cls):
+                return real(2026, 9, 8)
+
+        calclock.ingest_events(
+            [{"title": "Quiz [MATH-208.110]", "uid": "q1", "start_at": datetime(2026, 9, 3, 23, 59), "all_day": False}],
+            calendar_id="class",
+        )
+        calclock.create_calendar_event("CHEM 109", "2026-09-08T09:30:00", "2026-09-08T10:20:00", [1])
+        with mock.patch("calclock.date", FrozenDate), mock.patch.object(work, "_today", return_value=real(2026, 9, 8)):
+            column = calclock._today_column()
+        self.assertEqual(column["date"], "2026-09-08")
+        self.assertEqual(column["overdue"][0]["course"], "MATH-208")
+        self.assertTrue(column["overdue"][0]["is_overdue"])
+        self.assertEqual(column["items"][0]["title"], "CHEM 109")
+        week = calclock.get_week("2026-09-07")
+        self.assertIn("today", week)
+        self.assertTrue(any(feed.get("id") == "class" for feed in week["feeds"]))
+
 
 if __name__ == "__main__":
     unittest.main()
