@@ -312,6 +312,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("park_schedule_block", CAL_JS)
         self.assertIn("schedule_work_at", CAL_JS)
         self.assertIn("onBlockPointerMove", CAL_JS)
+        self.assertIn("unplaced_total", CAL_JS)
 
     def test_calendar_tab_uses_full_width_and_taller_cells(self) -> None:
         self.assertIn("html[data-page='calendar'] .tab-content.active", STYLE)

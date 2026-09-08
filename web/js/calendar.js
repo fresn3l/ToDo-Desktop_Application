@@ -110,7 +110,7 @@ async function loadMonth() {
         const payload = await eel.get_month(monthCursor.year, monthCursor.month)();
         monthCursor = { year: payload.year, month: payload.month };
         renderMonthGrid(payload);
-        renderUnplaced(payload.unplaced || []);
+        renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
     } catch (e) {
         console.error(e);
@@ -125,7 +125,7 @@ async function loadYear() {
         const payload = await eel.get_year(yearCursor)();
         yearCursor = payload.year;
         renderYearGrid(payload);
-        renderUnplaced(payload.unplaced || []);
+        renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
     } catch (e) {
         console.error(e);
@@ -322,13 +322,16 @@ function renderGrid(week) {
     root.innerHTML = `${hourCol}<div class="cal-days">${days}</div>`;
 }
 
-function renderUnplaced(items) {
+function renderUnplaced(items, total) {
     const root = document.getElementById('calUnplaced');
     if (!root) return;
     if (!items?.length) {
         root.innerHTML = '<p class="empty-state empty-state--line">Nothing to place.</p>';
         return;
     }
+    const extra = Number(total || 0) > items.length
+        ? `<p class="checklist-hint small">${Number(total) - items.length} more unplaced. Fill week still uses the rest.</p>`
+        : '';
     root.innerHTML = items
         .map((item) => {
             const due = item.due_at ? String(item.due_at).replace('T', ' ').slice(0, 16) : 'No due';
@@ -339,7 +342,7 @@ function renderUnplaced(items) {
                 <p>${utils.escapeHtml(due)} · ${mins} min left</p>
             </button>`;
         })
-        .join('');
+        .join('') + extra;
     root.querySelectorAll('.cal-unplaced-item').forEach((btn) => {
         btn.addEventListener('click', () => openUnplaced(btn));
     });
@@ -354,7 +357,7 @@ async function loadWeek() {
         lastSettings = week.settings || {};
         paintAwakeFields(lastSettings);
         renderGrid(week);
-        renderUnplaced(week.unplaced || []);
+        renderUnplaced(week.unplaced || [], week.unplaced_total);
         const url = document.getElementById('calIcsUrl');
         if (url && week.settings?.ics_url && !url.value) url.value = week.settings.ics_url;
         bindGrid();

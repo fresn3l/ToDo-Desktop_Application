@@ -12,6 +12,7 @@ import os
 import re
 import sqlite3
 import uuid
+from collections import Counter
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -31,6 +32,7 @@ CHUNK_MIN = 50
 CHUNK_MAX = 90
 DAY_START = "05:30"
 DAY_END = "21:30"
+UNPLACED_UI_LIMIT = 80
 BLOCK_STATUSES = ("proposed", "locked", "done", "skipped")
 _ICS_URL_RE = re.compile(r"(?:https?|webcal)://[^\s<>\"']+", re.I)
 
@@ -603,14 +605,36 @@ def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     with _connect() as conn:
         rows = conn.execute("SELECT * FROM calendar_events").fetchall()
-    cursor = start
-    while cursor <= end:
-        for row in rows:
-            event = _row_event(row)
-            occ = _occurrence_on(event, cursor)
+    for row in rows:
+        event = _row_event(row)
+        event_start = parse_datetime(event["start_at"])
+        event_end = parse_datetime(event["end_at"])
+        duration = event_end - event_start
+        recurrence = event.get("recurrence") or {}
+        weekdays = recurrence.get("weekdays") if isinstance(recurrence, dict) else None
+        if weekdays:
+            allowed = {int(day) for day in weekdays}
+            cursor = max(start, event_start.date())
+            while cursor <= end:
+                if cursor.weekday() in allowed:
+                    occ_start = datetime.combine(cursor, event_start.time())
+                    out.append(
+                        {
+                            **event,
+                            "occurrence_date": cursor.isoformat(),
+                            "start_at": occ_start.isoformat(timespec="seconds"),
+                            "end_at": (occ_start + duration).isoformat(timespec="seconds"),
+                            "kind": "hard",
+                            "status": "locked",
+                        }
+                    )
+                cursor += timedelta(days=1)
+            continue
+        day = event_start.date()
+        if start <= day <= end:
+            occ = _occurrence_on(event, day)
             if occ:
                 out.append(occ)
-        cursor += timedelta(days=1)
     out.sort(key=lambda item: item["start_at"])
     return out
 
@@ -668,28 +692,68 @@ def blocks_for_item(item_id: str) -> List[Dict[str, Any]]:
     return [_row_block(row) for row in rows]
 
 
+def _span_minutes(start_at: str, end_at: str) -> int:
+    start = parse_datetime(start_at)
+    end = parse_datetime(end_at)
+    return max(1, int((end - start).total_seconds() // 60))
+
+
+def _placed_minutes_map() -> Dict[str, int]:
+    """One pass over schedule_blocks instead of a query per to-do."""
+    totals: Dict[str, int] = {}
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT work_item_id, start_at, end_at, status
+            FROM schedule_blocks
+            WHERE work_item_id IS NOT NULL
+            """
+        ).fetchall()
+    for row in rows:
+        if row["status"] == "skipped":
+            continue
+        item_id = row["work_item_id"]
+        if not item_id:
+            continue
+        totals[item_id] = totals.get(item_id, 0) + _span_minutes(row["start_at"], row["end_at"])
+    return totals
+
+
 def placed_minutes(item_id: str) -> int:
     total = 0
     for block in blocks_for_item(item_id):
-        if block["status"] in ("skipped",):
+        if block["status"] == "skipped":
             continue
         total += int(block["minutes"])
     return total
 
 
-def remaining_minutes(item: Dict[str, Any]) -> int:
+def remaining_minutes(item: Dict[str, Any], placed: Optional[int] = None) -> int:
     estimate = int(item.get("estimate_minutes") or 0)
     if estimate <= 0:
         return 0
     if item.get("status") == "done":
         return 0
-    return max(0, estimate - placed_minutes(item["id"]))
+    used = placed if placed is not None else placed_minutes(item["id"])
+    return max(0, estimate - used)
 
 
 def unplaced_work() -> List[Dict[str, Any]]:
+    placed = _placed_minutes_map()
     items = []
-    for item in work.list_all_work_items():
-        leftover = remaining_minutes(item)
+    now = work._now()
+    with work._connect() as conn:
+        rows = conn.execute(
+            work._ITEM_SELECT
+            + """
+            WHERE work_items.status != 'done'
+              AND work_items.estimate_minutes IS NOT NULL
+              AND work_items.estimate_minutes > 0
+            """
+        ).fetchall()
+    for row in rows:
+        item = work._row_to_dict(row, now)
+        leftover = remaining_minutes(item, placed.get(item["id"], 0))
         if leftover <= 0:
             continue
         packed = dict(item)
@@ -699,8 +763,24 @@ def unplaced_work() -> List[Dict[str, Any]]:
     return items
 
 
+def _slim_unplaced(item: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": item.get("id"),
+        "title": item.get("title") or "",
+        "due_at": item.get("due_at"),
+        "scheduled_date": item.get("scheduled_date"),
+        "estimate_minutes": item.get("estimate_minutes"),
+        "remaining_minutes": item.get("remaining_minutes"),
+    }
+
+
+def _unplaced_ui(rows: Optional[List[Dict[str, Any]]] = None) -> Tuple[List[Dict[str, Any]], int]:
+    items = rows if rows is not None else unplaced_work()
+    return [_slim_unplaced(item) for item in items[:UNPLACED_UI_LIMIT]], len(items)
+
+
 @eel.expose
-def get_week(week_start: str = "") -> Dict[str, Any]:
+def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, Any]:
     settings = load_settings()
     start = date.fromisoformat(week_start) if week_start else monday_of(date.today())
     start = monday_of(start)
@@ -720,32 +800,36 @@ def get_week(week_start: str = "") -> Dict[str, Any]:
                 "blocks": [item for item in blocks if item["local_date"] == iso],
             }
         )
-    unplaced = unplaced_work()
+    rows = unplaced_work() if include_unplaced else []
+    shown, total = _unplaced_ui(rows)
     return {
         "week_start": start.isoformat(),
         "week_end": end.isoformat(),
         "settings": settings,
         "days": days,
-        "unplaced": unplaced,
+        "unplaced": shown,
+        "unplaced_total": total,
         "at_risk": [
             item
-            for item in unplaced
+            for item in rows
             if item.get("due_at") and item["due_at"][:10] <= end.isoformat()
         ],
     }
 
 
-def _due_dates() -> List[str]:
-    dates: List[str] = []
-    for item in work.list_all_work_items():
-        due = str(item.get("due_at") or "")[:10]
+def _due_counts() -> Dict[str, int]:
+    counts: Counter[str] = Counter()
+    with work._connect() as conn:
+        rows = conn.execute("SELECT due_at, scheduled_date FROM work_items").fetchall()
+    for row in rows:
+        due = str(row["due_at"] or "")[:10]
         if len(due) == 10:
-            dates.append(due)
+            counts[due] += 1
             continue
-        sched = str(item.get("scheduled_date") or "")[:10]
+        sched = str(row["scheduled_date"] or "")[:10]
         if len(sched) == 10:
-            dates.append(sched)
-    return dates
+            counts[sched] += 1
+    return dict(counts)
 
 
 def _month_weeks(
@@ -753,29 +837,39 @@ def _month_weeks(
     month: int,
     hard: List[Dict[str, Any]],
     blocks: List[Dict[str, Any]],
-    due_dates: List[str],
+    due_counts: Dict[str, int],
 ) -> List[List[Dict[str, Any]]]:
     first = date(year, month, 1)
     cursor = monday_of(first)
     weeks: List[List[Dict[str, Any]]] = []
     today = date.today().isoformat()
+    events_by_day: Dict[str, int] = Counter()
+    for item in hard:
+        iso = item.get("occurrence_date")
+        if iso:
+            events_by_day[iso] += 1
+    blocks_by_day: Dict[str, int] = Counter()
+    for item in blocks:
+        iso = item.get("local_date")
+        if iso:
+            blocks_by_day[iso] += 1
     for _ in range(6):
         week: List[Dict[str, Any]] = []
         for _day in range(7):
             iso = cursor.isoformat()
-            events = [item for item in hard if item.get("occurrence_date") == iso]
-            day_blocks = [item for item in blocks if item.get("local_date") == iso]
-            dues = sum(1 for stamp in due_dates if stamp == iso)
+            event_count = int(events_by_day.get(iso, 0))
+            block_count = int(blocks_by_day.get(iso, 0))
+            dues = int(due_counts.get(iso, 0))
             week.append(
                 {
                     "date": iso,
                     "day": cursor.day,
                     "in_month": cursor.month == month,
                     "is_today": iso == today,
-                    "event_count": len(events),
-                    "block_count": len(day_blocks),
+                    "event_count": event_count,
+                    "block_count": block_count,
                     "due_count": dues,
-                    "has_items": bool(events or day_blocks or dues),
+                    "has_items": bool(event_count or block_count or dues),
                 }
             )
             cursor += timedelta(days=1)
@@ -808,14 +902,15 @@ def get_month(year: int = 0, month: int = 0) -> Dict[str, Any]:
     grid_end = grid_start + timedelta(days=41)
     hard = expand_hard_events(grid_start, grid_end)
     blocks = list_blocks(grid_start, grid_end)
-    due_dates = _due_dates()
+    shown, total = _unplaced_ui()
     return {
         "year": y,
         "month": m,
         "label": first.strftime("%B %Y"),
-        "weeks": _month_weeks(y, m, hard, blocks, due_dates),
+        "weeks": _month_weeks(y, m, hard, blocks, _due_counts()),
         "settings": load_settings(),
-        "unplaced": unplaced_work(),
+        "unplaced": shown,
+        "unplaced_total": total,
     }
 
 
@@ -827,7 +922,8 @@ def get_year(year: int = 0) -> Dict[str, Any]:
     grid_end = monday_of(date(y, 12, 1)) + timedelta(days=41)
     hard = expand_hard_events(grid_start, grid_end)
     blocks = list_blocks(grid_start, grid_end)
-    due_dates = _due_dates()
+    due_counts = _due_counts()
+    shown, total = _unplaced_ui()
     months = []
     for month in range(1, 13):
         first = date(y, month, 1)
@@ -836,7 +932,7 @@ def get_year(year: int = 0) -> Dict[str, Any]:
                 "year": y,
                 "month": month,
                 "label": first.strftime("%b"),
-                "weeks": _month_weeks(y, month, hard, blocks, due_dates),
+                "weeks": _month_weeks(y, month, hard, blocks, due_counts),
             }
         )
     return {
@@ -844,7 +940,8 @@ def get_year(year: int = 0) -> Dict[str, Any]:
         "label": str(y),
         "months": months,
         "settings": load_settings(),
-        "unplaced": unplaced_work(),
+        "unplaced": shown,
+        "unplaced_total": total,
     }
 
 
@@ -852,7 +949,7 @@ def get_year(year: int = 0) -> Dict[str, Any]:
 def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
     iso = work._parse_date(local_date) or date.today().isoformat()
     day = date.fromisoformat(iso)
-    week = get_week(monday_of(day).isoformat())
+    week = get_week(monday_of(day).isoformat(), include_unplaced=False)
     match = next((row for row in week["days"] if row["date"] == iso), None)
     items = []
     if match:
