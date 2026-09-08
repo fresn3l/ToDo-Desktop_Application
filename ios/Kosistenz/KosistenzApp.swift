@@ -17,12 +17,16 @@ struct RootView: View {
         Group {
             if sizeClass == .regular {
                 NavigationSplitView {
-                    List(selection: $store.tab) {
-                        Label("Today", systemImage: "sun.max").tag(AppTab.today)
-                        Label("Week", systemImage: "calendar").tag(AppTab.week)
-                        Label("Journal", systemImage: "book").tag(AppTab.journal)
-                        Label("Inbox", systemImage: "tray").tag(AppTab.inbox)
-                        Label("Sync", systemImage: "icloud").tag(AppTab.sync)
+                    List {
+                        ForEach(AppTab.allCases) { tab in
+                            Button {
+                                store.tab = tab
+                            } label: {
+                                Label(tab.title, systemImage: tab.icon)
+                            }
+                            .foregroundStyle(store.tab == tab ? store.palette.accent : store.palette.ink)
+                            .listRowBackground(store.tab == tab ? store.palette.accent.opacity(0.2) : store.palette.widgetBg)
+                        }
                     }
                     .navigationTitle("Kosistenz")
                 } detail: {
@@ -30,11 +34,11 @@ struct RootView: View {
                 }
             } else {
                 TabView(selection: $store.tab) {
-                    TodayScreen().tag(AppTab.today).tabItem { Label("Today", systemImage: "sun.max") }
-                    WeekScreen().tag(AppTab.week).tabItem { Label("Week", systemImage: "calendar") }
-                    JournalScreen().tag(AppTab.journal).tabItem { Label("Journal", systemImage: "book") }
-                    InboxScreen().tag(AppTab.inbox).tabItem { Label("Inbox", systemImage: "tray") }
-                    SettingsScreen().tag(AppTab.sync).tabItem { Label("Sync", systemImage: "icloud") }
+                    TodayScreen().tag(AppTab.today).tabItem { Label(AppTab.today.title, systemImage: AppTab.today.icon) }
+                    WeekScreen().tag(AppTab.week).tabItem { Label(AppTab.week.title, systemImage: AppTab.week.icon) }
+                    JournalScreen().tag(AppTab.journal).tabItem { Label(AppTab.journal.title, systemImage: AppTab.journal.icon) }
+                    InboxScreen().tag(AppTab.inbox).tabItem { Label(AppTab.inbox.title, systemImage: AppTab.inbox.icon) }
+                    SettingsScreen().tag(AppTab.sync).tabItem { Label(AppTab.sync.title, systemImage: AppTab.sync.icon) }
                 }
             }
         }
@@ -55,8 +59,30 @@ struct RootView: View {
     }
 }
 
-enum AppTab: Hashable {
+enum AppTab: String, Hashable, CaseIterable, Identifiable {
     case today, week, journal, inbox, sync
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .today: return "Today"
+        case .week: return "Week"
+        case .journal: return "Journal"
+        case .inbox: return "Inbox"
+        case .sync: return "Sync"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .today: return "sun.max"
+        case .week: return "calendar"
+        case .journal: return "book"
+        case .inbox: return "tray"
+        case .sync: return "icloud"
+        }
+    }
 }
 
 final class PackStore: ObservableObject {
