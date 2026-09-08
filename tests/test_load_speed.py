@@ -148,3 +148,26 @@ class LoadSpeedTests(unittest.TestCase):
             days = journal.entry_dates(days=400)
         self.assertIn(date.today(), days)
         self.assertEqual(journal.count_entries_on(date.today()), 1)
+
+    def test_imported_journal_stems_count_for_today(self) -> None:
+        journal.import_journal_entry(
+            {
+                "id": "entry_2026-09-08",
+                "content": "From the phone.",
+                "date": "2026-09-08T21:00:00",
+            }
+        )
+        self.assertEqual(journal.count_entries_on(date(2026, 9, 8)), 1)
+        self.assertIn(date(2026, 9, 8), journal.entry_dates(days=400))
+
+    def test_overnight_hard_event_lands_on_both_days(self) -> None:
+        calclock.create_calendar_event(
+            "Late lab",
+            "2026-09-08T23:00:00",
+            "2026-09-09T01:00:00",
+        )
+        monday = calclock.expand_hard_events(date(2026, 9, 8), date(2026, 9, 8))
+        tuesday = calclock.expand_hard_events(date(2026, 9, 9), date(2026, 9, 9))
+        self.assertEqual(monday[0]["title"], "Late lab")
+        self.assertEqual(tuesday[0]["title"], "Late lab")
+        self.assertTrue(tuesday[0]["start_at"].startswith("2026-09-09T00:00"))

@@ -6,8 +6,8 @@
 export const GRID_COLUMNS = 4;
 
 export const WIDGET_CATALOG = {
-    todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'todoTab' },
-    today_calendar: { label: 'Today', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 3], source: 'todayCalendarSource' },
+    todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'todoTab' },
+    today_calendar: { label: 'Today', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 2], source: 'todayCalendarSource' },
     workout: { label: 'Workout', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'workoutTab' },
     goals: { label: 'Goals', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'goalsTab' },
     allwork: { label: 'All Work', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'allWorkTab' },
@@ -57,7 +57,7 @@ export function snapCell(clientX, clientY, gridEl) {
     const styles = window.getComputedStyle(gridEl);
     const gap = parseCssPx(styles.columnGap || styles.gap, 12);
     const colW = (rect.width - gap * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
-    const rowH = parseCssPx(styles.gridAutoRows, 92);
+    const rowH = parseCssPx(styles.gridAutoRows, 108);
     const x = Math.max(0, Math.min(GRID_COLUMNS - 1, Math.floor((clientX - rect.left) / (colW + gap))));
     const y = Math.max(0, Math.floor((clientY - rect.top) / (rowH + gap)));
     return { x, y };

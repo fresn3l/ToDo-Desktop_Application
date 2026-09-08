@@ -1435,11 +1435,16 @@ def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
                     )
                 cursor += timedelta(days=1)
             continue
-        day = event_start.date()
-        if start <= day <= end:
-            occ = _occurrence_on(event, day)
+        last_day = event_end.date()
+        if event_end.time() == datetime.min.time() and last_day > event_start.date():
+            last_day -= timedelta(days=1)
+        cursor = max(start, event_start.date())
+        last = min(end, last_day)
+        while cursor <= last:
+            occ = _occurrence_on(event, cursor)
             if occ:
                 out.append(occ)
+            cursor += timedelta(days=1)
     out.sort(key=lambda item: item["start_at"])
     return out
 
@@ -1461,11 +1466,20 @@ def _occurrence_on(event: Dict[str, Any], day: date) -> Optional[Dict[str, Any]]
         if day < start.date():
             return None
         occ_start = datetime.combine(day, start.time())
+        occ_end = occ_start + duration
     else:
-        if start.date() != day:
+        last_day = end.date()
+        if end.time() == datetime.min.time() and last_day > start.date():
+            last_day -= timedelta(days=1)
+        if day < start.date() or day > last_day:
             return None
-        occ_start = start
-    occ_end = occ_start + duration
+        occ_start = start if day == start.date() else datetime.combine(day, datetime.min.time())
+        if day < last_day:
+            occ_end = datetime.combine(day + timedelta(days=1), datetime.min.time())
+        else:
+            occ_end = end
+        if occ_end <= occ_start:
+            return None
     return {
         **event,
         "occurrence_date": day.isoformat(),

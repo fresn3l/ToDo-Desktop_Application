@@ -29,6 +29,7 @@ STATUSES = ("open", "active", "done")
 _WORK_BOARD_CACHE_TTL_SEC = 0.4
 _HEAVY_SNAPSHOT_DELAY_SEC = 2.0
 _work_board_cache: Optional[Tuple[str, str, float, Dict[str, Any]]] = None
+_work_board_lock = threading.Lock()
 _snapshot_lock = threading.Lock()
 _heavy_snapshot_timer: Optional[threading.Timer] = None
 _writing_snapshot = False
@@ -1136,6 +1137,11 @@ def list_overdue_work() -> List[Dict[str, Any]]:
 def get_work_board(local_date: str = "") -> Dict[str, Any]:
     today = _today()
     target = _parse_date(local_date) or today.isoformat()
+    with _work_board_lock:
+        return _get_work_board_locked(target, today)
+
+
+def _get_work_board_locked(target: str, today: date) -> Dict[str, Any]:
     cached = _cached_work_board(target)
     if cached is not None:
         return cached

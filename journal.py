@@ -315,12 +315,13 @@ def count_entries_on(day: date) -> int:
     folder = _week_folder_for(day)
     if not folder.is_dir():
         return 0
-    prefix = f"entry_{day.isoformat()}_"
     try:
         return sum(
             1
             for path in folder.iterdir()
-            if path.suffix == ".json" and path.name.startswith(prefix)
+            if path.suffix == ".json"
+            and path.name.startswith("entry_")
+            and _entry_date_from_filename(path.name) == day
         )
     except OSError:
         return 0

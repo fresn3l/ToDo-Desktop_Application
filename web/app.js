@@ -67,6 +67,11 @@ async function init() {
     });
     await switchTab('home');
     void pullPhoneOnOpen();
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            void pullPhoneOnOpen();
+        }
+    });
 }
 
 async function pullPhoneOnOpen() {
