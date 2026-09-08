@@ -13,7 +13,7 @@ import WidgetKit
 final class KosistenzWebView: WKWebView {
     override var acceptsFirstResponder: Bool { true }
 
-    override func paste(_ sender: Any?) {
+    @objc func paste(_ sender: Any?) {
         pasteFromClipboard()
     }
 
@@ -170,8 +170,10 @@ final class KosistenzWebView: WKWebView {
             let pb = NSPasteboard.general
             pb.clearContents()
             pb.setString(text, forType: .string)
+            insertText(text)
+            return
         }
-        super.paste(nil)
+        insertText("")
     }
 }
 
@@ -507,7 +509,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func waitForServerThenLoad(port: UInt16) {
         let url = URL(string: "http://127.0.0.1:\(port)/index.html")!
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let ok = self?.waitForHTTP(url: url, timeout: 20) ?? false
+            let ok = waitForHTTP(url: url, timeout: 20)
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if let status = self.bridge?.terminationStatus, self.bridge?.isRunning == false {
@@ -727,7 +729,12 @@ private func simpleError(_ message: String) -> NSError {
 
 private let retainedDelegate = AppDelegate()
 
-let app = NSApplication.shared
-app.setActivationPolicy(.regular)
-app.delegate = retainedDelegate
-app.run()
+@main
+enum KosistenzApp {
+    static func main() {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.regular)
+        app.delegate = retainedDelegate
+        app.run()
+    }
+}
