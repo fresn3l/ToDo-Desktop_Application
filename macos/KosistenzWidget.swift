@@ -240,9 +240,11 @@ struct KosistenzTodayWidget: Widget {
 
     static var families: [WidgetFamily] {
         var list: [WidgetFamily] = [.systemSmall, .systemMedium]
-        if #available(macOS 14.0, *) {
+        #if os(iOS)
+        if #available(iOS 16.0, *) {
             list.append(contentsOf: [.accessoryRectangular, .accessoryCircular])
         }
+        #endif
         return list
     }
 }

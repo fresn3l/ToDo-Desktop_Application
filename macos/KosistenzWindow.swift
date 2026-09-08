@@ -565,8 +565,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             let ok = waitForHTTP(url: url, timeout: 20)
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                if let status = self.bridge?.terminationStatus, self.bridge?.isRunning == false {
-                    self.fail("The UI server exited immediately (code \(status)). See ~/Library/Logs/Kosistenz.log")
+                // terminationStatus throws if the process is still running.
+                if let process = self.bridge, !process.isRunning {
+                    self.fail("The UI server exited immediately (code \(process.terminationStatus)). See ~/Library/Logs/Kosistenz.log")
                     return
                 }
                 if ok {
