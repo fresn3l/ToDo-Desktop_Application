@@ -16,9 +16,17 @@ struct TodayScreen: View {
         (store.pack?.workouts.sessions ?? []).filter { $0.local_date == store.today }
     }
 
-    private var agenda: [CalendarItem] {
-        let day = store.pack?.calendar.days.first(where: { $0.date == store.today })
-        return (day?.events ?? []) + (day?.blocks ?? [])
+    private var todayCalendar: CalendarDay? {
+        store.pack?.calendar.days.first(where: { $0.date == store.today })
+    }
+
+    private var timeline: [DayTimeline.Block] {
+        let day = todayCalendar
+        return DayTimeline.blocks(events: day?.events ?? [], packed: day?.blocks ?? [])
+    }
+
+    private var unplaced: [UnplacedItem] {
+        store.pack?.calendar.unplaced ?? []
     }
 
     private var expected: [String] {
@@ -44,6 +52,7 @@ struct TodayScreen: View {
             List {
                 statusSection
                 clockSection
+                unplacedSection
                 todoSection
                 workoutSection
                 journalTeaser
@@ -88,21 +97,30 @@ struct TodayScreen: View {
 
     private var clockSection: some View {
         Section("On the clock") {
-            if agenda.isEmpty {
-                Text("No lectures or blocks on today.")
+            if timeline.isEmpty {
+                Text("No lectures or blocks on today. Fill week on the Mac, then Push to iCloud.")
                     .foregroundStyle(.secondary)
                     .listRowBackground(store.palette.widgetBg)
             } else {
-                ForEach(agenda) { item in
-                    HStack {
-                        Text(DayStamp.clock(item.start_at)).monospacedDigit()
-                        Text(item.title ?? "")
-                        Spacer()
-                        Text(item.kind == "hard" ? "Class" : (item.kind ?? ""))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                DayTimelineView(blocks: timeline, palette: store.palette)
                     .listRowBackground(store.palette.widgetBg)
+                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+            }
+        }
+    }
+
+    private var unplacedSection: some View {
+        Group {
+            if !unplaced.isEmpty {
+                Section("Unplaced") {
+                    Text("Not on the clock. Pick a day on the Mac.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(store.palette.widgetBg)
+                    ForEach(unplaced) { item in
+                        Text(item.title ?? "")
+                            .listRowBackground(store.palette.widgetBg)
+                    }
                 }
             }
         }
