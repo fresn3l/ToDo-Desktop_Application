@@ -164,7 +164,7 @@ def run_mac_window(url: str, width: int, height: int, min_width: int, min_height
 
                         match = re.search(r"(?:https?|webcal)://[^\s<>\"']+", str(html), re.I)
                         if match:
-                            text = match.group(0)
+                            text = match.group(0).rstrip(".,;)]}>\"'")
                 if not text and raw:
                     text = str(raw)
             except Exception:

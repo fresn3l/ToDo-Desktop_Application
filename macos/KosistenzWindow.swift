@@ -85,12 +85,20 @@ final class KosistenzWebView: WKWebView {
             .first(where: { !$0.isEmpty && !$0.hasPrefix("#") }) ?? trimmed
         let cleaned = first.trimmingCharacters(in: CharacterSet(charactersIn: "<>\"' "))
         if let match = cleaned.range(of: #"(?:https?|webcal)://[^\s<>"']+"#, options: .regularExpression) {
-            return String(cleaned[match])
+            var url = String(cleaned[match])
+            while let last = url.last, ".,;)]}>\"'".contains(last) {
+                url.removeLast()
+            }
+            return url.isEmpty ? nil : url
         }
         if let match = raw.range(of: #"href=["']((?:https?|webcal)://[^"']+)"#, options: [.regularExpression, .caseInsensitive]) {
             let href = String(raw[match])
             if let inner = href.range(of: #"(?:https?|webcal)://[^"']+"#, options: .regularExpression) {
-                return String(href[inner])
+                var url = String(href[inner])
+                while let last = url.last, ".,;)]}>\"'".contains(last) {
+                    url.removeLast()
+                }
+                return url.isEmpty ? nil : url
             }
         }
         return nil

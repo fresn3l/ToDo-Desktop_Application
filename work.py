@@ -1332,6 +1332,33 @@ def delete_open_imported_work(source_calendar: str) -> Dict[str, Any]:
     return {"ok": True, "deleted": len(ids), "ids": ids, "source_calendar": calendar_key}
 
 
+def delete_open_imported_uids(source_calendar: str, uids: List[str]) -> Dict[str, Any]:
+    """Drop open imported to-dos whose UID is now a timed calendar event."""
+    calendar_key = (source_calendar or "").strip()
+    wanted = sorted({str(uid or "").strip() for uid in uids if str(uid or "").strip()})
+    if not calendar_key or not wanted:
+        return {"ok": True, "deleted": 0, "ids": []}
+    placeholders = ",".join("?" for _ in wanted)
+    with _connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id FROM work_items
+            WHERE source_calendar = ?
+              AND status != 'done'
+              AND source_uid IN ({placeholders})
+            """,
+            [calendar_key, *wanted],
+        ).fetchall()
+        ids = [str(row["id"]) for row in rows]
+        for item_id in ids:
+            conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
+    for item_id in ids:
+        _mirror_task_delete(item_id)
+    if ids:
+        _write_widget_snapshot()
+    return {"ok": True, "deleted": len(ids), "ids": ids, "source_calendar": calendar_key}
+
+
 def list_imported_calendar_sources() -> List[Dict[str, Any]]:
     with _connect() as conn:
         rows = conn.execute(

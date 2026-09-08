@@ -274,15 +274,16 @@ function bindList(root, onChange) {
     });
 }
 
-export async function refreshTodo() {
+export async function refreshTodo(opts = {}) {
     const list = document.getElementById('todoList');
     const overdueEl = document.getElementById('todoOverdue');
     const tomorrowEl = document.getElementById('todoTomorrow');
     const summary = document.getElementById('todoSummary');
     if (!list) return;
+    const focusDate = opts.focusDate || selectedDoDate || utils.localISODate();
 
     try {
-        const board = await eel.get_work_board(utils.localISODate())();
+        const board = await eel.get_work_board(focusDate)();
         const open = board.counts?.today_open || 0;
         const done = board.counts?.today_done || 0;
         if (summary) {
@@ -322,6 +323,11 @@ export async function refreshTodo() {
         }
         list.innerHTML = parts.join('');
         bindList(list, refreshTodo);
+        if (opts.highlightId) {
+            const row = document.querySelector(`[data-id="${CSS.escape(opts.highlightId)}"]`);
+            row?.classList.add('is-selected');
+            row?.scrollIntoView({ block: 'nearest' });
+        }
 
         if (overdueEl) {
             if (board.overdue.length) {
@@ -457,6 +463,12 @@ export function setupTodo() {
             void refreshTodo();
         }
     });
+    document.addEventListener('kosistenz:open-todo', (e) => {
+        const date = e.detail?.date || '';
+        const itemId = e.detail?.itemId || '';
+        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'home' } }));
+        void openTodoForItem(date, itemId);
+    });
     syncRepeatPanel();
     updateAddButton();
     void loadGoalOptions('todoNewGoal');
@@ -466,6 +478,20 @@ export async function onTodoTabShown() {
     await loadWhenChips();
     await loadGoalOptions('todoNewGoal');
     await refreshTodo();
+}
+
+async function openTodoForItem(date, itemId) {
+    if (date) selectedDoDate = date;
+    await loadWhenChips();
+    if (date) {
+        document.querySelectorAll('#todoWhen .work-day-chip').forEach((btn) => {
+            const on = btn.getAttribute('data-date') === date;
+            btn.classList.toggle('is-selected', on);
+            btn.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        updateWhenHint();
+    }
+    await refreshTodo({ focusDate: date || selectedDoDate, highlightId: itemId });
 }
 
 export { tomorrowISO };

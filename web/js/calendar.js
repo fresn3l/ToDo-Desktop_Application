@@ -11,6 +11,8 @@ let yearCursor = new Date().getFullYear();
 let lastSettings = {};
 let editor = { mode: 'new', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
 let dragState = null;
+let lastWeek = null;
+let dueMenuChip = null;
 
 function mondayISO(d = new Date()) {
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -36,6 +38,8 @@ function setCalView(next) {
     calView = next === 'week' || next === 'year' ? next : 'month';
     // Fill week stays visible in month and year; it still packs this week.
     document.getElementById('calGrid')?.classList.toggle('is-hidden', calView !== 'week');
+    document.getElementById('calTodayRail')?.classList.toggle('is-hidden', calView !== 'week');
+    document.querySelector('.cal-week-shell')?.classList.toggle('is-week', calView === 'week');
     document.getElementById('calMonthGrid')?.classList.toggle('is-hidden', calView !== 'month');
     document.getElementById('calYearGrid')?.classList.toggle('is-hidden', calView !== 'year');
     // Month and year views hide the week-clock hint.
@@ -112,6 +116,7 @@ async function loadMonth() {
         renderMonthGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
+        await refreshFeedToggles();
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calMonthGrid');
@@ -127,6 +132,7 @@ async function loadYear() {
         renderYearGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
+        await refreshFeedToggles();
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calYearGrid');
@@ -264,6 +270,21 @@ function blockLabel(item) {
     return [item.title, mins, status].filter(Boolean).join(' · ');
 }
 
+function renderDueChip(due) {
+    const done = due.status === 'done';
+    const overdue = due.is_overdue;
+    const hue = Number(due.hue);
+    const hueStyle = Number.isFinite(hue) ? `--due-h:${hue}` : '';
+    return `<button type="button" class="cal-due-chip${done ? ' is-done' : ''}${overdue ? ' is-overdue' : ''}"
+        style="${hueStyle}"
+        data-id="${utils.escapeHtml(due.id || '')}"
+        data-title="${utils.escapeHtml(due.title || '')}"
+        data-status="${utils.escapeHtml(due.status || 'open')}"
+        data-due-at="${utils.escapeHtml(due.due_at || '')}"
+        data-minutes="${Number(due.estimate_minutes || 60) || 60}"
+        title="${utils.escapeHtml(due.title || '')}">${utils.escapeHtml(due.title || 'Due')}</button>`;
+}
+
 function renderBlock(item, settings) {
     const { startMin, span } = clockWindow(settings);
     const top = Math.max(0, minutesFromClock(item.start_at, startMin));
@@ -321,12 +342,7 @@ function renderGrid(week) {
         .map((day) => {
             const items = [...(day.events || []), ...(day.blocks || [])];
             const dues = day.dues || [];
-            const shown = dues.slice(0, 8);
-            const extra = dues.length - shown.length;
-            const chips = shown.map((due) => {
-                const done = due.status === 'done';
-                return `<span class="cal-due-chip${done ? ' is-done' : ''}" title="${utils.escapeHtml(due.title || '')}">${utils.escapeHtml(due.title || 'Due')}</span>`;
-            }).join('') + (extra > 0 ? `<span class="cal-due-chip is-more">+${extra}</span>` : '');
+            const chips = dues.map((due) => renderDueChip(due)).join('');
             return `<div class="cal-day${day.is_today ? ' is-today' : ''}" data-date="${utils.escapeHtml(day.date)}">
                 <header class="cal-day-head"><strong>${utils.escapeHtml(day.weekday)}</strong><span>${utils.escapeHtml(day.date.slice(8))}</span></header>
                 <div class="cal-due-list">${chips || '<span class="cal-due-empty">No dues</span>'}</div>
@@ -335,6 +351,92 @@ function renderGrid(week) {
         })
         .join('');
     root.innerHTML = `${hourCol}<div class="cal-days">${days}</div>`;
+}
+
+function agendaKind(item) {
+    if (item.kind === 'hard') return 'Class';
+    if (item.kind === 'workout') return 'Gym';
+    return 'Work';
+}
+
+function agendaTime(item) {
+    const start = new Date(item.start_at);
+    if (Number.isNaN(start.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(start.getHours())}${pad(start.getMinutes())}`;
+}
+
+function renderTodayRail(today) {
+    const root = document.getElementById('calTodayRail');
+    if (!root) return;
+    if (!today) {
+        root.innerHTML = '';
+        return;
+    }
+    root.setAttribute('data-date', today.date || '');
+    const overdue = today.overdue || [];
+    const dues = today.dues || [];
+    const items = today.items || [];
+    const overdueHtml = overdue.length
+        ? `<h4>Overdue</h4><div class="cal-due-list">${overdue.map((due) => renderDueChip(due)).join('')}</div>`
+        : '';
+    const duesHtml = dues.length
+        ? `<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`
+        : '<h4>Due today</h4><p class="cal-due-empty">No dues</p>';
+    const clockHtml = items.length
+        ? `<h4>On the clock</h4><ul class="cal-today-agenda">${items.map((item) => {
+            const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
+            return `<li class="is-${kind}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(item.title || '')}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
+        }).join('')}</ul>`
+        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet</p>';
+    root.innerHTML = `
+        <header>
+            <p class="eyebrow">Today</p>
+            <h3>${utils.escapeHtml(today.label || today.weekday || 'Today')}</h3>
+            <p class="cal-today-awake">Awake ${utils.escapeHtml(String(today.day_start || '').replace(':', ''))}–${utils.escapeHtml(String(today.day_end || '').replace(':', ''))}</p>
+        </header>
+        ${overdueHtml}
+        ${duesHtml}
+        ${clockHtml}
+        <p class="checklist-hint small">Drag a due onto the week clock to time-block it. The due date stays put.</p>
+    `;
+}
+
+function paintFeedToggles(feeds) {
+    const root = document.getElementById('calFeedToggles');
+    if (!root) return;
+    const rows = (feeds || []).filter((feed) => feed.id);
+    if (!rows.length) {
+        root.innerHTML = '';
+        return;
+    }
+    root.innerHTML = `<h4>Show calendars</h4>` + rows.map((feed) => {
+        const on = feed.enabled !== false;
+        return `<label class="cal-feed-toggle">
+            <input type="checkbox" data-feed-id="${utils.escapeHtml(feed.id || '')}" ${on ? 'checked' : ''}>
+            <span>${utils.escapeHtml(feed.title || feed.id)}</span>
+        </label>`;
+    }).join('');
+    root.querySelectorAll('input[data-feed-id]').forEach((input) => {
+        input.addEventListener('change', async () => {
+            try {
+                await eel.set_calendar_feed_enabled(input.getAttribute('data-feed-id'), input.checked)();
+                utils.notifyDataChanged();
+                await loadCalendar();
+            } catch (err) {
+                utils.showErrorFeedback('Could not update that calendar.');
+            }
+        });
+    });
+}
+
+async function refreshFeedToggles() {
+    if (typeof eel === 'undefined' || !eel.list_calendar_feeds) return;
+    try {
+        paintFeedToggles((await eel.list_calendar_feeds()()).feeds || []);
+    } catch (_) {
+        /* eel not ready */
+    }
 }
 
 function renderUnplaced(items, total) {
@@ -369,9 +471,12 @@ async function loadWeek() {
     try {
         const week = await eel.get_week(weekStart)();
         weekStart = week.week_start || weekStart;
+        lastWeek = week;
         lastSettings = week.settings || {};
         paintAwakeFields(lastSettings);
         renderGrid(week);
+        renderTodayRail(week.today);
+        paintFeedToggles(week.feeds || week.settings?.feeds || []);
         renderUnplaced(week.unplaced || [], week.unplaced_total);
         const url = document.getElementById('calIcsUrl');
         if (url && week.settings?.ics_url && !url.value) url.value = week.settings.ics_url;
@@ -551,6 +656,21 @@ function bindGrid() {
             openEditorFromBlock(btn);
         });
     });
+    document.querySelectorAll('.cal-due-chip').forEach((btn) => {
+        btn.addEventListener('pointerdown', onDuePointerDown);
+        btn.addEventListener('pointermove', onDuePointerMove);
+        btn.addEventListener('pointerup', onDuePointerUp);
+        btn.addEventListener('pointercancel', onDuePointerUp);
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (btn.dataset.didDrag === '1') {
+                btn.dataset.didDrag = '';
+                return;
+            }
+            showDueMenu(btn);
+        });
+    });
 }
 
 function onBlockPointerDown(e) {
@@ -600,7 +720,7 @@ function onBlockPointerMove(e) {
 }
 
 async function onBlockPointerUp(e) {
-    if (!dragState || e.pointerId !== dragState.pointerId) return;
+    if (!dragState || dragState.kind === 'due' || e.pointerId !== dragState.pointerId) return;
     const state = dragState;
     dragState = null;
     state.el.classList.remove('is-dragging');
@@ -623,6 +743,136 @@ async function onBlockPointerUp(e) {
     } catch (err) {
         utils.showErrorFeedback(err?.message || 'Could not move that.');
         await loadCalendar();
+    }
+}
+
+function hideDueMenu() {
+    const menu = document.getElementById('calDueMenu');
+    if (menu) {
+        menu.hidden = true;
+        menu.classList.add('is-hidden');
+    }
+    dueMenuChip = null;
+}
+
+function showDueMenu(chip) {
+    const menu = document.getElementById('calDueMenu');
+    if (!menu) return;
+    dueMenuChip = chip;
+    const done = chip.getAttribute('data-status') === 'done';
+    menu.querySelector('[data-act="done"]')?.classList.toggle('is-hidden', done);
+    menu.querySelector('[data-act="reopen"]')?.classList.toggle('is-hidden', !done);
+    menu.hidden = false;
+    menu.classList.remove('is-hidden');
+    const rect = chip.getBoundingClientRect();
+    const left = Math.min(rect.left, window.innerWidth - 220);
+    const top = Math.min(rect.bottom + 6, window.innerHeight - 180);
+    menu.style.left = `${Math.max(8, left)}px`;
+    menu.style.top = `${Math.max(8, top)}px`;
+}
+
+function onDuePointerDown(e) {
+    if (e.button !== 0) return;
+    const btn = e.currentTarget;
+    hideDueMenu();
+    dragState = {
+        kind: 'due',
+        el: btn,
+        pointerId: e.pointerId,
+        originX: e.clientX,
+        originY: e.clientY,
+        moved: false,
+        preview: null,
+        id: btn.getAttribute('data-id'),
+        title: btn.getAttribute('data-title') || '',
+        duration: Math.max(15, Number(btn.getAttribute('data-minutes') || 60) || 60),
+        ghost: null,
+    };
+    try { btn.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+}
+
+function onDuePointerMove(e) {
+    if (!dragState || dragState.kind !== 'due' || e.pointerId !== dragState.pointerId) return;
+    const dx = e.clientX - dragState.originX;
+    const dy = e.clientY - dragState.originY;
+    if (!dragState.moved && (dx * dx + dy * dy) < 36) return;
+    dragState.moved = true;
+    dragState.el.dataset.didDrag = '1';
+    if (!dragState.ghost) {
+        const ghost = document.createElement('div');
+        ghost.className = 'cal-due-ghost';
+        ghost.textContent = dragState.title;
+        document.body.appendChild(ghost);
+        dragState.ghost = ghost;
+    }
+    dragState.ghost.style.left = `${e.clientX + 8}px`;
+    dragState.ghost.style.top = `${e.clientY + 8}px`;
+    const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day-body');
+    document.querySelectorAll('.cal-day-body.is-drop').forEach((el) => el.classList.remove('is-drop'));
+    if (!hit) {
+        dragState.preview = null;
+        return;
+    }
+    hit.classList.add('is-drop');
+    const day = hit.closest('.cal-day')?.getAttribute('data-date');
+    if (!day) return;
+    const rect = hit.getBoundingClientRect();
+    const { startMin, span } = clockWindow(lastSettings);
+    const dur = Math.min(span, dragState.duration);
+    let mins = Math.round((((e.clientY - rect.top) / rect.height) * span) / 15) * 15;
+    mins = Math.max(0, Math.min(span - dur, mins));
+    dragState.preview = { date: day, minutesFromStart: mins, duration: dur, startMin };
+}
+
+async function onDuePointerUp(e) {
+    if (!dragState || dragState.kind !== 'due' || e.pointerId !== dragState.pointerId) return;
+    const state = dragState;
+    dragState = null;
+    state.ghost?.remove();
+    document.querySelectorAll('.cal-day-body.is-drop').forEach((el) => el.classList.remove('is-drop'));
+    try { state.el.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    if (!state.moved || !state.preview || !state.id) return;
+    const [y, m, d] = state.preview.date.split('-').map(Number);
+    const start = new Date(y, m - 1, d, 0, 0, 0);
+    start.setMinutes(state.preview.startMin + state.preview.minutesFromStart);
+    const end = new Date(start.getTime() + state.preview.duration * 60000);
+    try {
+        await eel.schedule_work_at(state.id, toApiIso(start), toApiIso(end))();
+        utils.notifyDataChanged();
+        await loadCalendar();
+        utils.showSuccessFeedback('Placed on the clock. Due date unchanged.');
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not place that.');
+        await loadCalendar();
+    }
+}
+
+async function runDueMenu(act) {
+    const chip = dueMenuChip;
+    hideDueMenu();
+    if (!chip) return;
+    const id = chip.getAttribute('data-id');
+    const date = chip.closest('[data-date]')?.getAttribute('data-date')
+        || String(chip.getAttribute('data-due-at') || '').slice(0, 10);
+    if (!id) return;
+    try {
+        if (act === 'done') {
+            await eel.finish_work_item(id)();
+            utils.showSuccessFeedback('Marked done.');
+        } else if (act === 'reopen') {
+            await eel.reopen_work_item(id)();
+            utils.showSuccessFeedback('Reopened.');
+        } else if (act === 'place-after') {
+            await eel.place_work_after_lecture(id, date)();
+            utils.showSuccessFeedback('Placed after lecture.');
+        } else if (act === 'todo') {
+            document.dispatchEvent(new CustomEvent('kosistenz:open-todo', { detail: { date, itemId: id } }));
+            return;
+        }
+        utils.notifyDataChanged();
+        await loadCalendar();
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not update that due.');
     }
 }
 
@@ -753,7 +1003,7 @@ async function applyPastedCalendar(raw) {
             field.dispatchEvent(new Event('change', { bubbles: true }));
             try { field.focus(); } catch (err) { /* ignore */ }
         }
-        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load dues.');
+        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load lectures and due dates.');
         return true;
     }
     if (isIcs) {
@@ -768,10 +1018,21 @@ async function importPasted(raw) {
     if (status) status.textContent = 'Importing…';
     try {
         const result = await eel.import_pasted_calendar(raw)();
+        const duesNew = result.created || 0;
+        const duesUp = result.updated || 0;
+        const clock = result.events_created || 0;
         if (status) {
-            status.textContent = `Imported ${result.created || 0} new, updated ${result.updated || 0}. Due dates only — not busy time.`;
+            status.textContent = `Imported ${duesNew} due date${duesNew === 1 ? '' : 's'} (${duesUp} updated), ${clock} on the clock.`;
         }
-        utils.showSuccessFeedback('Due dates are in the unplaced list.');
+        if (clock || duesNew || duesUp) {
+            utils.showSuccessFeedback(
+                clock
+                    ? 'Timed events are on the week clock. Due dates stay as chips.'
+                    : 'Due dates are on that day’s To Do and as chips on the week.'
+            );
+        } else {
+            utils.showSuccessFeedback('Imported the feed. No new events in range.');
+        }
         utils.notifyDataChanged();
         await loadCalendar();
         return true;
@@ -850,6 +1111,14 @@ function importIcs() {
 export function setupCalendar() {
     setCalView(calView);
     paintEditor();
+    document.getElementById('calDueMenu')?.addEventListener('click', (e) => {
+        const act = e.target.closest('[data-act]')?.getAttribute('data-act');
+        if (act) void runDueMenu(act);
+    });
+    document.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('#calDueMenu') || e.target.closest('.cal-due-chip')) return;
+        hideDueMenu();
+    });
     document.getElementById('calViewGroup')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-cal-view]');
         if (!btn) return;

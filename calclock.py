@@ -7,6 +7,7 @@ Generated study blocks are never written back to EventKit.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -17,6 +18,7 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -35,6 +37,29 @@ DAY_END = "21:30"
 UNPLACED_UI_LIMIT = 80
 BLOCK_STATUSES = ("proposed", "locked", "done", "skipped")
 _ICS_URL_RE = re.compile(r"(?:https?|webcal)://[^\s<>\"']+", re.I)
+_ICS_FETCH_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Kosistenz/1.0",
+    "Accept": "text/calendar, text/plain, application/calendar+xml, */*",
+}
+_BYDAY = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+_COURSE_RE = re.compile(r"\[([A-Za-z]{2,10})\s*[-–]\s*(\d{2,4})")
+
+
+def course_code_from_title(title: str) -> str:
+    match = _COURSE_RE.search(str(title or ""))
+    if not match:
+        return ""
+    return f"{match.group(1).upper()}-{match.group(2)}"
+
+
+def course_hue(code: str) -> int:
+    key = str(code or "").strip()
+    if not key:
+        return 32
+    acc = 0
+    for ch in key:
+        acc = (acc * 31 + ord(ch)) & 0xFFFFFFFF
+    return int(acc % 360)
 
 
 def normalize_ics_url(raw: str, *, allow_empty: bool = False) -> str:
@@ -50,6 +75,7 @@ def normalize_ics_url(raw: str, *, allow_empty: bool = False) -> str:
     match = _ICS_URL_RE.search(text)
     if match:
         text = match.group(0)
+    text = text.rstrip(".,;)]}>\"'")
     lower = text.lower()
     if lower.startswith("webcal://"):
         text = "https://" + text[len("webcal://") :]
@@ -57,6 +83,21 @@ def normalize_ics_url(raw: str, *, allow_empty: bool = False) -> str:
     if parsed.scheme not in ("https", "http") or not parsed.netloc:
         raise ValueError("Calendar URL must be http or https")
     return text
+
+
+def _feed_id_for_url(url: str) -> str:
+    parsed = urlparse(url)
+    raw = f"{parsed.netloc}{parsed.path}".rstrip("/")
+    for feed in load_settings().get("feeds") or []:
+        if str(feed.get("url") or "").rstrip("/") == url.rstrip("/"):
+            key = str(feed.get("id") or "").strip()
+            if key:
+                return key
+    if len(raw) <= 72:
+        return "ics:" + raw
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
+    host = (parsed.netloc or "ics")[:40]
+    return f"ics:{host}:{digest}"
 
 
 def _now() -> datetime:
@@ -116,6 +157,14 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_blocks_work ON schedule_blocks(work_item_id)"
     )
+    cols = {str(row[1]) for row in conn.execute("PRAGMA table_info(calendar_events)")}
+    if "source_uid" not in cols:
+        conn.execute("ALTER TABLE calendar_events ADD COLUMN source_uid TEXT")
+    if "source_calendar" not in cols:
+        conn.execute("ALTER TABLE calendar_events ADD COLUMN source_calendar TEXT")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_cal_events_source ON calendar_events(source_calendar)"
+    )
 
 
 def load_settings() -> Dict[str, Any]:
@@ -139,10 +188,17 @@ def load_settings() -> Dict[str, Any]:
     }
 
 
-def _normalize_feeds(raw: Any) -> List[Dict[str, str]]:
+def _feed_enabled(item: Dict[str, Any]) -> bool:
+    val = item.get("enabled", True)
+    if val in (False, 0, "0", "false", "False", "off", "no"):
+        return False
+    return True
+
+
+def _normalize_feeds(raw: Any) -> List[Dict[str, Any]]:
     if not isinstance(raw, list):
         return []
-    out: List[Dict[str, str]] = []
+    out: List[Dict[str, Any]] = []
     seen = set()
     for item in raw:
         if not isinstance(item, dict):
@@ -157,6 +213,7 @@ def _normalize_feeds(raw: Any) -> List[Dict[str, str]]:
                 "kind": str(item.get("kind") or "ics").strip() or "ics",
                 "url": str(item.get("url") or "").strip(),
                 "title": str(item.get("title") or "").strip() or feed_id,
+                "enabled": _feed_enabled(item),
             }
         )
     return out
@@ -211,10 +268,45 @@ def register_calendar_feed(
                 "kind": kind or "ics",
                 "url": url,
                 "title": title or key,
+                "enabled": True,
             }
         )
     current["feeds"] = feeds
     return _write_settings(current)
+
+
+def _disabled_feed_ids() -> set[str]:
+    return {
+        str(feed.get("id") or "")
+        for feed in load_settings().get("feeds") or []
+        if feed.get("id") and not _feed_enabled(feed)
+    }
+
+
+def _is_hidden_source(source_calendar: Any) -> bool:
+    key = str(source_calendar or "").strip()
+    return bool(key) and key in _disabled_feed_ids()
+
+
+@eel.expose
+def set_calendar_feed_enabled(feed_id: str = "", enabled: bool = True) -> Dict[str, Any]:
+    key = str(feed_id or "").strip()
+    if not key:
+        return {"ok": False, "error": "Missing calendar.", **list_calendar_feeds()}
+    current = load_settings()
+    feeds = list(current.get("feeds") or [])
+    found = False
+    for feed in feeds:
+        if feed.get("id") != key:
+            continue
+        feed["enabled"] = bool(enabled)
+        found = True
+        break
+    if not found:
+        feeds.append({"id": key, "kind": "ics", "url": "", "title": key, "enabled": bool(enabled)})
+    current["feeds"] = feeds
+    _write_settings(current)
+    return {"ok": True, "feed_id": key, "enabled": bool(enabled), **list_calendar_feeds()}
 
 
 @eel.expose
@@ -283,6 +375,7 @@ def _row_event(row: sqlite3.Row) -> Dict[str, Any]:
                 recurrence = loaded
         except json.JSONDecodeError:
             recurrence = None
+    keys = set(row.keys())
     return {
         "id": row["id"],
         "title": row["title"],
@@ -291,6 +384,8 @@ def _row_event(row: sqlite3.Row) -> Dict[str, Any]:
         "all_day": bool(row["all_day"]),
         "recurrence": recurrence,
         "source": row["source"],
+        "source_uid": (row["source_uid"] if "source_uid" in keys else "") or "",
+        "source_calendar": (row["source_calendar"] if "source_calendar" in keys else "") or "",
         "kind": "hard",
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -379,39 +474,320 @@ def _parse_ics_datetime(value: str, params: str) -> Tuple[datetime, bool]:
     return datetime.combine(day, datetime.min.time()), True
 
 
-def parse_ics_events(text: str) -> List[Dict[str, Any]]:
+def _ics_window(today: Optional[date] = None) -> Tuple[date, date]:
+    day = today or date.today()
+    return day - timedelta(days=21), day + timedelta(days=120)
+
+
+def _ics_calendar_title(text: str, fallback: str = "") -> str:
     unfolded = _unfold_ics(text)
+    for key in ("X-WR-CALNAME", "NAME"):
+        prefix = key + ":"
+        for line in unfolded.splitlines():
+            if line.upper().startswith(prefix):
+                name = line.split(":", 1)[1].strip()
+                if name:
+                    return name[:80]
+    return fallback
+
+
+def _parse_ics_duration(raw: str) -> Optional[timedelta]:
+    text = (raw or "").strip().upper()
+    match = re.match(
+        r"^P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$",
+        text,
+    )
+    if not match:
+        return None
+    weeks, days, hours, minutes, seconds = (int(part or 0) for part in match.groups())
+    delta = timedelta(weeks=weeks, days=days, hours=hours, minutes=minutes, seconds=seconds)
+    if delta.total_seconds() <= 0:
+        return None
+    return delta
+
+
+def _parse_rrule(raw: str) -> Optional[Dict[str, Any]]:
+    text = (raw or "").strip()
+    if not text:
+        return None
+    parts: Dict[str, str] = {}
+    for piece in text.split(";"):
+        if "=" not in piece:
+            continue
+        key, val = piece.split("=", 1)
+        parts[key.strip().upper()] = val.strip()
+    freq = (parts.get("FREQ") or "").upper()
+    if not freq:
+        return None
+    interval = 1
+    try:
+        interval = max(1, int(parts.get("INTERVAL") or "1"))
+    except ValueError:
+        interval = 1
+    until: Optional[date] = None
+    if parts.get("UNTIL"):
+        try:
+            parsed, _ = _parse_ics_datetime(parts["UNTIL"], "")
+            until = parsed.date()
+        except (ValueError, TypeError):
+            until = None
+    count = None
+    if parts.get("COUNT"):
+        try:
+            count = max(1, int(parts["COUNT"]))
+        except ValueError:
+            count = None
+    weekdays: List[int] = []
+    for token in (parts.get("BYDAY") or "").split(","):
+        token = token.strip().upper()
+        if not token:
+            continue
+        code = token[-2:] if len(token) >= 2 else token
+        if code in _BYDAY:
+            weekdays.append(_BYDAY[code])
+    return {
+        "freq": freq,
+        "interval": interval,
+        "weekdays": sorted(set(weekdays)),
+        "until": until,
+        "count": count,
+    }
+
+
+def _parse_exdates(values: List[Tuple[str, str]]) -> set:
+    out = set()
+    for raw, extra in values:
+        for piece in (raw or "").split(","):
+            piece = piece.strip()
+            if not piece:
+                continue
+            try:
+                parsed, _ = _parse_ics_datetime(piece, extra)
+            except (ValueError, TypeError):
+                continue
+            out.add(parsed.date())
+    return out
+
+
+def _shift_dt(stamp: datetime, day: date) -> datetime:
+    return datetime.combine(day, stamp.time())
+
+
+def _expand_rrule_dates(
+    start: date,
+    rrule: Dict[str, Any],
+    exdates: set,
+    window_start: date,
+    window_end: date,
+) -> List[date]:
+    freq = rrule["freq"]
+    interval = int(rrule.get("interval") or 1)
+    until = rrule.get("until")
+    hard_end = window_end
+    if until and until < hard_end:
+        hard_end = until
+    if hard_end < start and freq != "YEARLY":
+        # Series may still have later yearly instances; weekly/daily ended before DTSTART window.
+        pass
+    count = rrule.get("count")
+    out: List[date] = []
+    generated = 0
+
+    def take(day: date) -> bool:
+        nonlocal generated
+        if count is not None and generated >= count:
+            return False
+        generated += 1
+        if day in exdates:
+            return True
+        if window_start <= day <= hard_end:
+            out.append(day)
+        return True
+
+    if freq == "DAILY":
+        cur = start
+        while cur <= hard_end:
+            if not take(cur):
+                break
+            cur += timedelta(days=interval)
+        return out
+
+    if freq == "WEEKLY":
+        weekdays = list(rrule.get("weekdays") or []) or [start.weekday()]
+        allowed = set(weekdays)
+        cur = start
+        origin = start
+        while cur <= hard_end:
+            if cur.weekday() in allowed:
+                weeks = (cur - origin).days // 7
+                if weeks % interval == 0:
+                    if not take(cur):
+                        break
+            cur += timedelta(days=1)
+        return out
+
+    if freq == "YEARLY":
+        year = start.year
+        last_year = hard_end.year
+        while year <= last_year:
+            try:
+                occ = start.replace(year=year)
+            except ValueError:
+                year += interval
+                continue
+            if occ > hard_end and (count is None or generated >= (count or 0)):
+                break
+            if occ >= start:
+                if not take(occ):
+                    break
+            year += interval
+        return out
+
+    if freq == "MONTHLY":
+        year, month = start.year, start.month
+        guard = 0
+        while guard < 240:
+            guard += 1
+            try:
+                occ = date(year, month, start.day)
+            except ValueError:
+                month += interval
+                year += (month - 1) // 12
+                month = (month - 1) % 12 + 1
+                continue
+            if occ > hard_end:
+                break
+            if occ >= start:
+                if not take(occ):
+                    break
+            month += interval
+            year += (month - 1) // 12
+            month = (month - 1) % 12 + 1
+        return out
+
+    if window_start <= start <= hard_end and start not in exdates:
+        return [start]
+    return out
+
+
+def parse_ics_events(text: str, *, today: Optional[date] = None) -> List[Dict[str, Any]]:
+    """Parse VEVENT blocks. Weekly timed lectures keep a compact RRULE; other recurrences expand."""
+    unfolded = _unfold_ics(text)
+    window_start, window_end = _ics_window(today)
     blocks = re.split(r"BEGIN:VEVENT", unfolded, flags=re.IGNORECASE)[1:]
     events: List[Dict[str, Any]] = []
     for block in blocks:
         chunk = block.split("END:VEVENT", 1)[0]
         fields: Dict[str, str] = {}
         params: Dict[str, str] = {}
+        exdate_raw: List[Tuple[str, str]] = []
         for line in chunk.splitlines():
             if ":" not in line:
                 continue
             key, _, val = line.partition(":")
             name, _, extra = key.partition(";")
             name = name.strip().upper()
-            fields[name] = val.strip()
+            value = val.strip()
+            if name == "EXDATE":
+                exdate_raw.append((value, extra))
+                continue
+            fields[name] = value
             params[name] = extra
         summary = (fields.get("SUMMARY") or "").strip()
         start_raw = fields.get("DTSTART")
         if not summary or not start_raw:
             continue
-        start, all_day = _parse_ics_datetime(start_raw, params.get("DTSTART") or "")
+        try:
+            start, all_day = _parse_ics_datetime(start_raw, params.get("DTSTART") or "")
+        except (ValueError, TypeError):
+            continue
         end: Optional[datetime] = None
         if fields.get("DTEND"):
-            end, end_all_day = _parse_ics_datetime(fields["DTEND"], params.get("DTEND") or "")
-            all_day = all_day or end_all_day
+            try:
+                end, end_all_day = _parse_ics_datetime(fields["DTEND"], params.get("DTEND") or "")
+                all_day = all_day or end_all_day
+            except (ValueError, TypeError):
+                end = None
+        if end is None and fields.get("DURATION"):
+            delta = _parse_ics_duration(fields["DURATION"])
+            if delta:
+                end = start + delta
+        if end is None:
+            end = start + (timedelta(days=1) if all_day else timedelta(minutes=50))
+        elif not all_day and end <= start:
+            end = start + timedelta(minutes=50)
+        rrule = _parse_rrule(fields.get("RRULE") or "")
+        exdates = _parse_exdates(exdate_raw)
+        uid = (fields.get("UID") or uuid.uuid4().hex).strip()
+        location = (fields.get("LOCATION") or "").strip()
+        duration = end - start
+        compact_weekly = bool(
+            rrule
+            and not all_day
+            and rrule["freq"] == "WEEKLY"
+            and int(rrule.get("interval") or 1) == 1
+            and not rrule.get("count")
+            and (rrule.get("weekdays") or [start.weekday()])
+        )
+        if compact_weekly and rrule:
+            until = rrule.get("until")
+            if until and until < window_start:
+                continue
+            weekdays = list(rrule.get("weekdays") or []) or [start.weekday()]
+            events.append(
+                {
+                    "uid": uid,
+                    "title": summary[:200],
+                    "start_at": start,
+                    "end_at": end,
+                    "all_day": False,
+                    "location": location,
+                    "recurrence": {
+                        "kind": "weekly",
+                        "weekdays": weekdays,
+                        "until": until.isoformat() if until else None,
+                        "exdates": [day.isoformat() for day in sorted(exdates)],
+                    },
+                }
+            )
+            continue
+        if rrule:
+            days = _expand_rrule_dates(start.date(), rrule, exdates, window_start, window_end)
+            if not days:
+                continue
+            for day in days:
+                occ_start = _shift_dt(start, day)
+                occ_end = occ_start + duration
+                if all_day:
+                    occ_end = occ_start + timedelta(days=1)
+                events.append(
+                    {
+                        "uid": f"{uid}#{day.isoformat()}",
+                        "title": summary[:200],
+                        "start_at": occ_start,
+                        "end_at": occ_end,
+                        "all_day": all_day,
+                        "location": location,
+                        "recurrence": None,
+                    }
+                )
+            continue
+        # One-shot: dues keep every historical date; timed busy events stay near now.
+        if not all_day and not (window_start <= start.date() <= window_end):
+            # 11:59 stubs are dues and should not be window-filtered later; keep them.
+            minute_stub = start.hour == 23 and start.minute >= 50
+            short = duration <= timedelta(minutes=15) and (start.minute == 59 or start.hour == 23)
+            if not (minute_stub or short):
+                continue
         events.append(
             {
-                "uid": (fields.get("UID") or uuid.uuid4().hex).strip(),
+                "uid": uid,
                 "title": summary[:200],
                 "start_at": start,
                 "end_at": end,
                 "all_day": all_day,
-                "location": (fields.get("LOCATION") or "").strip(),
+                "location": location,
+                "recurrence": None,
             }
         )
     return events
@@ -426,8 +802,6 @@ def ingest_events(
 ) -> Dict[str, int]:
     settings = load_settings()
     estimate = default_estimate or settings["default_estimate_minutes"]
-    created = 0
-    updated = 0
     skipped = 0
     rows: List[Dict[str, Any]] = []
     for raw in events:
@@ -468,33 +842,151 @@ def ingest_events(
     return {"created": created, "updated": updated, "skipped": skipped, "total": len(events)}
 
 
-def import_ics_text(text: str, calendar_id: str = "ics", *, url: str = "", title: str = "") -> Dict[str, Any]:
-    events = parse_ics_events(text)
-    counts = ingest_events(events, calendar_id=calendar_id, role="deadlines")
+def _busy_event_too_long(start: datetime, end: Optional[datetime]) -> bool:
+    if not isinstance(end, datetime):
+        return False
+    return (end - start).total_seconds() > 12 * 3600
+
+
+def replace_imported_hard_events(calendar_id: str, events: List[Dict[str, Any]]) -> int:
+    """Replace timed ICS events for one feed. Leaves user-created lectures alone."""
+    key = str(calendar_id or "").strip()
+    if not key:
+        return 0
+    now = _now().isoformat()
+    stored = 0
+    with _connect() as conn:
+        conn.execute("DELETE FROM calendar_events WHERE source_calendar = ?", (key,))
+        for raw in events:
+            title = str(raw.get("title") or "").strip()
+            start = raw.get("start_at")
+            end = raw.get("end_at")
+            if isinstance(start, str):
+                start = parse_datetime(start)
+            if isinstance(end, str) and str(end).strip():
+                end = parse_datetime(end)
+            if not title or not isinstance(start, datetime):
+                continue
+            if not isinstance(end, datetime) or end <= start:
+                end = start + timedelta(minutes=50)
+            if _busy_event_too_long(start, end):
+                continue
+            rec = raw.get("recurrence") if isinstance(raw.get("recurrence"), dict) else None
+            conn.execute(
+                """
+                INSERT INTO calendar_events (
+                    id, title, start_at, end_at, all_day, recurrence_json, source,
+                    created_at, updated_at, source_uid, source_calendar
+                ) VALUES (?, ?, ?, ?, 0, ?, 'ics', ?, ?, ?, ?)
+                """,
+                (
+                    str(uuid.uuid4()),
+                    title[:200],
+                    start.isoformat(timespec="seconds"),
+                    end.isoformat(timespec="seconds"),
+                    json.dumps(rec) if rec else None,
+                    now,
+                    now,
+                    str(raw.get("uid") or "")[:200],
+                    key,
+                ),
+            )
+            stored += 1
+        conn.commit()
+    return stored
+
+
+def delete_imported_hard_events(calendar_id: str) -> int:
+    key = str(calendar_id or "").strip()
+    if not key:
+        return 0
+    with _connect() as conn:
+        cur = conn.execute("DELETE FROM calendar_events WHERE source_calendar = ?", (key,))
+        conn.commit()
+        return int(cur.rowcount or 0)
+
+
+def import_ics_text(
+    text: str,
+    calendar_id: str = "ics",
+    *,
+    url: str = "",
+    title: str = "",
+    role: str = "auto",
+) -> Dict[str, Any]:
+    blob = str(text or "")
+    if "BEGIN:VCALENDAR" not in blob.upper():
+        raise ValueError("That file is not a calendar (missing BEGIN:VCALENDAR).")
+    events = parse_ics_events(blob)
+    dues: List[Dict[str, Any]] = []
+    busy: List[Dict[str, Any]] = []
+    for raw in events:
+        start = raw.get("start_at")
+        end = raw.get("end_at")
+        if not isinstance(start, datetime):
+            continue
+        if is_deadline_event(
+            all_day=bool(raw.get("all_day")),
+            start_at=start,
+            end_at=end if isinstance(end, datetime) else None,
+            role=role,
+        ):
+            dues.append(raw)
+        else:
+            busy.append(raw)
+    due_counts = ingest_events(dues, calendar_id=calendar_id, role="deadlines")
+    busy_uids: List[str] = []
+    for raw in busy:
+        uid = str(raw.get("uid") or "").strip()
+        if not uid:
+            continue
+        busy_uids.append(uid)
+        busy_uids.append(uid.split("#", 1)[0])
+    dropped = work.delete_open_imported_uids(calendar_id, busy_uids)
+    delete_blocks_for_work_items(dropped.get("ids") or [])
+    events_created = replace_imported_hard_events(calendar_id, busy)
+    label = title or _ics_calendar_title(blob, calendar_id)
     register_calendar_feed(
         calendar_id,
         kind="ics",
         url=url,
-        title=title or calendar_id,
+        title=label,
     )
-    return {"ok": True, "calendar_id": calendar_id, **counts}
+    return {
+        "ok": True,
+        "calendar_id": calendar_id,
+        "created": due_counts["created"],
+        "updated": due_counts["updated"],
+        "skipped": due_counts["skipped"],
+        "total": len(events),
+        "events_created": events_created,
+    }
 
 
 @eel.expose
 def import_ics_url(url: str = "") -> Dict[str, Any]:
     settings = load_settings()
     target = normalize_ics_url(url or settings.get("ics_url") or "")
-    parsed = urlparse(target)
     if url:
         save_calendar_settings({"ics_url": target})
-    req = Request(target, headers={"User-Agent": "Kosistenz/1.0"})
-    with urlopen(req, timeout=20) as resp:
-        data = resp.read(MAX_ICS_BYTES + 1)
+    req = Request(target, headers=dict(_ICS_FETCH_HEADERS))
+    try:
+        with urlopen(req, timeout=45) as resp:
+            data = resp.read(MAX_ICS_BYTES + 1)
+    except HTTPError as exc:
+        raise ValueError(
+            f"Calendar server returned HTTP {exc.code}. Use a public iCloud or class calendar link."
+        ) from exc
+    except URLError as exc:
+        raise ValueError("Could not reach that calendar URL. Check the link and your network.") from exc
     if len(data) > MAX_ICS_BYTES:
         raise ValueError("Calendar file is too large")
     text = data.decode("utf-8", errors="replace")
-    calendar_id = "ics:" + (parsed.netloc + parsed.path)[:80]
-    label = parsed.netloc or "Class calendar"
+    if "BEGIN:VCALENDAR" not in text.upper():
+        raise ValueError("That URL did not return a calendar. iCloud links should start with webcal:// or https://.")
+    calendar_id = _feed_id_for_url(target)
+    parsed = urlparse(target)
+    label = _ics_calendar_title(text, parsed.netloc or "Class calendar")
     return import_ics_text(text, calendar_id=calendar_id, url=target, title=label)
 
 
@@ -554,6 +1046,7 @@ def list_calendar_feeds() -> Dict[str, Any]:
                 "kind": meta.get("kind") or ("apple" if not str(feed_id).startswith("ics:") else "ics"),
                 "url": meta.get("url") or "",
                 "title": meta.get("title") or feed_id,
+                "enabled": _feed_enabled(meta) if meta else True,
                 "open_count": source["open_count"],
                 "undated_count": source["undated_count"],
                 "total": source["total"],
@@ -568,6 +1061,7 @@ def list_calendar_feeds() -> Dict[str, Any]:
                 "kind": meta.get("kind") or "ics",
                 "url": meta.get("url") or "",
                 "title": meta.get("title") or feed_id,
+                "enabled": _feed_enabled(meta),
                 "open_count": 0,
                 "undated_count": 0,
                 "total": 0,
@@ -581,6 +1075,7 @@ def list_calendar_feeds() -> Dict[str, Any]:
                 "kind": "ics",
                 "url": ics_url,
                 "title": ics_url,
+                "enabled": True,
                 "open_count": 0,
                 "undated_count": 0,
                 "total": 0,
@@ -609,6 +1104,8 @@ def unsubscribe_calendar_feed(feed_id: str = "", url: str = "") -> Dict[str, Any
     matched = next((feed for feed in feeds if feed.get("id") == key), None)
     deleted = work.delete_open_imported_work(key) if key else {"deleted": 0, "ids": []}
     delete_blocks_for_work_items(deleted.get("ids") or [])
+    if key:
+        delete_imported_hard_events(key)
     next_feeds = [feed for feed in feeds if feed.get("id") != key]
     if link:
         next_feeds = [feed for feed in next_feeds if feed.get("url") != link]
@@ -623,6 +1120,11 @@ def unsubscribe_calendar_feed(feed_id: str = "", url: str = "") -> Dict[str, Any
         parsed = urlparse(current_url)
         if key and key == "ics:" + (parsed.netloc + parsed.path)[:80]:
             drop_url = True
+        try:
+            if key and key == _feed_id_for_url(current_url):
+                drop_url = True
+        except ValueError:
+            pass
     if drop_url:
         settings["ics_url"] = ""
     _write_settings(settings)
@@ -803,6 +1305,29 @@ def update_calendar_event(
     return _row_event(row)
 
 
+def _recurrence_until(recurrence: Any) -> Optional[date]:
+    if not isinstance(recurrence, dict):
+        return None
+    raw = recurrence.get("until")
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(str(raw)[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _recurrence_exdates(recurrence: Any) -> set:
+    if not isinstance(recurrence, dict):
+        return set()
+    out = set()
+    for item in recurrence.get("exdates") or []:
+        text = str(item or "")[:10]
+        if len(text) == 10:
+            out.add(text)
+    return out
+
+
 def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
     """Timed busy occurrences in [start, end] inclusive."""
     out: List[Dict[str, Any]] = []
@@ -810,16 +1335,21 @@ def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
         rows = conn.execute("SELECT * FROM calendar_events").fetchall()
     for row in rows:
         event = _row_event(row)
+        if _is_hidden_source(event.get("source_calendar")):
+            continue
         event_start = parse_datetime(event["start_at"])
         event_end = parse_datetime(event["end_at"])
         duration = event_end - event_start
         recurrence = event.get("recurrence") or {}
         weekdays = recurrence.get("weekdays") if isinstance(recurrence, dict) else None
+        until = _recurrence_until(recurrence)
+        exdates = _recurrence_exdates(recurrence)
         if weekdays:
             allowed = {int(day) for day in weekdays}
             cursor = max(start, event_start.date())
-            while cursor <= end:
-                if cursor.weekday() in allowed:
+            last = end if until is None else min(end, until)
+            while cursor <= last:
+                if cursor.weekday() in allowed and cursor.isoformat() not in exdates:
                     occ_start = datetime.combine(cursor, event_start.time())
                     out.append(
                         {
@@ -848,6 +1378,11 @@ def _occurrence_on(event: Dict[str, Any], day: date) -> Optional[Dict[str, Any]]
     duration = end - start
     recurrence = event.get("recurrence") or {}
     weekdays = recurrence.get("weekdays") if isinstance(recurrence, dict) else None
+    until = _recurrence_until(recurrence)
+    if until and day > until:
+        return None
+    if day.isoformat() in _recurrence_exdates(recurrence):
+        return None
     if weekdays:
         if day.weekday() not in set(int(d) for d in weekdays):
             return None
@@ -1013,6 +1548,8 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
         "week_end": end.isoformat(),
         "settings": settings,
         "days": days,
+        "today": _today_column(),
+        "feeds": list_calendar_feeds().get("feeds") or [],
         "unplaced": shown,
         "unplaced_total": total,
         "at_risk": [
@@ -1023,9 +1560,51 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
     }
 
 
+def _slim_due(item: Dict[str, Any], *, is_overdue: bool = False) -> Dict[str, Any]:
+    title = item.get("title") or ""
+    course = course_code_from_title(title)
+    return {
+        "id": item.get("id"),
+        "title": title,
+        "status": item.get("status") or "open",
+        "due_at": item.get("due_at"),
+        "estimate_minutes": int(item.get("estimate_minutes") or DEFAULT_ESTIMATE),
+        "source_calendar": item.get("source_calendar") or "",
+        "course": course,
+        "hue": course_hue(course),
+        "is_overdue": bool(is_overdue or item.get("is_overdue")),
+    }
+
+
+def _today_column() -> Dict[str, Any]:
+    settings = load_settings()
+    today = date.today()
+    iso = today.isoformat()
+    hard = expand_hard_events(today, today)
+    blocks = list_blocks(today, today)
+    items = list(hard) + list(blocks)
+    items.sort(key=lambda row: str(row.get("start_at") or ""))
+    overdue = [
+        _slim_due(item, is_overdue=True)
+        for item in work.list_overdue_work()
+        if not _is_hidden_source(item.get("source_calendar"))
+    ]
+    return {
+        "date": iso,
+        "weekday": today.strftime("%a"),
+        "label": f"{today.strftime('%A')}, {today.strftime('%b')} {today.day}",
+        "day_start": settings.get("day_start") or DAY_START,
+        "day_end": settings.get("day_end") or DAY_END,
+        "overdue": overdue,
+        "dues": _dues_by_day(today, today).get(iso, []),
+        "items": items,
+    }
+
+
 def _dues_by_day(start: date, end: date) -> Dict[str, List[Dict[str, Any]]]:
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     now = work._now()
+    hidden = _disabled_feed_ids()
     with work._connect() as conn:
         rows = conn.execute(
             work._ITEM_SELECT
@@ -1040,27 +1619,27 @@ def _dues_by_day(start: date, end: date) -> Dict[str, List[Dict[str, Any]]]:
         ).fetchall()
     for row in rows:
         item = work._row_to_dict(row, now)
+        src = str(item.get("source_calendar") or "")
+        if src and src in hidden:
+            continue
         day = str(item.get("due_at") or "")[:10]
         if len(day) != 10:
             continue
-        grouped.setdefault(day, []).append(
-            {
-                "id": item["id"],
-                "title": item.get("title") or "",
-                "status": item.get("status") or "open",
-                "due_at": item.get("due_at"),
-            }
-        )
+        grouped.setdefault(day, []).append(_slim_due(item))
     return grouped
 
 
 def _due_counts() -> Dict[str, int]:
     counts: Counter[str] = Counter()
+    hidden = _disabled_feed_ids()
     with work._connect() as conn:
         rows = conn.execute(
-            "SELECT due_at, scheduled_date, status FROM work_items WHERE status != 'done'"
+            "SELECT due_at, scheduled_date, status, source_calendar FROM work_items WHERE status != 'done'"
         ).fetchall()
     for row in rows:
+        src = str(row["source_calendar"] or "")
+        if src and src in hidden:
+            continue
         due = str(row["due_at"] or "")[:10]
         if len(due) == 10:
             counts[due] += 1
@@ -1191,13 +1770,24 @@ def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
     week = get_week(monday_of(day).isoformat(), include_unplaced=False)
     match = next((row for row in week["days"] if row["date"] == iso), None)
     items = []
+    dues: List[Dict[str, Any]] = []
     if match:
         items.extend(match["events"])
         items.extend(match["blocks"])
         items.sort(key=lambda row: row["start_at"])
+        dues = list(match.get("dues") or [])
+    overdue = []
+    if iso == date.today().isoformat():
+        overdue = [
+            _slim_due(item, is_overdue=True)
+            for item in work.list_overdue_work()
+            if not _is_hidden_source(item.get("source_calendar"))
+        ]
     return {
         "local_date": iso,
         "items": items,
+        "dues": dues,
+        "overdue": overdue,
         "unplaced": week["unplaced"],
         "settings": week["settings"],
     }
@@ -1345,7 +1935,8 @@ def schedule_work_at(item_id: str, start_at: str, end_at: str = "") -> Dict[str,
         leftover = remaining_minutes(item) or int(load_settings().get("default_estimate_minutes") or DEFAULT_ESTIMATE)
         end = start + timedelta(minutes=max(15, min(int(leftover), CHUNK_MAX)))
     _validate_span(start, end, hard=False)
-    work.assign_work_item(item_id, start.date().isoformat())
+    if str(item.get("source") or "") != "calendar":
+        work.assign_work_item(item_id, start.date().isoformat())
     block = add_block(
         title=item["title"],
         start=start,
@@ -1355,3 +1946,23 @@ def schedule_work_at(item_id: str, start_at: str, end_at: str = "") -> Dict[str,
         status="proposed",
     )
     return {"ok": True, "block": block, "item": _work_item(item_id)}
+
+
+@eel.expose
+def place_work_after_lecture(item_id: str, local_date: str = "") -> Dict[str, Any]:
+    """Drop optional work time after that day's first lecture, or at wake-up."""
+    item = _work_item(item_id)
+    iso = work._parse_date(local_date) or str(item.get("due_at") or "")[:10] or date.today().isoformat()
+    day = date.fromisoformat(iso)
+    week = get_week(monday_of(day).isoformat(), include_unplaced=False)
+    match = next((row for row in week["days"] if row["date"] == iso), None)
+    lectures = sorted(match["events"] if match else [], key=lambda row: str(row.get("start_at") or ""))
+    leftover = remaining_minutes(item) or int(load_settings().get("default_estimate_minutes") or DEFAULT_ESTIMATE)
+    duration = max(15, min(int(leftover), CHUNK_MAX))
+    if lectures:
+        start = parse_datetime(lectures[0]["end_at"])
+    else:
+        hour, minute = parse_clock(str(load_settings().get("day_start") or DAY_START))
+        start = datetime(day.year, day.month, day.day, hour, minute, 0)
+    end = start + timedelta(minutes=duration)
+    return schedule_work_at(item_id, start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds"))
