@@ -376,4 +376,10 @@ def fill_week(week_start: str = "") -> Dict[str, Any]:
     week = calclock.get_week(start.isoformat())
     week["placed"] = placed
     week["at_risk_ids"] = list(dict.fromkeys(at_risk))
+    try:
+        import cluny_snapshot
+
+        cluny_snapshot.refresh_life_snapshot_safe()
+    except Exception:
+        pass
     return week

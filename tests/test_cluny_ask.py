@@ -183,6 +183,18 @@ class ClunyAskTests(unittest.TestCase):
         self.assertIsInstance(ctx["free_minutes"], int)
         self.assertIn("analytics", ctx)
         self.assertIn("period", ctx["analytics"])
+        self.assertIn("journal", ctx)
+        self.assertIn("work", ctx)
+        self.assertIn("calendar", ctx)
+
+    def test_accept_stores_kosistenz_handshake(self) -> None:
+        uid = self._seed_pending()
+        with mock.patch.object(cluny_ask.cluny_sync, "sync_task_mirror_safe"):
+            result = cluny_ask.accept_cluny_proposal(uid)
+        item_id = result["item"]["id"]
+        self.assertEqual(result["kosistenz_id"], f"kosistenz:{item_id}")
+        closed = result["inbox"]["closed"][0]
+        self.assertEqual(closed["kosistenz_id"], f"kosistenz:{item_id}")
 
 
 if __name__ == "__main__":

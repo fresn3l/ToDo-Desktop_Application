@@ -240,6 +240,7 @@ def build_app() -> None:
         "setuptools",
         "journal",
         "cluny_ask",
+        "cluny_snapshot",
         "cluny_client",
         "cluny_sync",
         "insights",

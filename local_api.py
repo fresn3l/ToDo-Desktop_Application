@@ -182,6 +182,10 @@ def handle_request(method: str, path: str, body: Optional[Dict[str, Any]] = None
             return 200, menu_status()
         if method == "GET" and route in ("/api/health", "/api/ok"):
             return 200, {"ok": True, "port": _bound_port}
+        if method == "GET" and route == "/api/cluny/life":
+            import cluny_snapshot
+
+            return 200, cluny_snapshot.build_life_snapshot()
         if method == "POST" and route == "/api/todo/start":
             return 200, start_today_todo()
         if method == "POST" and route == "/api/todo/finish":

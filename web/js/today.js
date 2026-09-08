@@ -319,6 +319,10 @@ export async function refreshTodayHome() {
         if (sub) sub.textContent = parts.rest;
         paintPulse(data);
         paintAgenda(data.agenda || []);
+        // refreshTodayHome returns after the agenda when the old Today hero is gone
+        if (!document.getElementById('todayActiveTodo')) {
+            return;
+        }
         const items = data.today || [];
         const active = items.find((item) => item.status === 'active');
         const rest = items.filter((item) => item.id !== active?.id);
@@ -403,6 +407,18 @@ export async function refreshToday() {
 }
 
 export function setupToday() {
+    // setupToday returns after the status pills when the old Today composer is gone
+    if (!document.getElementById('todayAddBtn')) {
+        void refreshToday();
+        document.addEventListener('kosistenz:data-changed', () => {
+            void refreshToday();
+        });
+        document.addEventListener('kosistenz:tab-shown', (e) => {
+            if (e.detail?.tab === 'home') void refreshTodayHome();
+            else void refreshToday();
+        });
+        return;
+    }
     document.getElementById('todayAddBtn')?.addEventListener('click', () => {
         void addTodayTask();
     });

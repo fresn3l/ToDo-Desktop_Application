@@ -5,6 +5,8 @@
 
 import * as utils from './utils.js';
 
+let pendingFocus = null;
+
 function hasEel(name) {
     return typeof eel !== 'undefined' && typeof eel[name] === 'function';
 }
@@ -24,9 +26,10 @@ function applyHealth(probe) {
     if (suggest) suggest.disabled = offline;
     const status = document.getElementById('clunyWidgetStatus');
     if (status) {
+        // Cluny status is one line — Ask about the week, or offline copy.
         status.textContent = offline
             ? (probe?.offline_copy || 'Cluny is off. Journal, to-dos, and the clock still work.')
-            : 'Cluny is the brain. Kosistenz stays the list and the clock.';
+            : 'Ask about the week. You still pick the day.';
     }
 }
 
@@ -117,8 +120,16 @@ async function askQuestion(event) {
         return;
     }
     if (btn) btn.disabled = true;
+    const answer = document.getElementById('clunyAnswer');
+    if (answer) {
+        answer.hidden = false;
+        // Asking Cluny stays visible in the answer box while the request runs
+        answer.textContent = 'Asking Cluny…';
+    }
+    const focus = pendingFocus;
+    pendingFocus = null;
     try {
-        paintAnswer(await eel.ask_cluny(question)());
+        paintAnswer(await eel.ask_cluny(question, focus)());
     } catch (err) {
         console.error(err);
         utils.showErrorFeedback(err?.message || 'Cluny did not answer.');
@@ -127,8 +138,9 @@ async function askQuestion(event) {
     }
 }
 
-export async function promptCluny(question) {
+export async function promptCluny(question, focus) {
     const text = String(question || '').trim();
+    pendingFocus = focus && typeof focus === 'object' ? focus : null;
     const input = document.getElementById('clunyAskInput');
     if (input && text) input.value = text;
     await refreshCluny();

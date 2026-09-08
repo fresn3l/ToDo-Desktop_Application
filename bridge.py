@@ -14,6 +14,7 @@ import brain  # noqa: F401
 import library  # noqa: F401
 import cluny_brain  # noqa: F401
 import cluny_ask  # noqa: F401
+import cluny_snapshot  # noqa: F401
 import cluny_sync  # noqa: F401
 import calclock  # noqa: F401
 import daily_checklist  # noqa: F401

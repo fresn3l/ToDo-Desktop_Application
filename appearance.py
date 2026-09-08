@@ -390,7 +390,13 @@ def get_appearance_settings() -> Dict[str, Any]:
 
 @eel.expose
 def save_appearance_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
-    cleaned = _sanitize(settings)
+    incoming = dict(settings) if isinstance(settings, dict) else {}
+    stored = get_appearance_settings()
+    # save_appearance_settings ignores todayLayout / todayOrder / todayTodo writes
+    for key in ("todayLayout", "todayOrder", "todayTodo", "todayWorkout", "todayJournal"):
+        incoming.pop(key, None)
+        incoming[key] = stored.get(key, DEFAULTS[key])
+    cleaned = _sanitize(incoming)
     path = _settings_path()
     tmp = str(path) + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
