@@ -163,10 +163,10 @@ class AppearancePaletteTests(unittest.TestCase):
         swift = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "Appearance.swift").read_text(
             encoding="utf-8"
         )
-        today = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "TodayScreen.swift").read_text(
+        app = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "KosistenzApp.swift").read_text(
             encoding="utf-8"
         )
         self.assertIn("KosistenzPalette", swift)
         self.assertIn('json?["resolved"]', swift)
-        self.assertIn("KosistenzPalette.from", today)
+        self.assertIn("KosistenzPalette.from", app)
         self.assertIn("No iPhone theme picker", swift)

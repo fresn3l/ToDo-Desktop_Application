@@ -31,10 +31,17 @@ class ClunyBrainTests(unittest.TestCase):
         self.assertFalse(status.get("started"))
 
     def test_spawn_uses_cluny_api_env(self) -> None:
+        probes = iter(
+            [
+                {"brain_ready": False, "ok": False},
+                {"brain_ready": True, "ok": True},
+            ]
+        )
         with mock.patch("cluny_brain._resolve_serve_command", return_value=["/tmp/cluny", "serve"]), mock.patch(
             "cluny_brain.subprocess.Popen", return_value=mock.Mock(poll=lambda: None)
         ) as popen, mock.patch("cluny_brain._wait_for_ready", return_value=True), mock.patch(
-            "cluny_brain.cluny_client.health", return_value={"brain_ready": True, "ok": True}
+            "cluny_brain.cluny_client.health",
+            side_effect=lambda: next(probes, {"brain_ready": True, "ok": True}),
         ):
             status = cluny_brain.ensure_running()
         self.assertTrue(status["started"])

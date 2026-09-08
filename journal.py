@@ -90,7 +90,7 @@ def _entry_folder(entry_date: datetime) -> Path:
     return folder
 
 
-def import_journal_entry(entry: Dict) -> Optional[Dict]:
+def import_journal_entry(entry: Dict, overwrite: bool = False) -> Optional[Dict]:
     """Write one journal record without minting a new id (used by the iCloud pack)."""
     if not isinstance(entry, dict):
         return None
@@ -110,7 +110,7 @@ def import_journal_entry(entry: Dict) -> Optional[Dict]:
     root = get_journal_directory().resolve()
     if not path.is_relative_to(root) or path.parent != folder:
         return None
-    if path.exists():
+    if path.exists() and not overwrite:
         return None
     record = {
         "id": stem,
@@ -119,6 +119,7 @@ def import_journal_entry(entry: Dict) -> Optional[Dict]:
         "duration_seconds": int(entry.get("duration_seconds") or 0),
         "continued": bool(entry.get("continued")),
         "created_at": entry.get("created_at") or when.isoformat(),
+        "updated_at": entry.get("updated_at") or datetime.now().isoformat(),
         "tags": _normalize_tags(entry.get("tags")),
         "kind": normalize_journal_kind(entry.get("kind")),
     }
@@ -282,6 +283,7 @@ def save_journal_entry(
         "duration_seconds": int(duration_seconds or 0),
         "continued": bool(continued),
         "created_at": entry_date.isoformat(),
+        "updated_at": entry_date.isoformat(),
         "tags": _normalize_tags(tags),
         "kind": normalize_journal_kind(kind),
     }

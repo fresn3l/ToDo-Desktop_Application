@@ -129,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     func applicationDidBecomeActive(_ notification: Notification) {
         refreshToolbarStatus()
+        webView?.evaluateJavaScript("window.kosistenzPullPhone && window.kosistenzPullPhone()")
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

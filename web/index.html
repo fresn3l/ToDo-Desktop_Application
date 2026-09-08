@@ -1021,11 +1021,15 @@
                                     <p class="panel-sub">Same Apple ID. A JSON pack in iCloud Drive / Kosistenz, not a Kosistenz server.</p>
                                 </div>
                             </div>
-                            <p class="checklist-hint small" id="icloudSyncHint">The iPhone app reads this folder. Push after you want the phone updated; pull to bring phone changes back.</p>
+                            <p class="checklist-hint small" id="icloudSyncHint">On the iPhone, pick this same folder (Files → iCloud Drive → Kosistenz). The phone cannot see an app-only iCloud container.</p>
                             <label class="checklist-field-label">Sync folder</label>
                             <code id="icloudSyncFolder" class="checklist-db-path"></code>
                             <label class="checklist-checkbox-label">
                                 <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, To Do, Workout, or Journal changes
+                            </label>
+                            <label class="checklist-checkbox-label">
+                                <input type="checkbox" id="icloudAutoPullToggle" checked>
+                                Pull phone changes when this Mac app opens
                             </label>
                             <div class="reminder-actions">
                                 <button type="button" id="icloudPushBtn" class="btn-primary">Push to iCloud</button>

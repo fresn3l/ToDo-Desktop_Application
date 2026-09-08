@@ -53,6 +53,7 @@ class IcloudSyncTests(unittest.TestCase):
         texts = [entry.get("content") for entry in journal.get_all_entries()]
         self.assertIn("Rode north.", texts)
         self.assertEqual(item["id"], work.list_all_work_items()[0]["id"])
+        self.assertTrue((self.pack / "calendar.json").is_file())
 
     def test_newer_updated_at_wins(self):
         self._use(self.src)
@@ -141,4 +142,68 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertTrue(exported["ok"])
         on_disk = icloud_sync._read_json(self.pack / "appearance.json", {})
         self.assertEqual(on_disk["resolved"]["colors"]["accent"], "#c45c6a")
+
+    def test_open_pull_imports_phone_todo_when_auto_pull_on(self):
+        self._use(self.src)
+        dest = icloud_sync.default_sync_dir()
+        icloud_sync.save_settings({"auto": True, "auto_pull": True})
+        icloud_sync.write_pack(dest)
+        pack = icloud_sync.read_pack(dest)
+        pack["work"]["items"].append(
+            {
+                "id": "phone-1",
+                "title": "From the train",
+                "scheduled_date": work._today().isoformat(),
+                "status": "open",
+                "updated_at": datetime.now().isoformat(timespec="seconds"),
+                "created_at": datetime.now().isoformat(timespec="seconds"),
+                "duration_seconds": 0,
+                "sort_order": 0,
+                "source": "iphone",
+            }
+        )
+        icloud_sync._write_json(dest / "work.json", pack["work"])
+        icloud_sync._last_open_pull = 0.0
+        result = icloud_sync.maybe_pull_icloud_on_open()
+        self.assertTrue(result.get("ok"))
+        self.assertFalse(result.get("skipped"))
+        titles = [row["title"] for row in work.list_all_work_items()]
+        self.assertIn("From the train", titles)
+
+    def test_running_zero_miles_is_not_imported(self):
+        self._use(self.src)
+        icloud_sync.write_pack(self.pack)
+        pack = icloud_sync.read_pack(self.pack)
+        pack["workouts"]["sessions"].append(
+            {
+                "id": "bad-run",
+                "local_date": work._today().isoformat(),
+                "kind": "running",
+                "miles": 0,
+                "other_label": "",
+                "created_at": datetime.now().isoformat(timespec="seconds"),
+            }
+        )
+        icloud_sync._write_json(self.pack / "workouts.json", pack["workouts"])
+        icloud_sync.apply_pack(self.pack)
+        day = workouts.get_workout_day(work._today().isoformat())
+        ids = [row.get("id") for row in day.get("sessions") or []]
+        self.assertNotIn("bad-run", ids)
+
+    def test_journal_newer_edit_overwrites(self):
+        self._use(self.src)
+        saved = journal.save_journal_entry("First pass.")
+        icloud_sync.write_pack(self.pack)
+        pack = icloud_sync.read_pack(self.pack)
+        row = next(entry for entry in pack["journal"] if entry["id"] == saved["id"])
+        row["content"] = "Edited on the phone."
+        row["updated_at"] = (datetime.now() + timedelta(minutes=1)).isoformat(timespec="seconds")
+        icloud_sync._write_json(self.pack / "journal.json", pack["journal"])
+        icloud_sync.apply_pack(self.pack)
+        texts = [entry.get("content") for entry in journal.get_all_entries()]
+        self.assertIn("Edited on the phone.", texts)
+
+
+if __name__ == "__main__":
+    unittest.main()
 

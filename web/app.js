@@ -67,7 +67,22 @@ async function init() {
         }
     });
     await switchTab('home');
+    await pullPhoneOnOpen();
 }
+
+async function pullPhoneOnOpen() {
+    if (typeof eel === 'undefined' || !eel.maybe_pull_icloud_on_open) return;
+    try {
+        const result = await eel.maybe_pull_icloud_on_open()();
+        if (result && !result.skipped) {
+            utils.notifyDataChanged();
+        }
+    } catch (_) {
+        /* pack missing or Cluny-unrelated — Today still works */
+    }
+}
+
+window.kosistenzPullPhone = pullPhoneOnOpen;
 
 function markNativeShell() {
     const native = typeof window.pywebview !== 'undefined'

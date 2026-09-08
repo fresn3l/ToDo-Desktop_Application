@@ -1,19 +1,36 @@
 import SwiftUI
 
 struct TodayScreen: View {
-    @State private var pack: Pack?
-    @State private var error: String?
+    @EnvironmentObject private var store: PackStore
     @State private var draftTodo = ""
-    @State private var draftJournal = ""
-    @State private var usingCloud = false
-    @State private var palette = KosistenzPalette.ocean
+    @State private var askMiles = false
+    @State private var askOther = false
+    @State private var milesDraft = ""
+    @State private var otherDraft = ""
 
-    private var today: String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar.current
-        formatter.locale = Locale.current
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
+    private var todayItems: [WorkItem] {
+        (store.pack?.work.items ?? []).filter { $0.scheduled_date == store.today }
+    }
+
+    private var todaySessions: [WorkoutSession] {
+        (store.pack?.workouts.sessions ?? []).filter { $0.local_date == store.today }
+    }
+
+    private var agenda: [CalendarItem] {
+        let day = store.pack?.calendar.days.first(where: { $0.date == store.today })
+        return (day?.events ?? []) + (day?.blocks ?? [])
+    }
+
+    private var expected: [String] {
+        WorkoutPlan.expectedKinds(on: Date(), template: store.pack?.workouts.template)
+    }
+
+    private var logged: Set<String> {
+        Set(todaySessions.map(\.kind))
+    }
+
+    private var expectedLabels: String {
+        expected.map { id in WorkoutPlan.chipKinds.first(where: { $0.id == id })?.label ?? id }.joined(separator: " · ")
     }
 
     private var heading: String {
@@ -22,98 +39,144 @@ struct TodayScreen: View {
         return formatter.string(from: Date())
     }
 
-    private var todayItems: [WorkItem] {
-        (pack?.work.items ?? []).filter { $0.scheduled_date == today }
-    }
-
-    private var todaySessions: [WorkoutSession] {
-        (pack?.workouts.sessions ?? []).filter { $0.local_date == today }
-    }
-
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    Text(dateLine)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(usingCloud ? "iCloud Drive / Kosistenz" : "On this iPhone only — sign into iCloud Drive")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Text("Today")
-                }
-                .listRowBackground(palette.widgetBg)
-
-                Section("To Do") {
-                    if todayItems.isEmpty {
-                        Text("Nothing dated for today.")
-                            .foregroundStyle(.secondary)
-                            .listRowBackground(palette.widgetBg)
-                    }
-                    ForEach(todayItems) { item in
-                        Button {
-                            toggle(item)
-                        } label: {
-                            Label(item.title, systemImage: item.status == "done" ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(item.status == "done" ? palette.done : palette.openNext)
-                        }
-                        .listRowBackground(palette.widgetBg)
-                    }
-                    HStack {
-                        TextField("Add for today", text: $draftTodo)
-                        Button("Add") { addTodo() }
-                            .disabled(draftTodo.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                    .listRowBackground(palette.widgetBg)
-                }
-
-                Section("Workout") {
-                    if todaySessions.isEmpty {
-                        Text("No session yet")
-                            .foregroundStyle(.secondary)
-                            .listRowBackground(palette.widgetBg)
-                    } else {
-                        ForEach(todaySessions) { session in
-                            Text(session.other_label?.isEmpty == false ? session.other_label! : session.kind.capitalized)
-                                .listRowBackground(palette.widgetBg)
-                        }
-                    }
-                    HStack {
-                        ForEach(["push", "pull", "legs", "running", "other"], id: \.self) { kind in
-                            Button(kind.capitalized) { logWorkout(kind) }
-                                .buttonStyle(.bordered)
-                        }
-                    }
-                    .font(.caption)
-                    .listRowBackground(palette.widgetBg)
-                }
-
-                Section("Journal") {
-                    TextField("What happened today?", text: $draftJournal, axis: .vertical)
-                        .lineLimit(3...8)
-                        .listRowBackground(palette.widgetBg)
-                    Button("Save") { saveJournal() }
-                        .disabled(draftJournal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .listRowBackground(palette.widgetBg)
-                }
-
-                if let error {
-                    Section {
-                        Text(error).foregroundStyle(.red)
-                            .listRowBackground(palette.widgetBg)
-                    }
+                statusSection
+                clockSection
+                todoSection
+                workoutSection
+                journalTeaser
+                if let error = store.error {
+                    Section { Text(error).foregroundStyle(.red) }
                 }
             }
             .navigationTitle(heading)
-            .toolbarBackground(palette.sidebar, for: .navigationBar)
+            .toolbarBackground(store.palette.sidebar, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .scrollContentBackground(.hidden)
-            .background(palette.pageBg)
-            .tint(palette.accent)
-            .refreshable { reload() }
-            .onAppear { reload() }
+            .background(store.palette.pageBg)
+            .refreshable { store.reload() }
+            .onAppear { store.reload() }
+            .alert("Miles for this run", isPresented: $askMiles) {
+                TextField("Miles", text: $milesDraft)
+                    .keyboardType(.decimalPad)
+                Button("Save") { logRun() }
+                Button("Cancel", role: .cancel) { milesDraft = "" }
+            }
+            .alert("Name this session", isPresented: $askOther) {
+                TextField("Pickleball, walk, …", text: $otherDraft)
+                Button("Save") { logOther() }
+                Button("Cancel", role: .cancel) { otherDraft = "" }
+            }
         }
+    }
+
+    private var statusSection: some View {
+        Section {
+            Text(dateLine)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text(statusLine)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Today")
+        }
+        .listRowBackground(store.palette.widgetBg)
+    }
+
+    private var clockSection: some View {
+        Section("On the clock") {
+            if agenda.isEmpty {
+                Text("No lectures or blocks on today.")
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(store.palette.widgetBg)
+            } else {
+                ForEach(agenda) { item in
+                    HStack {
+                        Text(DayStamp.clock(item.start_at)).monospacedDigit()
+                        Text(item.title ?? "")
+                        Spacer()
+                        Text(item.kind == "hard" ? "Class" : (item.kind ?? ""))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .listRowBackground(store.palette.widgetBg)
+                }
+            }
+        }
+    }
+
+    private var todoSection: some View {
+        Section("To Do") {
+            if todayItems.isEmpty {
+                Text("Nothing dated for today.")
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(store.palette.widgetBg)
+            }
+            ForEach(todayItems) { item in
+                Button { toggle(item) } label: {
+                    Label(item.title, systemImage: item.status == "done" ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(item.status == "done" ? store.palette.done : store.palette.openNext)
+                }
+                .listRowBackground(store.palette.widgetBg)
+            }
+            HStack {
+                TextField("Add for today", text: $draftTodo)
+                Button("Add") { addTodo() }
+                    .disabled(draftTodo.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .listRowBackground(store.palette.widgetBg)
+        }
+    }
+
+    private var workoutSection: some View {
+        Section("Workout") {
+            if todaySessions.isEmpty {
+                Text(expected.isEmpty ? "No session yet" : "Expected: \(expectedLabels)")
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(store.palette.widgetBg)
+            } else {
+                ForEach(todaySessions) { session in
+                    Text(WorkoutPlan.sessionLabel(session))
+                        .listRowBackground(store.palette.widgetBg)
+                }
+            }
+            HStack {
+                ForEach(WorkoutPlan.chipKinds, id: \.id) { kind in
+                    let due = expected.contains(kind.id)
+                    let done = logged.contains(kind.id)
+                    Button(kind.label) { tapWorkout(kind.id) }
+                        .buttonStyle(.bordered)
+                        .tint(done ? store.palette.done : due ? store.palette.accent : store.palette.widgetBorder)
+                }
+            }
+            .font(.caption)
+            .listRowBackground(store.palette.widgetBg)
+        }
+    }
+
+    private var journalTeaser: some View {
+        Section("Journal") {
+            if let entry = todayJournal {
+                Text(entry.content)
+                    .lineLimit(3)
+                    .listRowBackground(store.palette.widgetBg)
+                Button("Continue writing") { store.tab = .journal }
+                    .listRowBackground(store.palette.widgetBg)
+            } else {
+                Text("Nothing saved today.")
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(store.palette.widgetBg)
+                Button("Write") { store.tab = .journal }
+                    .listRowBackground(store.palette.widgetBg)
+            }
+        }
+    }
+
+    private var todayJournal: JournalEntry? {
+        (store.pack?.journal ?? []).first { ($0.date ?? $0.created_at ?? "").hasPrefix(store.today) }
     }
 
     private var dateLine: String {
@@ -122,36 +185,35 @@ struct TodayScreen: View {
         return formatter.string(from: Date())
     }
 
-    private func reload() {
-        usingCloud = SyncPack.usingiCloudDrive()
-        do {
-            pack = try SyncPack.load()
-            palette = KosistenzPalette.from(appearance: pack?.appearance)
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
+    private var statusLine: String {
+        if store.access == .needsFolder {
+            return "Choose iCloud Drive / Kosistenz in Sync — until then this iPhone only."
         }
+        if let synced = store.syncedAt {
+            return "Pack \(synced)"
+        }
+        return "Waiting for iCloud. Sync now on the Sync tab, or push from the Mac."
     }
 
     private func toggle(_ item: WorkItem) {
-        guard var pack else { return }
+        guard var pack = store.pack else { return }
         guard let index = pack.work.items.firstIndex(where: { $0.id == item.id }) else { return }
         pack.work.items[index].status = item.status == "done" ? "open" : "done"
-        pack.work.items[index].updated_at = ISO8601DateFormatter().string(from: Date())
+        pack.work.items[index].updated_at = DayStamp.isoNow()
         persistWork(pack)
     }
 
     private func addTodo() {
-        guard var pack else { return }
+        guard var pack = store.pack else { return }
         let title = draftTodo.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        let now = ISO8601DateFormatter().string(from: Date())
+        let now = DayStamp.isoNow()
         pack.work.items.insert(
             WorkItem(
                 id: UUID().uuidString,
                 title: title,
                 notes: "",
-                scheduled_date: today,
+                scheduled_date: store.today,
                 status: "open",
                 active_started_at: nil,
                 finished_at: nil,
@@ -161,7 +223,10 @@ struct TodayScreen: View {
                 updated_at: now,
                 source: "iphone",
                 series_id: nil,
-                occurrence_date: today
+                occurrence_date: store.today,
+                due_at: nil,
+                estimate_minutes: nil,
+                goal_id: nil
             ),
             at: 0
         )
@@ -172,61 +237,66 @@ struct TodayScreen: View {
     private func persistWork(_ pack: Pack) {
         do {
             try SyncPack.saveWork(pack.work)
-            self.pack = pack
-            error = nil
+            store.pack = pack
+            store.error = nil
         } catch {
-            self.error = error.localizedDescription
+            store.error = error.localizedDescription
         }
     }
 
-    private func logWorkout(_ kind: String) {
-        guard var pack else { return }
-        let now = ISO8601DateFormatter().string(from: Date())
+    private func tapWorkout(_ kind: String) {
+        if kind == "running" {
+            milesDraft = ""
+            askMiles = true
+            return
+        }
+        if kind == "other" {
+            otherDraft = ""
+            askOther = true
+            return
+        }
+        logSession(kind: kind, miles: nil, other: "")
+    }
+
+    private func logRun() {
+        let miles = Double(milesDraft.replacingOccurrences(of: ",", with: "."))
+        guard let miles, miles > 0 else {
+            store.error = "Add miles for a run"
+            return
+        }
+        logSession(kind: "running", miles: miles, other: "")
+        milesDraft = ""
+    }
+
+    private func logOther() {
+        let name = otherDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else {
+            store.error = "Name the other activity"
+            return
+        }
+        logSession(kind: "other", miles: nil, other: name)
+        otherDraft = ""
+    }
+
+    private func logSession(kind: String, miles: Double?, other: String) {
+        guard var pack = store.pack else { return }
         pack.workouts.sessions.append(
             WorkoutSession(
                 id: UUID().uuidString,
-                local_date: today,
+                local_date: store.today,
                 kind: kind,
-                other_label: kind == "other" ? "Other" : "",
-                miles: kind == "running" ? 0 : nil,
+                other_label: other,
+                miles: miles,
                 minutes: nil,
-                created_at: now
+                created_at: DayStamp.isoNow()
             )
         )
         do {
             try SyncPack.saveWorkouts(pack.workouts)
-            self.pack = pack
-            error = nil
+            store.pack = pack
+            store.error = nil
         } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    private func saveJournal() {
-        guard var pack else { return }
-        let text = draftJournal.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        let now = ISO8601DateFormatter().string(from: Date())
-        let stamp = now.replacingOccurrences(of: ":", with: "-")
-        pack.journal.insert(
-            JournalEntry(
-                id: "entry_\(stamp)_ios",
-                content: text,
-                date: now,
-                duration_seconds: 0,
-                continued: false,
-                created_at: now,
-                tags: []
-            ),
-            at: 0
-        )
-        draftJournal = ""
-        do {
-            try SyncPack.saveJournal(pack.journal)
-            self.pack = pack
-            error = nil
-        } catch {
-            self.error = error.localizedDescription
+            store.error = error.localizedDescription
         }
     }
 }

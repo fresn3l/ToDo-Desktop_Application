@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -84,9 +85,15 @@ def load_settings() -> Dict[str, Any]:
         folder = str(_require_allowed_folder(raw_folder))
     except ValueError:
         folder = str(default_sync_dir())
+    auto = bool(raw.get("auto")) if "auto" in raw else False
+    if "auto_pull" in raw:
+        auto_pull = bool(raw.get("auto_pull"))
+    else:
+        auto_pull = auto
     return {
         "folder": folder,
-        "auto": bool(raw.get("auto")) if "auto" in raw else False,
+        "auto": auto,
+        "auto_pull": auto_pull,
         "using_icloud_drive": "com~apple~CloudDocs" in folder.replace("\\", "/"),
     }
 
@@ -99,11 +106,21 @@ def save_settings(partial: Dict[str, Any], *, allow_folder: bool = False) -> Dic
             current["folder"] = str(_require_allowed_folder(folder.strip()))
     if "auto" in partial:
         current["auto"] = bool(partial["auto"])
+    if "auto_pull" in partial:
+        current["auto_pull"] = bool(partial["auto_pull"])
     path = _settings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = str(path) + ".tmp"
     with open(tmp, "w", encoding="utf-8") as handle:
-        json.dump({"folder": current["folder"], "auto": current["auto"]}, handle, indent=2)
+        json.dump(
+            {
+                "folder": current["folder"],
+                "auto": current["auto"],
+                "auto_pull": current.get("auto_pull", current["auto"]),
+            },
+            handle,
+            indent=2,
+        )
     os.replace(tmp, path)
     return load_settings()
 
@@ -406,6 +423,24 @@ def _apply_workouts(payload: Dict[str, Any]) -> Dict[str, int]:
             exists = conn.execute("SELECT 1 FROM workout_sessions WHERE id = ?", (row["id"],)).fetchone()
             if exists:
                 continue
+            kind = str(row.get("kind") or "other").strip().lower()
+            label = str(row.get("other_label") or "").strip()
+            miles = row.get("miles")
+            mile_val = None
+            if kind == "running":
+                try:
+                    mile_val = float(miles)
+                except (TypeError, ValueError):
+                    continue
+                if mile_val <= 0:
+                    continue
+            elif kind == "other" and not label:
+                continue
+            else:
+                try:
+                    mile_val = float(miles) if miles is not None else None
+                except (TypeError, ValueError):
+                    mile_val = None
             conn.execute(
                 """
                 INSERT INTO workout_sessions (id, local_date, kind, other_label, miles, minutes, created_at)
@@ -414,9 +449,9 @@ def _apply_workouts(payload: Dict[str, Any]) -> Dict[str, int]:
                 (
                     row["id"],
                     row.get("local_date") or datetime.now().date().isoformat(),
-                    row.get("kind") or "other",
-                    row.get("other_label") or "",
-                    row.get("miles"),
+                    kind,
+                    label,
+                    mile_val,
                     row.get("minutes"),
                     row.get("created_at") or _now(),
                 ),
@@ -430,17 +465,63 @@ def _apply_workouts(payload: Dict[str, Any]) -> Dict[str, int]:
 
 
 def _apply_journal(entries: List[Any]) -> Dict[str, int]:
-    existing_ids = {entry.get("id") for entry in journal.get_all_entries()}
+    existing = {entry.get("id"): entry for entry in journal.get_all_entries()}
     applied = 0
     for entry in list(entries or [])[:MAX_JOURNAL_ENTRIES]:
         if not isinstance(entry, dict) or not entry.get("content"):
             continue
         entry_id = entry.get("id")
-        if entry_id and entry_id in existing_ids:
+        if entry_id and entry_id in existing:
+            if not _newer(entry.get("updated_at") or entry.get("date"), existing[entry_id].get("updated_at") or existing[entry_id].get("date")):
+                continue
+            if journal.import_journal_entry(entry, overwrite=True):
+                applied += 1
             continue
         if journal.import_journal_entry(entry):
             applied += 1
     return {"journal": applied}
+
+
+def _dump_calendar() -> Dict[str, Any]:
+    import calclock
+
+    try:
+        week = calclock.get_week()
+    except Exception:
+        return {"week_start": "", "week_end": "", "days": [], "unplaced": []}
+
+    def slim(item: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": item.get("id"),
+            "title": item.get("title") or "",
+            "kind": item.get("kind") or "",
+            "status": item.get("status") or "",
+            "start_at": item.get("start_at"),
+            "end_at": item.get("end_at"),
+        }
+
+    days = []
+    for day in week.get("days") or []:
+        days.append(
+            {
+                "date": day.get("date"),
+                "weekday": day.get("weekday"),
+                "is_today": bool(day.get("is_today")),
+                "events": [slim(item) for item in day.get("events") or []],
+                "blocks": [slim(item) for item in day.get("blocks") or []],
+            }
+        )
+    unplaced = [
+        {"id": item.get("id"), "title": item.get("title") or ""}
+        for item in (week.get("unplaced") or [])
+        if item.get("title")
+    ]
+    return {
+        "week_start": week.get("week_start"),
+        "week_end": week.get("week_end"),
+        "days": days,
+        "unplaced": unplaced[:40],
+    }
 
 
 def build_pack() -> Dict[str, Any]:
@@ -453,6 +534,7 @@ def build_pack() -> Dict[str, Any]:
         "work": _dump_work(),
         "workouts": _dump_workouts(),
         "journal": journal.get_all_entries(),
+        "calendar": _dump_calendar(),
         "appearance": {
             **appearance.get_appearance_settings(),
             "resolved": appearance.resolved_snapshot(),
@@ -468,9 +550,10 @@ def write_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
     _write_json(dest / "work.json", pack["work"])
     _write_json(dest / "workouts.json", pack["workouts"])
     _write_json(dest / "journal.json", pack["journal"])
+    _write_json(dest / "calendar.json", pack["calendar"])
     _write_json(dest / "appearance.json", pack["appearance"])
     if not _settings_path().exists():
-        save_settings({"auto": True})
+        save_settings({"auto": True, "auto_pull": True})
     return {"ok": True, "folder": str(dest), "exported_at": pack["manifest"]["exported_at"]}
 
 
@@ -481,6 +564,7 @@ def read_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
         "work": _read_json(src / "work.json", {"items": [], "series": [], "exceptions": []}),
         "workouts": _read_json(src / "workouts.json", {"days": [], "sessions": [], "template": {}}),
         "journal": _read_json(src / "journal.json", []),
+        "calendar": _read_json(src / "calendar.json", {"days": [], "unplaced": []}),
         "appearance": _read_json(src / "appearance.json", {}),
         "folder": str(src),
     }
@@ -496,6 +580,7 @@ def apply_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
         counts.update(_apply_workouts(pack.get("workouts") or {}))
         journal_list = pack.get("journal")
         counts.update(_apply_journal(journal_list if isinstance(journal_list, list) else []))
+        # Phone never writes the week clock. calendar.json is Mac → phone only.
         incoming_appearance = pack.get("appearance")
         if isinstance(incoming_appearance, dict) and incoming_appearance:
             appearance.save_appearance_settings(incoming_appearance)
@@ -515,6 +600,8 @@ def apply_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
 
 
 _exporting = False
+_last_open_pull = 0.0
+PULL_DEBOUNCE_SEC = 20.0
 
 
 def export_if_enabled() -> None:
@@ -549,7 +636,12 @@ def get_icloud_sync_status() -> Dict[str, Any]:
 @eel.expose
 def save_icloud_sync_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     incoming = settings if isinstance(settings, dict) else {}
-    saved = save_settings({"auto": incoming.get("auto")} if "auto" in incoming else {})
+    partial: Dict[str, Any] = {}
+    if "auto" in incoming:
+        partial["auto"] = incoming.get("auto")
+    if "auto_pull" in incoming:
+        partial["auto_pull"] = incoming.get("auto_pull")
+    saved = save_settings(partial) if partial else load_settings()
     status = get_icloud_sync_status()
     status.update(saved)
     return status
@@ -563,3 +655,22 @@ def push_icloud_pack() -> Dict[str, Any]:
 @eel.expose
 def pull_icloud_pack() -> Dict[str, Any]:
     return apply_pack()
+
+
+@eel.expose
+def maybe_pull_icloud_on_open() -> Dict[str, Any]:
+    """Pull phone writes when Kosistenz opens or the window comes forward."""
+    global _last_open_pull
+    settings = load_settings()
+    if not settings.get("auto_pull"):
+        return {"ok": True, "skipped": True, "reason": "auto_pull_off"}
+    folder = Path(settings["folder"])
+    if not (folder / "manifest.json").exists() and not (folder / "work.json").exists():
+        return {"ok": True, "skipped": True, "reason": "no_pack"}
+    now = time.time()
+    if now - _last_open_pull < PULL_DEBOUNCE_SEC:
+        return {"ok": True, "skipped": True, "reason": "debounce"}
+    _last_open_pull = now
+    result = apply_pack()
+    result["pulled_on_open"] = True
+    return result

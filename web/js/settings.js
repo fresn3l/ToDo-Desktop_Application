@@ -498,6 +498,15 @@ export function setupSettings() {
             utils.showErrorFeedback('Could not save phone sync settings.');
         }
     });
+    document.getElementById('icloudAutoPullToggle')?.addEventListener('change', async (e) => {
+        if (typeof eel === 'undefined' || !eel.save_icloud_sync_settings) return;
+        try {
+            const status = await eel.save_icloud_sync_settings({ auto_pull: e.target.checked })();
+            paintIcloudStatus(status);
+        } catch (err) {
+            utils.showErrorFeedback('Could not save phone sync settings.');
+        }
+    });
     document.getElementById('icloudPushBtn')?.addEventListener('click', async () => {
         if (typeof eel === 'undefined' || !eel.push_icloud_pack) return;
         try {
@@ -547,6 +556,8 @@ function paintIcloudStatus(status) {
     if (folder) folder.textContent = status.folder || status.default_folder || '';
     const auto = document.getElementById('icloudAutoToggle');
     if (auto) auto.checked = status.auto !== false;
+    const autoPull = document.getElementById('icloudAutoPullToggle');
+    if (autoPull) autoPull.checked = status.auto_pull !== false;
     const line = document.getElementById('icloudSyncStatus');
     if (line) {
         if (status.last_export) {

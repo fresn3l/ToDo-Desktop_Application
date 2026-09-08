@@ -44,6 +44,10 @@ def run_bridge(port: int, web_dir: str) -> None:
     api_port = local_api.start_background_server()
     print(f"KOSISTENZ_API_PORT={api_port}", flush=True)
     cluny_brain.start_supervisor()
+    try:
+        icloud_sync.maybe_pull_icloud_on_open()
+    except Exception:
+        pass
 
     def _on_close(page: str, sockets: list) -> None:  # noqa: ARG001
         cluny_brain.stop_supervisor()
