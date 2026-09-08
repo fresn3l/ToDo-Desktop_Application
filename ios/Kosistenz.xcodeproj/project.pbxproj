@@ -18,7 +18,42 @@
 		A10000000000000000000009 /* InboxScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* InboxScreen.swift */; };
 		A1000000000000000000000A /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* SettingsScreen.swift */; };
 		A1000000000000000000000B /* DayTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* DayTimeline.swift */; };
+		A1000000000000000000000D /* PackActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* PackActions.swift */; };
+		A1000000000000000000000E /* AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* AppIntents.swift */; };
+		A1000000000000000000000F /* KosistenzWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A30000000000000000000002 /* KosistenzWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B10000000000000000000001 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* Appearance.swift */; };
+		B10000000000000000000002 /* FolderBookmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* FolderBookmark.swift */; };
+		B10000000000000000000003 /* WorkoutPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* WorkoutPlan.swift */; };
+		B10000000000000000000004 /* SyncPack.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* SyncPack.swift */; };
+		B10000000000000000000005 /* DayTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* DayTimeline.swift */; };
+		B10000000000000000000006 /* PackActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* PackActions.swift */; };
+		B10000000000000000000007 /* AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* AppIntents.swift */; };
+		B10000000000000000000008 /* KosistenzWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* KosistenzWidget.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C10000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A90000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A60000000000000000000002;
+			remoteInfo = KosistenzWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A70000000000000000000003 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1000000000000000000000F /* KosistenzWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
@@ -33,11 +68,25 @@
 		A2000000000000000000000A /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000000000000000000000C /* DayTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTimeline.swift; sourceTree = "<group>"; };
+		A20000000000000000000010 /* KosistenzWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KosistenzWidget.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000012 /* KosistenzWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KosistenzWidget.entitlements; sourceTree = "<group>"; };
+		A20000000000000000000013 /* Kosistenz.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Kosistenz.entitlements; sourceTree = "<group>"; };
+		A20000000000000000000014 /* PackActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackActions.swift; sourceTree = "<group>"; };
+		A20000000000000000000015 /* AppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntents.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* Kosistenz.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kosistenz.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A30000000000000000000002 /* KosistenzWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = KosistenzWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A40000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A40000000000000000000002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -51,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				A50000000000000000000002 /* Kosistenz */,
+				A50000000000000000000004 /* KosistenzWidget */,
 				A50000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -68,7 +118,10 @@
 				A20000000000000000000004 /* SyncPack.swift */,
 				A20000000000000000000002 /* FolderBookmark.swift */,
 				A20000000000000000000003 /* WorkoutPlan.swift */,
+				A20000000000000000000014 /* PackActions.swift */,
+				A20000000000000000000015 /* AppIntents.swift */,
 				A20000000000000000000001 /* Appearance.swift */,
+				A20000000000000000000013 /* Kosistenz.entitlements */,
 				A2000000000000000000000B /* Info.plist */,
 			);
 			path = Kosistenz;
@@ -78,8 +131,19 @@
 			isa = PBXGroup;
 			children = (
 				A30000000000000000000001 /* Kosistenz.app */,
+				A30000000000000000000002 /* KosistenzWidget.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000004 /* KosistenzWidget */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000010 /* KosistenzWidget.swift */,
+				A20000000000000000000011 /* Info.plist */,
+				A20000000000000000000012 /* KosistenzWidget.entitlements */,
+			);
+			path = KosistenzWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -92,15 +156,34 @@
 				A70000000000000000000001 /* Sources */,
 				A40000000000000000000001 /* Frameworks */,
 				A70000000000000000000002 /* Resources */,
+				A70000000000000000000003 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C20000000000000000000001 /* PBXTargetDependency */,
 			);
 			name = Kosistenz;
 			productName = Kosistenz;
 			productReference = A30000000000000000000001 /* Kosistenz.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A60000000000000000000002 /* KosistenzWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000000000000000000003 /* Build configuration list for PBXNativeTarget "KosistenzWidget" */;
+			buildPhases = (
+				A70000000000000000000004 /* Sources */,
+				A40000000000000000000002 /* Frameworks */,
+				A70000000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KosistenzWidget;
+			productName = KosistenzWidget;
+			productReference = A30000000000000000000002 /* KosistenzWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -113,6 +196,9 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					A60000000000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					A60000000000000000000002 = {
 						CreatedOnToolsVersion = 15.0;
 					};
 				};
@@ -131,12 +217,20 @@
 			projectRoot = "";
 			targets = (
 				A60000000000000000000001 /* Kosistenz */,
+				A60000000000000000000002 /* KosistenzWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A70000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -161,10 +255,35 @@
 				A10000000000000000000008 /* WeekScreen.swift in Sources */,
 				A10000000000000000000009 /* InboxScreen.swift in Sources */,
 				A1000000000000000000000A /* SettingsScreen.swift in Sources */,
+				A1000000000000000000000D /* PackActions.swift in Sources */,
+				A1000000000000000000000E /* AppIntents.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000000000000000000001 /* Appearance.swift in Sources */,
+				B10000000000000000000002 /* FolderBookmark.swift in Sources */,
+				B10000000000000000000003 /* WorkoutPlan.swift in Sources */,
+				B10000000000000000000004 /* SyncPack.swift in Sources */,
+				B10000000000000000000005 /* DayTimeline.swift in Sources */,
+				B10000000000000000000006 /* PackActions.swift in Sources */,
+				B10000000000000000000007 /* AppIntents.swift in Sources */,
+				B10000000000000000000008 /* KosistenzWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C20000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A60000000000000000000002 /* KosistenzWidget */;
+			targetProxy = C10000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA0000000000000000000001 /* Debug */ = {
@@ -209,6 +328,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Kosistenz/Kosistenz.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -238,6 +358,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Kosistenz/Kosistenz.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -261,6 +382,63 @@
 			};
 			name = Release;
 		};
+		AA0000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = KosistenzWidget/KosistenzWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = KosistenzWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Kosistenz;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kosistenz.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION DEBUG";
+				SWIFT_EMIT_STATE_ENUMS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA0000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = KosistenzWidget/KosistenzWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = KosistenzWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Kosistenz;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kosistenz.app.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = WIDGET_EXTENSION;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -278,6 +456,15 @@
 			buildConfigurations = (
 				AA0000000000000000000003 /* Debug */,
 				AA0000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000000000000000000003 /* Build configuration list for PBXNativeTarget "KosistenzWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000005 /* Debug */,
+				AA0000000000000000000006 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

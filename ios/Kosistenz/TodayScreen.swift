@@ -214,48 +214,19 @@ struct TodayScreen: View {
     }
 
     private func toggle(_ item: WorkItem) {
-        guard var pack = store.pack else { return }
-        guard let index = pack.work.items.firstIndex(where: { $0.id == item.id }) else { return }
-        pack.work.items[index].status = item.status == "done" ? "open" : "done"
-        pack.work.items[index].updated_at = DayStamp.isoNow()
-        persistWork(pack)
+        do {
+            store.pack = try PackActions.toggle(id: item.id)
+            store.error = nil
+        } catch {
+            store.error = error.localizedDescription
+        }
     }
 
     private func addTodo() {
-        guard var pack = store.pack else { return }
-        let title = draftTodo.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        let now = DayStamp.isoNow()
-        pack.work.items.insert(
-            WorkItem(
-                id: UUID().uuidString,
-                title: title,
-                notes: "",
-                scheduled_date: store.today,
-                status: "open",
-                active_started_at: nil,
-                finished_at: nil,
-                duration_seconds: 0,
-                sort_order: 0,
-                created_at: now,
-                updated_at: now,
-                source: "iphone",
-                series_id: nil,
-                occurrence_date: store.today,
-                due_at: nil,
-                estimate_minutes: nil,
-                goal_id: nil
-            ),
-            at: 0
-        )
+        let title = draftTodo
         draftTodo = ""
-        persistWork(pack)
-    }
-
-    private func persistWork(_ pack: Pack) {
         do {
-            try SyncPack.saveWork(pack.work)
-            store.pack = pack
+            store.pack = try PackActions.addTodo(title, date: store.today)
             store.error = nil
         } catch {
             store.error = error.localizedDescription
@@ -297,21 +268,8 @@ struct TodayScreen: View {
     }
 
     private func logSession(kind: String, miles: Double?, other: String) {
-        guard var pack = store.pack else { return }
-        pack.workouts.sessions.append(
-            WorkoutSession(
-                id: UUID().uuidString,
-                local_date: store.today,
-                kind: kind,
-                other_label: other,
-                miles: miles,
-                minutes: nil,
-                created_at: DayStamp.isoNow()
-            )
-        )
         do {
-            try SyncPack.saveWorkouts(pack.workouts)
-            store.pack = pack
+            store.pack = try PackActions.logSession(kind: kind, miles: miles, other: other, date: store.today)
             store.error = nil
         } catch {
             store.error = error.localizedDescription

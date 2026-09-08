@@ -104,6 +104,7 @@ final class PackStore: ObservableObject {
             syncedAt = loaded.syncedAt
             palette = KosistenzPalette.from(appearance: loaded.pack.appearance)
             error = nil
+            WidgetBridge.write(WidgetSnapshot.from(pack: loaded.pack, access: loaded.access))
         } catch {
             self.error = error.localizedDescription
         }
