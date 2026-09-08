@@ -135,7 +135,86 @@ def load_settings() -> Dict[str, Any]:
         "default_estimate_minutes": int(raw.get("default_estimate_minutes") or DEFAULT_ESTIMATE),
         "chunk_min": int(raw.get("chunk_min") or CHUNK_MIN),
         "chunk_max": int(raw.get("chunk_max") or CHUNK_MAX),
+        "feeds": _normalize_feeds(raw.get("feeds")),
     }
+
+
+def _normalize_feeds(raw: Any) -> List[Dict[str, str]]:
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, str]] = []
+    seen = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        feed_id = str(item.get("id") or "").strip()
+        if not feed_id or feed_id in seen:
+            continue
+        seen.add(feed_id)
+        out.append(
+            {
+                "id": feed_id,
+                "kind": str(item.get("kind") or "ics").strip() or "ics",
+                "url": str(item.get("url") or "").strip(),
+                "title": str(item.get("title") or "").strip() or feed_id,
+            }
+        )
+    return out
+
+
+def _write_settings(current: Dict[str, Any]) -> Dict[str, Any]:
+    payload = {
+        "ics_url": str(current.get("ics_url") or ""),
+        "day_start": str(current.get("day_start") or DAY_START),
+        "day_end": str(current.get("day_end") or DAY_END),
+        "default_estimate_minutes": int(current.get("default_estimate_minutes") or DEFAULT_ESTIMATE),
+        "chunk_min": int(current.get("chunk_min") or CHUNK_MIN),
+        "chunk_max": int(current.get("chunk_max") or CHUNK_MAX),
+        "feeds": _normalize_feeds(current.get("feeds")),
+    }
+    path = _settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = str(path) + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+    os.replace(tmp, path)
+    return load_settings()
+
+
+def register_calendar_feed(
+    feed_id: str,
+    *,
+    kind: str = "ics",
+    title: str = "",
+    url: str = "",
+) -> Dict[str, Any]:
+    key = str(feed_id or "").strip()
+    if not key:
+        return load_settings()
+    current = load_settings()
+    feeds = list(current.get("feeds") or [])
+    found = False
+    for feed in feeds:
+        if feed["id"] != key:
+            continue
+        if title:
+            feed["title"] = title
+        if url:
+            feed["url"] = url
+        feed["kind"] = kind or feed.get("kind") or "ics"
+        found = True
+        break
+    if not found:
+        feeds.append(
+            {
+                "id": key,
+                "kind": kind or "ics",
+                "url": url,
+                "title": title or key,
+            }
+        )
+    current["feeds"] = feeds
+    return _write_settings(current)
 
 
 @eel.expose
@@ -157,13 +236,9 @@ def save_calendar_settings(partial: Dict[str, Any]) -> Dict[str, Any]:
     if "default_estimate_minutes" in incoming:
         minutes = work._parse_estimate(incoming.get("default_estimate_minutes"))
         current["default_estimate_minutes"] = minutes or DEFAULT_ESTIMATE
-    path = _settings_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = str(path) + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as handle:
-        json.dump(current, handle, indent=2)
-    os.replace(tmp, path)
-    return load_settings()
+    if "feeds" in incoming:
+        current["feeds"] = _normalize_feeds(incoming.get("feeds"))
+    return _write_settings(current)
 
 
 def _parse_hhmm(raw: str) -> str:
@@ -393,9 +468,15 @@ def ingest_events(
     return {"created": created, "updated": updated, "skipped": skipped, "total": len(events)}
 
 
-def import_ics_text(text: str, calendar_id: str = "ics") -> Dict[str, Any]:
+def import_ics_text(text: str, calendar_id: str = "ics", *, url: str = "", title: str = "") -> Dict[str, Any]:
     events = parse_ics_events(text)
     counts = ingest_events(events, calendar_id=calendar_id, role="deadlines")
+    register_calendar_feed(
+        calendar_id,
+        kind="ics",
+        url=url,
+        title=title or calendar_id,
+    )
     return {"ok": True, "calendar_id": calendar_id, **counts}
 
 
@@ -412,7 +493,9 @@ def import_ics_url(url: str = "") -> Dict[str, Any]:
     if len(data) > MAX_ICS_BYTES:
         raise ValueError("Calendar file is too large")
     text = data.decode("utf-8", errors="replace")
-    return import_ics_text(text, calendar_id="ics:" + (parsed.netloc + parsed.path)[:80])
+    calendar_id = "ics:" + (parsed.netloc + parsed.path)[:80]
+    label = parsed.netloc or "Class calendar"
+    return import_ics_text(text, calendar_id=calendar_id, url=target, title=label)
 
 
 @eel.expose
@@ -434,7 +517,132 @@ def ingest_calendar_events(payload: Dict[str, Any]) -> Dict[str, Any]:
     role = str(body.get("role") or "deadlines")
     events = body.get("events") if isinstance(body.get("events"), list) else []
     counts = ingest_events(events, calendar_id=calendar_id, role=role)
+    register_calendar_feed(
+        calendar_id,
+        kind="apple",
+        title=str(body.get("calendar_title") or calendar_id),
+    )
     return {"ok": True, "calendar_id": calendar_id, **counts}
+
+
+def delete_blocks_for_work_items(item_ids: List[str]) -> int:
+    ids = [str(item) for item in item_ids if str(item or "").strip()]
+    if not ids:
+        return 0
+    removed = 0
+    with _connect() as conn:
+        for item_id in ids:
+            cur = conn.execute("DELETE FROM schedule_blocks WHERE work_item_id = ?", (item_id,))
+            removed += int(cur.rowcount or 0)
+    return removed
+
+
+@eel.expose
+def list_calendar_feeds() -> Dict[str, Any]:
+    settings = load_settings()
+    stored = {feed["id"]: dict(feed) for feed in settings.get("feeds") or []}
+    sources = work.list_imported_calendar_sources()
+    feeds: List[Dict[str, Any]] = []
+    seen = set()
+    for source in sources:
+        feed_id = source["id"]
+        seen.add(feed_id)
+        meta = stored.get(feed_id) or {}
+        feeds.append(
+            {
+                "id": feed_id,
+                "kind": meta.get("kind") or ("apple" if not str(feed_id).startswith("ics:") else "ics"),
+                "url": meta.get("url") or "",
+                "title": meta.get("title") or feed_id,
+                "open_count": source["open_count"],
+                "undated_count": source["undated_count"],
+                "total": source["total"],
+            }
+        )
+    for feed_id, meta in stored.items():
+        if feed_id in seen:
+            continue
+        feeds.append(
+            {
+                "id": feed_id,
+                "kind": meta.get("kind") or "ics",
+                "url": meta.get("url") or "",
+                "title": meta.get("title") or feed_id,
+                "open_count": 0,
+                "undated_count": 0,
+                "total": 0,
+            }
+        )
+    ics_url = str(settings.get("ics_url") or "")
+    if ics_url and not any(feed.get("url") == ics_url for feed in feeds):
+        feeds.append(
+            {
+                "id": "",
+                "kind": "ics",
+                "url": ics_url,
+                "title": ics_url,
+                "open_count": 0,
+                "undated_count": 0,
+                "total": 0,
+            }
+        )
+    undated = work.count_undated_imported_work()
+    return {
+        "ok": True,
+        "feeds": feeds,
+        "ics_url": ics_url,
+        "undated_imported": undated,
+    }
+
+
+@eel.expose
+def unsubscribe_calendar_feed(feed_id: str = "", url: str = "") -> Dict[str, Any]:
+    settings = load_settings()
+    key = str(feed_id or "").strip()
+    link = str(url or "").strip()
+    feeds = list(settings.get("feeds") or [])
+    if not key and link:
+        for feed in feeds:
+            if feed.get("url") == link:
+                key = feed["id"]
+                break
+    matched = next((feed for feed in feeds if feed.get("id") == key), None)
+    deleted = work.delete_open_imported_work(key) if key else {"deleted": 0, "ids": []}
+    delete_blocks_for_work_items(deleted.get("ids") or [])
+    next_feeds = [feed for feed in feeds if feed.get("id") != key]
+    if link:
+        next_feeds = [feed for feed in next_feeds if feed.get("url") != link]
+    settings["feeds"] = next_feeds
+    current_url = str(settings.get("ics_url") or "")
+    drop_url = False
+    if matched and matched.get("url") and matched.get("url") == current_url:
+        drop_url = True
+    if link and link == current_url:
+        drop_url = True
+    if current_url:
+        parsed = urlparse(current_url)
+        if key and key == "ics:" + (parsed.netloc + parsed.path)[:80]:
+            drop_url = True
+    if drop_url:
+        settings["ics_url"] = ""
+    _write_settings(settings)
+    return {
+        "ok": True,
+        "deleted": int(deleted.get("deleted") or 0),
+        "feed_id": key,
+        **list_calendar_feeds(),
+    }
+
+
+@eel.expose
+def delete_undated_imported_assignments() -> Dict[str, Any]:
+    result = work.delete_undated_imported_work()
+    delete_blocks_for_work_items(result.get("ids") or [])
+    return {
+        "ok": True,
+        "deleted": int(result.get("deleted") or 0),
+        **list_calendar_feeds(),
+    }
 
 
 def _normalize_weekdays(raw: Any) -> List[int]:
@@ -742,6 +950,7 @@ def unplaced_work() -> List[Dict[str, Any]]:
             work._ITEM_SELECT
             + """
             WHERE work_items.status != 'done'
+              AND IFNULL(work_items.source, '') != 'calendar'
               AND work_items.estimate_minutes IS NOT NULL
               AND work_items.estimate_minutes > 0
             """
@@ -782,6 +991,7 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
     end = start + timedelta(days=6)
     hard = expand_hard_events(start, end)
     blocks = list_blocks(start, end)
+    dues = _dues_by_day(start, end)
     days = []
     for offset in range(7):
         day = start + timedelta(days=offset)
@@ -793,6 +1003,7 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
                 "is_today": iso == date.today().isoformat(),
                 "events": [item for item in hard if item["occurrence_date"] == iso],
                 "blocks": [item for item in blocks if item["local_date"] == iso],
+                "dues": dues.get(iso, []),
             }
         )
     rows = unplaced_work() if include_unplaced else []
@@ -812,10 +1023,43 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
     }
 
 
+def _dues_by_day(start: date, end: date) -> Dict[str, List[Dict[str, Any]]]:
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    now = work._now()
+    with work._connect() as conn:
+        rows = conn.execute(
+            work._ITEM_SELECT
+            + """
+            WHERE work_items.due_at IS NOT NULL
+              AND TRIM(work_items.due_at) != ''
+              AND substr(work_items.due_at, 1, 10) >= ?
+              AND substr(work_items.due_at, 1, 10) <= ?
+            ORDER BY work_items.due_at ASC, work_items.sort_order ASC
+            """,
+            (start.isoformat(), end.isoformat()),
+        ).fetchall()
+    for row in rows:
+        item = work._row_to_dict(row, now)
+        day = str(item.get("due_at") or "")[:10]
+        if len(day) != 10:
+            continue
+        grouped.setdefault(day, []).append(
+            {
+                "id": item["id"],
+                "title": item.get("title") or "",
+                "status": item.get("status") or "open",
+                "due_at": item.get("due_at"),
+            }
+        )
+    return grouped
+
+
 def _due_counts() -> Dict[str, int]:
     counts: Counter[str] = Counter()
     with work._connect() as conn:
-        rows = conn.execute("SELECT due_at, scheduled_date FROM work_items").fetchall()
+        rows = conn.execute(
+            "SELECT due_at, scheduled_date, status FROM work_items WHERE status != 'done'"
+        ).fetchall()
     for row in rows:
         due = str(row["due_at"] or "")[:10]
         if len(due) == 10:

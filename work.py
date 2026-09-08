@@ -374,6 +374,28 @@ def _elapsed_seconds(row: sqlite3.Row | Dict[str, Any], now: Optional[datetime] 
     return max(0, stored + int((now - start).total_seconds()))
 
 
+def _due_day(value: Optional[str]) -> Optional[str]:
+    text = str(value or "").strip()
+    if len(text) >= 10 and text[4] == "-" and text[7] == "-":
+        return text[:10]
+    return None
+
+
+def _is_overdue_row(
+    scheduled: Optional[str],
+    due_at: Optional[str],
+    status: str,
+    series_id: Optional[str],
+    today: str,
+) -> bool:
+    if status == "done" or series_id:
+        return False
+    due_day = _due_day(due_at)
+    if due_day:
+        return due_day < today
+    return bool(scheduled and scheduled < today)
+
+
 def _row_to_dict(row: sqlite3.Row, now: Optional[datetime] = None) -> Dict[str, Any]:
     now = now or _now()
     elapsed = _elapsed_seconds(row, now)
@@ -402,9 +424,7 @@ def _row_to_dict(row: sqlite3.Row, now: Optional[datetime] = None) -> Dict[str, 
         "cadence": parse_cadence(cadence_raw) if cadence_raw else None,
         "cadence_label": cadence_label(cadence_raw) if cadence_raw else "",
         "is_today": scheduled == today,
-        "is_overdue": bool(
-            scheduled and scheduled < today and row["status"] != "done" and not series_id
-        ),
+        "is_overdue": _is_overdue_row(scheduled, _col(row, "due_at"), row["status"], series_id, today),
         "is_backlog": scheduled is None,
         "due_at": _col(row, "due_at"),
         "estimate_minutes": (
@@ -981,13 +1001,19 @@ def list_overdue_work() -> List[Dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT * FROM work_items
-            WHERE scheduled_date IS NOT NULL
-              AND scheduled_date < ?
-              AND status != 'done'
+            WHERE status != 'done'
               AND (series_id IS NULL OR series_id = '')
-            ORDER BY scheduled_date ASC, sort_order ASC
+              AND (
+                    (due_at IS NOT NULL AND TRIM(due_at) != '' AND substr(due_at, 1, 10) < ?)
+                 OR (
+                        (due_at IS NULL OR TRIM(due_at) = '')
+                    AND scheduled_date IS NOT NULL
+                    AND scheduled_date < ?
+                 )
+              )
+            ORDER BY COALESCE(substr(due_at, 1, 10), scheduled_date) ASC, sort_order ASC
             """,
-            (today,),
+            (today, today),
         ).fetchall()
     now = _now()
     return [_row_to_dict(row, now) for row in rows]
@@ -1135,17 +1161,20 @@ def upsert_imported_work(
             (calendar_key, uid),
         ).fetchone()
         if existing:
+            due_day = _due_day(due)
+            scheduled = existing["scheduled_date"] or due_day
             conn.execute(
                 """
                 UPDATE work_items
-                SET title = ?, due_at = ?, notes = ?, updated_at = ?
+                SET title = ?, due_at = ?, notes = ?, scheduled_date = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                (clean, due, (notes or existing["notes"] or "").strip(), now, existing["id"]),
+                (clean, due, (notes or existing["notes"] or "").strip(), scheduled, now, existing["id"]),
             )
             row = _fetch(conn, existing["id"])
         else:
             item_id = str(uuid.uuid4())
+            due_day = _due_day(due)
             conn.execute(
                 """
                 INSERT INTO work_items (
@@ -1153,13 +1182,14 @@ def upsert_imported_work(
                     active_started_at, finished_at, duration_seconds, sort_order,
                     created_at, updated_at, source, series_id, occurrence_date,
                     due_at, estimate_minutes, source_uid, source_calendar
-                ) VALUES (?, ?, ?, NULL, 'open', NULL, NULL, 0, ?, ?, ?, 'calendar', NULL, NULL, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, 'calendar', NULL, NULL, ?, ?, ?, ?)
                 """,
                 (
                     item_id,
                     clean,
                     (notes or "").strip(),
-                    _next_sort(conn, None),
+                    due_day,
+                    _next_sort(conn, due_day),
                     now,
                     now,
                     due,
@@ -1187,7 +1217,6 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
         return {"created": 0, "updated": 0}
     now = _now().isoformat()
     with _connect() as conn:
-        sort_order = _next_sort(conn, None)
         for raw in rows:
             clean = str(raw.get("title") or "").strip()
             uid = str(raw.get("source_uid") or "").strip()
@@ -1196,6 +1225,7 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
             if not clean or not uid or not calendar_key or not due:
                 continue
             notes = str(raw.get("notes") or "")
+            due_day = _due_day(due)
             existing = conn.execute(
                 """
                 SELECT * FROM work_items
@@ -1205,13 +1235,14 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
                 (calendar_key, uid),
             ).fetchone()
             if existing:
+                scheduled = existing["scheduled_date"] or due_day
                 conn.execute(
                     """
                     UPDATE work_items
-                    SET title = ?, due_at = ?, notes = ?, updated_at = ?
+                    SET title = ?, due_at = ?, notes = ?, scheduled_date = ?, updated_at = ?
                     WHERE id = ?
                     """,
-                    (clean, due, (notes or existing["notes"] or "").strip(), now, existing["id"]),
+                    (clean, due, (notes or existing["notes"] or "").strip(), scheduled, now, existing["id"]),
                 )
                 updated += 1
             else:
@@ -1223,13 +1254,14 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
                         active_started_at, finished_at, duration_seconds, sort_order,
                         created_at, updated_at, source, series_id, occurrence_date,
                         due_at, estimate_minutes, source_uid, source_calendar
-                    ) VALUES (?, ?, ?, NULL, 'open', NULL, NULL, 0, ?, ?, ?, 'calendar', NULL, NULL, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, 'open', NULL, NULL, 0, ?, ?, ?, 'calendar', NULL, NULL, ?, ?, ?, ?)
                     """,
                     (
                         item_id,
                         clean,
                         notes.strip(),
-                        sort_order,
+                        due_day,
+                        _next_sort(conn, due_day),
                         now,
                         now,
                         due,
@@ -1238,10 +1270,91 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
                         calendar_key,
                     ),
                 )
-                sort_order += 1
                 created += 1
     _write_widget_snapshot()
     return {"created": created, "updated": updated}
+
+
+def count_undated_imported_work() -> int:
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT COUNT(*) AS n FROM work_items
+            WHERE source = 'calendar'
+              AND status != 'done'
+              AND (scheduled_date IS NULL OR due_at IS NULL OR TRIM(due_at) = '')
+            """
+        ).fetchone()
+    return int(row["n"] or 0)
+
+
+def delete_undated_imported_work() -> Dict[str, Any]:
+    """Remove open calendar imports that never landed on a day."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id FROM work_items
+            WHERE source = 'calendar'
+              AND status != 'done'
+              AND (scheduled_date IS NULL OR due_at IS NULL OR TRIM(due_at) = '')
+            """
+        ).fetchall()
+        ids = [str(row["id"]) for row in rows]
+        for item_id in ids:
+            conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
+    for item_id in ids:
+        _mirror_task_delete(item_id)
+    if ids:
+        _write_widget_snapshot()
+    return {"ok": True, "deleted": len(ids), "ids": ids}
+
+
+def delete_open_imported_work(source_calendar: str) -> Dict[str, Any]:
+    """Unsubscribe: drop open items from a feed, keep completed ones."""
+    calendar_key = (source_calendar or "").strip()
+    if not calendar_key:
+        return {"ok": True, "deleted": 0, "ids": []}
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id FROM work_items
+            WHERE source_calendar = ? AND status != 'done'
+            """,
+            (calendar_key,),
+        ).fetchall()
+        ids = [str(row["id"]) for row in rows]
+        for item_id in ids:
+            conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
+    for item_id in ids:
+        _mirror_task_delete(item_id)
+    if ids:
+        _write_widget_snapshot()
+    return {"ok": True, "deleted": len(ids), "ids": ids, "source_calendar": calendar_key}
+
+
+def list_imported_calendar_sources() -> List[Dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT source_calendar AS id,
+                   COUNT(*) AS total,
+                   SUM(CASE WHEN status != 'done' THEN 1 ELSE 0 END) AS open_count,
+                   SUM(CASE WHEN status != 'done' AND scheduled_date IS NULL THEN 1 ELSE 0 END) AS undated_count
+            FROM work_items
+            WHERE source_calendar IS NOT NULL AND TRIM(source_calendar) != ''
+            GROUP BY source_calendar
+            ORDER BY source_calendar
+            """
+        ).fetchall()
+    return [
+        {
+            "id": str(row["id"]),
+            "total": int(row["total"] or 0),
+            "open_count": int(row["open_count"] or 0),
+            "undated_count": int(row["undated_count"] or 0),
+        }
+        for row in rows
+    ]
 
 
 @eel.expose

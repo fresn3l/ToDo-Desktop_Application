@@ -82,7 +82,8 @@ END:VCALENDAR
         self.assertEqual(by_title["Essay 2 due"]["due_at"], "2026-09-04T23:59:00")
         self.assertEqual(by_title["Quiz 1 due"]["due_at"], "2026-09-03T23:59:00")
         self.assertEqual(by_title["Essay 2 due"]["estimate_minutes"], 60)
-        self.assertIsNone(by_title["Essay 2 due"]["scheduled_date"])
+        self.assertEqual(by_title["Essay 2 due"]["scheduled_date"], "2026-09-04")
+        self.assertEqual(by_title["Quiz 1 due"]["scheduled_date"], "2026-09-03")
         self.assertEqual(by_title["Essay 2 due"]["source_uid"], "essay-2")
 
     def test_ics_import_writes_widget_snapshot_once(self) -> None:
@@ -546,6 +547,94 @@ END:VCALENDAR
             agenda = calclock.get_day_agenda("2026-09-08")
         self.assertEqual(agenda["local_date"], "2026-09-08")
         self.assertEqual(agenda["unplaced"], [])
+
+    def test_imported_dues_land_on_due_day_not_unplaced(self) -> None:
+        ics = """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:essay-2
+SUMMARY:Essay 2 due
+DTSTART;VALUE=DATE:20260904
+END:VEVENT
+END:VCALENDAR
+"""
+        calclock.import_ics_text(ics, calendar_id="class")
+        item = work.list_all_work_items()[0]
+        self.assertEqual(item["scheduled_date"], "2026-09-04")
+        self.assertEqual(calclock.unplaced_work(), [])
+        week = calclock.get_week("2026-08-31")
+        friday = next(day for day in week["days"] if day["date"] == "2026-09-04")
+        self.assertEqual(friday["dues"][0]["title"], "Essay 2 due")
+        self.assertEqual(friday["dues"][0]["status"], "open")
+        work.finish_work_item(item["id"])
+        again = calclock.get_week("2026-08-31")
+        friday = next(day for day in again["days"] if day["date"] == "2026-09-04")
+        self.assertEqual(friday["dues"][0]["status"], "done")
+
+    def test_imported_dues_are_today_and_overdue_from_due_at(self) -> None:
+        calclock.ingest_events(
+            [{"title": "Quiz", "uid": "q1", "start_at": datetime(2026, 9, 3, 23, 59), "all_day": False}],
+            calendar_id="class",
+        )
+        with mock.patch.object(work, "_today", return_value=date(2026, 9, 3)):
+            board = work.get_work_board("2026-09-03")
+            self.assertEqual([row["title"] for row in board["today"]], ["Quiz"])
+            self.assertEqual(board["overdue"], [])
+        with mock.patch.object(work, "_today", return_value=date(2026, 9, 8)):
+            board = work.get_work_board("2026-09-08")
+            self.assertEqual(board["today"], [])
+            self.assertEqual([row["title"] for row in board["overdue"]], ["Quiz"])
+            self.assertTrue(board["overdue"][0]["is_overdue"])
+
+    def test_fill_week_skips_calendar_imports(self) -> None:
+        calclock.ingest_events(
+            [{"title": "Essay", "uid": "e1", "start_at": datetime(2026, 9, 11, 23, 59), "all_day": False}],
+            calendar_id="class",
+        )
+        week = self._fill("2026-09-07", datetime(2026, 9, 7, 8, 0, 0))
+        work_blocks = [b for day in week["days"] for b in day["blocks"] if b["kind"] == "work"]
+        self.assertEqual(work_blocks, [])
+
+    def test_delete_undated_imported_assignments(self) -> None:
+        calclock.ingest_events(
+            [{"title": "Dated", "uid": "d1", "start_at": datetime(2026, 9, 4, 23, 59), "all_day": False}],
+            calendar_id="class",
+        )
+        work.create_work_item(
+            "Lost import",
+            source="calendar",
+            source_uid="lost",
+            source_calendar="class",
+        )
+        work.create_work_item("Keep me")
+        result = calclock.delete_undated_imported_assignments()
+        self.assertEqual(result["deleted"], 1)
+        titles = {row["title"] for row in work.list_all_work_items()}
+        self.assertEqual(titles, {"Dated", "Keep me"})
+
+    def test_unsubscribe_removes_open_keeps_done(self) -> None:
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:keep-done
+SUMMARY:Done quiz
+DTSTART;VALUE=DATE:20260903
+END:VEVENT
+BEGIN:VEVENT
+UID:drop-open
+SUMMARY:Open quiz
+DTSTART;VALUE=DATE:20260904
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="class",
+        )
+        done = next(row for row in work.list_all_work_items() if row["title"] == "Done quiz")
+        work.finish_work_item(done["id"])
+        result = calclock.unsubscribe_calendar_feed("class")
+        self.assertEqual(result["deleted"], 1)
+        left = work.list_all_work_items()
+        self.assertEqual([row["title"] for row in left], ["Done quiz"])
+        self.assertEqual(left[0]["status"], "done")
 
 
 if __name__ == "__main__":

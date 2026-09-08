@@ -202,12 +202,13 @@
                                 <h3>Due dates</h3>
                                 <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
                                 <input type="text" id="calIcsUrl" class="checklist-text-input" placeholder="Paste https:// or webcal:// calendar link" autocomplete="off" spellcheck="false" inputmode="url">
-                                <p class="checklist-hint small">24-hour awake window is in the week toolbar (0530–2130). Paste a link or an .ics file; Cmd+V should land here.</p>
+                                <p class="checklist-hint small">Due dates land on that day’s To Do and as chips on the week. They are not busy time. Unsubscribe in Settings.</p>
                                 <div class="reminder-actions">
                                     <button type="button" id="calPasteIcs" class="btn-ghost">Paste</button>
                                     <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
                                     <button type="button" id="calImportApple" class="btn-ghost">Import Apple calendars</button>
                                 </div>
+                                <button type="button" id="calDeleteUndated" class="btn-ghost">Delete undated imported assignments</button>
                                 <p id="calImportStatus" class="cal-import-status"></p>
                             </div>
                         </aside>
@@ -412,6 +413,7 @@
                                 <h2>All Work</h2>
                                 <p class="panel-sub" id="allWorkSummary">Undated tasks. Assign them to today or tomorrow, or leave them here.</p>
                             </div>
+                            <button type="button" id="allWorkDeleteUndated" class="btn-ghost">Delete undated imported assignments</button>
                         </div>
                         <div class="work-add-row">
                             <input type="text" id="allWorkNewTitle" class="checklist-text-input" placeholder="A task without a date yet" autocomplete="off">
@@ -1052,6 +1054,22 @@
                                 <button type="button" id="icloudPullBtn" class="btn-secondary">Pull from iPhone</button>
                             </div>
                             <p id="icloudSyncStatus" class="checklist-hint small"></p>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Calendars</h2>
+                                    <p class="panel-sub">Due-date feeds only. Unsubscribe removes open imported to-dos and keeps completed ones.</p>
+                                </div>
+                            </div>
+                            <div id="calendarFeedsList" class="calendar-feeds-list"></div>
+                            <p id="calendarFeedsEmpty" class="checklist-hint small">No subscribed calendars.</p>
+                            <p id="undatedImportNote" class="checklist-hint small"></p>
+                            <div class="reminder-actions">
+                                <button type="button" id="deleteUndatedImportsBtn" class="btn-ghost">Delete undated imported assignments</button>
+                            </div>
+                            <p id="calendarFeedsStatus" class="checklist-hint small"></p>
                         </div>
 
                         <div class="panel">

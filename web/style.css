@@ -5206,7 +5206,7 @@ html[data-motion='reduce'] *::after {
 
 .cal-hours {
     position: relative;
-    padding-top: 36px;
+    padding-top: calc(36px + 2.75rem);
     font-family: inherit;
     font-size: 11px;
     font-variant-numeric: tabular-nums;
@@ -5248,6 +5248,74 @@ html[data-motion='reduce'] *::after {
     justify-content: space-between;
     padding: 8px 8px 4px;
     font-size: 12px;
+}
+
+.cal-due-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 4px;
+    min-height: 2.75rem;
+    max-height: 2.75rem;
+    overflow: auto;
+    padding: 0 6px 4px;
+}
+
+.cal-due-chip {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    line-height: 1.2;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--attention, #c45c26) 18%, var(--bg-input));
+    color: var(--text-primary);
+}
+
+.cal-due-chip.is-done {
+    opacity: 0.55;
+    text-decoration: line-through;
+    background: color-mix(in srgb, var(--text-muted) 16%, var(--bg-input));
+}
+
+.cal-due-chip.is-more {
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.cal-due-empty {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.calendar-feeds-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.calendar-feed-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.calendar-feed-row h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.calendar-feed-row p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
 }
 
 .cal-day-body {
