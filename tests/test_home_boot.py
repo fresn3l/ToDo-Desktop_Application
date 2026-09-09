@@ -74,3 +74,16 @@ print("ok")
         self.assertNotIn("at_risk", week)
         self.assertIn("day_start", week["settings"])
         self.assertNotIn("feeds", week["settings"])
+
+    def test_cluny_modules_are_lazy_and_packaged(self) -> None:
+        import lazy_eel
+
+        self.assertIn("cluny_sync", lazy_eel.LAZY_MODULES)
+        self.assertIn("cluny_sync", lazy_eel.FEATURE_MODULES["cluny"])
+        names = lazy_eel._exposed_names("cluny_sync")
+        self.assertIn("backfill_cluny_life", names)
+        self.assertIn("get_cluny_settings", names)
+        build = (ROOT / "build_app.py").read_text(encoding="utf-8")
+        self.assertIn('"cluny_brain"', build)
+        self.assertIn('"brain"', build)
+        self.assertIn('"library"', build)

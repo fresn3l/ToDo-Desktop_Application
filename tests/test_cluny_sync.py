@@ -157,6 +157,7 @@ class ClunySettingsTests(unittest.TestCase):
                     "id": 1,
                     "checklist_id": "morning",
                     "local_date": "2026-09-02",
+                    "created_at": "2026-09-02T08:00:00",
                     "answers": {"intentions": "go"},
                 }
             )
@@ -165,6 +166,36 @@ class ClunySettingsTests(unittest.TestCase):
         self.assertIn("kind=check-in", args[0])
         self.assertEqual(kwargs.get("collection"), "check-in")
         self.assertEqual(kwargs.get("source"), "kosistenz-checkin")
+
+    def test_life_digest_ingests_when_brain_ready(self) -> None:
+        import cluny_client
+        import cluny_snapshot
+
+        payload = {
+            "date": "2026-09-09",
+            "week_start": "2026-09-07",
+            "week_end": "2026-09-13",
+            "free_minutes": 120,
+            "journal": [{"date": "2026-09-09", "kind": "journal", "content": "Full page about Spanish."}],
+            "todos_today": [{"title": "Essay", "notes": "Need sources"}],
+            "events_today": [{"title": "CHEM", "start": "09:30"}],
+            "goals": [{"title": "Spanish", "spent_minutes": 0, "target_minutes": 180}],
+            "workout_plan": {"lifts": {"0": "push"}},
+            "workouts": [],
+            "briefs": [],
+            "work": {"backlog": [], "week": []},
+        }
+        digest = cluny_snapshot.snapshot_as_text(payload)
+        self.assertIn("Full page about Spanish.", digest)
+        self.assertIn("Need sources", digest)
+        with mock.patch.object(cluny_client, "health", return_value={"brain_ready": True}), mock.patch.object(
+            cluny_client, "ingest_text"
+        ) as ingest:
+            result = cluny_sync.sync_life_digest_safe(payload)
+        self.assertTrue(result["ok"])
+        ingest.assert_called_once()
+        self.assertEqual(ingest.call_args.kwargs["collection"], "life")
+        self.assertEqual(ingest.call_args.kwargs["title"], "kosistenz-life")
 
 
 if __name__ == "__main__":

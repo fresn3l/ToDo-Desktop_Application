@@ -156,6 +156,15 @@ def get_cluny_health() -> Dict[str, Any]:
         else "Auto-start is off — start Cluny manually or enable it in Settings."
     )
     offline = "Cluny is off. Journal, to-dos, and the clock still work."
+    if not probe.get("brain_ready"):
+        detail = str(probe.get("message") or "").strip()
+        if detail and detail not in offline:
+            offline = f"{detail} Journal, to-dos, and the clock still work."
+        elif probe.get("ok") and probe.get("ollama_ok") is False:
+            offline = (
+                "Cluny is up; Ollama is not ready. Open Ollama and pull a chat model. "
+                "Journal, to-dos, and the clock still work."
+            )
     return {
         **settings,
         **probe,
@@ -170,6 +179,12 @@ def get_cluny_health() -> Dict[str, Any]:
 
 @eel.expose
 def probe_cluny_connection() -> Dict[str, Any]:
+    import cluny_brain
+
+    try:
+        cluny_brain.ensure_running(wait=True)
+    except Exception:
+        pass
     return get_cluny_health()
 
 

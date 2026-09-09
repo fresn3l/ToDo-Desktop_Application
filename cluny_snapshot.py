@@ -17,9 +17,9 @@ import eel
 
 ASK_INSTRUCTION = (
     "You are Cluny, the local brain. Kosistenz owns the list and the clock. "
-    "Answer from this context: journal excerpts (what you wrote), logged work "
-    "(done items and workout sessions), the week clock (hard events vs placed "
-    "blocks vs unplaced), and goal minutes. When asked what is on today, list "
+    "Answer from this context: what you wrote (journal content, briefs, work notes), "
+    "logged work (done items and workout sessions), the week clock (hard events vs placed "
+    "blocks vs unplaced), the workout plan, and goal minutes. When asked what is on today, list "
     "todos_today, events_today, and overdue items. When asked about free time, "
     "recommend open to-dos by title using estimates and free_minutes as capacity. "
     "Never pick a clock time or say to do something at HH:MM. "
@@ -28,6 +28,8 @@ ASK_INSTRUCTION = (
 
 JOURNAL_LIMIT = 40
 EXCERPT_CHARS = 400
+FULL_JOURNAL_CHARS = 8000
+NOTE_CHARS = 800
 LOG_DAYS = 14
 BRIEF_DAYS = 7
 
@@ -109,6 +111,7 @@ def _work_slim(item: Dict[str, Any]) -> Dict[str, Any]:
         "due_at": due[:19] or None,
         "estimate_minutes": item.get("estimate_minutes"),
         "goal_id": item.get("goal_id"),
+        "notes": _excerpt(item.get("notes"), NOTE_CHARS) or None,
     }
 
 
@@ -121,6 +124,7 @@ def _ask_work_row(item: Dict[str, Any]) -> Dict[str, Any]:
         "status": item.get("status") or "open",
         "duration_seconds": int(item.get("duration_seconds") or 0),
         "finished_at": item.get("finished_at"),
+        "notes": _excerpt(item.get("notes"), NOTE_CHARS) or None,
     }
 
 
@@ -144,20 +148,23 @@ def _journal_rows() -> List[Dict[str, Any]]:
     except Exception:
         return []
     rows: List[Dict[str, Any]] = []
+    recent_after = (date.today() - timedelta(days=LOG_DAYS)).isoformat()
     for entry in entries[:JOURNAL_LIMIT]:
         kind = journal.normalize_journal_kind(entry.get("kind"))
         day = str(entry.get("date") or entry.get("created_at") or "")[:10]
         tags = entry.get("tags") if isinstance(entry.get("tags"), list) else []
-        rows.append(
-            {
-                "id": entry.get("id"),
-                "date": day or None,
-                "kind": kind,
-                "tags": [str(t) for t in tags if str(t).strip()][:12],
-                "excerpt": _excerpt(entry.get("content")),
-                "stem": str(entry.get("id") or ""),
-            }
-        )
+        raw = str(entry.get("content") or "")
+        row: Dict[str, Any] = {
+            "id": entry.get("id"),
+            "date": day or None,
+            "kind": kind,
+            "tags": [str(t) for t in tags if str(t).strip()][:12],
+            "excerpt": _excerpt(raw),
+            "stem": str(entry.get("id") or ""),
+        }
+        if day >= recent_after:
+            row["content"] = raw[:FULL_JOURNAL_CHARS]
+        rows.append(row)
     return rows
 
 
@@ -271,9 +278,28 @@ def _workout_rows(today: date) -> List[Dict[str, Any]]:
                     "miles": session.get("miles"),
                     "minutes": session.get("minutes"),
                     "done": True,
+                    "notes": _excerpt((packed.get("notes") or ""), NOTE_CHARS) or None,
                 }
             )
     return rows
+
+
+def _workout_plan() -> Dict[str, Any]:
+    import workouts
+
+    try:
+        plan = workouts.load_week_template()
+    except Exception:
+        return {}
+    if not isinstance(plan, dict):
+        return {}
+    lifts = plan.get("lifts") if isinstance(plan.get("lifts"), dict) else {}
+    running = plan.get("running") if isinstance(plan.get("running"), dict) else {}
+    return {
+        "lifts": {str(day): str(kind) for day, kind in lifts.items() if str(kind).strip()},
+        "running_enabled": bool(running.get("enabled")),
+        "running_mode": running.get("mode") or "",
+    }
 
 
 def _goal_rows() -> List[Dict[str, Any]]:
@@ -314,8 +340,8 @@ def _brief_rows(today: date) -> List[Dict[str, Any]]:
             {
                 "local_date": brief.get("local_date"),
                 "slot": brief.get("slot"),
-                "intention_text": _excerpt(brief.get("intention_text"), 240),
-                "recap_text": _excerpt(brief.get("recap_text"), 240),
+                "intention_text": str(brief.get("intention_text") or "")[:FULL_JOURNAL_CHARS],
+                "recap_text": str(brief.get("recap_text") or "")[:FULL_JOURNAL_CHARS],
                 "journal_id": brief.get("journal_id") or "",
                 "done_ids": (brief.get("done_ids") or [])[:12],
                 "leftover_ids": (brief.get("leftover_ids") or [])[:12],
@@ -391,6 +417,7 @@ def build_life_snapshot() -> Dict[str, Any]:
             "unplaced": calendar.get("unplaced") or [],
         },
         "workouts": _workout_rows(today),
+        "workout_plan": _workout_plan(),
         "goals": _goal_rows(),
         "briefs": briefs,
         "todos_today": work["todos_today"],
@@ -406,6 +433,81 @@ def build_life_snapshot() -> Dict[str, Any]:
     }
 
 
+def snapshot_as_text(payload: Optional[Dict[str, Any]] = None) -> str:
+    """Readable life dump for Cluny RAG. No clock advice."""
+    data = payload or build_life_snapshot()
+    lines: List[str] = [
+        f"Kosistenz life {data.get('date') or ''} week {data.get('week_start')}–{data.get('week_end')}",
+        "Kosistenz owns the clock. Do not pick HH:MM times.",
+        f"Free minutes today: {data.get('free_minutes')}",
+    ]
+    notes = data.get("notes")
+    if notes:
+        lines.append(f"Morning intention: {notes}")
+    overdue = data.get("overdue") or []
+    if overdue:
+        lines.append("Overdue: " + "; ".join(str(row.get("title") or "") for row in overdue[:20]))
+    today_todos = data.get("todos_today") or []
+    if today_todos:
+        bits = []
+        for row in today_todos[:24]:
+            title = str(row.get("title") or "")
+            extra = str(row.get("notes") or "").strip()
+            bits.append(f"{title} ({extra})" if extra else title)
+        lines.append("Today: " + "; ".join(bits))
+    events = data.get("events_today") or []
+    if events:
+        lines.append(
+            "On the clock today: "
+            + "; ".join(
+                f"{row.get('start') or ''} {row.get('title') or ''}".strip() for row in events[:24]
+            )
+        )
+    unplaced = data.get("unplaced") or []
+    if unplaced:
+        lines.append("Unplaced: " + "; ".join(str(row.get("title") or "") for row in unplaced[:20]))
+    goals = data.get("goals") or []
+    if goals:
+        lines.append(
+            "Goals: "
+            + "; ".join(
+                f"{row.get('title')} {row.get('spent_minutes') or 0}/{row.get('target_minutes') or 0}m"
+                for row in goals[:20]
+                if row.get("title")
+            )
+        )
+    plan = data.get("workout_plan") or {}
+    lifts = plan.get("lifts") if isinstance(plan, dict) else {}
+    if lifts:
+        lines.append("Workout plan: " + ", ".join(f"day{day}={kind}" for day, kind in lifts.items()))
+    sessions = data.get("workouts") or []
+    if sessions:
+        lines.append(
+            "Logged workouts: "
+            + "; ".join(f"{row.get('date')} {row.get('kind') or row.get('label')}" for row in sessions[:14])
+        )
+    for row in data.get("journal") or []:
+        body = str(row.get("content") or row.get("excerpt") or "").strip()
+        if not body:
+            continue
+        lines.append(f"Journal {row.get('date') or ''} {row.get('kind') or ''}: {body}")
+    for row in data.get("briefs") or []:
+        intention = str(row.get("intention_text") or "").strip()
+        recap = str(row.get("recap_text") or "").strip()
+        if intention:
+            lines.append(f"Brief {row.get('local_date')} morning: {intention}")
+        if recap:
+            lines.append(f"Brief {row.get('local_date')} evening: {recap}")
+    work = data.get("work") or {}
+    for group, label in (("backlog", "Inbox"), ("week", "This week"), ("logged", "Logged")):
+        rows = work.get(group) or []
+        noted = [row for row in rows if str(row.get("notes") or "").strip()]
+        for row in noted[:30]:
+            lines.append(f"{label} {row.get('title')}: {row.get('notes')}")
+    text = "\n".join(str(line) for line in lines if str(line).strip())
+    return text[:100000]
+
+
 def write_life_snapshot() -> Dict[str, Any]:
     payload = build_life_snapshot()
     path = get_life_snapshot_path()
@@ -419,10 +521,17 @@ def write_life_snapshot() -> Dict[str, Any]:
 
 def refresh_life_snapshot_safe() -> Optional[Dict[str, Any]]:
     try:
-        return write_life_snapshot()
+        payload = write_life_snapshot()
     except Exception as exc:  # noqa: BLE001
         print(f"[Cluny snapshot] Failed (local save still ok): {exc}")
         return None
+    try:
+        import cluny_sync
+
+        cluny_sync.sync_life_digest_safe(payload)
+    except Exception:
+        pass
+    return payload
 
 
 def snapshot_public_status() -> Dict[str, Any]:

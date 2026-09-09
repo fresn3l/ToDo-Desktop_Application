@@ -493,6 +493,9 @@ export function setupSettings() {
     document.getElementById('clunyBackfillBtn')?.addEventListener('click', () => {
         void backfillClunyJournals();
     });
+    document.getElementById('clunyBackfillLifeBtn')?.addEventListener('click', () => {
+        void backfillClunyLife();
+    });
 
     document.getElementById('icloudAutoToggle')?.addEventListener('change', async (e) => {
         if (typeof eel === 'undefined' || !eel.save_icloud_sync_settings) return;
@@ -783,7 +786,11 @@ function paintClunyHealth(probe) {
         el.textContent = 'Auto-start is off. Start Cluny manually or enable it below.';
         return;
     }
-    el.textContent = probe?.message || probe?.offline_copy || 'Cluny is starting…';
+    const bits = [];
+    if (probe?.message) bits.push(probe.message);
+    if (probe?.serve_command) bits.push(`Command: ${probe.serve_command}`);
+    if (probe?.serve_log) bits.push(`Log: ${probe.serve_log}`);
+    el.textContent = bits.join(' ') || probe?.offline_copy || 'Cluny is starting…';
 }
 
 function paintClunySettings(cfg) {
@@ -940,6 +947,42 @@ async function backfillClunyJournals() {
     } catch (err) {
         if (el) el.textContent = err?.message || 'Could not index journals.';
         utils.showErrorFeedback(err?.message || 'Could not index journals.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function backfillClunyLife() {
+    const el = document.getElementById('clunyBackfillStatus');
+    const btn = document.getElementById('clunyBackfillLifeBtn');
+    if (el) el.textContent = 'Indexing journals, notes, the week, workouts, and goals…';
+    if (typeof eel === 'undefined' || !eel.backfill_cluny_life) {
+        if (el) el.textContent = 'Cluny is off.';
+        return;
+    }
+    if (btn) btn.disabled = true;
+    try {
+        const result = await eel.backfill_cluny_life(180)();
+        if (result?.error) {
+            if (el) el.textContent = result.error;
+            utils.showErrorFeedback(result.error);
+            return;
+        }
+        const copied = result?.copied || 0;
+        const total = result?.total || 0;
+        const digest = result?.digest_ok
+            ? `Life digest ${result.digest_chars || 0} chars.`
+            : (result?.digest_error || 'Life digest skipped (Cluny off).');
+        if (el) el.textContent = `Indexed ${copied} of ${total} journals. ${digest}`;
+        if (result?.digest_ok) {
+            utils.showSuccessFeedback('Life index finished.');
+        } else {
+            utils.showErrorFeedback(result?.digest_error || 'Cluny is off.');
+        }
+        void loadClunySettings();
+    } catch (err) {
+        if (el) el.textContent = err?.message || 'Could not index life.';
+        utils.showErrorFeedback(err?.message || 'Could not index life.');
     } finally {
         if (btn) btn.disabled = false;
     }

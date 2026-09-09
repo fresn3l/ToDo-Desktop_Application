@@ -1152,7 +1152,8 @@
                             </div>
                             <div class="settings-block">
                                 <label class="checklist-field-label" for="clunyBinaryPath">Cluny binary path (optional)</label>
-                                <input type="text" id="clunyBinaryPath" class="checklist-text-input" placeholder="/path/to/cluny or leave blank for PATH" autocomplete="off">
+                                <input type="text" id="clunyBinaryPath" class="checklist-text-input" placeholder="/path/to/cluny or leave blank" autocomplete="off">
+                                <p class="checklist-hint small">macOS apps do not see Homebrew PATH. Leave this blank unless Cluny lives somewhere unusual — Kosistenz looks in /opt/homebrew/bin and /usr/local/bin. Logs: ~/Library/Logs/Kosistenz-cluny-serve.log</p>
                             </div>
                             <div class="settings-block">
                                 <label class="checklist-field-label" for="clunyDataDir">Cluny data directory (optional)</label>
@@ -1172,6 +1173,7 @@
                                 <p id="clunySnapshotStatus" class="checklist-hint small"></p>
                                 <div class="reminder-actions">
                                     <button type="button" id="clunyBackfillBtn" class="btn-secondary">Index existing journals</button>
+                                    <button type="button" id="clunyBackfillLifeBtn" class="btn-secondary">Index my life</button>
                                 </div>
                                 <p id="clunyBackfillStatus" class="checklist-hint small"></p>
                             </div>

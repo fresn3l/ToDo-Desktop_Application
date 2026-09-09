@@ -47,7 +47,7 @@ class ClunySnapshotTests(unittest.TestCase):
             tags=["spanish"],
             kind="evening_review",
         )
-        item = work.create_work_item("Essay outline", scheduled_date=today_iso)
+        item = work.create_work_item("Essay outline", scheduled_date=today_iso, notes="Need two sources")
         work.start_work_item(item["id"])
         work.finish_work_item(item["id"])
         start = datetime(today.year, today.month, today.day, 9, 0)
@@ -78,6 +78,11 @@ class ClunySnapshotTests(unittest.TestCase):
         self.assertIn("duration_seconds", logged)
         event_titles = [event.get("title") for day in payload["calendar"]["days"] for event in day.get("events") or []]
         self.assertIn("CHEM 109 lecture", event_titles)
+        self.assertTrue(any(row.get("content") and "Spanish vocab felt slow" in row["content"] for row in payload["journal"]))
+        digest = cluny_snapshot.snapshot_as_text(payload)
+        self.assertIn("Spanish vocab felt slow", digest)
+        self.assertIn("Need two sources", digest)
+        self.assertIn("workout_plan", payload)
         self.assertTrue(any(row.get("kind") == "push" for row in payload["workouts"]))
         path = Path(self.tmp.name) / "cluny_life_snapshot.json"
         self.assertTrue(path.exists())

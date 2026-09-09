@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import cluny_brain
@@ -48,6 +49,29 @@ class ClunyBrainTests(unittest.TestCase):
         env = popen.call_args.kwargs["env"]
         self.assertEqual(env["CLUNY_API_BIND"], "127.0.0.1")
         self.assertEqual(env["CLUNY_API_PORT"], "8787")
+        self.assertEqual(env["PATH"], cluny_brain.augmented_path())
+        self.assertTrue(popen.call_args.kwargs["stdout"])
+        self.assertIn("serve_log", status)
+
+    def test_lookup_finds_candidate_binary_when_path_is_empty(self) -> None:
+        os.environ.pop("CLUNY_BIN", None)
+        fake = Path(self.tmp.name) / "cluny"
+        fake.write_text("#!/bin/sh\n")
+        fake.chmod(0o755)
+        with mock.patch("cluny_brain.shutil.which", return_value=None), mock.patch.object(
+            cluny_brain, "_candidate_binaries", return_value=[fake]
+        ):
+            command = cluny_brain._resolve_serve_command()
+        self.assertEqual(command, [str(fake), "serve"])
+
+    def test_frozen_app_does_not_reuse_kosistenz_as_python_m(self) -> None:
+        os.environ.pop("CLUNY_BIN", None)
+        with mock.patch.object(cluny_brain, "_frozen", return_value=True), mock.patch(
+            "cluny_brain.shutil.which", return_value=None
+        ), mock.patch.object(cluny_brain, "_candidate_binaries", return_value=[]):
+            self.assertIsNone(cluny_brain._resolve_serve_command())
+            lookup = cluny_brain._serve_lookup()
+        self.assertIn("Homebrew", lookup.get("message") or "")
 
 
 if __name__ == "__main__":

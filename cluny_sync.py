@@ -28,7 +28,7 @@ import re
 import sqlite3
 import urllib.error
 import urllib.request
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -605,6 +605,42 @@ def backfill_cluny_journals(days: int = 180) -> Dict[str, Any]:
         "skipped": skipped,
         "total": len(entries),
         "days": window,
+    }
+
+
+def sync_life_digest_safe(payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Push a full-text life digest into Cluny RAG. Best-effort."""
+    import cluny_client
+    import cluny_snapshot
+
+    try:
+        if not cluny_client.health(timeout=0.4).get("brain_ready"):
+            return {"ok": False, "skipped": True, "error": "Cluny is off"}
+        text = cluny_snapshot.snapshot_as_text(payload)
+        if not text.strip():
+            return {"ok": False, "skipped": True, "error": "empty digest"}
+        cluny_client.ingest_text(
+            text,
+            title="kosistenz-life",
+            source="kosistenz-life",
+            collection="life",
+        )
+        return {"ok": True, "chars": len(text)}
+    except (OSError, urllib.error.URLError, ValueError) as exc:
+        print(f"[Cluny sync] Life digest failed (still saved locally): {exc}")
+        return {"ok": False, "error": str(exc)}
+
+
+@eel.expose
+def backfill_cluny_life(days: int = 180) -> Dict[str, Any]:
+    """Index journals plus the current life digest. Never moves Kosistenz files."""
+    journals = backfill_cluny_journals(days)
+    digest = sync_life_digest_safe()
+    return {
+        **journals,
+        "digest_ok": bool(digest.get("ok")),
+        "digest_error": digest.get("error"),
+        "digest_chars": digest.get("chars") or 0,
     }
 
 

@@ -105,9 +105,9 @@ def _api_url(path: str) -> str:
     return urljoin(base, path.lstrip("/"))
 
 
-def health() -> Dict[str, Any]:
+def health(*, timeout: float = 3.0) -> Dict[str, Any]:
     try:
-        data = _request("GET", _api_url("health"), timeout=3.0)
+        data = _request("GET", _api_url("health"), timeout=timeout)
     except ValueError as exc:
         return {
             "ok": False,
