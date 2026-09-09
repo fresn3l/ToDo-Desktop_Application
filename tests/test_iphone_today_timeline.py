@@ -1,4 +1,4 @@
-"""Today's phone clock — lockstep with ios/Kosistenz/DayTimeline.swift."""
+"""Today's clock — lockstep with ios/Kosistenz/DayTimeline.swift."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ class IphoneTodayTimelineTests(unittest.TestCase):
         self.assertEqual(rows[0]["minutes"], 50)
         self.assertEqual(rows[1]["minutes"], 90)
         self.assertEqual(rows[2]["minutes"], 30)
-        self.assertEqual(rows[0]["label"], "Class")
+        self.assertEqual(rows[0]["label"], "Event")
         self.assertEqual(rows[1]["label"], "Work")
         self.assertEqual(
             phone_today.unplaced_titles([{"id": "u1", "title": "Parked thought"}, {"title": ""}]),
@@ -77,10 +77,13 @@ class IphoneTodayTimelineTests(unittest.TestCase):
         self.assertIn("tests/test_iphone_today_timeline.py", text)
         self.assertIn("phone_today.py", text)
         self.assertIn("struct DayTimelineView", text)
+        self.assertIn("label = \"Event\"", text)
+        self.assertNotIn("label = \"Class\"", text)
         today = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "TodayScreen.swift").read_text(
             encoding="utf-8"
         )
-        self.assertIn("DayTimelineView", today)
+        self.assertIn("DayClockView", today)
+        self.assertIn("AddEventSheet", today)
         self.assertIn("Unplaced", today)
 
 

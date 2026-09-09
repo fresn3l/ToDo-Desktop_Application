@@ -487,8 +487,17 @@ def _dump_calendar() -> Dict[str, Any]:
 
     try:
         week = calclock.get_week()
+        hard_events = calclock.list_owned_hard_events()
     except Exception:
-        return {"week_start": "", "week_end": "", "days": [], "unplaced": []}
+        return {
+            "week_start": "",
+            "week_end": "",
+            "day_start": "",
+            "day_end": "",
+            "days": [],
+            "unplaced": [],
+            "hard_events": [],
+        }
 
     def slim(item: Dict[str, Any]) -> Dict[str, Any]:
         return {
@@ -500,6 +509,17 @@ def _dump_calendar() -> Dict[str, Any]:
             "end_at": item.get("end_at"),
         }
 
+    def slim_due(item: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "id": item.get("id"),
+            "title": item.get("title") or "",
+            "due_at": item.get("due_at"),
+            "course": item.get("course") or "",
+            "estimate_minutes": item.get("estimate_minutes"),
+            "status": item.get("status") or "",
+            "hue": item.get("hue"),
+        }
+
     days = []
     for day in week.get("days") or []:
         days.append(
@@ -509,6 +529,7 @@ def _dump_calendar() -> Dict[str, Any]:
                 "is_today": bool(day.get("is_today")),
                 "events": [slim(item) for item in day.get("events") or []],
                 "blocks": [slim(item) for item in day.get("blocks") or []],
+                "dues": [slim_due(item) for item in day.get("dues") or []],
             }
         )
     unplaced = [
@@ -523,7 +544,31 @@ def _dump_calendar() -> Dict[str, Any]:
         "day_end": (week.get("settings") or {}).get("day_end") or "",
         "days": days,
         "unplaced": unplaced[:40],
+        "hard_events": hard_events[:500],
     }
+
+
+def _apply_calendar(payload: Dict[str, Any]) -> Dict[str, int]:
+    """Merge iPhone hard events. Packed study blocks in the pack are ignored."""
+    import calclock
+
+    applied = 0
+    rows = payload.get("hard_events") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return {"calendar": 0}
+    for row in rows[:500]:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("source") or "").strip().lower() != "iphone":
+            continue
+        incoming = dict(row)
+        incoming["source"] = "iphone"
+        if not _plausible_stamp(incoming.get("updated_at") or incoming.get("created_at")):
+            incoming["updated_at"] = _now()
+        stored = calclock.upsert_phone_event(incoming)
+        if stored:
+            applied += 1
+    return {"calendar": applied}
 
 
 def build_pack() -> Dict[str, Any]:
@@ -582,7 +627,7 @@ def apply_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
         counts.update(_apply_workouts(pack.get("workouts") or {}))
         journal_list = pack.get("journal")
         counts.update(_apply_journal(journal_list if isinstance(journal_list, list) else []))
-        # Phone never writes the week clock. calendar.json is Mac → phone only.
+        counts.update(_apply_calendar(pack.get("calendar") or {}))
         incoming_appearance = pack.get("appearance")
         if isinstance(incoming_appearance, dict) and incoming_appearance:
             appearance.save_appearance_settings(incoming_appearance)

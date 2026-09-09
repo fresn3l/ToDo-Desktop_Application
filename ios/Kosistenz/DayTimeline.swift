@@ -48,7 +48,7 @@ enum DayTimeline {
         let raw = (kind ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let label: String
         if raw == "hard" {
-            label = "Class"
+            label = "Event"
         } else if raw == "workout" {
             label = "Gym"
         } else {

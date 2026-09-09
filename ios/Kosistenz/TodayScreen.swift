@@ -7,6 +7,7 @@ struct TodayScreen: View {
     @State private var askOther = false
     @State private var milesDraft = ""
     @State private var otherDraft = ""
+    @State private var showAdd = false
 
     private var todayItems: [WorkItem] {
         (store.pack?.work.items ?? []).filter { $0.scheduled_date == store.today }
@@ -18,11 +19,6 @@ struct TodayScreen: View {
 
     private var todayCalendar: CalendarDay? {
         store.pack?.calendar.days.first(where: { $0.date == store.today })
-    }
-
-    private var timeline: [DayTimeline.Block] {
-        let day = todayCalendar
-        return DayTimeline.blocks(events: day?.events ?? [], packed: day?.blocks ?? [])
     }
 
     private var unplaced: [UnplacedItem] {
@@ -63,6 +59,24 @@ struct TodayScreen: View {
             .navigationTitle(heading)
             .toolbarBackground(store.palette.sidebar, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add") { showAdd = true }
+                }
+            }
+            .sheet(isPresented: $showAdd) {
+                AddEventSheet(
+                    palette: store.palette,
+                    defaultDate: store.today,
+                    dayStart: store.pack?.calendar.day_start,
+                    dayEnd: store.pack?.calendar.day_end,
+                    onSave: { pack in
+                        store.pack = pack
+                        store.error = nil
+                    },
+                    onError: { store.error = $0 }
+                )
+            }
             .scrollContentBackground(.hidden)
             .background(store.palette.pageBg)
             .refreshable { store.reload() }
@@ -97,14 +111,21 @@ struct TodayScreen: View {
 
     private var clockSection: some View {
         Section("On the clock") {
-            if timeline.isEmpty {
-                Text("No lectures or blocks on today. Fill week on the Mac, then Push to iCloud.")
+            if let day = todayCalendar {
+                DayClockView(
+                    day: day,
+                    dayStart: store.pack?.calendar.day_start,
+                    dayEnd: store.pack?.calendar.day_end,
+                    palette: store.palette,
+                    height: 360
+                )
+                .frame(minHeight: 400)
+                .listRowBackground(store.palette.widgetBg)
+                .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+            } else {
+                Text("Nothing on the clock. Add an event, or Fill week on the Mac, then Push to iCloud.")
                     .foregroundStyle(.secondary)
                     .listRowBackground(store.palette.widgetBg)
-            } else {
-                DayTimelineView(blocks: timeline, palette: store.palette)
-                    .listRowBackground(store.palette.widgetBg)
-                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
             }
         }
     }
