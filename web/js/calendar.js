@@ -44,7 +44,7 @@ function setCalView(next) {
     document.getElementById('calYearGrid')?.classList.toggle('is-hidden', calView !== 'year');
     // Month and year views hide the week-clock hint.
     document.getElementById('calClockHint')?.classList.toggle('is-hidden', calView !== 'week');
-    // Month and year views show the lecture / placed / due legend.
+    // Month and year views show the event / placed / due legend.
     document.getElementById('calMonthLegend')?.classList.toggle('is-hidden', calView === 'week');
     document.querySelectorAll('#calViewGroup [data-cal-view]').forEach((btn) => {
         btn.classList.toggle('is-selected', btn.getAttribute('data-cal-view') === calView);
@@ -67,7 +67,7 @@ function weekdayHeads() {
 
 function renderMonthCell(cell, compact) {
     const extra = [];
-    if (cell.event_count) extra.push('lecture');
+    if (cell.event_count) extra.push('event');
     if (cell.block_count) extra.push('block');
     if (cell.due_count) extra.push('due');
     const marks = extra.length
@@ -257,7 +257,7 @@ function formatMilitary(min) {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function selectedLectureDays() {
+function selectedEventDays() {
     return [...document.querySelectorAll('#calEventWeekdays .work-day-chip.is-selected')].map((btn) =>
         Number(btn.getAttribute('data-day')),
     );
@@ -573,14 +573,14 @@ function paintEditor() {
     const isBlock = mode === 'work' || mode === 'workout';
     if (heading) {
         heading.textContent = isNew
-            ? 'New lecture'
+            ? 'Add to calendar'
             : isUnplaced
                 ? 'Place on the clock'
                 : (document.getElementById('calEventTitle')?.value?.trim() || 'Edit');
     }
     if (hint) {
         hint.textContent = isNew
-            ? 'Click a block to edit it. Drag to move.'
+            ? 'Name anything on the clock — meeting, class, office hours.'
             : isUnplaced
                 ? 'Pick a start time, then Save to place this work.'
                 : 'Rename, change the times, or drag the block.';
@@ -962,7 +962,7 @@ async function runDueMenu(act) {
             utils.showSuccessFeedback('Reopened.');
         } else if (act === 'place-after') {
             await eel.place_work_after_lecture(id, date)();
-            utils.showSuccessFeedback('Placed after lecture.');
+            utils.showSuccessFeedback('Placed after this.');
         } else if (act === 'todo') {
             document.dispatchEvent(new CustomEvent('kosistenz:open-todo', { detail: { date, itemId: id } }));
             return;
@@ -991,12 +991,12 @@ async function saveEditor() {
     }
     try {
         if (editor.mode === 'new' || editor.mode === 'hard' && !editor.id) {
-            await eel.create_calendar_event(title, start, end, selectedLectureDays())();
+            await eel.create_calendar_event(title, start, end, selectedEventDays())();
             resetEditor();
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'hard') {
-            await eel.update_calendar_event(editor.id, title, start, end, selectedLectureDays(), editor.occurrenceDate)();
-            utils.showSuccessFeedback('Lecture updated.');
+            await eel.update_calendar_event(editor.id, title, start, end, selectedEventDays(), editor.occurrenceDate)();
+            utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'unplaced') {
             await eel.schedule_work_at(editor.id, start, end)();
             resetEditor();
@@ -1034,17 +1034,17 @@ async function parkEditor() {
 
 async function removeEditor() {
     if (!editor.id) return;
-    const lecture = editor.mode === 'hard';
+    const hard = editor.mode === 'hard';
     if (!(await utils.askConfirm({
-        title: lecture ? 'Remove lecture' : 'Remove from clock',
-        message: lecture
-            ? 'Remove this lecture from the calendar?'
+        title: hard ? 'Remove event' : 'Remove from clock',
+        message: hard
+            ? 'Remove this from the calendar?'
             : 'Take this off the clock? The work stays in your lists.',
         ok: 'Remove',
         danger: true,
     }))) return;
     try {
-        if (lecture) {
+        if (hard) {
             await eel.delete_calendar_event(editor.id)();
         } else {
             await eel.delete_schedule_block(editor.id, true)();
@@ -1101,7 +1101,7 @@ async function applyPastedCalendar(raw) {
             field.dispatchEvent(new Event('change', { bubbles: true }));
             try { field.focus(); } catch (err) { /* ignore */ }
         }
-        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load lectures and due dates.');
+        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load events and due dates.');
         return true;
     }
     if (isIcs) {

@@ -6022,7 +6022,7 @@ html[data-motion='reduce'] *::after {
     background: var(--text-muted);
 }
 
-.cal-month-dots i.is-lecture {
+.cal-month-dots i.is-event {
     background: var(--primary);
 }
 

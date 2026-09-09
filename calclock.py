@@ -1229,13 +1229,13 @@ def create_calendar_event(
 ) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
-        raise ValueError("Name the event (lecture, lab, shift)")
+        raise ValueError("Name the event")
     start = parse_datetime(start_at)
     end = parse_datetime(end_at)
     if end <= start:
         raise ValueError("End must be after start")
     if (end - start).total_seconds() > 12 * 3600:
-        raise ValueError("Events longer than 12 hours are not lectures — check the times")
+        raise ValueError("Events longer than 12 hours need to be split")
     days = _normalize_weekdays(weekdays)
     recurrence = {"kind": "weekly", "weekdays": days} if days else None
     now = _now().isoformat()
@@ -1301,7 +1301,7 @@ def _validate_span(start: datetime, end: datetime, *, hard: bool) -> None:
         raise ValueError("End must be after start")
     hours = (end - start).total_seconds() / 3600
     if hard and hours > 12:
-        raise ValueError("Events longer than 12 hours are not lectures — check the times")
+        raise ValueError("Events longer than 12 hours need to be split")
     if not hard and hours > 12:
         raise ValueError("Blocks longer than 12 hours need to be split")
 
@@ -1315,7 +1315,7 @@ def update_calendar_event(
     weekdays: Any = None,
     occurrence_date: str = "",
 ) -> Dict[str, Any]:
-    """Rename or move a lecture. Recurring series keep weekdays unless you pass new ones
+    """Rename or move a timed event. Recurring series keep weekdays unless you pass new ones
     or drag an occurrence onto another weekday."""
     event = _load_event(event_id)
     clean = (title or "").strip() or event["title"]
@@ -1604,6 +1604,39 @@ def _unplaced_ui(rows: Optional[List[Dict[str, Any]]] = None) -> Tuple[List[Dict
     return [_slim_unplaced(item) for item in items[:UNPLACED_UI_LIMIT]], len(items)
 
 
+def _slim_clock_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Fields the week clock paints. Recurrence keeps weekdays only."""
+    out: Dict[str, Any] = {
+        "id": item.get("id"),
+        "title": item.get("title") or "",
+        "start_at": item.get("start_at"),
+        "end_at": item.get("end_at"),
+        "kind": item.get("kind") or "work",
+        "status": item.get("status") or "",
+    }
+    if item.get("work_item_id"):
+        out["work_item_id"] = item["work_item_id"]
+    if item.get("occurrence_date"):
+        out["occurrence_date"] = item["occurrence_date"]
+    if item.get("local_date"):
+        out["local_date"] = item["local_date"]
+    if item.get("minutes"):
+        out["minutes"] = item["minutes"]
+    rec = item.get("recurrence")
+    if isinstance(rec, dict) and rec.get("weekdays"):
+        out["recurrence"] = {"weekdays": rec.get("weekdays")}
+    return out
+
+
+def _slim_feed(feed: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": feed.get("id"),
+        "title": feed.get("title") or feed.get("id") or "",
+        "url": feed.get("url") or "",
+        "enabled": feed.get("enabled") is not False,
+    }
+
+
 @eel.expose
 def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, Any]:
     maybe_purge_stale_imports()
@@ -1624,27 +1657,37 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
                 "date": iso,
                 "weekday": day.strftime("%a"),
                 "is_today": iso == today_iso,
-                "events": [item for item in hard if item["occurrence_date"] == iso],
-                "blocks": [item for item in blocks if item["local_date"] == iso],
+                "events": [
+                    _slim_clock_item(item)
+                    for item in hard
+                    if item["occurrence_date"] == iso
+                ],
+                "blocks": [
+                    _slim_clock_item(item)
+                    for item in blocks
+                    if item["local_date"] == iso
+                ],
                 "dues": dues.get(iso, []),
             }
         )
     rows = unplaced_work() if include_unplaced else []
     shown, total = _unplaced_ui(rows)
+    slim_settings = {
+        "day_start": settings.get("day_start") or DAY_START,
+        "day_end": settings.get("day_end") or DAY_END,
+        "ics_url": settings.get("ics_url") or "",
+        "default_estimate_minutes": settings.get("default_estimate_minutes")
+        or DEFAULT_ESTIMATE,
+    }
     return {
         "week_start": start.isoformat(),
         "week_end": end.isoformat(),
-        "settings": settings,
+        "settings": slim_settings,
         "days": days,
-        "today": _today_from_days(days, settings),
-        "feeds": list_calendar_feeds().get("feeds") or [],
+        "today": _today_from_days(days, slim_settings),
+        "feeds": [_slim_feed(feed) for feed in (list_calendar_feeds().get("feeds") or [])],
         "unplaced": shown,
         "unplaced_total": total,
-        "at_risk": [
-            item
-            for item in rows
-            if item.get("due_at") and item["due_at"][:10] <= end.isoformat()
-        ],
     }
 
 
@@ -2062,7 +2105,7 @@ def schedule_work_at(item_id: str, start_at: str, end_at: str = "") -> Dict[str,
 
 @eel.expose
 def place_work_after_lecture(item_id: str, local_date: str = "") -> Dict[str, Any]:
-    """Drop optional work time after that day's first lecture, or at wake-up."""
+    """Drop optional work time after that day's first timed event, or at wake-up."""
     item = _work_item(item_id)
     iso = work._parse_date(local_date) or str(item.get("due_at") or "")[:10] or _cal_today().isoformat()
     day = date.fromisoformat(iso)

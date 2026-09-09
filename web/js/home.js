@@ -6,22 +6,7 @@ import * as utils from './utils.js';
 import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize, isFirstHomePage, widgetRegion, widgetsInRegion } from './home_layout.js';
 import { mountGlance, refreshGlances, runGlanceAction, syncHomeDayPart } from './glance_tiles.js';
 import { getAppearance, onAppearanceChange, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
-import { onTodayTabShown, refreshToday } from './today.js';
-import { onTodoTabShown } from './todo.js';
-import { onAllWorkTabShown } from './all_work.js';
-import { onWorkoutTabShown } from './workouts.js';
-import { onGoalsTabShown } from './goals.js';
-import { onAnalyticsTabShown } from './analytics.js';
-import { onTimelineTabShown } from './timeline.js';
-import { refreshWeather } from './weather.js';
-import { refreshFocus, refreshCountdown, refreshHabits } from './glance.js';
-import { refreshHeatmap } from './heatmap.js';
-import { refreshDayBrief } from './day_brief.js';
-import { refreshCounters } from './counters.js';
-import { refreshReading } from './reading.js';
-import { onWordTabShown } from './word.js';
-import { onClunyTabShown, promptCluny } from './cluny.js';
-import { openChecklistTemplate } from './daily_checklist.js';
+import { bootFeature, loadOnce } from './lazy.js';
 
 const FALLBACK_LAYOUT = {
     columns: 4,
@@ -90,6 +75,17 @@ async function persist(next) {
     return layout;
 }
 
+async function fetchHomeBoot(pageId) {
+    try {
+        if (typeof eel !== 'undefined' && eel.get_home_boot) {
+            return await eel.get_home_boot(pageId || '')();
+        }
+    } catch (err) {
+        console.warn(err);
+    }
+    return { layout: layout || structuredClone(FALLBACK_LAYOUT), glances: {}, checkin: null };
+}
+
 async function loadLayout() {
     try {
         if (typeof eel !== 'undefined' && eel.get_home_layout) {
@@ -103,6 +99,111 @@ async function loadLayout() {
         layout = structuredClone(FALLBACK_LAYOUT);
     }
     return layout;
+}
+
+const KIND_FEATURE = {
+    today_calendar: 'today',
+    todo: 'todo',
+    allwork: 'allwork',
+    workout: 'workout',
+    goals: 'goals',
+    analytics: 'analytics',
+    timeline: 'timeline',
+    weather: 'weather',
+    focus: 'glance',
+    countdown: 'glance',
+    habits: 'glance',
+    heatmap: 'heatmap',
+    day_brief: 'day_brief',
+    counters: 'counters',
+    reading: 'reading',
+    word: 'word',
+    cluny: 'cluny',
+};
+
+async function ensureWork(kind) {
+    return loadOnce(`work:${kind}`, async () => {
+        const feature = KIND_FEATURE[kind];
+        if (feature) await bootFeature(feature);
+        if (kind === 'today_calendar') {
+            const m = await import('./today.js');
+            m.setupToday();
+            return () => m.onTodayTabShown().then(() => m.refreshToday());
+        }
+        if (kind === 'todo') {
+            const m = await import('./todo.js');
+            m.setupTodo();
+            return () => m.onTodoTabShown();
+        }
+        if (kind === 'allwork') {
+            const m = await import('./all_work.js');
+            m.setupAllWork();
+            return () => m.onAllWorkTabShown();
+        }
+        if (kind === 'workout') {
+            const m = await import('./workouts.js');
+            m.setupWorkouts();
+            return () => m.onWorkoutTabShown();
+        }
+        if (kind === 'goals') {
+            const m = await import('./goals.js');
+            m.setupGoals();
+            return () => m.onGoalsTabShown();
+        }
+        if (kind === 'analytics') {
+            const m = await import('./analytics.js');
+            m.setupAnalytics();
+            return () => m.onAnalyticsTabShown();
+        }
+        if (kind === 'timeline') {
+            const m = await import('./timeline.js');
+            m.setupTimeline();
+            return () => m.onTimelineTabShown();
+        }
+        if (kind === 'weather') {
+            const m = await import('./weather.js');
+            m.setupWeather();
+            return () => m.refreshWeather();
+        }
+        if (kind === 'focus' || kind === 'countdown' || kind === 'habits') {
+            const m = await import('./glance.js');
+            m.setupGlance();
+            if (kind === 'focus') return () => m.refreshFocus();
+            if (kind === 'countdown') return () => m.refreshCountdown();
+            return () => m.refreshHabits();
+        }
+        if (kind === 'heatmap') {
+            const m = await import('./heatmap.js');
+            m.setupHeatmap();
+            return () => m.refreshHeatmap();
+        }
+        if (kind === 'day_brief') {
+            const m = await import('./day_brief.js');
+            m.setupDayBrief();
+            return () => m.refreshDayBrief();
+        }
+        if (kind === 'counters') {
+            const m = await import('./counters.js');
+            m.setupCounters();
+            return () => m.refreshCounters();
+        }
+        if (kind === 'reading') {
+            const m = await import('./reading.js');
+            m.setupReading();
+            return () => m.refreshReading();
+        }
+        if (kind === 'word') {
+            const m = await import('./word.js');
+            m.setupWord();
+            return () => m.onWordTabShown();
+        }
+        if (kind === 'cluny') {
+            const m = await import('./cluny.js');
+            m.setupCluny();
+            return () => m.onClunyTabShown();
+        }
+        return async () => {};
+    });
 }
 
 function returnSources() {
@@ -289,7 +390,7 @@ export async function openHomeWork(kind, opener) {
     await refreshKinds([kind]);
 }
 
-async function refreshKinds(kinds) {
+async function refreshKinds(kinds, glances) {
     const set = new Set(kinds);
     const run = async (fn) => {
         try {
@@ -298,28 +399,11 @@ async function refreshKinds(kinds) {
             console.error(err);
         }
     };
-    if (set.has('today_calendar')) await run(onTodayTabShown);
-    if (set.has('todo')) await run(onTodoTabShown);
-    if (set.has('allwork')) await run(onAllWorkTabShown);
-    if (set.has('workout')) await run(onWorkoutTabShown);
-    if (set.has('goals')) await run(onGoalsTabShown);
-    if (set.has('analytics')) await run(onAnalyticsTabShown);
-    if (set.has('timeline')) await run(onTimelineTabShown);
-    if (set.has('weather')) await run(refreshWeather);
-    if (set.has('focus')) await run(refreshFocus);
-    if (set.has('countdown')) await run(refreshCountdown);
-    if (set.has('habits')) await run(refreshHabits);
-    if (set.has('heatmap')) await run(refreshHeatmap);
-    if (set.has('day_brief')) await run(refreshDayBrief);
-    if (set.has('counters')) await run(refreshCounters);
-    if (set.has('reading')) await run(refreshReading);
-    if (set.has('word')) await run(onWordTabShown);
-    if (set.has('cluny')) await run(onClunyTabShown);
-    const workOpen = document.getElementById('homeWorkLayer')?.classList.contains('is-open');
-    if (set.has('today_calendar') || workOpen) {
-        await run(refreshToday);
+    if (workKind) {
+        const refresh = await ensureWork(workKind);
+        await run(refresh);
     }
-    await run(() => refreshGlances([...set]));
+    await run(() => refreshGlances([...set], glances));
 }
 
 const HOME_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>';
@@ -473,7 +557,7 @@ function paintCheckinChrome(info, slot, done, open) {
     }
 }
 
-async function syncCheckin() {
+async function syncCheckin(prefetched) {
     const band = document.getElementById('homeCheckinBand');
     const body = document.getElementById('homeCheckinBody');
     if (!band) return;
@@ -486,7 +570,9 @@ async function syncCheckin() {
     band.hidden = false;
     let info = { slot: 'morning', morning_done: false, evening_done: false, current_done: false };
     try {
-        if (typeof eel !== 'undefined' && eel.get_home_checkin) {
+        if (prefetched) {
+            info = prefetched;
+        } else if (typeof eel !== 'undefined' && eel.get_home_checkin) {
             info = await eel.get_home_checkin()();
         }
     } catch (err) {
@@ -510,6 +596,9 @@ async function syncCheckin() {
         source.classList.add('widget-source--active');
     }
     try {
+        await bootFeature('checklist');
+        const { setupDailyChecklist, openChecklistTemplate } = await import('./daily_checklist.js');
+        await setupDailyChecklist();
         await openChecklistTemplate(slot);
     } catch (err) {
         console.error(err);
@@ -543,14 +632,24 @@ function setEditing(on) {
     });
 }
 
-async function renderHome() {
+async function renderHome(pageId) {
+    const boot = await fetchHomeBoot(pageId);
+    if (boot.layout?.pages?.length) layout = boot.layout;
     paintPages();
     paintGrid();
     paintCatalog();
     syncHomeDayPart();
     const page = activePage();
-    await refreshKinds((page?.widgets || []).map((item) => item.kind));
-    await syncCheckin();
+    await refreshKinds((page?.widgets || []).map((item) => item.kind), boot.glances);
+    await syncCheckin(boot.checkin);
+}
+
+async function refreshHomeData() {
+    const boot = await fetchHomeBoot();
+    if (boot.layout?.pages?.length) layout = boot.layout;
+    const page = activePage();
+    await refreshKinds((page?.widgets || []).map((item) => item.kind), boot.glances);
+    await syncCheckin(boot.checkin);
 }
 
 async function run(action) {
@@ -573,7 +672,7 @@ function bindHome() {
         const btn = e.target.closest('[data-page]');
         if (!btn) return;
         closeHomeWork(true);
-        void run(() => eel.set_active_home_page(btn.getAttribute('data-page'))());
+        void renderHome(btn.getAttribute('data-page'));
     });
 
     document.getElementById('homeAddPageBtn')?.addEventListener('click', async () => {
@@ -878,14 +977,9 @@ export function setupHome() {
             syncPageColors();
         }
     });
-    void loadLayout();
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
-            const page = activePage();
-            void refreshKinds((page?.widgets || []).map((item) => item.kind));
-            void syncCheckin();
-        } else {
-            void refreshToday();
+            void refreshHomeData();
         }
     });
     document.addEventListener('kosistenz:open-home-work', (event) => {
@@ -906,24 +1000,18 @@ export function setupHome() {
         }));
         const question = event.detail?.question || '';
         const focus = event.detail?.focus || null;
-        void ensureHomeWidget('cluny').then(() => {
-            if (question) void promptCluny(question, focus);
+        void ensureHomeWidget('cluny').then(async () => {
+            if (!question) return;
+            const { promptCluny } = await import('./cluny.js');
+            void promptCluny(question, focus);
         });
     });
 }
 
 export async function onHomeTabShown(pageId) {
-    await loadLayout();
-    if (pageId && pageId !== layout.active_page_id && typeof eel !== 'undefined' && eel.set_active_home_page) {
-        try {
-            layout = await eel.set_active_home_page(pageId)();
-        } catch (err) {
-            console.error(err);
-        }
-    }
     closeHomeWork(true);
     setEditing(false);
-    await renderHome();
+    await renderHome(pageId);
 }
 
 export async function ensureHomeWidget(kind) {
