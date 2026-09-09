@@ -83,6 +83,23 @@ print("ok")
         names = lazy_eel._exposed_names("cluny_sync")
         self.assertIn("backfill_cluny_life", names)
         self.assertIn("get_cluny_settings", names)
+        self.assertIn("get_daily_checklist", lazy_eel.EXPOSE_FALLBACK["daily_checklist"])
+
+    def test_expose_fallback_matches_source_and_survives_missing_files(self) -> None:
+        import lazy_eel
+
+        for module in lazy_eel.LAZY_MODULES:
+            path = ROOT / f"{module.replace('.', '/')}.py"
+            from_file = lazy_eel._EXPOSE_RE.findall(path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                list(lazy_eel.EXPOSE_FALLBACK[module]),
+                from_file,
+                module,
+            )
+        with mock.patch.object(lazy_eel, "_module_source", return_value=""):
+            names = lazy_eel._exposed_names("daily_checklist")
+        self.assertIn("get_daily_checklist", names)
+        self.assertIn("get_home_checkin", names)
         build = (ROOT / "build_app.py").read_text(encoding="utf-8")
         self.assertIn('"cluny_brain"', build)
         self.assertIn('"brain"', build)

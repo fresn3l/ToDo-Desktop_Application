@@ -2754,9 +2754,7 @@ html.native-shell .home-title-strip {
 }
 
 .home-pages {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    display: none;
 }
 
 .home-page-chip {

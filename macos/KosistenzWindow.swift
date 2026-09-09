@@ -279,7 +279,7 @@ private func jsStringLiteral(_ value: String) -> String {
 
 /// Native Mac host for Kosistenz: Cocoa window + WKWebView + menu bar.
 /// Python (kosistenz-bridge) only serves the local UI; it does not create the window.
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, NSMenuDelegate, WKScriptMessageHandler, NSToolbarDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, NSMenuDelegate, WKScriptMessageHandler {
     var window: NSWindow?
     var webView: WKWebView?
     var bridge: Process?
@@ -288,9 +288,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var uiPort: UInt16 = 17653
     var apiPort: UInt16 = 18741
     var statusItem: NSStatusItem?
-    var toolbarWorkout: NSButton?
-    var toolbarTodo: NSButton?
-    var toolbarJournal: NSButton?
     var effectView: NSVisualEffectView?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -333,7 +330,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        refreshToolbarStatus()
         window?.makeFirstResponder(webView)
         webView?.evaluateJavaScript("window.kosistenzPullPhone && window.kosistenzPullPhone()")
     }
@@ -378,8 +374,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         } else if type == "tab", let title = body["title"] as? String {
             let clipped = String(title.prefix(80))
             window?.title = clipped
-        } else if type == "status" {
-            refreshToolbarStatus()
         } else if type == "calendarImport" {
             importAppleCalendars()
         } else if type == "icsPaste" {
