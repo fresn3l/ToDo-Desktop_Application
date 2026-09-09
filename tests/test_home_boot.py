@@ -104,3 +104,41 @@ print("ok")
         self.assertIn('"cluny_brain"', build)
         self.assertIn('"brain"', build)
         self.assertIn('"library"', build)
+
+    def test_invoke_exposed_runs_today_and_week(self) -> None:
+        import lazy_eel
+
+        today = lazy_eel.invoke_exposed("get_today_home", [])
+        self.assertIn("beat", today)
+        self.assertIn("local_date", today)
+        week = lazy_eel.invoke_exposed("get_week", [""])
+        self.assertEqual(len(week["days"]), 7)
+        with self.assertRaises(ValueError):
+            lazy_eel.invoke_exposed("os_system", [])
+
+    def test_home_boot_returns_today_when_weather_hangs(self) -> None:
+        import threading
+        import time
+
+        import home_boot
+
+        real = home_boot.fetch_glance
+        release = threading.Event()
+
+        def hang(kind: str):
+            if kind == "weather":
+                release.wait(timeout=30)
+                return {"ok": True}
+            return real(kind)
+
+        with mock.patch.object(home_boot, "NETWORK_GLANCE_TIMEOUT_SEC", 0.2):
+            with mock.patch.object(home_boot, "fetch_glance", side_effect=hang):
+                with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+                    started = time.monotonic()
+                    boot = home_boot.get_home_boot()
+                    elapsed = time.monotonic() - started
+        release.set()
+        self.assertLess(elapsed, 2)
+        self.assertIn("today_calendar", boot["glances"])
+        self.assertIn("beat", boot["glances"]["today_calendar"])
+        self.assertFalse(boot["glances"]["weather"].get("ok"))

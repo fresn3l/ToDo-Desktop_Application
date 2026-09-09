@@ -13,7 +13,7 @@ import re
 import sys
 import threading
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import eel
 
@@ -300,9 +300,25 @@ def _module_source(module: str) -> str:
 def _exposed_names(module: str) -> List[str]:
     source = _module_source(module)
     names = _EXPOSE_RE.findall(source) if source else []
-    if names:
-        return names
-    return list(EXPOSE_FALLBACK.get(module, ()))
+    fallback = list(EXPOSE_FALLBACK.get(module, ()))
+    if not names:
+        return fallback
+    seen = set(names)
+    for name in fallback:
+        if name not in seen:
+            names.append(name)
+            seen.add(name)
+    return names
+
+
+def _module_for_func(func_name: str) -> Optional[str]:
+    key = str(func_name or "").strip()
+    if not key:
+        return None
+    for module, names in EXPOSE_FALLBACK.items():
+        if key in names:
+            return module
+    return None
 
 
 def load_module(name: str) -> object:
@@ -335,6 +351,19 @@ def register_lazy_exposes(modules: Iterable[str] = LAZY_MODULES) -> List[str]:
             eel.expose(_stub(module, name))
             registered.append(name)
     return registered
+
+
+@eel.expose
+def invoke_exposed(func_name: str, args: Optional[list] = None) -> object:
+    """Call a lazy @eel.expose by name when the JS proxy was never injected."""
+    key = str(func_name or "").strip()
+    module = _module_for_func(key)
+    if not module:
+        raise ValueError(f"Unknown function {key}")
+    payload = args if isinstance(args, list) else []
+    loaded = load_module(module)
+    fn = getattr(loaded, key)
+    return fn(*payload)
 
 
 @eel.expose

@@ -642,12 +642,17 @@ function setEditing(on) {
 }
 
 async function renderHome(pageId) {
-    const boot = await fetchHomeBoot(pageId);
-    if (boot.layout?.pages?.length) layout = boot.layout;
+    await loadLayout();
+    if (pageId && (layout.pages || []).some((page) => page.id === pageId)) {
+        layout.active_page_id = pageId;
+    }
     paintPages();
     paintGrid();
     paintCatalog();
     syncHomeDayPart();
+    const boot = await fetchHomeBoot(pageId);
+    if (boot.layout?.pages?.length) layout = boot.layout;
+    paintPages();
     const page = activePage();
     await refreshKinds((page?.widgets || []).map((item) => item.kind), boot.glances);
     await syncCheckin(boot.checkin);

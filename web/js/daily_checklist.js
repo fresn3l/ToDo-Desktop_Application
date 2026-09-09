@@ -4,14 +4,11 @@
 
 import * as utils from './utils.js';
 import { mountWorkPlanner, tomorrowISO } from './work.js';
+import { callEel, hasEel } from './lazy.js';
 
 let state = null;
 let checklistTemplateSelectBound = false;
 let checklistSetupBound = false;
-
-function hasEel(name) {
-    return typeof eel !== 'undefined' && typeof eel[name] === 'function';
-}
 
 async function populateChecklistTemplateSelect() {
     const sel = document.getElementById('checklistTemplateSelect');
@@ -199,11 +196,8 @@ export async function setupDailyChecklist() {
 }
 
 async function loadDefinition() {
-    if (!hasEel('get_daily_checklist') || !hasEel('get_custom_checklist_items')) {
-        throw new Error('Check-in is not ready. Restart Kosistenz.');
-    }
-    const def = await eel.get_daily_checklist()();
-    const customItems = await eel.get_custom_checklist_items()();
+    const def = await callEel('get_daily_checklist');
+    const customItems = await callEel('get_custom_checklist_items');
     state = {
         def,
         currentId: null,

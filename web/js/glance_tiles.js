@@ -6,18 +6,14 @@
 import * as utils from './utils.js';
 import { WIDGET_CATALOG } from './home_layout.js';
 import { copy, moreCount, countLabel, minutesLabel } from './glance_copy.js';
-
-function hasEel(name) {
-    return typeof eel !== 'undefined' && typeof eel[name] === 'function';
-}
+import { callEel, hasEel } from './lazy.js';
 
 async function eelCall(name, ...args) {
-    if (!hasEel(name)) return null;
     try {
-        return await eel[name](...args)();
+        return await callEel(name, ...args);
     } catch (err) {
         console.error(err);
-        return null;
+        return { ok: false, error: err?.message || String(err) };
     }
 }
 
@@ -251,6 +247,9 @@ function beatBody(beat, size) {
 
 function todayHtml(data, size) {
     const kind = 'today_calendar';
+    if (!data || data.ok === false) {
+        return emptyShell(kind, size, copy.couldNotLoad);
+    }
     const label = 'Today';
     const iso = data?.local_date;
     const d = iso ? new Date(`${iso}T12:00:00`) : new Date();
@@ -817,7 +816,12 @@ export function mountGlance(kind, body, card) {
 
 export function paintGlanceFromData(kind, body, card, data) {
     if (!body) return;
-    body.innerHTML = renderKind(kind, data, sizeOf(card));
+    try {
+        body.innerHTML = renderKind(kind, data, sizeOf(card));
+    } catch (err) {
+        console.error(err);
+        body.innerHTML = emptyShell(kind, sizeOf(card), copy.couldNotLoad);
+    }
 }
 
 export async function paintGlance(kind, body, card) {

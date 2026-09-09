@@ -7,6 +7,7 @@ import * as utils from './utils.js';
 import { formatDuration, liveSeconds } from './work.js';
 import { logWorkoutKind, renderWorkoutChips } from './workout_chips.js';
 import { loadGoalOptions } from './goals.js';
+import { callEel } from './lazy.js';
 
 let homeTick = null;
 
@@ -311,7 +312,7 @@ export async function refreshTodayHome() {
     const root = document.getElementById('todayCalendarSource') || document.getElementById('todayDateTitle');
     if (!root) return;
     try {
-        const data = await eel.get_today_home()();
+        const data = await callEel('get_today_home');
         const heading = document.getElementById('todayDateTitle');
         const sub = document.getElementById('todayDateSub');
         const parts = mastheadParts(data.local_date);
@@ -394,7 +395,7 @@ export async function refreshToday() {
     const el = document.getElementById('todayStatus');
     if (el) {
         try {
-            const data = await eel.get_today_status()();
+            const data = await callEel('get_today_status');
             renderPills(el, data);
         } catch (e) {
             console.error(e);

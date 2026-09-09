@@ -3,6 +3,7 @@
  */
 
 import * as utils from './utils.js';
+import { callEel } from './lazy.js';
 
 let weekStart = null;
 let calView = 'week';
@@ -109,9 +110,8 @@ function renderYearGrid(payload) {
 }
 
 async function loadMonth() {
-    if (typeof eel === 'undefined' || !eel.get_month) return;
     try {
-        const payload = await eel.get_month(monthCursor.year, monthCursor.month)();
+        const payload = await callEel('get_month', monthCursor.year, monthCursor.month);
         monthCursor = { year: payload.year, month: payload.month };
         renderMonthGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
@@ -125,9 +125,8 @@ async function loadMonth() {
 }
 
 async function loadYear() {
-    if (typeof eel === 'undefined' || !eel.get_year) return;
     try {
-        const payload = await eel.get_year(yearCursor)();
+        const payload = await callEel('get_year', yearCursor);
         yearCursor = payload.year;
         renderYearGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
@@ -474,9 +473,8 @@ function paintFeedToggles(feeds) {
 }
 
 async function refreshFeedToggles() {
-    if (typeof eel === 'undefined' || !eel.list_calendar_feeds) return;
     try {
-        paintFeedToggles((await eel.list_calendar_feeds()()).feeds || []);
+        paintFeedToggles((await callEel('list_calendar_feeds')).feeds || []);
     } catch (_) {
         /* eel not ready */
     }
@@ -513,9 +511,8 @@ function renderUnplaced(items, total) {
 
 async function loadWeek() {
     if (!weekStart) weekStart = mondayISO();
-    if (typeof eel === 'undefined' || !eel.get_week) return;
     try {
-        const week = await eel.get_week(weekStart)();
+        const week = await callEel('get_week', weekStart);
         weekStart = week.week_start || weekStart;
         lastWeek = week;
         lastSettings = week.settings || {};
@@ -1073,11 +1070,10 @@ function paintAwakeFields(settings) {
 }
 
 async function saveAwake() {
-    if (typeof eel === 'undefined' || !eel.save_calendar_settings) return;
     const start = document.getElementById('calDayStart')?.value;
     const end = document.getElementById('calDayEnd')?.value;
     try {
-        const saved = await eel.save_calendar_settings({ day_start: start, day_end: end })();
+        const saved = await callEel('save_calendar_settings', { day_start: start, day_end: end });
         lastSettings = { ...lastSettings, ...saved };
         paintAwakeFields(saved);
         utils.showSuccessFeedback('Awake window saved. Fill week stays inside it; nights stay empty.');
@@ -1241,7 +1237,7 @@ export function setupCalendar() {
     });
     document.getElementById('calFillWeek')?.addEventListener('click', async () => {
         try {
-            await eel.fill_week(weekStart || mondayISO())();
+            await callEel('fill_week', weekStart || mondayISO());
             utils.showSuccessFeedback('Placed what fit before each due date.');
             utils.notifyDataChanged();
             await loadCalendar();
