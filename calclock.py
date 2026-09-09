@@ -1263,6 +1263,123 @@ def create_calendar_event(
     return _row_event(row)
 
 
+def _owned_source(raw: Any) -> bool:
+    source = str(raw or "kosistenz").strip().lower()
+    return source in ("kosistenz", "iphone")
+
+
+def list_owned_hard_events() -> List[Dict[str, Any]]:
+    """User-created busy time (Mac or iPhone). ICS imports stay out of this list."""
+    out: List[Dict[str, Any]] = []
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM calendar_events
+            WHERE IFNULL(source_calendar, '') = ''
+            ORDER BY start_at ASC
+            """
+        ).fetchall()
+    for row in rows:
+        event = _row_event(row)
+        if not _owned_source(event.get("source")):
+            continue
+        rec = event.get("recurrence") if isinstance(event.get("recurrence"), dict) else {}
+        weekdays = rec.get("weekdays") if rec else []
+        out.append(
+            {
+                "id": event["id"],
+                "title": event["title"],
+                "start_at": event["start_at"],
+                "end_at": event["end_at"],
+                "weekdays": list(weekdays or []),
+                "source": event.get("source") or "kosistenz",
+                "created_at": event.get("created_at"),
+                "updated_at": event.get("updated_at"),
+            }
+        )
+    return out
+
+
+def upsert_phone_event(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Merge one iPhone-authored hard event. Never touches ICS or packed blocks."""
+    if not isinstance(payload, dict):
+        return None
+    source = str(payload.get("source") or "").strip().lower()
+    if source != "iphone":
+        return None
+    clean = str(payload.get("title") or "").strip()[:200]
+    if not clean:
+        return None
+    event_id = str(payload.get("id") or "").strip()
+    if not event_id or len(event_id) > 80:
+        return None
+    try:
+        start = parse_datetime(str(payload.get("start_at") or ""))
+        end = parse_datetime(str(payload.get("end_at") or ""))
+        _validate_span(start, end, hard=True)
+    except (TypeError, ValueError):
+        return None
+    days = _normalize_weekdays(payload.get("weekdays"))
+    recurrence = {"kind": "weekly", "weekdays": days} if days else None
+    incoming_updated = str(payload.get("updated_at") or "").strip()
+    incoming_created = str(payload.get("created_at") or "").strip()
+    now = _now().isoformat()
+    existing = None
+    try:
+        existing = _load_event(event_id)
+    except ValueError:
+        existing = None
+    if existing is not None:
+        if not _owned_source(existing.get("source")) or existing.get("source_calendar"):
+            return None
+        if str(existing.get("source") or "").lower() != "iphone":
+            return None
+        if incoming_updated and existing.get("updated_at") and incoming_updated <= str(existing.get("updated_at")):
+            return None
+        with _connect() as conn:
+            conn.execute(
+                """
+                UPDATE calendar_events
+                SET title = ?, start_at = ?, end_at = ?, recurrence_json = ?,
+                    source = 'iphone', updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    clean,
+                    start.isoformat(timespec="seconds"),
+                    end.isoformat(timespec="seconds"),
+                    json.dumps(recurrence) if recurrence else None,
+                    incoming_updated or now,
+                    event_id,
+                ),
+            )
+            conn.commit()
+            row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+        assert row is not None
+        return _row_event(row)
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO calendar_events (
+                id, title, start_at, end_at, all_day, recurrence_json, source, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, 0, ?, 'iphone', ?, ?)
+            """,
+            (
+                event_id,
+                clean,
+                start.isoformat(timespec="seconds"),
+                end.isoformat(timespec="seconds"),
+                json.dumps(recurrence) if recurrence else None,
+                incoming_created or now,
+                incoming_updated or now,
+            ),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+    assert row is not None
+    return _row_event(row)
+
+
 @eel.expose
 def delete_calendar_event(event_id: str) -> Dict[str, Any]:
     with _connect() as conn:

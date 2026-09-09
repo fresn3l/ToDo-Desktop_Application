@@ -2,39 +2,28 @@ import SwiftUI
 
 struct WeekScreen: View {
     @EnvironmentObject private var store: PackStore
+    @State private var showAdd = false
 
     var body: some View {
         NavigationStack {
             List {
-                if store.pack?.calendar.days.isEmpty ?? true {
-                    Section {
-                        Text("No week clock in the pack yet. Open Kosistenz on the Mac and Push to iCloud.")
+                Section {
+                    if store.pack?.calendar.days.isEmpty ?? true {
+                        Text("No week clock in the pack yet. Add an event here, or open Kosistenz on the Mac and Push to iCloud.")
                             .foregroundStyle(.secondary)
+                    } else if let calendar = store.pack?.calendar {
+                        WeekClockView(file: calendar, palette: store.palette)
+                            .frame(minHeight: 430)
                     }
                 }
-                ForEach(store.pack?.calendar.days ?? [], id: \.dateValue) { day in
-                    Section(day.date ?? "") {
-                        let items = (day.events) + (day.blocks)
-                        if items.isEmpty {
-                            Text("Open")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(items) { item in
-                                HStack {
-                                    Text(DayStamp.clock(item.start_at)).monospacedDigit()
-                                    Text(item.title ?? "")
-                                    Spacer()
-                                    Text(label(for: item))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                    .listRowBackground(store.palette.widgetBg)
-                }
+                .listRowBackground(store.palette.widgetBg)
+
                 if !(store.pack?.calendar.unplaced.isEmpty ?? true) {
                     Section("Unplaced") {
+                        Text("Not on the clock. Inbox holds the thought until you place it on the Mac.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .listRowBackground(store.palette.widgetBg)
                         ForEach(store.pack?.calendar.unplaced ?? []) { item in
                             Text(item.title ?? "")
                                 .listRowBackground(store.palette.widgetBg)
@@ -45,17 +34,25 @@ struct WeekScreen: View {
             .scrollContentBackground(.hidden)
             .background(store.palette.pageBg)
             .navigationTitle("This week")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add") { showAdd = true }
+                }
+            }
+            .sheet(isPresented: $showAdd) {
+                AddEventSheet(
+                    palette: store.palette,
+                    defaultDate: store.today,
+                    dayStart: store.pack?.calendar.day_start,
+                    dayEnd: store.pack?.calendar.day_end,
+                    onSave: { pack in
+                        store.pack = pack
+                        store.error = nil
+                    },
+                    onError: { store.error = $0 }
+                )
+            }
             .refreshable { store.reload() }
         }
     }
-
-    private func label(for item: CalendarItem) -> String {
-        if item.kind == "hard" { return "Class" }
-        if item.kind == "workout" { return "Gym" }
-        return item.status ?? "Work"
-    }
-}
-
-private extension CalendarDay {
-    var dateValue: String { date ?? UUID().uuidString }
 }

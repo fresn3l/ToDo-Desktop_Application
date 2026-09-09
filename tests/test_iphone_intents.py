@@ -41,6 +41,17 @@ class IphoneIntentsTests(unittest.TestCase):
         self.assertIn("PackActions.logSession", today)
         self.assertIn("PackActions.park", inbox)
 
+    def test_week_and_today_can_add_hard_events(self) -> None:
+        week = (ROOT / "ios" / "Kosistenz" / "WeekScreen.swift").read_text(encoding="utf-8")
+        today = (ROOT / "ios" / "Kosistenz" / "TodayScreen.swift").read_text(encoding="utf-8")
+        actions = (ROOT / "ios" / "Kosistenz" / "PackActions.swift").read_text(encoding="utf-8")
+        self.assertIn("AddEventSheet", week)
+        self.assertIn("WeekClockView", week)
+        self.assertIn("AddEventSheet", today)
+        self.assertIn("static func addHardEvent", actions)
+        self.assertIn("PhoneCalendar.paint", actions)
+        self.assertNotIn("Class", week)
+
 
 if __name__ == "__main__":
     unittest.main()

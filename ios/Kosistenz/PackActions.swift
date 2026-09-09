@@ -100,6 +100,62 @@ enum PackActions {
         return "Logged \(WorkoutPlan.chipKinds.first(where: { $0.id == kind })?.label ?? kind)."
     }
 
+    @discardableResult
+    static func addHardEvent(title: String, date: String, start: String, end: String, weekdays: [Int]) throws -> Pack {
+        let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw PackActionError.message("Name the event") }
+        let startAt = try PhoneCalendar.combine(date: date, time: start)
+        var endAt = try PhoneCalendar.combine(date: date, time: end)
+        guard let startDate = localDate(startAt), var endDate = localDate(endAt) else {
+            throw PackActionError.message("Use a 24-hour time like 0930 or 09:30.")
+        }
+        if endDate <= startDate {
+            endDate = endDate.addingTimeInterval(24 * 3600)
+            endAt = DayStamp.localStamp(endDate)
+        }
+        let hours = endDate.timeIntervalSince(startDate) / 3600
+        guard hours > 0 else { throw PackActionError.message("End must be after start") }
+        if hours > 12 {
+            throw PackActionError.message("Events longer than 12 hours need to be split")
+        }
+        var pack = try current()
+        let now = DayStamp.localStamp()
+        let days = weekdays.filter { (0...6).contains($0) }
+        let event = HardEvent(
+            id: UUID().uuidString,
+            title: String(clean.prefix(200)),
+            start_at: startAt,
+            end_at: endAt,
+            weekdays: days,
+            source: "iphone",
+            created_at: now,
+            updated_at: now
+        )
+        var calendar = pack.calendar
+        calendar.hard_events.removeAll { $0.id == event.id }
+        calendar.hard_events.append(event)
+        let weekStart = calendar.week_start ?? calendar.days.first?.date ?? String(date.prefix(10))
+        let weekEnd = calendar.week_end ?? calendar.days.last?.date ?? String(date.prefix(10))
+        calendar.days = PhoneCalendar.paint(
+            days: calendar.days,
+            event: event,
+            weekStart: weekStart,
+            weekEnd: weekEnd
+        )
+        pack.calendar = calendar
+        try SyncPack.saveCalendar(calendar)
+        ping(pack)
+        return pack
+    }
+
+    private static func localDate(_ iso: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter.date(from: String(iso.prefix(19)))
+    }
+
     private static func saveWork(_ pack: Pack) throws -> Pack {
         try SyncPack.saveWork(pack.work)
         ping(pack)

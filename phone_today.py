@@ -1,4 +1,4 @@
-"""Today's read-only clock for the iPhone companion.
+"""Today's clock for the iPhone companion.
 
 Keep lockstep with ios/Kosistenz/DayTimeline.swift
 (tests/test_iphone_today_timeline.py).
@@ -34,7 +34,7 @@ def duration_minutes(start_at: Optional[str], end_at: Optional[str]) -> int:
 def kind_label(kind: Optional[str], status: Optional[str] = None) -> str:
     raw = (kind or "").strip().lower()
     if raw == "hard":
-        label = "Class"
+        label = "Event"
     elif raw == "workout":
         label = "Gym"
     else:
@@ -57,7 +57,7 @@ def timeline_items(
     blocks: Iterable[Dict[str, Any]],
     now: Optional[datetime] = None,
 ) -> List[Dict[str, Any]]:
-    """Lectures and packed blocks, earliest start first. No unplaced."""
+    """Events and packed blocks, earliest start first. No unplaced."""
     rows = [dict(item) for item in list(events or []) + list(blocks or []) if item]
     rows.sort(key=_sort_key)
     clock = now

@@ -213,6 +213,170 @@ class IcloudSyncTests(unittest.TestCase):
         texts = [entry.get("content") for entry in journal.get_all_entries()]
         self.assertIn("Edited on the phone.", texts)
 
+    def test_calendar_pack_includes_dues_and_hard_events(self):
+        import calclock
+
+        self._use(self.src)
+        calclock.create_calendar_event(
+            "Office hours",
+            "2026-09-08T14:00:00",
+            "2026-09-08T15:00:00",
+            weekdays=[1],
+        )
+        due_day = work._today().isoformat()
+        work.create_work_item("Essay 2", due_at=f"{due_day}T23:59:00")
+        icloud_sync.write_pack(self.pack)
+        payload = icloud_sync._read_json(self.pack / "calendar.json", {})
+        titles = [row.get("title") for row in payload.get("hard_events") or []]
+        self.assertIn("Office hours", titles)
+        self.assertEqual((payload.get("hard_events") or [])[0].get("source"), "kosistenz")
+        dues = []
+        for day in payload.get("days") or []:
+            dues.extend(day.get("dues") or [])
+        self.assertTrue(any(row.get("title") == "Essay 2" for row in dues))
+        self.assertIn("hue", next(row for row in dues if row.get("title") == "Essay 2"))
+
+    def test_phone_hard_event_merges_and_ignores_blocks(self):
+        import calclock
+        from datetime import date
+
+        self._use(self.src)
+        icloud_sync.write_pack(self.pack)
+        now = datetime.now().isoformat(timespec="seconds")
+        pack = icloud_sync.read_pack(self.pack)
+        calendar = pack["calendar"]
+        calendar.setdefault("hard_events", [])
+        calendar["hard_events"].append(
+            {
+                "id": "phone-office",
+                "title": "Office hours",
+                "start_at": "2026-09-08T14:00:00",
+                "end_at": "2026-09-08T15:00:00",
+                "weekdays": [1],
+                "source": "iphone",
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+        days = calendar.get("days") or []
+        if days:
+            days[0].setdefault("blocks", []).append(
+                {
+                    "id": "phone-study",
+                    "title": "Study from phone",
+                    "kind": "work",
+                    "status": "proposed",
+                    "start_at": "2026-09-08T16:00:00",
+                    "end_at": "2026-09-08T17:00:00",
+                }
+            )
+        icloud_sync._write_json(self.pack / "calendar.json", calendar)
+        result = icloud_sync.apply_pack(self.pack)
+        self.assertGreaterEqual((result.get("applied") or {}).get("calendar") or 0, 1)
+        owned = calclock.list_owned_hard_events()
+        self.assertTrue(any(row.get("id") == "phone-office" for row in owned))
+        week = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
+        self.assertTrue(any(item.get("title") == "Office hours" for item in tuesday["events"]))
+        blocks = calclock.list_blocks(date(2026, 9, 7), date(2026, 9, 13))
+        self.assertFalse(any(item.get("title") == "Study from phone" for item in blocks))
+
+    def test_phone_hard_event_newer_update_wins(self):
+        import calclock
+
+        self._use(self.src)
+        first = (datetime.now() - timedelta(minutes=2)).isoformat(timespec="seconds")
+        later = datetime.now().isoformat(timespec="seconds")
+        icloud_sync.write_pack(self.pack)
+        calendar = icloud_sync.read_pack(self.pack)["calendar"]
+        calendar["hard_events"] = [
+            {
+                "id": "phone-office",
+                "title": "Office hours",
+                "start_at": "2026-09-08T14:00:00",
+                "end_at": "2026-09-08T15:00:00",
+                "weekdays": [],
+                "source": "iphone",
+                "created_at": first,
+                "updated_at": first,
+            }
+        ]
+        icloud_sync._write_json(self.pack / "calendar.json", calendar)
+        icloud_sync.apply_pack(self.pack)
+        calendar["hard_events"][0]["title"] = "Moved office"
+        calendar["hard_events"][0]["updated_at"] = later
+        icloud_sync._write_json(self.pack / "calendar.json", calendar)
+        icloud_sync.apply_pack(self.pack)
+        owned = {row["id"]: row for row in calclock.list_owned_hard_events()}
+        self.assertEqual(owned["phone-office"]["title"], "Moved office")
+        calendar["hard_events"][0]["title"] = "Stale"
+        calendar["hard_events"][0]["updated_at"] = first
+        icloud_sync._write_json(self.pack / "calendar.json", calendar)
+        icloud_sync.apply_pack(self.pack)
+        owned = {row["id"]: row for row in calclock.list_owned_hard_events()}
+        self.assertEqual(owned["phone-office"]["title"], "Moved office")
+
+    def test_phone_cannot_overwrite_mac_or_ics_events(self):
+        import calclock
+
+        self._use(self.src)
+        mac = calclock.create_calendar_event(
+            "Mac class",
+            "2026-09-08T09:30:00",
+            "2026-09-08T10:20:00",
+        )
+        calclock.replace_imported_hard_events(
+            "icloud-class",
+            [
+                {
+                    "title": "Imported CHEM",
+                    "start_at": "2026-09-08T11:00:00",
+                    "end_at": "2026-09-08T11:50:00",
+                    "uid": "chem-109",
+                    "recurrence": {"kind": "weekly", "weekdays": [1]},
+                }
+            ],
+        )
+        with calclock._connect() as conn:
+            ics = conn.execute(
+                "SELECT id, title FROM calendar_events WHERE source_calendar = ?",
+                ("icloud-class",),
+            ).fetchone()
+        now = (datetime.now() + timedelta(minutes=5)).isoformat(timespec="seconds")
+        icloud_sync.write_pack(self.pack)
+        calendar = icloud_sync.read_pack(self.pack)["calendar"]
+        calendar["hard_events"] = [
+            {
+                "id": mac["id"],
+                "title": "Hijacked Mac",
+                "start_at": "2026-09-08T09:30:00",
+                "end_at": "2026-09-08T10:20:00",
+                "weekdays": [],
+                "source": "kosistenz",
+                "updated_at": now,
+            },
+            {
+                "id": ics["id"],
+                "title": "Hijacked ICS",
+                "start_at": "2026-09-08T11:00:00",
+                "end_at": "2026-09-08T11:50:00",
+                "weekdays": [],
+                "source": "iphone",
+                "updated_at": now,
+            },
+        ]
+        icloud_sync._write_json(self.pack / "calendar.json", calendar)
+        icloud_sync.apply_pack(self.pack)
+        owned = {row["id"]: row for row in calclock.list_owned_hard_events()}
+        self.assertEqual(owned[mac["id"]]["title"], "Mac class")
+        with calclock._connect() as conn:
+            row = conn.execute(
+                "SELECT title, source FROM calendar_events WHERE id = ?",
+                (ics["id"],),
+            ).fetchone()
+        self.assertEqual(row["title"], "Imported CHEM")
+        self.assertEqual(row["source"], "ics")
+
 
 if __name__ == "__main__":
     unittest.main()

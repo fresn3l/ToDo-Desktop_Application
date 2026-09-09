@@ -39,7 +39,7 @@ enum SyncPack {
                     ?? WorkoutsFile(days: [], sessions: [], template: nil),
                 journal: coordinatedDecode([JournalEntry].self, at: live.appendingPathComponent("journal.json")) ?? [],
                 calendar: coordinatedDecode(CalendarFile.self, at: live.appendingPathComponent("calendar.json"))
-                    ?? CalendarFile(week_start: nil, week_end: nil, days: [], unplaced: []),
+                    ?? CalendarFile(),
                 appearance: coordinatedJSON(at: live.appendingPathComponent("appearance.json")),
                 folder: live
             )
@@ -60,6 +60,7 @@ enum SyncPack {
     static func saveWork(_ file: WorkFile) throws { try write(file, name: "work.json") }
     static func saveWorkouts(_ file: WorkoutsFile) throws { try write(file, name: "workouts.json") }
     static func saveJournal(_ entries: [JournalEntry]) throws { try write(entries, name: "journal.json") }
+    static func saveCalendar(_ file: CalendarFile) throws { try write(file, name: "calendar.json") }
 
     private static func packHasBytes(_ pack: Pack) -> Bool {
         !pack.work.items.isEmpty || !pack.journal.isEmpty || !pack.workouts.sessions.isEmpty
@@ -209,8 +210,40 @@ struct JournalEntry: Codable, Identifiable {
 struct CalendarFile: Codable {
     var week_start: String?
     var week_end: String?
+    var day_start: String?
+    var day_end: String?
     var days: [CalendarDay]
     var unplaced: [UnplacedItem]
+    var hard_events: [HardEvent]
+
+    init(
+        week_start: String? = nil,
+        week_end: String? = nil,
+        day_start: String? = nil,
+        day_end: String? = nil,
+        days: [CalendarDay] = [],
+        unplaced: [UnplacedItem] = [],
+        hard_events: [HardEvent] = []
+    ) {
+        self.week_start = week_start
+        self.week_end = week_end
+        self.day_start = day_start
+        self.day_end = day_end
+        self.days = days
+        self.unplaced = unplaced
+        self.hard_events = hard_events
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        week_start = try container.decodeIfPresent(String.self, forKey: .week_start)
+        week_end = try container.decodeIfPresent(String.self, forKey: .week_end)
+        day_start = try container.decodeIfPresent(String.self, forKey: .day_start)
+        day_end = try container.decodeIfPresent(String.self, forKey: .day_end)
+        days = try container.decodeIfPresent([CalendarDay].self, forKey: .days) ?? []
+        unplaced = try container.decodeIfPresent([UnplacedItem].self, forKey: .unplaced) ?? []
+        hard_events = try container.decodeIfPresent([HardEvent].self, forKey: .hard_events) ?? []
+    }
 }
 
 struct CalendarDay: Codable {
@@ -219,6 +252,33 @@ struct CalendarDay: Codable {
     var is_today: Bool?
     var events: [CalendarItem]
     var blocks: [CalendarItem]
+    var dues: [DueItem]
+
+    init(
+        date: String? = nil,
+        weekday: String? = nil,
+        is_today: Bool? = nil,
+        events: [CalendarItem] = [],
+        blocks: [CalendarItem] = [],
+        dues: [DueItem] = []
+    ) {
+        self.date = date
+        self.weekday = weekday
+        self.is_today = is_today
+        self.events = events
+        self.blocks = blocks
+        self.dues = dues
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        date = try container.decodeIfPresent(String.self, forKey: .date)
+        weekday = try container.decodeIfPresent(String.self, forKey: .weekday)
+        is_today = try container.decodeIfPresent(Bool.self, forKey: .is_today)
+        events = try container.decodeIfPresent([CalendarItem].self, forKey: .events) ?? []
+        blocks = try container.decodeIfPresent([CalendarItem].self, forKey: .blocks) ?? []
+        dues = try container.decodeIfPresent([DueItem].self, forKey: .dues) ?? []
+    }
 }
 
 struct CalendarItem: Codable, Identifiable {
@@ -228,11 +288,70 @@ struct CalendarItem: Codable, Identifiable {
     var status: String?
     var start_at: String?
     var end_at: String?
-    var id: String { itemId ?? "\(title ?? "")-\(start_at ?? UUID().uuidString)" }
+    var id: String { "\(itemId ?? title ?? "event")-\(start_at ?? "")-\(end_at ?? "")" }
 
     enum CodingKeys: String, CodingKey {
         case itemId = "id"
         case title, kind, status, start_at, end_at
+    }
+}
+
+struct DueItem: Codable, Identifiable {
+    var itemId: String?
+    var title: String?
+    var due_at: String?
+    var course: String?
+    var estimate_minutes: Int?
+    var status: String?
+    var hue: Int?
+    var id: String { itemId ?? "\(title ?? "due")-\(due_at ?? UUID().uuidString)" }
+
+    enum CodingKeys: String, CodingKey {
+        case itemId = "id"
+        case title, due_at, course, estimate_minutes, status, hue
+    }
+}
+
+struct HardEvent: Codable, Identifiable, Equatable {
+    var id: String
+    var title: String
+    var start_at: String
+    var end_at: String
+    var weekdays: [Int]
+    var source: String?
+    var created_at: String?
+    var updated_at: String?
+
+    init(
+        id: String,
+        title: String,
+        start_at: String,
+        end_at: String,
+        weekdays: [Int] = [],
+        source: String? = "iphone",
+        created_at: String? = nil,
+        updated_at: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.start_at = start_at
+        self.end_at = end_at
+        self.weekdays = weekdays
+        self.source = source
+        self.created_at = created_at
+        self.updated_at = updated_at
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        start_at = try container.decode(String.self, forKey: .start_at)
+        end_at = try container.decode(String.self, forKey: .end_at)
+        weekdays = try container.decodeIfPresent([Int].self, forKey: .weekdays) ?? []
+        source = try container.decodeIfPresent(String.self, forKey: .source)
+        created_at = try container.decodeIfPresent(String.self, forKey: .created_at)
+        updated_at = try container.decodeIfPresent(String.self, forKey: .updated_at)
     }
 }
 
@@ -301,6 +420,14 @@ enum DayStamp {
 
     static func isoNow() -> String {
         ISO8601DateFormatter().string(from: Date())
+    }
+
+    static func localStamp(_ date: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return formatter.string(from: date)
     }
 
     static func clock(_ raw: String?) -> String {
