@@ -51,7 +51,7 @@ Cluny indexes what you write in Kosistenz (journals, work, clock, workouts, goal
 
 That clones `fresn3l/Cluny_the_AI_Agent` into `~/Library/Application Support/Cluny/src`, installs the `cluny` wrapper at `~/Library/Application Support/Cluny/bin/cluny`, pulls `llama3.2` and `nomic-embed-text`, and writes Settings so Kosistenz can find him. Then **Settings → Cluny → Test connection**, then **Index my life**.
 
-This Cloud Agent environment cannot install Ollama onto your Mac. Run the script locally.
+Run this on the Mac that will run Kosistenz. Ollama stays on that computer (no cloud LLM).
 
 ### Run from the repo (optional)
 
