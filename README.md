@@ -9,7 +9,7 @@ The app is a real `Kosistenz.app`: native traffic-light window, Dock / Spotlight
 ### What you need
 
 - A Mac (macOS 11+)
-- Python 3.8+ (`python3 --version`)
+- Python 3.8+ (`python3 --version`) for Kosistenz; Cluny needs 3.11+ (`install_brain.sh` can Homebrew `python@3.12`)
 - Xcode Command Line Tools (`xcode-select --install`) so the installer can compile the native window
 
 You do **not** need Google Chrome.
@@ -20,15 +20,11 @@ You do **not** need Google Chrome.
 git clone https://github.com/fresn3l/ToDo-Desktop_Application.git
 cd ToDo-Desktop_Application
 git checkout main
-chmod +x setup_venv.sh macos/install_app.sh
+chmod +x setup_venv.sh macos/install_app.sh macos/install_brain.sh
 ./macos/install_app.sh
 ```
 
-That creates a virtualenv, packages a standalone app, and copies it to:
-
-`/Applications/Kosistenz.app`
-
-Finder then reveals the app so you can double-click it. If `/Applications` is not writable, it falls back to `~/Applications`.
+That creates a virtualenv, packages a standalone app, copies it to `/Applications/Kosistenz.app`, then runs `./macos/install_brain.sh` (Ollama + Cluny). App-only: `SKIP_BRAIN=1 ./macos/install_app.sh` or `./macos/install_app.sh --skip-brain`. Finder then reveals the app so you can double-click it. If `/Applications` is not writable, it falls back to `~/Applications`.
 
 ### Open it
 
@@ -44,6 +40,18 @@ Add the **Today** widget from Notification Center → Edit Widgets → Kosistenz
 If you change the source and want a fresh bundle, run `./macos/install_app.sh` again. You must rebuild after `git pull` — opening the old app will still use the previous window code.
 
 If launch fails, paste `~/Library/Logs/Kosistenz.log`. A good start looks like `Swift host launching`, then `UI server ready`.
+
+### Cluny + Ollama (local brain)
+
+Cluny indexes what you write in Kosistenz (journals, work, clock, workouts, goals) and answers questions. It does not pick clock times, write packed blocks, or touch the iPhone pack. Ollama stays on this Mac. Kosistenz still works if Cluny is quit.
+
+```bash
+./macos/install_brain.sh
+```
+
+That clones `fresn3l/Cluny_the_AI_Agent` into `~/Library/Application Support/Cluny/src`, installs the `cluny` wrapper at `~/Library/Application Support/Cluny/bin/cluny`, pulls `llama3.2` and `nomic-embed-text`, and writes Settings so Kosistenz can find him. Then **Settings → Cluny → Test connection**, then **Index my life**.
+
+This Cloud Agent environment cannot install Ollama onto your Mac. Run the script locally.
 
 ### Run from the repo (optional)
 
@@ -102,7 +110,7 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 - **Habits**: `~/Library/Application Support/ToDo/habits.json`
 - **Word of the day**: `~/Library/Application Support/ToDo/word_of_the_day.json`
 
-Optional Cluny sync: set `CLUNY_SQLITE_PATH` or `CLUNY_INGEST_URL` (see `cluny_sync.py`).
+Optional Cluny sync: run `./macos/install_brain.sh`, then Settings → Cluny. See `cluny_sync.py`.
 Cluny is the local brain, not the scheduler — [docs/cluny-integration.md](docs/cluny-integration.md).
 
 ## Technologies

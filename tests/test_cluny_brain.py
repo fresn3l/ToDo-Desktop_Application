@@ -72,6 +72,12 @@ class ClunyBrainTests(unittest.TestCase):
             self.assertIsNone(cluny_brain._resolve_serve_command())
             lookup = cluny_brain._serve_lookup()
         self.assertIn("Homebrew", lookup.get("message") or "")
+        self.assertIn("install_brain.sh", lookup.get("message") or "")
+
+    def test_candidate_binaries_include_application_support_wrapper(self) -> None:
+        names = cluny_brain._candidate_binaries()
+        self.assertIn(cluny_brain.DEFAULT_DATA_DIR / "bin" / "cluny", names)
+        self.assertIn(cluny_brain.DEFAULT_DATA_DIR / "src" / ".venv" / "bin" / "cluny", names)
 
 
 if __name__ == "__main__":

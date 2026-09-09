@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Build a standalone Kosistenz.app (WebKit, no Chrome) and install to /Applications.
+# Then installs Cluny + Ollama unless SKIP_BRAIN=1 or --skip-brain.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -83,6 +84,23 @@ echo "Kosistenz should now be selected in Finder."
 echo "Double-click it to launch. First time: right-click → Open if macOS warns."
 echo "Quit with Cmd+Q. Closing the window leaves the menu bar running."
 echo "Add the Today widget from Notification Center → Edit Widgets → Kosistenz."
-echo "Cluny: install Cluny + Ollama. The app looks in /opt/homebrew/bin and /usr/local/bin"
-echo "because macOS GUI apps do not inherit your shell PATH. Logs: ~/Library/Logs/Kosistenz-cluny-serve.log"
-echo "If it fails: ~/Library/Logs/Kosistenz.log"
+echo "If the app fails to launch: ~/Library/Logs/Kosistenz.log"
+
+SKIP_BRAIN="${SKIP_BRAIN:-0}"
+for arg in "$@"; do
+  case "$arg" in
+    --skip-brain) SKIP_BRAIN=1 ;;
+    --with-brain) SKIP_BRAIN=0 ;;
+  esac
+done
+
+if [[ "$SKIP_BRAIN" == "1" ]]; then
+  echo ""
+  echo "Skipped Cluny + Ollama (SKIP_BRAIN=1 or --skip-brain)."
+  echo "To install the local brain later: ./macos/install_brain.sh"
+else
+  echo ""
+  echo "Installing Cluny + Ollama (local brain). App-only: SKIP_BRAIN=1 ./macos/install_app.sh"
+  chmod +x "$ROOT/macos/install_brain.sh" 2>/dev/null || true
+  "$ROOT/macos/install_brain.sh"
+fi

@@ -14,6 +14,35 @@ This document is the **ownership contract**. If Cluny’s `INTEGRATION.md` / Spr
 
 ---
 
+## Mac install (this repo)
+
+A Cloud Agent on Linux cannot put Ollama or Cluny onto your Mac. You run these on the Mac:
+
+```bash
+cd /Users/elijahnitzel/Kosistenz
+git pull
+./macos/install_brain.sh
+./macos/install_app.sh --skip-brain   # if you already ran install_brain.sh
+```
+
+`./macos/install_app.sh` also runs `install_brain.sh` at the end unless you set `SKIP_BRAIN=1` or pass `--skip-brain`.
+
+What `macos/install_brain.sh` does on Darwin (exits 1 on Linux):
+
+1. Installs **Ollama** if missing (`brew install ollama` when Homebrew is present, else the official Mac app from ollama.com).
+2. Starts `ollama serve` if nothing is listening on `127.0.0.1:11434`.
+3. Pulls `llama3.2` and `nomic-embed-text`.
+4. Clones [fresn3l/Cluny_the_AI_Agent](https://github.com/fresn3l/Cluny_the_AI_Agent) into `~/Library/Application Support/Cluny/src` if needed.
+5. Creates a venv and `pip install -e ".[api]"` so `cluny serve` works.
+6. Writes a wrapper at `~/Library/Application Support/Cluny/bin/cluny` with `CLUNY_DATA_DIR` set to Application Support/Cluny (Kosistenz already searches that path).
+7. Saves `cluny_binary_path` and `cluny_data_dir` in Kosistenz `cluny_settings.json` under Application Support/ToDo.
+
+Then **Settings → Cluny → Test connection**, then **Index my life**.
+
+The two apps stay separate processes. Kosistenz is usable if Cluny is quit. The phone does not run Ask Cluny. Cluny never places HH:MM, never writes packed blocks, never writes Apple Calendar, and never writes the iCloud pack.
+
+---
+
 ## Why this split exists
 
 Two apps grew in parallel and both grew a task store and a calendar store. That cannot survive contact with a real week.
@@ -411,7 +440,7 @@ Examples Cluny *may not* do:
 
 ### Kosistenz agent should (later work in this repo)
 
-1. Not add Ollama/Chroma/embeddings.
+1. Not add Ollama/Chroma/embeddings inside the Kosistenz process. `macos/install_brain.sh` installs Ollama + Cluny as a **separate** on-device stack.
 2. Keep `cluny_sync` ingest until HTTP ingest is proven, then prefer ingest-without-ownership.
 3. Add snapshot publish + proposal inbox when Phase 2–3 start.
 4. Optional Ask panel that degrades if port 8787 is down.

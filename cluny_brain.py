@@ -32,9 +32,9 @@ DEFAULT_DATA_DIR = Path.home() / "Library" / "Application Support" / "Cluny"
 POLL_INTERVAL_SEC = 8.0
 STARTUP_WAIT_SEC = 45.0
 NOT_FOUND_COPY = (
-    "Cluny not found. Install Cluny, or set Settings → Cluny binary path. "
+    "Cluny not found. On a Mac run ./macos/install_brain.sh, or set Settings → Cluny binary path. "
     "The Mac app does not see Homebrew PATH, so Kosistenz also looks in "
-    "/opt/homebrew/bin and /usr/local/bin."
+    "/opt/homebrew/bin, /usr/local/bin, and ~/Library/Application Support/Cluny/bin."
 )
 
 
@@ -120,6 +120,7 @@ def _candidate_binaries() -> list[Path]:
         Path("/Applications/Cluny.app/Contents/MacOS/cluny"),
         home / "Applications" / "Cluny.app" / "Contents" / "MacOS" / "cluny",
         DEFAULT_DATA_DIR / "bin" / "cluny",
+        DEFAULT_DATA_DIR / "src" / ".venv" / "bin" / "cluny",
     ]
     out: list[Path] = []
     for path in names:
