@@ -5,7 +5,7 @@
 
 import * as utils from './utils.js';
 import { WIDGET_CATALOG } from './home_layout.js';
-import { copy, eventsToday, moreCount, countLabel } from './glance_copy.js';
+import { copy, moreCount, countLabel } from './glance_copy.js';
 
 function hasEel(name) {
     return typeof eel !== 'undefined' && typeof eel[name] === 'function';
@@ -195,7 +195,7 @@ function wordHtml(data, size) {
     if (!data?.word) return emptyShell(kind, size, copy.noWord);
     const head = data.display || data.word;
     const pos = [data.language_label || (data.language === 'de' ? 'German' : 'English'), data.pos].filter(Boolean).join(' · ');
-    const meaning = clip(data.meaning || '', size.board ? 140 : size.tall ? 90 : 42);
+    const meaning = clip(data.meaning || '', size.board ? 140 : size.tall ? 90 : 72);
     const example = clip(data.example || '', size.board ? 120 : 72);
     const used = Boolean((data.used_tonight || '').trim());
     if (!size.wide && !size.tall) {
@@ -217,25 +217,32 @@ function todayHtml(data, size) {
     const d = iso ? new Date(`${iso}T12:00:00`) : new Date();
     const shortWeek = Number.isNaN(d.getTime()) ? 'Now' : d.toLocaleDateString(undefined, { weekday: 'short' });
     const dayNum = Number.isNaN(d.getTime()) ? '' : String(d.getDate());
-    const month = Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short' });
     const agenda = data?.agenda || [];
-    // Glance Day shows the morning intention, or “No brief yet.”
     const intention = String(data?.intention || '').trim();
-    const briefLine = intention ? clip(intention, 48) : copy.noBrief;
+    const briefLine = intention ? clip(intention, 56) : '';
+    const workout = (data?.expected?.labels || []).join(' · ');
+    const streak = Number(data?.journal_streak || 0);
+    const chips = [
+        workout ? clip(workout, 28) : '',
+        streak > 0 ? `${streak} day write` : '',
+    ].filter(Boolean).join(' · ');
+    const next = agenda[0];
+    const nextLine = next
+        ? `${formatAgendaTime(next)} ${clip(next.title || '', 28)}`.trim()
+        : copy.noEvents;
     if (!size.wide && !size.tall) {
-        return shellHtml({ kind, size, label, primary: dayNum, hero: true, body: `<p class="glance-message">${utils.escapeHtml(briefLine)}</p>` });
+        return shellHtml({ kind, size, label, primary: dayNum, body: `<p class="glance-message">${utils.escapeHtml(nextLine)}</p>` });
     }
     if (!size.tall) {
         return shellHtml({
             kind,
             size,
-            label,
-            primary: `${shortWeek} ${dayNum}`,
-            hero: true,
-            body: `<p class="glance-message">${utils.escapeHtml(briefLine)}</p>`,
+            label: `${shortWeek} ${dayNum}`,
+            primary: next ? formatAgendaTime(next) : '',
+            body: `<p class="glance-message">${utils.escapeHtml(next ? clip(next.title || '', 36) : copy.noEvents)}</p>`,
         });
     }
-    const limit = 4;
+    const limit = size.board ? 5 : 3;
     const extra = Math.max(0, agenda.length - limit);
     const rows = listRows(agenda, limit, (item) => {
         const hh = formatAgendaTime(item);
@@ -245,13 +252,12 @@ function todayHtml(data, size) {
     return shellHtml({
         kind,
         size,
-        label,
-        primary: `${shortWeek} ${dayNum}`,
-        hero: true,
+        label: `${shortWeek} ${dayNum}`,
+        primary: '',
         body: `
-            <p class="glance-message">${utils.escapeHtml(briefLine)}</p>
-            <p class="glance-message glance-message--quiet">${utils.escapeHtml(eventsToday(agenda.length))}</p>
-            ${rows || ''}
+            ${briefLine ? `<p class="glance-message">${utils.escapeHtml(briefLine)}</p>` : ''}
+            ${chips ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(chips)}</p>` : ''}
+            ${rows || `<p class="glance-message">${utils.escapeHtml(copy.noEvents)}</p>`}
             ${more}`,
     });
 }
@@ -266,7 +272,7 @@ function todoHtml(data, size) {
     if (!items.length && !open && !done) {
         return emptyShell(kind, size, copy.nothingDated, { act: 'open-work', label: copy.addPlace, attrs: ' data-kind="todo"' });
     }
-    const visible = items.filter((row) => row.status !== 'done' || size.board).slice(0, size.tall ? 5 : 2);
+    const visible = items.filter((row) => row.status !== 'done' || size.board).slice(0, size.tall ? 4 : 2);
     const rows = listRows(visible, visible.length, (item) => (
         `<li class="${item.status === 'done' ? 'is-done' : ''}">${taskDot(item.status)}<strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
     ));
@@ -278,14 +284,15 @@ function todoHtml(data, size) {
     } else if (size.action && nextOpen) {
         action = { act: 'todo-start', label: copy.start, attrs: ` data-id="${utils.escapeHtml(nextOpen.id)}"` };
     }
+    const headline = complete ? copy.allFinished : (active?.title || nextOpen?.title || '');
     const message = complete ? copy.allFinished : open ? '' : copy.nothingDated;
     return shellHtml({
         kind,
         size,
         label: countLabel(label, open || done ? open : ''),
-        primary: size.tall ? '' : String(complete ? done : open),
+        primary: size.tall ? clip(headline, 42) : String(complete ? done : open),
         hero: false,
-        body: `${message ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(message)}</p>` : ''}${rows || ''}`,
+        body: `${!size.tall && message ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(message)}</p>` : ''}${rows || ''}`,
         action,
     });
 }
@@ -421,16 +428,18 @@ function workoutHtml(data, size) {
             .filter(Boolean)
             .join(' · ')
         : '';
+    const done = Boolean(workout.done || workout.session_count);
+    const headline = split || sessionLine || (done ? 'Logged' : copy.nothingLogged);
     const bits = [
-        split ? `<p class="glance-message">${utils.escapeHtml(split)}</p>` : '',
+        sessionLine && split ? `<p class="glance-message">${utils.escapeHtml(sessionLine)}</p>` : '',
         lastDate ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(lastDate)}</p>` : '',
-        sessionLine ? `<p class="glance-message">${utils.escapeHtml(sessionLine)}</p>` : '',
+        done ? `<p class="glance-message glance-message--quiet">Logged</p>` : '',
     ].join('');
     return shellHtml({
         kind,
         size,
         label,
-        primary: workout.session_count ? String(workout.session_count) : '',
+        primary: clip(headline, size.tall ? 36 : 22),
         body: bits || `<p class="glance-message">${utils.escapeHtml(copy.nothingLogged)}</p>`,
     });
 }
@@ -576,13 +585,18 @@ function clunyHtml(data, size) {
         });
     }
     const n = Number(data?.pending_count || 0);
+    const part = dayPart();
+    const ask = part === 'evening'
+        ? { label: copy.eveningAsk, q: 'What still matters tonight?' }
+        : part === 'afternoon'
+            ? { label: copy.freeTime, q: 'What should I do with my free time?' }
+            : { label: copy.whatsOn, q: 'What do I have to do today?' };
     const asks = size.action
-        ? `${actionBtn('cluny-ask', copy.whatsOn, ' data-q="What do I have to do today?"')}
-           ${actionBtn('cluny-ask', copy.freeTime, ' data-q="What should I do with my free time?"')}`
+        ? actionBtn('cluny-ask', ask.label, ` data-q="${utils.escapeHtml(ask.q)}"`)
         : '';
     const pending = n
         ? `<p class="glance-message">${n === 1 ? '1 suggestion waiting' : `${n} suggestions waiting`}</p>`
-        : `<p class="glance-message">${utils.escapeHtml(copy.whatsOn)}</p>`;
+        : `<p class="glance-message">${utils.escapeHtml(ask.label)}</p>`;
     return shellHtml({
         kind,
         size,

@@ -10,7 +10,7 @@ import json
 import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional, Set
 import fcntl
 import sys
 import uuid
@@ -292,6 +292,88 @@ def save_journal_entry(
     _write_entry_file(entry_path, entry)
     _after_save(entry)
     return entry
+
+def _entry_date_from_filename(name: str) -> Optional[date]:
+    """Parse YYYY-MM-DD from entry_YYYY-MM-DD_*.json without opening the file."""
+    text = str(name or "")
+    if not text.startswith("entry_") or len(text) < 16:
+        return None
+    raw = text[6:16]
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def _week_folder_for(day: date) -> Path:
+    week_num = ((day.day - 1) // 7) + 1
+    return get_journal_directory() / f"{day.year:04d}" / f"{day.month:02d}" / f"Week_{week_num:02d}"
+
+
+def count_entries_on(day: date) -> int:
+    """How many journal files fall on a local day, using filenames only."""
+    folder = _week_folder_for(day)
+    if not folder.is_dir():
+        return 0
+    try:
+        return sum(
+            1
+            for path in folder.iterdir()
+            if path.suffix == ".json"
+            and path.name.startswith("entry_")
+            and _entry_date_from_filename(path.name) == day
+        )
+    except OSError:
+        return 0
+
+
+def entry_dates(*, days: int = 400) -> Set[date]:
+    """Local dates that have a journal file, without parsing JSON bodies."""
+    found: Set[date] = set()
+    base_dir = get_journal_directory()
+    if not base_dir.exists():
+        return found
+    cutoff = date.today() - timedelta(days=max(0, int(days or 0)))
+    try:
+        year_dirs = list(base_dir.iterdir())
+    except OSError:
+        return found
+    for year_dir in year_dirs:
+        if not year_dir.is_dir():
+            continue
+        try:
+            year_num = int(year_dir.name)
+        except ValueError:
+            year_num = None
+        if year_num is not None and year_num < cutoff.year:
+            continue
+        try:
+            month_dirs = list(year_dir.iterdir())
+        except OSError:
+            continue
+        for month_dir in month_dirs:
+            if not month_dir.is_dir():
+                continue
+            try:
+                week_dirs = list(month_dir.iterdir())
+            except OSError:
+                continue
+            for week_dir in week_dirs:
+                if not week_dir.is_dir():
+                    continue
+                try:
+                    files = list(week_dir.iterdir())
+                except OSError:
+                    continue
+                for entry_file in files:
+                    if entry_file.suffix != ".json" or not entry_file.name.startswith("entry_"):
+                        continue
+                    day = _entry_date_from_filename(entry_file.name)
+                    if day is None or day < cutoff:
+                        continue
+                    found.add(day)
+    return found
+
 
 def _load_entries_from_disk(cutoff_date: Optional[datetime] = None) -> List[Dict]:
     base_dir = get_journal_directory()

@@ -249,7 +249,7 @@ def supervisor_status() -> dict[str, Any]:
 
 def _supervisor_loop() -> None:
     _LAST_STATUS["supervisor"] = "running"
-    ensure_running(wait=True)
+    ensure_running(wait=False)
     while not _STOP.wait(POLL_INTERVAL_SEC):
         try:
             if not _auto_start_enabled():

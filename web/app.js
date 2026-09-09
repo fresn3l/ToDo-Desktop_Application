@@ -29,7 +29,6 @@ import { setupWord } from './js/word.js';
 import { setupDailyChecklist } from './js/daily_checklist.js';
 
 async function init() {
-    await new Promise((resolve) => setTimeout(resolve, 100));
     await initAppearance();
     setupTabs();
     setupSettings();
@@ -41,7 +40,7 @@ async function init() {
     setupTodo();
     setupGoals();
     setupWord();
-    await setupDailyChecklist();
+    void setupDailyChecklist();
     setupAllWork();
     setupWorkouts();
     setupJournal();
@@ -67,7 +66,12 @@ async function init() {
         }
     });
     await switchTab('home');
-    await pullPhoneOnOpen();
+    void pullPhoneOnOpen();
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            void pullPhoneOnOpen();
+        }
+    });
 }
 
 async function pullPhoneOnOpen() {
@@ -126,7 +130,7 @@ async function startApp() {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => init().catch(handleInitError));
     } else {
-        setTimeout(() => init().catch(handleInitError), 50);
+        init().catch(handleInitError);
     }
 }
 

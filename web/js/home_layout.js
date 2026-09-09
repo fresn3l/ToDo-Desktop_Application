@@ -21,8 +21,8 @@ export const WIDGET_CATALOG = {
     day_brief: { label: 'Day', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'dayBriefSource' },
     counters: { label: 'Counters', sizes: [[1, 1], [2, 1], [2, 2], [3, 2], [3, 3]], default: [2, 1], source: 'countersSource' },
     reading: { label: 'Reading', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'readingSource' },
-    word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 2], source: 'wordTab' },
-    cluny: { label: 'Ask Cluny', sizes: [[2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'clunySource' },
+    word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'wordTab' },
+    cluny: { label: 'Ask Cluny', sizes: [[2, 2], [2, 3], [3, 2], [3, 3], [4, 2]], default: [4, 2], source: 'clunySource' },
 };
 
 export function catalogList() {
@@ -57,7 +57,7 @@ export function snapCell(clientX, clientY, gridEl) {
     const styles = window.getComputedStyle(gridEl);
     const gap = parseCssPx(styles.columnGap || styles.gap, 12);
     const colW = (rect.width - gap * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
-    const rowH = parseCssPx(styles.gridAutoRows, 92);
+    const rowH = parseCssPx(styles.gridAutoRows, 108);
     const x = Math.max(0, Math.min(GRID_COLUMNS - 1, Math.floor((clientX - rect.left) / (colW + gap))));
     const y = Math.max(0, Math.floor((clientY - rect.top) / (rowH + gap)));
     return { x, y };

@@ -34,8 +34,20 @@ const FALLBACK_LAYOUT = {
                 { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2, region: 'above' },
                 { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2, region: 'above' },
                 { id: 'w-weather', kind: 'weather', x: 0, y: 0, w: 2, h: 1 },
-                { id: 'w-word', kind: 'word', x: 2, y: 0, w: 2, h: 2 },
-                { id: 'w-cluny', kind: 'cluny', x: 0, y: 1, w: 2, h: 2 },
+                { id: 'w-word', kind: 'word', x: 2, y: 0, w: 2, h: 1 },
+                { id: 'w-cluny', kind: 'cluny', x: 0, y: 1, w: 4, h: 2 },
+            ],
+        },
+        {
+            id: 'local-week',
+            name: 'Week',
+            widgets: [
+                { id: 'w-workout', kind: 'workout', x: 0, y: 0, w: 2, h: 2 },
+                { id: 'w-goals', kind: 'goals', x: 2, y: 0, w: 2, h: 2 },
+                { id: 'w-allwork', kind: 'allwork', x: 0, y: 2, w: 2, h: 2 },
+                { id: 'w-habits', kind: 'habits', x: 2, y: 2, w: 2, h: 2 },
+                { id: 'w-heatmap', kind: 'heatmap', x: 0, y: 4, w: 2, h: 1 },
+                { id: 'w-reading', kind: 'reading', x: 2, y: 4, w: 2, h: 1 },
             ],
         },
     ],
@@ -303,7 +315,10 @@ async function refreshKinds(kinds) {
     if (set.has('reading')) await run(refreshReading);
     if (set.has('word')) await run(onWordTabShown);
     if (set.has('cluny')) await run(onClunyTabShown);
-    await run(refreshToday);
+    const workOpen = document.getElementById('homeWorkLayer')?.classList.contains('is-open');
+    if (set.has('today_calendar') || workOpen) {
+        await run(refreshToday);
+    }
     await run(() => refreshGlances([...set]));
 }
 
@@ -863,7 +878,7 @@ export function setupHome() {
             syncPageColors();
         }
     });
-    void loadLayout().then(() => renderHome());
+    void loadLayout();
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
             const page = activePage();

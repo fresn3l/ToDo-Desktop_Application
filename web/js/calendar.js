@@ -5,7 +5,7 @@
 import * as utils from './utils.js';
 
 let weekStart = null;
-let calView = 'month';
+let calView = 'week';
 let monthCursor = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 let yearCursor = new Date().getFullYear();
 let lastSettings = {};
@@ -116,7 +116,7 @@ async function loadMonth() {
         renderMonthGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
-        await refreshFeedToggles();
+        paintFeedToggles(payload.feeds || []);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calMonthGrid');
@@ -132,7 +132,7 @@ async function loadYear() {
         renderYearGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
-        await refreshFeedToggles();
+        paintFeedToggles(payload.feeds || []);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calYearGrid');
@@ -270,19 +270,52 @@ function blockLabel(item) {
     return [item.title, mins, status].filter(Boolean).join(' · ');
 }
 
+function shortTitle(title, fallback = 'Due') {
+    const raw = String(title || '').trim() || fallback;
+    const short = raw.replace(/\s*\[[^\]]+\]\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    return short || raw;
+}
+
+function dueParts(due) {
+    const title = String(due?.title || 'Due');
+    const course = String(due?.course || '').trim();
+    return { title, course, short: shortTitle(title) };
+}
+
 function renderDueChip(due) {
+    const parts = dueParts(due);
     const done = due.status === 'done';
     const overdue = due.is_overdue;
     const hue = Number(due.hue);
     const hueStyle = Number.isFinite(hue) ? `--due-h:${hue}` : '';
+    const badge = parts.course
+        ? `<span class="cal-course-badge">${utils.escapeHtml(parts.course)}</span>`
+        : '';
     return `<button type="button" class="cal-due-chip${done ? ' is-done' : ''}${overdue ? ' is-overdue' : ''}"
         style="${hueStyle}"
         data-id="${utils.escapeHtml(due.id || '')}"
-        data-title="${utils.escapeHtml(due.title || '')}"
+        data-title="${utils.escapeHtml(parts.title)}"
         data-status="${utils.escapeHtml(due.status || 'open')}"
         data-due-at="${utils.escapeHtml(due.due_at || '')}"
         data-minutes="${Number(due.estimate_minutes || 60) || 60}"
-        title="${utils.escapeHtml(due.title || '')}">${utils.escapeHtml(due.title || 'Due')}</button>`;
+        title="${utils.escapeHtml(parts.title)}">${badge}<span class="cal-due-chip-title">${utils.escapeHtml(parts.short)}</span></button>`;
+}
+
+function renderDueStrip(dues, date) {
+    const iso = utils.escapeHtml(date || '');
+    if (!dues.length) {
+        return `<div class="cal-due-strip is-empty" data-date="${iso}"></div>`;
+    }
+    const n = dues.length;
+    const first = dueParts(dues[0]);
+    const hue = Number(dues[0].hue);
+    const hueStyle = Number.isFinite(hue) ? `style="--due-h:${hue}"` : '';
+    const tip = n === 1 ? first.title : `${n} due`;
+    return `<button type="button" class="cal-due-strip" data-date="${iso}" data-count="${n}" ${hueStyle}
+        title="${utils.escapeHtml(tip)}">
+        <span class="cal-due-count">${n}</span>
+        <span class="cal-due-strip-label">${utils.escapeHtml(first.short)}</span>
+    </button>`;
 }
 
 function renderBlock(item, settings) {
@@ -296,6 +329,9 @@ function renderBlock(item, settings) {
     const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
     const locked = item.status === 'locked';
     const selected = editor.id && editor.id === item.id ? ' is-selected' : '';
+    const timeLabel = Number.isNaN(start.getTime())
+        ? ''
+        : formatMilitary(start.getHours() * 60 + start.getMinutes());
     return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${selected}"
         style="top:${topPct}%;height:${height}%"
         data-id="${utils.escapeHtml(item.id || '')}"
@@ -307,7 +343,7 @@ function renderBlock(item, settings) {
         data-work-item-id="${utils.escapeHtml(item.work_item_id || '')}"
         data-occurrence-date="${utils.escapeHtml(item.occurrence_date || item.local_date || '')}"
         data-weekdays="${utils.escapeHtml((item.recurrence && item.recurrence.weekdays ? item.recurrence.weekdays : []).join(','))}"
-        title="${utils.escapeHtml(blockLabel(item))}">${utils.escapeHtml(blockLabel(item))}</button>`;
+        title="${utils.escapeHtml(blockLabel(item))}"><span class="cal-block-time">${utils.escapeHtml(timeLabel)}</span><span class="cal-block-title">${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</span></button>`;
 }
 
 function renderGrid(week) {
@@ -342,15 +378,14 @@ function renderGrid(week) {
         .map((day) => {
             const items = [...(day.events || []), ...(day.blocks || [])];
             const dues = day.dues || [];
-            const chips = dues.map((due) => renderDueChip(due)).join('');
             return `<div class="cal-day${day.is_today ? ' is-today' : ''}" data-date="${utils.escapeHtml(day.date)}">
                 <header class="cal-day-head"><strong>${utils.escapeHtml(day.weekday)}</strong><span>${utils.escapeHtml(day.date.slice(8))}</span></header>
-                <div class="cal-due-list">${chips || '<span class="cal-due-empty">No dues</span>'}</div>
+                ${renderDueStrip(dues, day.date)}
                 <div class="cal-day-body" style="--cal-hour-pct:${hourPct}%;--cal-hour-offset:${offsetPct}%">${hourLines}${items.map((item) => renderBlock(item, settings)).join('')}</div>
             </div>`;
         })
         .join('');
-    root.innerHTML = `${hourCol}<div class="cal-days">${days}</div>`;
+    root.innerHTML = `${hourCol}<div class="cal-week-board"><div class="cal-days">${days}</div></div>`;
 }
 
 function agendaKind(item) {
@@ -363,7 +398,7 @@ function agendaTime(item) {
     const start = new Date(item.start_at);
     if (Number.isNaN(start.getTime())) return '';
     const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(start.getHours())}${pad(start.getMinutes())}`;
+    return `${pad(start.getHours())}:${pad(start.getMinutes())}`;
 }
 
 function renderTodayRail(today) {
@@ -386,19 +421,18 @@ function renderTodayRail(today) {
     const clockHtml = items.length
         ? `<h4>On the clock</h4><ul class="cal-today-agenda">${items.map((item) => {
             const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
-            return `<li class="is-${kind}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(item.title || '')}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
+            return `<li class="is-${kind}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
         }).join('')}</ul>`
-        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet</p>';
+        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag a due onto the week clock to time-block it.</p>';
     root.innerHTML = `
         <header>
             <p class="eyebrow">Today</p>
             <h3>${utils.escapeHtml(today.label || today.weekday || 'Today')}</h3>
-            <p class="cal-today-awake">Awake ${utils.escapeHtml(String(today.day_start || '').replace(':', ''))}–${utils.escapeHtml(String(today.day_end || '').replace(':', ''))}</p>
+            <p class="cal-today-awake">${utils.escapeHtml(formatHHMM(today.day_start))}–${utils.escapeHtml(formatHHMM(today.day_end))}</p>
         </header>
         ${overdueHtml}
         ${duesHtml}
         ${clockHtml}
-        <p class="checklist-hint small">Drag a due onto the week clock to time-block it. The due date stays put.</p>
     `;
 }
 
@@ -412,9 +446,18 @@ function paintFeedToggles(feeds) {
     }
     root.innerHTML = `<h4>Show calendars</h4>` + rows.map((feed) => {
         const on = feed.enabled !== false;
+        const host = (() => {
+            try {
+                const href = String(feed.url || '').replace(/^webcal:/i, 'https:');
+                return href ? new URL(href).hostname.replace(/^www\./, '') : '';
+            } catch (_) {
+                return '';
+            }
+        })();
+        const label = host || feed.title || feed.id;
         return `<label class="cal-feed-toggle">
             <input type="checkbox" data-feed-id="${utils.escapeHtml(feed.id || '')}" ${on ? 'checked' : ''}>
-            <span>${utils.escapeHtml(feed.title || feed.id)}</span>
+            <span title="${utils.escapeHtml(feed.title || feed.id || '')}">${utils.escapeHtml(label)}</span>
         </label>`;
     }).join('');
     root.querySelectorAll('input[data-feed-id]').forEach((input) => {
@@ -441,11 +484,14 @@ async function refreshFeedToggles() {
 
 function renderUnplaced(items, total) {
     const root = document.getElementById('calUnplaced');
+    const block = document.getElementById('calUnplacedBlock');
     if (!root) return;
     if (!items?.length) {
         root.innerHTML = '<p class="empty-state empty-state--line">Nothing to place.</p>';
+        if (block) block.hidden = true;
         return;
     }
+    if (block) block.hidden = false;
     const extra = Number(total || 0) > items.length
         ? `<p class="checklist-hint small">${Number(total) - items.length} more unplaced. Fill week still uses the rest.</p>`
         : '';
@@ -476,6 +522,7 @@ async function loadWeek() {
         paintAwakeFields(lastSettings);
         renderGrid(week);
         renderTodayRail(week.today);
+        hideDayDues();
         paintFeedToggles(week.feeds || week.settings?.feeds || []);
         renderUnplaced(week.unplaced || [], week.unplaced_total);
         const url = document.getElementById('calIcsUrl');
@@ -656,7 +703,20 @@ function bindGrid() {
             openEditorFromBlock(btn);
         });
     });
-    document.querySelectorAll('.cal-due-chip').forEach((btn) => {
+    bindDueChips(document);
+    document.querySelectorAll('.cal-due-strip:not(.is-empty)').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showDayDues(btn.getAttribute('data-date'), btn);
+        });
+    });
+}
+
+function bindDueChips(root) {
+    (root || document).querySelectorAll('.cal-due-chip').forEach((btn) => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
         btn.addEventListener('pointerdown', onDuePointerDown);
         btn.addEventListener('pointermove', onDuePointerMove);
         btn.addEventListener('pointerup', onDuePointerUp);
@@ -702,7 +762,7 @@ function onBlockPointerMove(e) {
     dragState.el.classList.add('is-dragging');
     const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day-body');
     if (!hit) return;
-    const day = hit.closest('.cal-day')?.getAttribute('data-date');
+    const day = hit.closest('.cal-day')?.getAttribute('data-date') || hit.getAttribute('data-date');
     if (!day) return;
     const rect = hit.getBoundingClientRect();
     const { startMin, span } = clockWindow(lastSettings);
@@ -744,6 +804,44 @@ async function onBlockPointerUp(e) {
         utils.showErrorFeedback(err?.message || 'Could not move that.');
         await loadCalendar();
     }
+}
+
+function hideDayDues() {
+    const panel = document.getElementById('calDayDues');
+    if (!panel) return;
+    panel.hidden = true;
+    panel.classList.add('is-hidden');
+}
+
+function showDayDues(date, anchor) {
+    const panel = document.getElementById('calDayDues');
+    const list = document.getElementById('calDayDuesList');
+    const heading = document.getElementById('calDayDuesHeading');
+    if (!panel || !list) return;
+    const day = (lastWeek?.days || []).find((row) => row.date === date);
+    const dues = day?.dues || [];
+    if (!dues.length) {
+        hideDayDues();
+        return;
+    }
+    const when = day?.date ? new Date(`${day.date}T12:00:00`) : null;
+    const label = when && !Number.isNaN(when.getTime())
+        ? when.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+        : (day?.weekday || 'Due');
+    if (heading) heading.textContent = label;
+    list.innerHTML = dues.map((due) => renderDueChip(due)).join('');
+    bindDueChips(list);
+    hideDueMenu();
+    panel.setAttribute('data-date', date || '');
+    panel.hidden = false;
+    panel.classList.remove('is-hidden');
+    const rect = (anchor || document.body).getBoundingClientRect();
+    const width = 280;
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
+    const top = Math.min(rect.bottom + 8, window.innerHeight - 240);
+    panel.style.left = `${left}px`;
+    panel.style.top = `${Math.max(8, top)}px`;
+    panel.style.width = `${width}px`;
 }
 
 function hideDueMenu() {
@@ -814,7 +912,7 @@ function onDuePointerMove(e) {
         return;
     }
     hit.classList.add('is-drop');
-    const day = hit.closest('.cal-day')?.getAttribute('data-date');
+    const day = hit.closest('.cal-day')?.getAttribute('data-date') || hit.getAttribute('data-date');
     if (!day) return;
     const rect = hit.getBoundingClientRect();
     const { startMin, span } = clockWindow(lastSettings);
@@ -1118,6 +1216,13 @@ export function setupCalendar() {
     document.addEventListener('pointerdown', (e) => {
         if (e.target.closest('#calDueMenu') || e.target.closest('.cal-due-chip')) return;
         hideDueMenu();
+        if (e.target.closest('#calDayDues') || e.target.closest('.cal-due-strip')) return;
+        hideDayDues();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        hideDueMenu();
+        hideDayDues();
     });
     document.getElementById('calViewGroup')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-cal-view]');
@@ -1218,9 +1323,6 @@ export function setupCalendar() {
         void applyPastedCalendar(raw);
     });
     document.getElementById('calImportApple')?.addEventListener('click', importApple);
-    document.getElementById('calDeleteUndated')?.addEventListener('click', () => {
-        void utils.deleteUndatedImportedAssignments();
-    });
     document.getElementById('calEventWeekdays')?.addEventListener('click', (e) => {
         const chip = e.target.closest('.work-day-chip');
         if (!chip) return;

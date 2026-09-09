@@ -591,14 +591,7 @@ async function loadIcloudSync() {
 function paintCalendarFeeds(payload) {
     const list = document.getElementById('calendarFeedsList');
     const empty = document.getElementById('calendarFeedsEmpty');
-    const note = document.getElementById('undatedImportNote');
     const feeds = payload?.feeds || [];
-    const undated = Number(payload?.undated_imported || 0);
-    if (note) {
-        note.textContent = undated
-            ? `${undated} imported assignment${undated === 1 ? '' : 's'} never landed on a day.`
-            : '';
-    }
     if (!list) return;
     if (!feeds.length) {
         list.innerHTML = '';
@@ -674,11 +667,6 @@ async function loadCalendarFeeds() {
 }
 
 function bindCalendarFeeds() {
-    document.getElementById('deleteUndatedImportsBtn')?.addEventListener('click', async () => {
-        const result = await utils.deleteUndatedImportedAssignments();
-        if (result) paintCalendarFeeds(result);
-        else void loadCalendarFeeds();
-    });
 }
 
 async function loadAdvancedPaths() {

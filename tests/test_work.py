@@ -19,8 +19,10 @@ class WorkStoreTests(unittest.TestCase):
         self.patcher = mock.patch.object(work, "_data_dir", lambda: self.data_dir)
         self.patcher.start()
         self.work = work
+        work.invalidate_work_board_cache()
 
     def tearDown(self) -> None:
+        work.cancel_heavy_snapshot_side_effects()
         self.patcher.stop()
         self._tmp.cleanup()
 

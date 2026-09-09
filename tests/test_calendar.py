@@ -21,10 +21,16 @@ class CalendarStoreTests(unittest.TestCase):
         self.kinds = mock.patch.object(schedule.workouts, "expected_kinds_for_date", return_value=[])
         self.patcher.start()
         self.kinds.start()
+        self.today = mock.patch.object(work, "_today", return_value=date(2026, 9, 1))
+        self.today.start()
+        calclock.reset_purge_cache()
+        work.invalidate_work_board_cache()
 
     def tearDown(self) -> None:
+        work.cancel_heavy_snapshot_side_effects()
         self.kinds.stop()
         self.patcher.stop()
+        self.today.stop()
         self._tmp.cleanup()
 
     def _fill(self, monday: str, now: datetime) -> dict:
@@ -263,7 +269,7 @@ END:VCALENDAR
         self.assertTrue(sept30["in_month"])
 
     def test_get_month_marks_today_and_counts_items(self) -> None:
-        today = date.today()
+        today = work._today()
         payload = calclock.get_month(today.year, today.month)
         flagged = [cell for week in payload["weeks"] for cell in week if cell["is_today"]]
         self.assertEqual(len(flagged), 1)
@@ -582,7 +588,7 @@ END:VCALENDAR
         friday = next(day for day in again["days"] if day["date"] == "2026-09-04")
         self.assertEqual(friday["dues"][0]["status"], "done")
 
-    def test_imported_dues_are_today_and_overdue_from_due_at(self) -> None:
+    def test_imported_dues_are_today_not_kept_as_overdue(self) -> None:
         calclock.ingest_events(
             [{"title": "Quiz", "uid": "q1", "start_at": datetime(2026, 9, 3, 23, 59), "all_day": False}],
             calendar_id="class",
@@ -593,9 +599,30 @@ END:VCALENDAR
             self.assertEqual(board["overdue"], [])
         with mock.patch.object(work, "_today", return_value=date(2026, 9, 8)):
             board = work.get_work_board("2026-09-08")
+            self.assertEqual(work.list_all_work_items(), [])
+            self.assertEqual(board["overdue"], [])
             self.assertEqual(board["today"], [])
-            self.assertEqual([row["title"] for row in board["overdue"]], ["Quiz"])
-            self.assertTrue(board["overdue"][0]["is_overdue"])
+
+    def test_past_calendar_imports_are_discarded(self) -> None:
+        with mock.patch.object(work, "_today", return_value=date(2026, 9, 8)):
+            past = calclock.ingest_events(
+                [{"title": "Old quiz", "uid": "old", "start_at": datetime(2026, 9, 3, 23, 59), "all_day": False}],
+                calendar_id="class",
+            )
+            self.assertEqual(past["created"], 0)
+            self.assertEqual(work.list_all_work_items(), [])
+            future = calclock.ingest_events(
+                [{"title": "Friday quiz", "uid": "fri", "start_at": datetime(2026, 9, 11, 23, 59), "all_day": False}],
+                calendar_id="class",
+            )
+            self.assertEqual(future["created"], 1)
+            self.assertEqual([row["title"] for row in work.list_all_work_items()], ["Friday quiz"])
+
+    def test_manual_overdue_is_kept(self) -> None:
+        work.create_work_item("Late essay", scheduled_date="2026-09-03")
+        with mock.patch.object(work, "_today", return_value=date(2026, 9, 8)):
+            board = work.get_work_board("2026-09-08")
+            self.assertEqual([row["title"] for row in board["overdue"]], ["Late essay"])
 
     def test_fill_week_skips_calendar_imports(self) -> None:
         calclock.ingest_events(
@@ -618,10 +645,13 @@ END:VCALENDAR
             source_calendar="class",
         )
         work.create_work_item("Keep me")
-        result = calclock.delete_undated_imported_assignments()
-        self.assertEqual(result["deleted"], 1)
         titles = {row["title"] for row in work.list_all_work_items()}
         self.assertEqual(titles, {"Dated", "Keep me"})
+        with mock.patch.object(work, "_today", return_value=date(2026, 9, 8)):
+            gone = calclock.delete_undated_imported_assignments()
+            self.assertEqual(gone["deleted"], 1)
+            left = {row["title"] for row in work.list_all_work_items()}
+            self.assertEqual(left, {"Keep me"})
 
     def test_unsubscribe_removes_open_keeps_done(self) -> None:
         calclock.import_ics_text(
@@ -716,7 +746,7 @@ END:VCALENDAR
         placed = calclock.place_work_after_lecture(item["id"], "2026-09-08")
         self.assertTrue(placed["block"]["start_at"].startswith("2026-09-08T10:20"))
 
-    def test_today_column_includes_overdue_and_clock_items(self) -> None:
+    def test_today_column_includes_clock_items_not_past_imports(self) -> None:
         real = date
 
         class FrozenDate(real):
@@ -725,15 +755,18 @@ END:VCALENDAR
                 return real(2026, 9, 8)
 
         calclock.ingest_events(
-            [{"title": "Quiz [MATH-208.110]", "uid": "q1", "start_at": datetime(2026, 9, 3, 23, 59), "all_day": False}],
+            [
+                {"title": "Quiz [MATH-208.110]", "uid": "q1", "start_at": datetime(2026, 9, 3, 23, 59), "all_day": False},
+                {"title": "Friday quiz", "uid": "q2", "start_at": datetime(2026, 9, 11, 23, 59), "all_day": False},
+            ],
             calendar_id="class",
         )
         calclock.create_calendar_event("CHEM 109", "2026-09-08T09:30:00", "2026-09-08T10:20:00", [1])
         with mock.patch("calclock.date", FrozenDate), mock.patch.object(work, "_today", return_value=real(2026, 9, 8)):
+            calclock.purge_stale_imports()
             column = calclock._today_column()
         self.assertEqual(column["date"], "2026-09-08")
-        self.assertEqual(column["overdue"][0]["course"], "MATH-208")
-        self.assertTrue(column["overdue"][0]["is_overdue"])
+        self.assertEqual(column["overdue"], [])
         self.assertEqual(column["items"][0]["title"], "CHEM 109")
         week = calclock.get_week("2026-09-07")
         self.assertIn("today", week)

@@ -12,11 +12,13 @@ import json
 import os
 import re
 import sqlite3
+import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import eel
 
@@ -24,6 +26,13 @@ from db import sqlite_connect
 from paths import data_directory
 
 STATUSES = ("open", "active", "done")
+_WORK_BOARD_CACHE_TTL_SEC = 0.4
+_HEAVY_SNAPSHOT_DELAY_SEC = 2.0
+_work_board_cache: Optional[Tuple[str, str, float, Dict[str, Any]]] = None
+_work_board_lock = threading.Lock()
+_snapshot_lock = threading.Lock()
+_heavy_snapshot_timer: Optional[threading.Timer] = None
+_writing_snapshot = False
 
 
 def _mirror_task(item: Dict[str, Any]) -> None:
@@ -518,15 +527,16 @@ def _insert_occurrence(
     return _fetch(conn, item_id)
 
 
-def ensure_occurrences(local_date: str) -> None:
+def ensure_occurrences(local_date: str) -> int:
     """Create today's/future repeating instances. Never backfills missed days as open tasks."""
     target = _parse_date(local_date)
     if not target:
-        return
+        return 0
     today = _today().isoformat()
     if target < today:
-        return
+        return 0
     day = date.fromisoformat(target)
+    created = 0
     with _connect() as conn:
         series_rows = conn.execute(
             "SELECT * FROM work_series WHERE archived = 0"
@@ -537,11 +547,20 @@ def ensure_occurrences(local_date: str) -> None:
             exception = _exception_for(conn, series["id"], target)
             if exception and exception["action"] == "skip":
                 continue
+            existing = conn.execute(
+                "SELECT id FROM work_items WHERE series_id = ? AND occurrence_date = ?",
+                (series["id"], target),
+            ).fetchone()
+            if existing:
+                continue
             title = series["title"]
             if exception and exception["action"] == "override" and exception["title"]:
                 title = exception["title"]
             _insert_occurrence(conn, series=series, occurrence=target, title=title)
-    _write_widget_snapshot()
+            created += 1
+    if created:
+        _write_widget_snapshot()
+    return created
 
 
 def _pause_active(conn: sqlite3.Connection, except_id: Optional[str] = None) -> None:
@@ -593,16 +612,9 @@ def _journal_snapshot_bits(today: date) -> Dict[str, Any]:
     try:
         import journal
 
-        entries = journal.get_recent_entries(days=400)
+        days = journal.entry_dates(days=400)
     except Exception:
         return empty
-    days = set()
-    for entry in entries:
-        raw = str(entry.get("date") or entry.get("created_at") or "")[:10]
-        try:
-            days.add(date.fromisoformat(raw))
-        except ValueError:
-            continue
     cursor = today if today in days else today - timedelta(days=1)
     streak = 0
     while cursor in days:
@@ -634,6 +646,27 @@ def _summary_line(
 
 
 def _write_widget_snapshot() -> Dict[str, Any]:
+    global _writing_snapshot
+    if _writing_snapshot:
+        path = get_widget_snapshot_path()
+        if path.exists():
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                pass
+        return {}
+    _writing_snapshot = True
+    try:
+        return _write_widget_snapshot_body()
+    finally:
+        _writing_snapshot = False
+
+
+def _write_widget_snapshot_body() -> Dict[str, Any]:
+    try:
+        delete_stale_imported_work(write_snapshot=False)
+    except Exception:
+        pass
     today = _today()
     today_iso = today.isoformat()
     with _connect() as conn:
@@ -696,6 +729,36 @@ def _write_widget_snapshot() -> Dict[str, Any]:
     with open(tmp, "w", encoding="utf-8") as handle:
         json.dump(snapshot, handle, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
+    invalidate_work_board_cache()
+    _schedule_heavy_snapshot_side_effects(path)
+    return snapshot
+
+
+def invalidate_work_board_cache() -> None:
+    global _work_board_cache
+    _work_board_cache = None
+
+
+def _cached_work_board(target: str) -> Optional[Dict[str, Any]]:
+    cached = _work_board_cache
+    if cached is None:
+        return None
+    db_path, key, stamped, payload = cached
+    if db_path != str(get_work_db_path()) or key != target:
+        return None
+    if time.monotonic() - stamped > _WORK_BOARD_CACHE_TTL_SEC:
+        return None
+    return payload
+
+
+def _store_work_board_cache(target: str, payload: Dict[str, Any]) -> None:
+    global _work_board_cache
+    _work_board_cache = (str(get_work_db_path()), target, time.monotonic(), payload)
+
+
+def _run_heavy_snapshot_side_effects(snapshot_path: Path) -> None:
+    if not snapshot_path.exists():
+        return
     try:
         import icloud_sync
 
@@ -708,7 +771,36 @@ def _write_widget_snapshot() -> Dict[str, Any]:
         cluny_snapshot.refresh_life_snapshot_safe()
     except Exception:
         pass
-    return snapshot
+
+
+def cancel_heavy_snapshot_side_effects() -> None:
+    global _heavy_snapshot_timer
+    with _snapshot_lock:
+        if _heavy_snapshot_timer is not None:
+            _heavy_snapshot_timer.cancel()
+            _heavy_snapshot_timer = None
+
+
+def _schedule_heavy_snapshot_side_effects(snapshot_path: Path) -> None:
+    """Keep the menu-bar JSON sync; debounce iCloud export and Cluny refresh."""
+    global _heavy_snapshot_timer
+
+    def run() -> None:
+        global _heavy_snapshot_timer
+        with _snapshot_lock:
+            _heavy_snapshot_timer = None
+        try:
+            _run_heavy_snapshot_side_effects(snapshot_path)
+        except Exception:
+            pass
+
+    with _snapshot_lock:
+        if _heavy_snapshot_timer is not None:
+            _heavy_snapshot_timer.cancel()
+        timer = threading.Timer(_HEAVY_SNAPSHOT_DELAY_SEC, run)
+        timer.daemon = True
+        _heavy_snapshot_timer = timer
+        timer.start()
 
 
 def _next_sort(conn: sqlite3.Connection, scheduled_date: Optional[str]) -> int:
@@ -872,24 +964,46 @@ def create_work_item(
     return packed
 
 
+def _list_work_for_dates(dates: List[str], *, ensure: bool = False) -> Dict[str, List[Dict[str, Any]]]:
+    wanted = []
+    seen = set()
+    for raw in dates:
+        target = _parse_date(raw)
+        if not target or target in seen:
+            continue
+        seen.add(target)
+        wanted.append(target)
+        if ensure:
+            ensure_occurrences(target)
+    grouped = {day: [] for day in wanted}
+    if not wanted:
+        return grouped
+    placeholders = ",".join("?" * len(wanted))
+    with _connect() as conn:
+        rows = conn.execute(
+            _ITEM_SELECT
+            + f"""
+            WHERE work_items.scheduled_date IN ({placeholders})
+            ORDER BY CASE work_items.status WHEN 'active' THEN 0 WHEN 'open' THEN 1 ELSE 2 END,
+                     work_items.sort_order ASC, work_items.created_at ASC
+            """,
+            wanted,
+        ).fetchall()
+    now = _now()
+    for row in rows:
+        item = _row_to_dict(row, now)
+        day = item.get("scheduled_date")
+        if day in grouped:
+            grouped[day].append(item)
+    return grouped
+
+
 @eel.expose
 def list_work_for_date(local_date: str) -> List[Dict[str, Any]]:
     target = _parse_date(local_date)
     if not target:
         raise ValueError("Date must be YYYY-MM-DD")
-    ensure_occurrences(target)
-    with _connect() as conn:
-        rows = conn.execute(
-            _ITEM_SELECT
-            + """
-            WHERE work_items.scheduled_date = ?
-            ORDER BY CASE work_items.status WHEN 'active' THEN 0 WHEN 'open' THEN 1 ELSE 2 END,
-                     work_items.sort_order ASC, work_items.created_at ASC
-            """,
-            (target,),
-        ).fetchall()
-    now = _now()
-    return [_row_to_dict(row, now) for row in rows]
+    return _list_work_for_dates([target], ensure=True).get(target, [])
 
 
 @eel.expose
@@ -1021,39 +1135,58 @@ def list_overdue_work() -> List[Dict[str, Any]]:
 
 @eel.expose
 def get_work_board(local_date: str = "") -> Dict[str, Any]:
+    today = _today()
+    target = _parse_date(local_date) or today.isoformat()
+    with _work_board_lock:
+        return _get_work_board_locked(target, today)
+
+
+def _get_work_board_locked(target: str, today: date) -> Dict[str, Any]:
+    cached = _cached_work_board(target)
+    if cached is not None:
+        return cached
     try:
         import goals as _goals
 
         _goals.ensure_weekly_goal_todos()
     except Exception:
         pass
-    today = _today()
-    target = _parse_date(local_date) or today.isoformat()
+    days_needed = [target]
+    if target == today.isoformat():
+        days_needed = [(today + timedelta(days=offset)).isoformat() for offset in range(7)]
+    for day in days_needed:
+        ensure_occurrences(day)
+    delete_stale_imported_work(write_snapshot=False)
+    by_day = _list_work_for_dates(days_needed, ensure=False)
+    today_items = by_day.get(target, [])
     tomorrow = (today + timedelta(days=1)).isoformat()
-    today_items = list_work_for_date(target)
     upcoming: List[Dict[str, Any]] = []
     if target == today.isoformat():
         for offset in range(1, 7):
             day = (today + timedelta(days=offset)).isoformat()
-            for item in list_work_for_date(day):
+            for item in by_day.get(day, []):
                 if item["status"] != "done":
                     upcoming.append(item)
-    return {
+    overdue = list_overdue_work() if target == today.isoformat() else []
+    backlog = list_backlog()
+    payload = {
         "local_date": target,
         "today": today_items,
-        "tomorrow": list_work_for_date(tomorrow) if target == today.isoformat() else [],
+        "tomorrow": by_day.get(tomorrow, []) if target == today.isoformat() else [],
         "upcoming": upcoming,
-        "overdue": list_overdue_work() if target == today.isoformat() else [],
-        "backlog": list_backlog(),
+        "overdue": overdue,
+        "backlog": backlog,
         "tomorrow_date": tomorrow,
         "counts": {
             "today_open": sum(1 for item in today_items if item["status"] != "done"),
             "today_done": sum(1 for item in today_items if item["status"] == "done"),
             "today_total": len(today_items),
-            "overdue": len(list_overdue_work()) if target == today.isoformat() else 0,
-            "backlog": len(list_backlog()),
+            "overdue": len(overdue),
+            "backlog": len(backlog),
         },
     }
+    _store_work_board_cache(target, payload)
+    return payload
 
 
 @eel.expose
@@ -1150,6 +1283,10 @@ def upsert_imported_work(
     due = _parse_due_at(due_at)
     if not due:
         raise ValueError("Imported work needs a due time")
+    due_day = _due_day(due)
+    today = _today().isoformat()
+    if not due_day or due_day < today:
+        raise ValueError("Imported work that is already past is discarded")
     now = _now().isoformat()
     with _connect() as conn:
         existing = conn.execute(
@@ -1210,12 +1347,15 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
 
     Calling upsert_imported_work per event used to open SQLite, rewrite the
     widget snapshot, export iCloud, and refresh Cluny once per Canvas due.
+    Past and undated calendar imports are skipped; they never become to-dos.
     """
     created = 0
     updated = 0
+    skipped = 0
     if not rows:
-        return {"created": 0, "updated": 0}
+        return {"created": 0, "updated": 0, "skipped": 0}
     now = _now().isoformat()
+    today = _today().isoformat()
     with _connect() as conn:
         for raw in rows:
             clean = str(raw.get("title") or "").strip()
@@ -1223,9 +1363,13 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
             calendar_key = str(raw.get("source_calendar") or "").strip()
             due = _parse_due_at(raw.get("due_at"))
             if not clean or not uid or not calendar_key or not due:
+                skipped += 1
                 continue
             notes = str(raw.get("notes") or "")
             due_day = _due_day(due)
+            if not due_day or due_day < today:
+                skipped += 1
+                continue
             existing = conn.execute(
                 """
                 SELECT * FROM work_items
@@ -1272,7 +1416,7 @@ def ingest_imported_work_batch(rows: List[Dict[str, Any]]) -> Dict[str, int]:
                 )
                 created += 1
     _write_widget_snapshot()
-    return {"created": created, "updated": updated}
+    return {"created": created, "updated": updated, "skipped": skipped}
 
 
 def count_undated_imported_work() -> int:
@@ -1288,25 +1432,36 @@ def count_undated_imported_work() -> int:
     return int(row["n"] or 0)
 
 
-def delete_undated_imported_work() -> Dict[str, Any]:
-    """Remove open calendar imports that never landed on a day."""
+def delete_stale_imported_work(*, write_snapshot: bool = True) -> Dict[str, Any]:
+    """Remove open calendar imports that are undated or already past."""
+    today = _today().isoformat()
     with _connect() as conn:
         rows = conn.execute(
             """
             SELECT id FROM work_items
             WHERE source = 'calendar'
               AND status != 'done'
-              AND (scheduled_date IS NULL OR due_at IS NULL OR TRIM(due_at) = '')
-            """
+              AND (
+                scheduled_date IS NULL
+                OR due_at IS NULL OR TRIM(due_at) = ''
+                OR substr(due_at, 1, 10) < ?
+              )
+            """,
+            (today,),
         ).fetchall()
         ids = [str(row["id"]) for row in rows]
         for item_id in ids:
             conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
     for item_id in ids:
         _mirror_task_delete(item_id)
-    if ids:
+    if ids and write_snapshot:
         _write_widget_snapshot()
     return {"ok": True, "deleted": len(ids), "ids": ids}
+
+
+def delete_undated_imported_work() -> Dict[str, Any]:
+    """Remove open calendar imports that never landed on a day, or are past."""
+    return delete_stale_imported_work()
 
 
 def delete_open_imported_work(source_calendar: str) -> Dict[str, Any]:

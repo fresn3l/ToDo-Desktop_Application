@@ -76,8 +76,8 @@ class LocalApiTests(unittest.TestCase):
                         "uid": "essay-2",
                         "title": "Essay 2 due",
                         "all_day": True,
-                        "start_at": "2026-09-04T00:00:00",
-                        "end_at": "2026-09-05T00:00:00",
+                        "start_at": "2026-12-04T00:00:00",
+                        "end_at": "2026-12-05T00:00:00",
                     }
                 ],
             },
@@ -86,7 +86,7 @@ class LocalApiTests(unittest.TestCase):
         self.assertEqual(payload["created"], 1)
         items = work.list_all_work_items()
         self.assertEqual(items[0]["title"], "Essay 2 due")
-        self.assertEqual(items[0]["due_at"], "2026-09-04T23:59:00")
+        self.assertEqual(items[0]["due_at"], "2026-12-04T23:59:00")
 
     def test_unknown_route(self) -> None:
         status, payload = local_api.handle_request("GET", "/nope")

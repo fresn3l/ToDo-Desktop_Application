@@ -132,32 +132,34 @@
                     <div class="cal-layout">
                         <div class="cal-main">
                             <div class="cal-toolbar">
-                                <h2 id="calWeekLabel">This month</h2>
+                                <h2 id="calWeekLabel">This week</h2>
                                 <div class="cal-toolbar-actions">
+                                    <div class="segmented" id="calViewGroup" role="group" aria-label="Calendar view">
+                                        <button type="button" data-cal-view="week" class="is-selected">Week</button>
+                                        <button type="button" data-cal-view="month">Month</button>
+                                        <button type="button" data-cal-view="year">Year</button>
+                                    </div>
+                                    <div class="cal-nav">
+                                        <button type="button" id="calPrevWeek" class="btn-ghost">Prev</button>
+                                        <button type="button" id="calThisWeek" class="btn-ghost">Today</button>
+                                        <button type="button" id="calNextWeek" class="btn-ghost">Next</button>
+                                    </div>
                                     <div class="cal-awake" title="Fill week only uses this window. Nights stay empty.">
                                         <label class="checklist-field-label" for="calDayStart">Awake</label>
                                         <input type="text" id="calDayStart" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="0530" maxlength="5" aria-label="Day starts (24-hour)">
                                         <span class="cal-awake-sep">–</span>
                                         <input type="text" id="calDayEnd" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="2130" maxlength="5" aria-label="Day ends (24-hour)">
                                     </div>
-                                    <div class="segmented" id="calViewGroup" role="group" aria-label="Calendar view">
-                                        <button type="button" data-cal-view="week">Week</button>
-                                        <button type="button" data-cal-view="month" class="is-selected">Month</button>
-                                        <button type="button" data-cal-view="year">Year</button>
-                                    </div>
-                                    <button type="button" id="calPrevWeek" class="btn-ghost">Prev</button>
-                                    <button type="button" id="calThisWeek" class="btn-ghost">Today</button>
-                                    <button type="button" id="calNextWeek" class="btn-ghost">Next</button>
                                     <button type="button" id="calFillWeek" class="btn-primary" title="Places open estimates around lectures this week.">Fill week</button>
                                 </div>
                             </div>
-                            <div class="cal-week-shell">
-                                <aside id="calTodayRail" class="cal-today-rail is-hidden" aria-label="Today"></aside>
-                                <div id="calGrid" class="cal-grid is-hidden"></div>
+                            <div class="cal-week-shell is-week">
+                                <aside id="calTodayRail" class="cal-today-rail" aria-label="Today"></aside>
+                                <div id="calGrid" class="cal-grid"></div>
                             </div>
-                            <p id="calClockHint" class="cal-clock-hint is-hidden">Click to lock. Shift-click skips. Alt-click marks done.</p>
-                            <div id="calMonthGrid" class="cal-month-grid"></div>
-                            <p id="calMonthLegend" class="cal-month-legend">Lecture · placed · due</p>
+                            <p id="calClockHint" class="cal-clock-hint">Click to lock. Shift-click skips. Alt-click marks done.</p>
+                            <div id="calMonthGrid" class="cal-month-grid is-hidden"></div>
+                            <p id="calMonthLegend" class="cal-month-legend is-hidden">Lecture · placed · due</p>
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
@@ -197,24 +199,23 @@
                                     <button type="button" id="calNewLecture" class="btn-ghost is-hidden">New lecture</button>
                                 </div>
                             </div>
-                            <div class="cal-aside-block">
+                            <div class="cal-aside-block" id="calUnplacedBlock" hidden>
                                 <h3>Unplaced</h3>
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
-                            <div class="cal-aside-block">
-                                <h3>Due dates</h3>
+                            <details class="cal-aside-block cal-feeds-panel">
+                                <summary>Calendars</summary>
                                 <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
                                 <input type="text" id="calIcsUrl" class="checklist-text-input" placeholder="Paste https:// or webcal:// calendar link" autocomplete="off" spellcheck="false" inputmode="url">
-                                <p class="checklist-hint small">Timed events land on the week clock. All-day and 11:59 items become due-date chips. Toggle a feed off to hide it; Unsubscribe in Settings removes it.</p>
+                                <p class="checklist-hint small">Timed events on the clock. All-day and 11:59 stay due chips. Past and undated imports are dropped.</p>
                                 <div id="calFeedToggles" class="cal-feed-toggles"></div>
                                 <div class="reminder-actions">
                                     <button type="button" id="calPasteIcs" class="btn-ghost">Paste</button>
                                     <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
                                     <button type="button" id="calImportApple" class="btn-ghost">Import Apple calendars</button>
                                 </div>
-                                <button type="button" id="calDeleteUndated" class="btn-ghost">Delete undated imported assignments</button>
                                 <p id="calImportStatus" class="cal-import-status"></p>
-                            </div>
+                            </details>
                         </aside>
                     </div>
                 </section>
@@ -415,9 +416,8 @@
                         <div class="panel-header">
                             <div>
                                 <h2>All Work</h2>
-                                <p class="panel-sub" id="allWorkSummary">Undated tasks. Assign them to today or tomorrow, or leave them here.</p>
+                                <p class="panel-sub" id="allWorkSummary">Tasks without a day. Assign them to today or tomorrow, or leave them here.</p>
                             </div>
-                            <button type="button" id="allWorkDeleteUndated" class="btn-ghost">Delete undated imported assignments</button>
                         </div>
                         <div class="work-add-row">
                             <input type="text" id="allWorkNewTitle" class="checklist-text-input" placeholder="A task without a date yet" autocomplete="off">
@@ -1069,10 +1069,6 @@
                             </div>
                             <div id="calendarFeedsList" class="calendar-feeds-list"></div>
                             <p id="calendarFeedsEmpty" class="checklist-hint small">No subscribed calendars.</p>
-                            <p id="undatedImportNote" class="checklist-hint small"></p>
-                            <div class="reminder-actions">
-                                <button type="button" id="deleteUndatedImportsBtn" class="btn-ghost">Delete undated imported assignments</button>
-                            </div>
                             <p id="calendarFeedsStatus" class="checklist-hint small"></p>
                         </div>
 
@@ -1306,6 +1302,14 @@
                 <button type="submit" class="btn-primary">Save settings</button>
             </form>
         </div>
+    </div>
+
+    <div id="calDayDues" class="cal-day-dues is-hidden" hidden>
+        <header>
+            <strong id="calDayDuesHeading">Due</strong>
+        </header>
+        <div id="calDayDuesList" class="cal-day-dues-list"></div>
+        <p class="cal-day-dues-hint">Click a due to mark it. Drag onto the clock to place it.</p>
     </div>
 
     <div id="calDueMenu" class="cal-due-menu is-hidden" hidden role="menu" aria-label="Due">
