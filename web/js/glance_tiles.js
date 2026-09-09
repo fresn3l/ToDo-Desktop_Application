@@ -669,22 +669,31 @@ export function mountGlance(kind, body, card) {
     });
 }
 
-export async function paintGlance(kind, body, card) {
+export function paintGlanceFromData(kind, body, card, data) {
     if (!body) return;
-    const size = sizeOf(card);
-    const data = await loadGlance(kind);
-    if (!body.isConnected) return;
-    body.innerHTML = renderKind(kind, data, size);
+    body.innerHTML = renderKind(kind, data, sizeOf(card));
 }
 
-export async function refreshGlances(kinds) {
+export async function paintGlance(kind, body, card) {
+    if (!body) return;
+    const data = await loadGlance(kind);
+    if (!body.isConnected) return;
+    paintGlanceFromData(kind, body, card, data);
+}
+
+export async function refreshGlances(kinds, dataByKind) {
     const set = kinds ? new Set(kinds) : null;
     const cards = [...document.querySelectorAll('#homeGridAbove .home-widget, #homeGrid .home-widget')];
     await Promise.all(cards.map(async (card) => {
         const kind = card.getAttribute('data-kind');
         if (set && !set.has(kind)) return;
         const body = card.querySelector('.home-widget-body');
-        if (body) await paintGlance(kind, body, card);
+        if (!body) return;
+        if (dataByKind && Object.prototype.hasOwnProperty.call(dataByKind, kind)) {
+            paintGlanceFromData(kind, body, card, dataByKind[kind]);
+            return;
+        }
+        await paintGlance(kind, body, card);
     }));
 }
 

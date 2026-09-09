@@ -1,63 +1,24 @@
 /**
- * Kosistenz app entry point (journal, workout, work).
+ * Kosistenz app entry point — Home first, other screens on demand.
  */
 
 import * as utils from './js/utils.js';
 import { initAppearance } from './js/appearance.js';
 import { setupTabs, switchTab } from './js/tabs.js';
-import { setupJournal, beginNewJournalEntry } from './js/journal.js';
-import { setupAnalytics } from './js/analytics.js';
-import { setupTimeline } from './js/timeline.js';
-import { setupSettings } from './js/settings.js';
-import { setupToday } from './js/today.js';
 import { setupHome } from './js/home.js';
-import { setupCalendar } from './js/calendar.js';
-import { setupWeather } from './js/weather.js';
-import { setupGlance } from './js/glance.js';
-import { setupTodo } from './js/todo.js';
-import { setupAllWork } from './js/all_work.js';
-import { setupWorkouts } from './js/workouts.js';
-import { setupGoals } from './js/goals.js';
-import { setupHeatmap } from './js/heatmap.js';
-import { setupDayBrief } from './js/day_brief.js';
-import { setupCluny } from './js/cluny.js';
-import { setupBrain } from './js/brain.js';
-import { setupLibrary } from './js/library.js';
-import { setupCounters } from './js/counters.js';
-import { setupReading } from './js/reading.js';
-import { setupWord } from './js/word.js';
-import { setupDailyChecklist } from './js/daily_checklist.js';
 
 async function init() {
     await initAppearance();
     setupTabs();
-    setupSettings();
     setupHome();
-    setupWeather();
-    setupGlance();
-    setupToday();
-    setupCalendar();
-    setupTodo();
-    setupGoals();
-    setupWord();
-    void setupDailyChecklist();
-    setupAllWork();
-    setupWorkouts();
-    setupJournal();
-    setupAnalytics();
-    setupTimeline();
-    setupHeatmap();
-    setupDayBrief();
-    setupCluny();
-    setupBrain();
-    setupLibrary();
-    setupCounters();
-    setupReading();
     document.addEventListener('kosistenz:command', (e) => {
         const action = e.detail?.action;
         if (action === 'journal-new') {
             switchTab('journal')
-                .then(() => beginNewJournalEntry(e.detail?.text || ''))
+                .then(async () => {
+                    const { beginNewJournalEntry } = await import('./js/journal.js');
+                    beginNewJournalEntry(e.detail?.text || '');
+                })
                 .catch((err) => console.error(err));
             return;
         }

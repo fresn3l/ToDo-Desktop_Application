@@ -1,14 +1,11 @@
 /**
  * Tab navigation — Home, Journal, Calendar, Settings.
+ * Non-Home screens load their JS and Python on first visit.
  */
 
-import { exitJournalFocus, loadPastEntries } from './journal.js';
-import { onSettingsTabShown } from './settings.js';
-import { onCalendarTabShown } from './calendar.js';
 import { onHomeTabShown, clearHomePageColors, closeHomeWork } from './home.js';
 import { notifyNativeTab } from './appearance.js';
-import { onBrainTabShown } from './brain.js';
-import { onLibraryTabShown } from './library.js';
+import { bootFeature, loadOnce } from './lazy.js';
 
 const ID_MAP = {
     home: 'homeTab',
@@ -55,6 +52,45 @@ function openTabFromEvent(e) {
     e.preventDefault();
     const pageId = btn.getAttribute('data-home-page');
     switchTab(tab, pageId ? { homePageId: pageId } : {}).catch((err) => console.error(err));
+}
+
+let journalApi = null;
+
+async function loadTab(key) {
+    return loadOnce(`tab:${key}`, async () => {
+        if (key === 'journal') {
+            await bootFeature('journal');
+            const mod = await import('./journal.js');
+            mod.setupJournal();
+            journalApi = mod;
+            return mod;
+        }
+        if (key === 'calendar') {
+            await bootFeature('calendar');
+            const mod = await import('./calendar.js');
+            mod.setupCalendar();
+            return mod;
+        }
+        if (key === 'brain') {
+            await bootFeature('brain');
+            const mod = await import('./brain.js');
+            mod.setupBrain();
+            return mod;
+        }
+        if (key === 'library') {
+            await bootFeature('library');
+            const mod = await import('./library.js');
+            mod.setupLibrary();
+            return mod;
+        }
+        if (key === 'settings') {
+            await bootFeature('settings');
+            const mod = await import('./settings.js');
+            mod.setupSettings();
+            return mod;
+        }
+        return null;
+    });
 }
 
 export function setupTabs() {
@@ -115,7 +151,7 @@ export async function switchTab(name, opts = {}) {
     document.documentElement.setAttribute('data-page', key);
 
     if (key !== 'journal') {
-        exitJournalFocus();
+        journalApi?.exitJournalFocus?.();
     }
     if (key !== 'home') {
         closeHomeWork(true);
@@ -125,16 +161,13 @@ export async function switchTab(name, opts = {}) {
     try {
         if (key === 'home') {
             await onHomeTabShown(opts.homePageId);
-        } else if (key === 'journal') {
-            await loadPastEntries();
-        } else if (key === 'calendar') {
-            await onCalendarTabShown();
-        } else if (key === 'brain') {
-            await onBrainTabShown();
-        } else if (key === 'library') {
-            await onLibraryTabShown();
-        } else if (key === 'settings') {
-            onSettingsTabShown();
+        } else {
+            const mod = await loadTab(key);
+            if (key === 'journal') await mod?.loadPastEntries?.();
+            else if (key === 'calendar') await mod?.onCalendarTabShown?.();
+            else if (key === 'brain') await mod?.onBrainTabShown?.();
+            else if (key === 'library') await mod?.onLibraryTabShown?.();
+            else if (key === 'settings') mod?.onSettingsTabShown?.();
         }
     } catch (err) {
         console.error(err);

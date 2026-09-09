@@ -17,7 +17,6 @@ from typing import Any, Dict, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import work
-import workouts
 
 API_PORT_START = 18741
 API_PORT_END = 18750
@@ -149,6 +148,8 @@ def log_session(
     key = str(kind or "").strip().lower()
     if key == "running" and miles is None:
         miles = 0
+    import workouts
+
     day = workouts.add_workout_session(
         _today().isoformat(),
         key,

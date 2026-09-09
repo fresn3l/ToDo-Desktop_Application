@@ -12,9 +12,7 @@ from typing import Any, Dict, Optional, Set
 
 import eel
 
-import journal
 import work
-import workouts
 from paths import data_directory
 
 
@@ -51,6 +49,8 @@ def _week_key(d: date) -> str:
 
 
 def _journal_entries_in_range(start: date, end: date) -> list:
+    import journal
+
     span = max(7, (date.today() - start).days + 1)
     entries = journal.get_recent_entries(days=span)
     out = []
@@ -73,12 +73,16 @@ def save_weekly_pattern_note(note: str) -> None:
 
 def _journal_count_for(today: date) -> int:
     try:
+        import journal
+
         return int(journal.count_entries_on(today) or 0)
     except Exception:
         return 0
 
 
 def _expected_payload(today: date) -> Dict[str, Any]:
+    import workouts
+
     template = workouts.load_week_template()
     kinds = workouts.expected_kinds_for_date(today, template)
     return {
@@ -103,6 +107,8 @@ def _last_workout_session(today_iso: str, today_workout: Dict[str, Any]) -> Opti
     if today_sessions:
         return _session_line(today_sessions[-1], today_iso)
     try:
+        import workouts
+
         days = workouts.list_recent_workout_days(21)
     except Exception:
         return None
@@ -119,6 +125,8 @@ def get_today_status(board: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Workout, to-do, and journal counts for today."""
     today = date.today()
     iso = today.isoformat()
+    import workouts
+
     work_board = board if isinstance(board, dict) else work.get_work_board(iso)
     work_open = int(work_board.get("counts", {}).get("today_open") or 0)
     work_done = int(work_board.get("counts", {}).get("today_done") or 0)
@@ -159,6 +167,8 @@ def get_today_home() -> Dict[str, Any]:
     """Full Today home payload: to-dos, expected workout, journal count."""
     today = date.today()
     iso = today.isoformat()
+    import workouts
+
     board = work.get_work_board(iso)
     status = get_today_status(board)
     workout = workouts.get_workout_day(iso)
@@ -192,6 +202,8 @@ def get_today_home() -> Dict[str, Any]:
 def get_analytics(days: int = 30) -> Dict[str, Any]:
     """Journal, workout, and repeating to-do metrics for the last N days."""
     import timeline
+
+    import workouts
 
     days = max(1, min(int(days or 30), 365))
     end = date.today()

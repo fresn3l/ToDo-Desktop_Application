@@ -150,7 +150,7 @@
                                         <span class="cal-awake-sep">–</span>
                                         <input type="text" id="calDayEnd" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="2130" maxlength="5" aria-label="Day ends (24-hour)">
                                     </div>
-                                    <button type="button" id="calFillWeek" class="btn-primary" title="Places open estimates around lectures this week.">Fill week</button>
+                                    <button type="button" id="calFillWeek" class="btn-primary" title="Places open estimates around busy time this week.">Fill week</button>
                                 </div>
                             </div>
                             <div class="cal-week-shell is-week">
@@ -159,15 +159,15 @@
                             </div>
                             <p id="calClockHint" class="cal-clock-hint">Click to lock. Shift-click skips. Alt-click marks done.</p>
                             <div id="calMonthGrid" class="cal-month-grid is-hidden"></div>
-                            <p id="calMonthLegend" class="cal-month-legend is-hidden">Lecture · placed · due</p>
+                            <p id="calMonthLegend" class="cal-month-legend is-hidden">Event · placed · due</p>
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
                             <div class="cal-aside-block" id="calEditor">
-                                <h3 id="calEditorHeading">New lecture</h3>
+                                <h3 id="calEditorHeading">Add to calendar</h3>
                                 <p id="calEditorHint" class="cal-editor-hint">Click a block to edit it. Drag to move.</p>
                                 <label class="checklist-field-label" for="calEventTitle">Name</label>
-                                <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="CHEM 109" autocomplete="off">
+                                <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="Office hours" autocomplete="off">
                                 <div class="cal-time-row">
                                     <label class="checklist-field-label" for="calEventStart">Starts</label>
                                     <input type="text" id="calEventStart" class="checklist-text-input" placeholder="2026-09-08 0930" spellcheck="false" autocomplete="off" inputmode="numeric" aria-label="Starts (24-hour)">
@@ -176,7 +176,7 @@
                                     <label class="checklist-field-label" for="calEventEnd">Ends</label>
                                     <input type="text" id="calEventEnd" class="checklist-text-input" placeholder="2026-09-08 1020" spellcheck="false" autocomplete="off" inputmode="numeric" aria-label="Ends (24-hour)">
                                 </div>
-                                <div id="calEventWeekdays" class="work-weekdays" role="group" aria-label="Lecture days">
+                                <div id="calEventWeekdays" class="work-weekdays" role="group" aria-label="Repeat on">
                                     <button type="button" class="work-day-chip" data-day="0">Mon</button>
                                     <button type="button" class="work-day-chip" data-day="1">Tue</button>
                                     <button type="button" class="work-day-chip" data-day="2">Wed</button>
@@ -196,7 +196,7 @@
                                     <button type="button" id="calParkItem" class="btn-ghost is-hidden">Save for later</button>
                                     <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
                                     <button type="button" id="calAskCluny" class="btn-ghost is-hidden">Ask about this</button>
-                                    <button type="button" id="calNewLecture" class="btn-ghost is-hidden">New lecture</button>
+                                    <button type="button" id="calNewLecture" class="btn-ghost is-hidden">Add another</button>
                                 </div>
                             </div>
                             <div class="cal-aside-block" id="calUnplacedBlock" hidden>
@@ -1315,7 +1315,7 @@
     <div id="calDueMenu" class="cal-due-menu is-hidden" hidden role="menu" aria-label="Due">
         <button type="button" data-act="done">Mark done</button>
         <button type="button" data-act="reopen" class="is-hidden">Reopen</button>
-        <button type="button" data-act="place-after">Place after lecture</button>
+        <button type="button" data-act="place-after">Place after this</button>
         <button type="button" data-act="todo">Open in To Do</button>
     </div>
 
