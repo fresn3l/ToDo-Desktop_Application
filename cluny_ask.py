@@ -228,12 +228,16 @@ def suggest_cluny_work(question: str = "") -> Dict[str, Any]:
         uid = proposal_uid(row)
         if uid in closed or uid in pending_ids:
             continue
+        citations = cluny_client.parse_citations(row.get("citations"))
+        if not citations and isinstance(proposals, dict):
+            citations = cluny_client.parse_citations(proposals.get("sources"))
         packed = {
             "id": uid,
             "title": row["title"],
             "estimate_minutes": row.get("estimate_minutes"),
             "due": due_date_only(row.get("due")),
             "keywords": row.get("keywords") or [],
+            "citations": citations,
             "status": "pending",
         }
         inbox["pending"].append(packed)
@@ -276,7 +280,7 @@ def accept_cluny_proposal(proposal_id: str) -> Dict[str, Any]:
     )
     _save_inbox(inbox)
     try:
-        cluny_sync.sync_task_mirror_safe({**item, "id": kosistenz_id})
+        cluny_client.mark_proposal_accepted(uid, kosistenz_id)
     except Exception:
         pass
     return {"ok": True, "duplicate": False, "item": item, "inbox": get_cluny_inbox(), "kosistenz_id": kosistenz_id}

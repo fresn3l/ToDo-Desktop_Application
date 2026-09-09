@@ -193,12 +193,144 @@ class ClunyAskTests(unittest.TestCase):
 
     def test_accept_stores_kosistenz_handshake(self) -> None:
         uid = self._seed_pending()
-        with mock.patch.object(cluny_ask.cluny_sync, "sync_task_mirror_safe"):
+        with mock.patch.object(cluny_client, "mark_proposal_accepted") as posted:
+            posted.return_value = {"ok": True}
             result = cluny_ask.accept_cluny_proposal(uid)
         item_id = result["item"]["id"]
-        self.assertEqual(result["kosistenz_id"], f"kosistenz:{item_id}")
+        kid = f"kosistenz:{item_id}"
+        self.assertEqual(result["kosistenz_id"], kid)
         closed = result["inbox"]["closed"][0]
-        self.assertEqual(closed["kosistenz_id"], f"kosistenz:{item_id}")
+        self.assertEqual(closed["kosistenz_id"], kid)
+        posted.assert_called_once_with(uid, kid)
+
+    def test_accept_succeeds_when_accepted_pointer_fails(self) -> None:
+        uid = self._seed_pending()
+        with mock.patch.object(
+            cluny_client,
+            "mark_proposal_accepted",
+            return_value={"ok": False, "error": "Cluny HTTP 404"},
+        ):
+            result = cluny_ask.accept_cluny_proposal(uid)
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["duplicate"])
+        self.assertTrue(str(result["kosistenz_id"]).startswith("kosistenz:"))
+
+    def test_parse_citations_keeps_known_fields_and_drops_junk(self) -> None:
+        parsed = cluny_client.parse_citations(
+            [
+                {"title": "Syllabus.pdf", "locator": "p.4", "score": 0.9, "unknown": True},
+                {"label": "Lecture notes"},
+                "Reading list",
+                None,
+                12,
+                {},
+            ]
+        )
+        self.assertEqual(
+            parsed,
+            [
+                {"title": "Syllabus.pdf", "locator": "p.4", "label": "Syllabus.pdf"},
+                {"title": "Lecture notes", "locator": "", "label": "Lecture notes"},
+                {"title": "Reading list", "locator": "", "label": "Reading list"},
+            ],
+        )
+        self.assertEqual(cluny_client.parse_citations(None), [])
+        self.assertEqual(cluny_client.parse_citations({"title": "nope"}), [])
+
+    def test_propose_keeps_citations_and_day_due(self) -> None:
+        payload = {
+            "proposals": [
+                {
+                    "id": "syl-1",
+                    "title": "Read week 3",
+                    "due": "2026-09-12T14:30:00",
+                    "estimate_minutes": 25,
+                    "keywords": ["spanish"],
+                    "unknown": "drop-me",
+                    "citations": [
+                        {"title": "Syllabus.pdf", "locator": "p.4", "score": 0.9},
+                        "Lecture notes",
+                    ],
+                }
+            ],
+            "sources": [{"title": "Library dump"}],
+        }
+        with mock.patch.object(cluny_client, "_request", return_value=payload):
+            result = cluny_client.propose("next")
+        row = result["proposals"][0]
+        self.assertEqual(row["id"], "syl-1")
+        self.assertEqual(row["due"], "2026-09-12")
+        self.assertNotIn("unknown", row)
+        self.assertEqual(row["citations"][0]["title"], "Syllabus.pdf")
+        self.assertEqual(row["citations"][0]["locator"], "p.4")
+        self.assertEqual(row["citations"][1]["label"], "Lecture notes")
+        self.assertEqual(result["sources"][0]["title"], "Library dump")
+
+    def test_mark_proposal_accepted_posts_pointer(self) -> None:
+        with mock.patch.object(cluny_client, "_request", return_value={"ok": True}) as req:
+            result = cluny_client.mark_proposal_accepted("syl-1", "kosistenz:abc")
+        self.assertTrue(result["ok"])
+        self.assertEqual(req.call_args.args[0], "POST")
+        self.assertIn("/propose/accepted", req.call_args.args[1])
+        self.assertEqual(
+            req.call_args.args[2],
+            {"proposal_id": "syl-1", "kosistenz_id": "kosistenz:abc"},
+        )
+
+    def test_mark_proposal_accepted_does_not_raise_when_cluny_is_off(self) -> None:
+        with mock.patch.object(
+            cluny_client, "_request", side_effect=ValueError("Cluny is off or unreachable")
+        ):
+            result = cluny_client.mark_proposal_accepted("syl-1", "kosistenz:abc")
+        self.assertFalse(result["ok"])
+        self.assertIn("Cluny is off", result["error"])
+
+    def test_suggest_stores_per_proposal_citations(self) -> None:
+        with mock.patch.object(
+            cluny_client,
+            "propose",
+            return_value={
+                "proposals": [
+                    {
+                        "id": "syl-1",
+                        "title": "Read week 3",
+                        "due": "2026-09-12",
+                        "keywords": ["spanish"],
+                        "citations": [
+                            {"title": "Syllabus.pdf", "locator": "p.4", "extra": "ignore"}
+                        ],
+                    }
+                ],
+                "sources": [{"title": "Old top-level"}],
+            },
+        ):
+            with mock.patch.object(cluny_ask, "build_context", return_value={"date": "2026-09-02"}):
+                inbox = cluny_ask.suggest_cluny_work()
+        row = inbox["pending"][0]
+        self.assertEqual(row["id"], "syl-1")
+        self.assertEqual(row["citations"], [{"title": "Syllabus.pdf", "locator": "p.4", "label": "Syllabus.pdf"}])
+
+    def test_suggest_falls_back_to_top_level_sources(self) -> None:
+        with mock.patch.object(
+            cluny_client,
+            "propose",
+            return_value={
+                "proposals": [
+                    {
+                        "id": "syl-2",
+                        "title": "Outline essay",
+                        "due": "2026-09-14",
+                    }
+                ],
+                "sources": [{"title": "Essay prompt.pdf", "locator": "p.1"}],
+            },
+        ):
+            with mock.patch.object(cluny_ask, "build_context", return_value={"date": "2026-09-02"}):
+                inbox = cluny_ask.suggest_cluny_work()
+        self.assertEqual(
+            inbox["pending"][0]["citations"],
+            [{"title": "Essay prompt.pdf", "locator": "p.1", "label": "Essay prompt.pdf"}],
+        )
 
     def test_due_date_only_drops_clock_times(self) -> None:
         self.assertEqual(cluny_ask.due_date_only("2026-09-10T14:30:00"), "2026-09-10")

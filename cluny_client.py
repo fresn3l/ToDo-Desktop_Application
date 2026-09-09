@@ -306,6 +306,28 @@ def chat_stream(
     }
 
 
+def parse_citations(raw: Any) -> List[Dict[str, str]]:
+    """Keep title / locator / label. Ignore unknown keys and junk types."""
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, str]] = []
+    for item in raw:
+        if isinstance(item, str):
+            label = item.strip()
+            if label:
+                out.append({"title": label, "locator": "", "label": label})
+            continue
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or item.get("doc_title") or item.get("source") or "").strip()
+        locator = str(item.get("locator") or item.get("path") or item.get("uri") or "").strip()
+        label = str(item.get("label") or title or locator).strip()
+        if not (title or locator or label):
+            continue
+        out.append({"title": title or label, "locator": locator, "label": label or title})
+    return out
+
+
 def propose(
     question: str,
     context_json: Optional[Dict[str, Any]] = None,
@@ -346,6 +368,7 @@ def propose(
         raw_kw = item.get("keywords") or []
         keywords = [str(k).strip() for k in raw_kw if str(k).strip()] if isinstance(raw_kw, list) else []
         given = str(item.get("id") or item.get("proposal_id") or "").strip()
+        citations = parse_citations(item.get("citations"))
         out.append(
             {
                 "id": given,
@@ -353,9 +376,28 @@ def propose(
                 "estimate_minutes": estimate,
                 "due": due,
                 "keywords": keywords,
+                "citations": citations,
             }
         )
     return {"proposals": out, "sources": sources}
+
+
+def mark_proposal_accepted(proposal_id: str, kosistenz_id: str) -> Dict[str, Any]:
+    """Tell Cluny this proposal is now a Kosistenz work item. Never raises."""
+    pid = str(proposal_id or "").strip()
+    kid = str(kosistenz_id or "").strip()
+    if not pid or not kid:
+        return {"ok": False, "error": "proposal_id and kosistenz_id required"}
+    try:
+        payload = _request(
+            "POST",
+            _api_url("propose/accepted"),
+            {"proposal_id": pid, "kosistenz_id": kid},
+            timeout=10.0,
+        )
+        return {"ok": True, "payload": payload}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
 
 
 def library_list(

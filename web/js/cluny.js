@@ -14,7 +14,15 @@ function hasEel(name) {
 function citationLabel(src) {
     if (typeof src === 'string') return src.trim();
     if (!src || typeof src !== 'object') return '';
-    return String(src.title || src.label || src.doc_title || '').trim();
+    return String(src.title || src.label || src.doc_title || src.locator || '').trim();
+}
+
+function citationChips(citations) {
+    const labels = [...new Set((citations || []).map(citationLabel).filter(Boolean))];
+    if (!labels.length) return '';
+    return `<div class="cluny-sources">${labels
+        .map((label) => `<span class="cluny-chip">${utils.escapeHtml(label)}</span>`)
+        .join('')}</div>`;
 }
 
 function applyHealth(probe) {
@@ -73,6 +81,7 @@ function paintInbox(inbox) {
                 <div>
                     <strong>${utils.escapeHtml(row.title || '')}</strong>
                     ${meta ? `<p class="checklist-hint small">${utils.escapeHtml(meta)}</p>` : ''}
+                    ${citationChips(row.citations)}
                 </div>
                 <div class="cluny-inbox-actions">
                     <button type="button" class="btn-primary" data-cluny-accept="${id}">Accept</button>

@@ -6422,6 +6422,10 @@ html[data-motion='reduce'] *::after {
     gap: 10px;
 }
 
+.cluny-inbox-row .cluny-sources {
+    margin-top: 6px;
+}
+
 .cluny-inbox-actions {
     display: flex;
     flex-wrap: wrap;
