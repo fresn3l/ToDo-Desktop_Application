@@ -3404,6 +3404,25 @@ html[data-motion='reduce'] .glance-tile {
     margin-top: var(--s-2);
 }
 
+.glance-action--ghost {
+    background: var(--accent-quiet);
+    color: var(--accent);
+}
+
+.glance-action--chip {
+    min-height: 1.75rem;
+    padding: 4px 8px;
+    font-size: var(--t-small, 0.8rem);
+    font-weight: 600;
+}
+
+.glance-weekdays {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: var(--s-2);
+}
+
 .glance-counters {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

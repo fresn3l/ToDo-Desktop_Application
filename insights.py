@@ -134,12 +134,22 @@ def get_today_status(board: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     workout = workouts.get_workout_day(iso)
     expected = _expected_payload(today)
     agenda = []
+    day_end = "21:30"
     try:
         import calclock
 
-        agenda = calclock.get_day_agenda(iso).get("items") or []
+        packed = calclock.get_day_agenda(iso)
+        agenda = packed.get("items") or []
+        day_end = str((packed.get("settings") or {}).get("day_end") or "21:30")
     except Exception:
         agenda = []
+    beat = {}
+    try:
+        import home_glances
+
+        beat = home_glances.clock_beat(agenda, day_end=day_end)
+    except Exception:
+        beat = {}
     return {
         "local_date": iso,
         "hour": datetime.now().hour,
@@ -159,6 +169,7 @@ def get_today_status(board: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
             "total": work_total,
         },
         "agenda": agenda,
+        "beat": beat,
     }
 
 

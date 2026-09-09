@@ -33,7 +33,22 @@ export const copy = {
     noWord: 'No word yet.',
     clunyOff: 'Off', // Glance Cluny is the health line when the brain is down
     noBrief: 'No brief yet',
+    writeIntention: 'Write an intention',
+    writeRecap: 'Write a recap',
     unscheduled: 'unscheduled',
+    done: 'Done',
+    plus15: '+15',
+    park: 'Park',
+    skip: 'Skip',
+    doToday: 'Do today',
+    logWorkout: 'Log',
+    now: 'Now',
+    next: 'Next',
+    gap: 'Gap',
+    clearClock: 'Clear clock.',
+    nothingDue: 'Nothing due this week.',
+    allPlaced: 'Everything placed.',
+    zeroMinutes: '0 min this week',
     usedTonight: 'Used tonight.',
     heldToday: 'Held for today.',
     loading: 'Loading…',
@@ -55,6 +70,15 @@ export function moreCount(n) {
 export function countLabel(base, n) {
     if (n == null || n === '') return base;
     return `${base} · ${n}`;
+}
+
+export function minutesLabel(n) {
+    const mins = Math.max(0, Number(n) || 0);
+    if (mins < 60) return `${mins} min`;
+    const hours = Math.floor(mins / 60);
+    const rem = mins % 60;
+    if (!rem) return hours === 1 ? '1 hr' : `${hours} hr`;
+    return `${hours}h ${rem}m`;
 }
 
 export function waitingLine(n) {

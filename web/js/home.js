@@ -20,7 +20,8 @@ const FALLBACK_LAYOUT = {
                 { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2, region: 'above' },
                 { id: 'w-weather', kind: 'weather', x: 0, y: 0, w: 2, h: 1 },
                 { id: 'w-word', kind: 'word', x: 2, y: 0, w: 2, h: 1 },
-                { id: 'w-cluny', kind: 'cluny', x: 0, y: 1, w: 4, h: 2 },
+                { id: 'w-day', kind: 'day_brief', x: 0, y: 1, w: 2, h: 2 },
+                { id: 'w-cluny', kind: 'cluny', x: 2, y: 1, w: 2, h: 2 },
             ],
         },
         {
@@ -33,6 +34,10 @@ const FALLBACK_LAYOUT = {
                 { id: 'w-habits', kind: 'habits', x: 2, y: 2, w: 2, h: 2 },
                 { id: 'w-heatmap', kind: 'heatmap', x: 0, y: 4, w: 2, h: 1 },
                 { id: 'w-reading', kind: 'reading', x: 2, y: 4, w: 2, h: 1 },
+                { id: 'w-unplaced', kind: 'unplaced', x: 0, y: 5, w: 2, h: 2 },
+                { id: 'w-dues', kind: 'dues', x: 2, y: 5, w: 2, h: 2 },
+                { id: 'w-free', kind: 'free_today', x: 0, y: 7, w: 2, h: 1 },
+                { id: 'w-now', kind: 'now_next', x: 2, y: 7, w: 2, h: 1 },
             ],
         },
     ],
@@ -119,23 +124,27 @@ const KIND_FEATURE = {
     reading: 'reading',
     word: 'word',
     cluny: 'cluny',
+    now_next: 'today',
+    unplaced: 'allwork',
+    dues: 'todo',
+    free_today: 'today',
 };
 
 async function ensureWork(kind) {
     return loadOnce(`work:${kind}`, async () => {
         const feature = KIND_FEATURE[kind];
         if (feature) await bootFeature(feature);
-        if (kind === 'today_calendar') {
+        if (kind === 'today_calendar' || kind === 'now_next' || kind === 'free_today') {
             const m = await import('./today.js');
             m.setupToday();
             return () => m.onTodayTabShown().then(() => m.refreshToday());
         }
-        if (kind === 'todo') {
+        if (kind === 'todo' || kind === 'dues') {
             const m = await import('./todo.js');
             m.setupTodo();
             return () => m.onTodoTabShown();
         }
-        if (kind === 'allwork') {
+        if (kind === 'allwork' || kind === 'unplaced') {
             const m = await import('./all_work.js');
             m.setupAllWork();
             return () => m.onAllWorkTabShown();

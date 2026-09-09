@@ -5,7 +5,7 @@
 
 import * as utils from './utils.js';
 import { WIDGET_CATALOG } from './home_layout.js';
-import { copy, moreCount, countLabel } from './glance_copy.js';
+import { copy, moreCount, countLabel, minutesLabel } from './glance_copy.js';
 
 function hasEel(name) {
     return typeof eel !== 'undefined' && typeof eel[name] === 'function';
@@ -51,33 +51,39 @@ function tile(kind, size, extraClass, inner) {
     return `<div class="glance-tile glance-tile--${kind} glance-tile--${size.w}x${size.h}${extraClass ? ` ${extraClass}` : ''}" data-glance="${kind}">${inner}</div>`;
 }
 
-function actionBtn(act, label, attrs = '') {
-    return `<button type="button" class="glance-action" data-glance-act="${utils.escapeHtml(act)}"${attrs}>${utils.escapeHtml(label)}</button>`;
+function actionBtn(act, label, attrs = '', extraClass = '') {
+    const cls = extraClass ? ` glance-action ${extraClass}` : 'glance-action';
+    return `<button type="button" class="${cls}" data-glance-act="${utils.escapeHtml(act)}"${attrs}>${utils.escapeHtml(label)}</button>`;
+}
+
+function actionRow(actions) {
+    const list = (actions || []).filter(Boolean);
+    if (!list.length) return '';
+    return `<div class="glance-actions">${list.map((row) => actionBtn(row.act, row.label, row.attrs || '', row.cls || '')).join('')}</div>`;
 }
 
 function openWorkAction(kind, label = copy.open) {
     return { act: 'open-work', label, attrs: ` data-kind="${utils.escapeHtml(kind)}"` };
 }
 
-function shellHtml({ kind, size, state = 'ready', label, primary = '', body = '', action = null, hero = false }) {
+function shellHtml({ kind, size, state = 'ready', label, primary = '', body = '', action = null, actions = null, hero = false }) {
     const stateCls = state !== 'ready' ? ` is-${state}` : '';
     const labelHtml = `<p class="glance-label">${utils.escapeHtml(label)}</p>`;
+    const row = actionRow(actions || (action ? [action] : []));
     if (state === 'empty' || state === 'error' || state === 'loading') {
-        const act = action ? actionBtn(action.act, action.label, action.attrs || '') : '';
         return tile(kind, size, stateCls, `
             ${labelHtml}
             <p class="glance-message">${utils.escapeHtml(primary || copy.couldNotLoad)}</p>
-            ${act}`);
+            ${row}`);
     }
     const primaryHtml = primary
         ? `<p class="glance-primary${hero ? ' glance-primary--hero' : ''}">${utils.escapeHtml(String(primary))}</p>`
         : '';
-    const act = action ? actionBtn(action.act, action.label, action.attrs || '') : '';
     return tile(kind, size, stateCls, `
         ${labelHtml}
         ${primaryHtml}
         ${body || ''}
-        ${act}`);
+        ${row}`);
 }
 
 function emptyShell(kind, size, message, action) {
@@ -210,6 +216,39 @@ function wordHtml(data, size) {
     return shellHtml({ kind, size, label, primary: head, hero: true, body: parts });
 }
 
+function beatActions(beat, size) {
+    if (!size.action) return [];
+    const focus = beat?.now || beat?.next;
+    if (!focus?.id) {
+        return [openWorkAction('today_calendar', copy.open)];
+    }
+    const actions = [openWorkAction('today_calendar', copy.open)];
+    if (beat?.can_skip && focus.id) {
+        actions.push({
+            act: 'block-skip',
+            label: copy.skip,
+            attrs: ` data-id="${utils.escapeHtml(focus.id)}"`,
+            cls: 'glance-action--ghost',
+        });
+    }
+    return actions;
+}
+
+function beatBody(beat, size) {
+    const nowItem = beat?.now;
+    const nextItem = beat?.next;
+    const gap = Number(beat?.gap_minutes || 0);
+    const nowLine = nowItem
+        ? `${copy.now} · ${formatAgendaTime(nowItem)} ${clip(nowItem.title || '', 28)}`.trim()
+        : '';
+    const nextLine = nextItem
+        ? `${copy.next} · ${formatAgendaTime(nextItem)} ${clip(nextItem.title || '', 28)}`.trim()
+        : copy.clearClock;
+    const gapLine = gap ? `${copy.gap} · ${minutesLabel(gap)}` : '';
+    const lines = [nowLine, nextLine, size.tall ? gapLine : ''].filter(Boolean);
+    return lines.map((line) => `<p class="glance-message">${utils.escapeHtml(line)}</p>`).join('');
+}
+
 function todayHtml(data, size) {
     const kind = 'today_calendar';
     const label = 'Today';
@@ -217,48 +256,18 @@ function todayHtml(data, size) {
     const d = iso ? new Date(`${iso}T12:00:00`) : new Date();
     const shortWeek = Number.isNaN(d.getTime()) ? 'Now' : d.toLocaleDateString(undefined, { weekday: 'short' });
     const dayNum = Number.isNaN(d.getTime()) ? '' : String(d.getDate());
-    const agenda = data?.agenda || [];
-    const intention = String(data?.intention || '').trim();
-    const briefLine = intention ? clip(intention, 56) : '';
-    const workout = (data?.expected?.labels || []).join(' · ');
-    const streak = Number(data?.journal_streak || 0);
-    const chips = [
-        workout ? clip(workout, 28) : '',
-        streak > 0 ? `${streak} day write` : '',
-    ].filter(Boolean).join(' · ');
-    const next = agenda[0];
-    const nextLine = next
-        ? `${formatAgendaTime(next)} ${clip(next.title || '', 28)}`.trim()
-        : copy.noEvents;
-    if (!size.wide && !size.tall) {
-        return shellHtml({ kind, size, label, primary: dayNum, body: `<p class="glance-message">${utils.escapeHtml(nextLine)}</p>` });
-    }
-    if (!size.tall) {
-        return shellHtml({
-            kind,
-            size,
-            label: `${shortWeek} ${dayNum}`,
-            primary: next ? formatAgendaTime(next) : '',
-            body: `<p class="glance-message">${utils.escapeHtml(next ? clip(next.title || '', 36) : copy.noEvents)}</p>`,
-        });
-    }
-    const limit = size.board ? 5 : 3;
-    const extra = Math.max(0, agenda.length - limit);
-    const rows = listRows(agenda, limit, (item) => {
-        const hh = formatAgendaTime(item);
-        return `<li><span>${utils.escapeHtml(hh)}</span><strong>${utils.escapeHtml(clip(item.title || '', 32))}</strong></li>`;
-    });
-    const more = extra ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(moreCount(extra))}</p>` : '';
+    const beat = data?.beat || {};
+    const focus = beat.now || beat.next;
+    const primary = beat.now
+        ? clip(beat.now.title || copy.now, 28)
+        : (focus ? formatAgendaTime(focus) : dayNum);
     return shellHtml({
         kind,
         size,
-        label: `${shortWeek} ${dayNum}`,
-        primary: '',
-        body: `
-            ${briefLine ? `<p class="glance-message">${utils.escapeHtml(briefLine)}</p>` : ''}
-            ${chips ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(chips)}</p>` : ''}
-            ${rows || `<p class="glance-message">${utils.escapeHtml(copy.noEvents)}</p>`}
-            ${more}`,
+        label: size.wide || size.tall ? `${shortWeek} ${dayNum}` : label,
+        primary: size.tall ? clip(beat.now?.title || beat.next?.title || copy.clearClock, 36) : primary,
+        body: beatBody(beat, size),
+        actions: beatActions(beat, size),
     });
 }
 
@@ -277,12 +286,23 @@ function todoHtml(data, size) {
         `<li class="${item.status === 'done' ? 'is-done' : ''}">${taskDot(item.status)}<strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
     ));
     const active = items.find((row) => row.status === 'active');
-    const nextOpen = items.find((row) => row.status === 'open');
-    let action = null;
-    if (size.action && active) {
-        action = { act: 'todo-finish', label: copy.finish, attrs: ` data-id="${utils.escapeHtml(active.id)}"` };
-    } else if (size.action && nextOpen) {
-        action = { act: 'todo-start', label: copy.start, attrs: ` data-id="${utils.escapeHtml(nextOpen.id)}"` };
+    const nextOpen = items.find((row) => row.status === 'open' || row.status === 'active');
+    const target = active || nextOpen;
+    const actions = [];
+    if (size.action && target?.id) {
+        actions.push({ act: 'todo-finish', label: copy.done, attrs: ` data-id="${utils.escapeHtml(target.id)}"` });
+        actions.push({
+            act: 'todo-plus15',
+            label: copy.plus15,
+            attrs: ` data-id="${utils.escapeHtml(target.id)}"`,
+            cls: 'glance-action--ghost',
+        });
+        actions.push({
+            act: 'todo-park',
+            label: copy.park,
+            attrs: ` data-id="${utils.escapeHtml(target.id)}"`,
+            cls: 'glance-action--ghost',
+        });
     }
     const headline = complete ? copy.allFinished : (active?.title || nextOpen?.title || '');
     const message = complete ? copy.allFinished : open ? '' : copy.nothingDated;
@@ -293,7 +313,7 @@ function todoHtml(data, size) {
         primary: size.tall ? clip(headline, 42) : String(complete ? done : open),
         hero: false,
         body: `${!size.tall && message ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(message)}</p>` : ''}${rows || ''}`,
-        action,
+        actions,
     });
 }
 
@@ -435,12 +455,23 @@ function workoutHtml(data, size) {
         lastDate ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(lastDate)}</p>` : '',
         done ? `<p class="glance-message glance-message--quiet">Logged</p>` : '',
     ].join('');
+    const expectedKind = (data?.expected?.kinds || [])[0] || '';
+    const actions = [];
+    if (size.action && expectedKind && !done) {
+        const needsName = expectedKind === 'other';
+        actions.push({
+            act: 'workout-log',
+            label: `${copy.logWorkout} ${clip(split || expectedKind, 16)}`,
+            attrs: ` data-kind="${utils.escapeHtml(expectedKind)}"${needsName ? ' data-needs-name="1"' : ''}`,
+        });
+    }
     return shellHtml({
         kind,
         size,
         label,
         primary: clip(headline, size.tall ? 36 : 22),
         body: bits || `<p class="glance-message">${utils.escapeHtml(copy.nothingLogged)}</p>`,
+        actions,
     });
 }
 
@@ -449,16 +480,28 @@ function goalsHtml(data, size) {
     const label = 'Goals';
     const rows = Array.isArray(data) ? data : [];
     if (!rows.length) return emptyShell(kind, size, copy.noGoals);
-    const weekly = rows.find((row) => row.horizon === 'week');
+    const weekly = rows.filter((row) => row.horizon === 'week');
+    const focus = weekly[0] || rows[0];
+    const spent = Number(focus?.spent_minutes || 0);
+    const target = Number(focus?.target_minutes || 0);
+    const zero = focus && target > 0 && spent === 0;
+    const score = target
+        ? `${minutesLabel(spent)} / ${minutesLabel(target)}`
+        : minutesLabel(spent);
     const list = size.tall
-        ? listRows(rows, size.board ? 5 : 4, (item) => `<li><strong>${utils.escapeHtml(clip(item.title || '', 32))}</strong></li>`)
+        ? listRows(weekly.length ? weekly : rows, size.board ? 5 : 4, (item) => {
+            const have = Number(item.spent_minutes || 0);
+            const want = Number(item.target_minutes || 0);
+            const meta = want ? `${minutesLabel(have)} / ${minutesLabel(want)}` : minutesLabel(have);
+            return `<li><strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong><span>${utils.escapeHtml(meta)}</span></li>`;
+        })
         : '';
     return shellHtml({
         kind,
         size,
-        label: countLabel(label, rows.length),
-        primary: size.tall ? '' : String(rows.length),
-        body: `${weekly ? `<p class="glance-message">${utils.escapeHtml(clip(weekly.title, 36))}</p>` : ''}${list}`,
+        label: countLabel(label, weekly.length || rows.length),
+        primary: size.tall ? clip(focus?.title || '', 32) : score,
+        body: `${!size.tall ? `<p class="glance-message">${utils.escapeHtml(clip(focus?.title || '', 32))}</p>` : ''}${zero ? `<p class="glance-message">${utils.escapeHtml(copy.zeroMinutes)}</p>` : ''}${list}`,
     });
 }
 
@@ -475,12 +518,22 @@ function allworkHtml(data, size) {
         `<li><strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
     ));
     const more = extra ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(moreCount(extra))}</p>` : '';
+    const first = rows[0];
+    const actions = [];
+    if (size.action && first?.id) {
+        actions.push({
+            act: 'work-today',
+            label: copy.doToday,
+            attrs: ` data-id="${utils.escapeHtml(first.id)}"`,
+        });
+    }
     return shellHtml({
         kind,
         size,
         label: countLabel(label, rows.length),
+        primary: size.tall ? clip(first?.title || '', 36) : String(rows.length),
         body: `${list}${more}`,
-        action: size.action ? openWorkAction(kind, copy.open) : null,
+        actions,
     });
 }
 
@@ -513,6 +566,8 @@ function dayBriefHtml(data, size) {
     const evening = data?.slot === 'evening';
     const label = evening ? 'Evening' : 'Morning';
     const leftover = data?.review?.leftover?.length || 0;
+    const intention = String(data?.morning?.intention_text || '').trim();
+    const recap = String(data?.evening?.recap_text || '').trim();
     const next = (data?.agenda || [])[0];
     const nextLine = next ? `${formatAgendaTime(next)} ${next.title || ''}`.trim() : copy.noEvents;
     if (evening) {
@@ -520,16 +575,18 @@ function dayBriefHtml(data, size) {
             kind,
             size,
             label,
-            primary: leftover ? String(leftover) : '',
-            body: `<p class="glance-message">${leftover ? `${leftover} leftover` : 'Review saved.'}</p>`,
+            primary: leftover ? String(leftover) : (recap ? clip(recap, 28) : copy.writeRecap),
+            body: `<p class="glance-message">${leftover ? `${leftover} leftover` : (recap ? utils.escapeHtml(clip(recap, 72)) : copy.writeRecap)}</p>`,
+            action: size.action ? openWorkAction(kind, recap ? copy.open : copy.writeRecap) : null,
         });
     }
     return shellHtml({
         kind,
         size,
         label,
-        primary: next ? formatAgendaTime(next) : '',
-        body: `<p class="glance-message">${utils.escapeHtml(nextLine)}</p>`,
+        primary: intention ? clip(intention, 32) : (next ? formatAgendaTime(next) : copy.writeIntention),
+        body: `<p class="glance-message">${utils.escapeHtml(intention ? clip(intention, 72) : nextLine)}</p>`,
+        action: size.action ? openWorkAction(kind, intention ? copy.open : copy.writeIntention) : null,
     });
 }
 
@@ -606,6 +663,87 @@ function clunyHtml(data, size) {
     });
 }
 
+function nowNextHtml(data, size) {
+    const kind = 'now_next';
+    const beat = data || {};
+    const focus = beat.now || beat.next;
+    const label = beat.now ? copy.now : copy.next;
+    return shellHtml({
+        kind,
+        size,
+        label,
+        primary: focus ? clip(focus.title || '', 28) : copy.clearClock,
+        body: beatBody(beat, size),
+        actions: beatActions(beat, size),
+    });
+}
+
+function weekdayChips(weekdays, itemId) {
+    const days = weekdays || [];
+    if (!days.length || !itemId) return '';
+    return `<div class="glance-weekdays">${days.map((day) => (
+        `<button type="button" class="glance-action glance-action--ghost glance-action--chip" data-glance-act="unplaced-day" data-id="${utils.escapeHtml(itemId)}" data-day="${utils.escapeHtml(day.date)}">${utils.escapeHtml(day.label)}</button>`
+    )).join('')}</div>`;
+}
+
+function unplacedHtml(data, size) {
+    const kind = 'unplaced';
+    const rows = data?.items || [];
+    const count = data?.count ?? rows.length;
+    if (!count) {
+        return emptyShell(kind, size, copy.allPlaced, openWorkAction('allwork', copy.add));
+    }
+    const first = rows[0];
+    const list = size.tall
+        ? listRows(rows, size.board ? 4 : 3, (item) => (
+            `<li><strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong><span>${utils.escapeHtml(minutesLabel(item.remaining_minutes || item.estimate_minutes))}</span></li>`
+        ))
+        : '';
+    return shellHtml({
+        kind,
+        size,
+        label: countLabel('Unplaced', count),
+        primary: clip(first?.title || '', 32),
+        body: `${list}${weekdayChips(data?.weekdays, first?.id)}`,
+    });
+}
+
+function duesHtml(data, size) {
+    const kind = 'dues';
+    const rows = data?.items || [];
+    if (!rows.length) {
+        return emptyShell(kind, size, copy.nothingDue, openWorkAction('todo', copy.addPlace));
+    }
+    const first = rows[0];
+    const list = listRows(rows, size.tall ? 5 : 2, (item) => (
+        `<li><strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong><span>${utils.escapeHtml(formatShortDate(item.due))}</span></li>`
+    ));
+    return shellHtml({
+        kind,
+        size,
+        label: countLabel('Due', data.count || rows.length),
+        primary: size.tall ? '' : formatShortDate(first.due),
+        body: list,
+        action: size.action ? openWorkAction('todo', copy.open) : null,
+    });
+}
+
+function freeTodayHtml(data, size) {
+    const kind = 'free_today';
+    const free = Number(data?.free_minutes || 0);
+    const needed = Number(data?.needed_minutes || 0);
+    const open = Number(data?.open_count || 0);
+    const line = `${minutesLabel(free)} free, ${minutesLabel(needed)} of open to-dos${open ? ` (${open})` : ''}.`;
+    return shellHtml({
+        kind,
+        size,
+        label: 'Free today',
+        primary: minutesLabel(free),
+        body: `<p class="glance-message">${utils.escapeHtml(line)}</p>`,
+        action: size.action ? openWorkAction('today_calendar', copy.open) : null,
+    });
+}
+
 function posterHtml(kind, _data, size) {
     return emptyShell(kind, size, copy.couldNotLoad);
 }
@@ -632,6 +770,10 @@ async function loadGlance(kind) {
         const health = await eelCall('get_cluny_health') || {};
         return { ...inbox, ...health };
     }
+    if (kind === 'now_next') return eelCall('get_now_next_glance');
+    if (kind === 'unplaced') return eelCall('get_unplaced_glance');
+    if (kind === 'dues') return eelCall('get_dues_week_glance');
+    if (kind === 'free_today') return eelCall('get_free_today_glance');
     return null;
 }
 
@@ -653,6 +795,10 @@ function renderKind(kind, data, size) {
     if (kind === 'analytics') return analyticsHtml(data, size);
     if (kind === 'timeline') return timelineHtml(data, size);
     if (kind === 'cluny') return clunyHtml(data, size);
+    if (kind === 'now_next') return nowNextHtml(data, size);
+    if (kind === 'unplaced') return unplacedHtml(data, size);
+    if (kind === 'dues') return duesHtml(data, size);
+    if (kind === 'free_today') return freeTodayHtml(data, size);
     return posterHtml(kind, data, size);
 }
 
@@ -702,8 +848,27 @@ export async function runGlanceAction(btn) {
     const id = btn?.getAttribute('data-id') || '';
     if (!act) return;
     try {
-        if (act === 'todo-finish' && hasEel('finish_work_item')) {
-            await eel.finish_work_item(id)();
+        if (act === 'todo-finish' && (hasEel('glance_finish_work') || hasEel('finish_work_item'))) {
+            if (hasEel('glance_finish_work')) await eel.glance_finish_work(id)();
+            else await eel.finish_work_item(id)();
+        } else if (act === 'todo-plus15' && hasEel('glance_plus15')) {
+            await eel.glance_plus15(id)();
+        } else if (act === 'todo-park' && hasEel('glance_park_work')) {
+            await eel.glance_park_work(id)();
+        } else if (act === 'work-today' && hasEel('glance_do_today')) {
+            await eel.glance_do_today(id)();
+        } else if (act === 'unplaced-day' && hasEel('glance_place_unplaced')) {
+            await eel.glance_place_unplaced(id, btn.getAttribute('data-day') || '')();
+        } else if (act === 'block-skip' && hasEel('glance_skip_block')) {
+            await eel.glance_skip_block(id)();
+        } else if (act === 'workout-log' && hasEel('glance_log_expected_workout')) {
+            const kind = btn.getAttribute('data-kind') || '';
+            let other = '';
+            if (btn.getAttribute('data-needs-name') === '1') {
+                other = window.prompt('Name this session') || '';
+                if (!other.trim()) return;
+            }
+            await eel.glance_log_expected_workout(kind, null, other)();
         } else if (act === 'todo-start' && hasEel('start_work_item')) {
             await eel.start_work_item(id)();
         } else if (act === 'habit-tick' && hasEel('toggle_home_habit')) {

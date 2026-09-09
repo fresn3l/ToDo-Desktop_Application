@@ -114,6 +114,10 @@ class HomeUiTests(unittest.TestCase):
             "reading",
             "word",
             "cluny",
+            "now_next",
+            "unplaced",
+            "dues",
+            "free_today",
         ):
             self.assertIn(f"{kind}:", HOME_JS)
         self.assertNotIn("journal:", HOME_JS)
@@ -193,6 +197,15 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("get_timeline_day", GLANCE_TILES)
         self.assertIn("get_cluny_inbox", GLANCE_TILES)
         self.assertIn("function clunyHtml", GLANCE_TILES)
+        self.assertIn("function nowNextHtml", GLANCE_TILES)
+        self.assertIn("function unplacedHtml", GLANCE_TILES)
+        self.assertIn("function duesHtml", GLANCE_TILES)
+        self.assertIn("function freeTodayHtml", GLANCE_TILES)
+        self.assertIn("todo-plus15", GLANCE_TILES)
+        self.assertIn("work-today", GLANCE_TILES)
+        self.assertIn("block-skip", GLANCE_TILES)
+        self.assertIn("workout-log", GLANCE_TILES)
+        self.assertIn("get_now_next_glance", GLANCE_TILES)
         self.assertNotIn("The days in a row", GLANCE_TILES)
         self.assertNotIn("A year at a glance", GLANCE_TILES)
         self.assertNotIn("The book in your hands", GLANCE_TILES)

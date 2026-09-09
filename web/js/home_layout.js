@@ -23,6 +23,10 @@ export const WIDGET_CATALOG = {
     reading: { label: 'Reading', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'readingSource' },
     word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'wordTab' },
     cluny: { label: 'Ask Cluny', sizes: [[2, 2], [2, 3], [3, 2], [3, 3], [4, 2]], default: [4, 2], source: 'clunySource' },
+    now_next: { label: 'Now', sizes: [[1, 1], [2, 1], [2, 2], [3, 1], [3, 2]], default: [2, 1], source: 'todayCalendarSource' },
+    unplaced: { label: 'Unplaced', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'allWorkTab' },
+    dues: { label: 'Due', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'todoTab' },
+    free_today: { label: 'Free', sizes: [[1, 1], [2, 1], [2, 2], [3, 1]], default: [2, 1], source: 'todayCalendarSource' },
 };
 
 export function catalogList() {
