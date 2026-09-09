@@ -64,7 +64,7 @@ function applyHealth(probe) {
     const line = document.getElementById('brainStatusLine');
     if (line) {
         line.textContent = brainReady
-            ? 'Live Kosistenz context on every message.'
+            ? 'Ask the local brain. Kosistenz keeps the list and the clock.'
             : (probe?.offline_copy || 'Cluny is off. Journal, to-dos, and the clock still work.');
     }
 }
@@ -125,7 +125,9 @@ export async function refreshBrain() {
             try {
                 const cfg = await eel.brain_user_config_get()();
                 const mode = document.getElementById('brainAgentMode');
-                if (mode && cfg?.agent_mode) mode.value = cfg.agent_mode;
+                if (mode && cfg?.agent_mode) {
+                    mode.value = cfg.agent_mode === 'planner' ? 'propose' : cfg.agent_mode;
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -321,7 +323,9 @@ async function saveBrainSettings(event) {
             retrieval_k: parseInt(document.getElementById('brainRetrievalK')?.value || '5', 10),
             hybrid_vector_weight: parseFloat(document.getElementById('brainHybridWeight')?.value || '0.5'),
             ask_collection: document.getElementById('brainAskCollection')?.value || null,
-            agent_mode: document.getElementById('brainAgentMode')?.value || null,
+            agent_mode: document.getElementById('brainAgentMode')?.value === 'planner'
+                ? 'propose'
+                : (document.getElementById('brainAgentMode')?.value || null),
         })();
         utils.showSuccessFeedback('Brain settings saved.');
         closeBrainModal('brainSettingsDialog');

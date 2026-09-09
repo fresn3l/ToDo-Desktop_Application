@@ -335,6 +335,14 @@ def propose(
         est = item.get("estimate_minutes")
         estimate = int(est) if isinstance(est, (int, float)) else None
         due = str(item.get("due") or "").strip() or None
+        if due:
+            if "T" in due:
+                due = due.split("T", 1)[0]
+            elif " " in due:
+                due = due.split(" ", 1)[0]
+            due = due[:10] if len(due) >= 10 else due
+            if len(due) < 10 or due[4] != "-" or due[7] != "-":
+                due = None
         raw_kw = item.get("keywords") or []
         keywords = [str(k).strip() for k in raw_kw if str(k).strip()] if isinstance(raw_kw, list) else []
         given = str(item.get("id") or item.get("proposal_id") or "").strip()
@@ -494,6 +502,7 @@ def sync_task(
     due_at: Optional[str] = None,
     notes: Optional[str] = None,
 ) -> Dict[str, Any]:
+    """HTTP helper only. Kosistenz does not treat Cluny /tasks as the live list."""
     payload = {
         "external_id": external_id,
         "title": title,
@@ -505,6 +514,7 @@ def sync_task(
 
 
 def delete_synced_task(external_id: str) -> Dict[str, Any]:
+    """HTTP helper only. Kosistenz does not treat Cluny /tasks as the live list."""
     return _request("DELETE", _api_url(f"tasks/sync/{external_id}"), timeout=15.0)
 
 

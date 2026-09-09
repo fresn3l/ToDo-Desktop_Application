@@ -77,7 +77,10 @@ class ClunyAskTests(unittest.TestCase):
         self.assertIsNone(item["scheduled_date"])
         self.assertTrue(item["is_backlog"])
         self.assertEqual(item["due_at"][:10], "2026-09-10")
+        self.assertEqual(item["due_at"], "2026-09-10T23:59:00")
         self.assertEqual(item["estimate_minutes"], 30)
+        self.assertIsNone(item.get("start_at"))
+        self.assertNotIn("14:", item["due_at"])
         today = work._today().isoformat()
         board = work.get_work_board(today)
         dated = [row["id"] for row in board["today"] + board["upcoming"]]
@@ -179,6 +182,7 @@ class ClunyAskTests(unittest.TestCase):
         self.assertIn("Essay", [row["title"] for row in ctx["todos_today"]])
         self.assertIn("Spanish backlog", [row["title"] for row in ctx["backlog"]])
         self.assertIn("Never pick a clock time", ctx["instruction"])
+        self.assertIn("live list", ctx["instruction"])
         self.assertIn("free_minutes", ctx)
         self.assertIsInstance(ctx["free_minutes"], int)
         self.assertIn("analytics", ctx)
@@ -195,6 +199,21 @@ class ClunyAskTests(unittest.TestCase):
         self.assertEqual(result["kosistenz_id"], f"kosistenz:{item_id}")
         closed = result["inbox"]["closed"][0]
         self.assertEqual(closed["kosistenz_id"], f"kosistenz:{item_id}")
+
+    def test_due_date_only_drops_clock_times(self) -> None:
+        self.assertEqual(cluny_ask.due_date_only("2026-09-10T14:30:00"), "2026-09-10")
+        self.assertEqual(cluny_ask.due_date_only("2026-09-10 14:30"), "2026-09-10")
+        self.assertEqual(cluny_ask.due_date_only("2026-09-10"), "2026-09-10")
+        self.assertIsNone(cluny_ask.due_date_only("14:30"))
+        self.assertIsNone(cluny_ask.due_date_only(""))
+
+    def test_accept_strips_hhmm_from_proposal_due(self) -> None:
+        uid = self._seed_pending(due="2026-09-10T14:30:00")
+        result = cluny_ask.accept_cluny_proposal(uid)
+        item = result["item"]
+        self.assertEqual(item["due_at"], "2026-09-10T23:59:00")
+        self.assertIsNone(item["scheduled_date"])
+        self.assertTrue(item["is_backlog"])
 
 
 if __name__ == "__main__":

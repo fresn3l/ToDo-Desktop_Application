@@ -643,7 +643,7 @@
                             <div>
                                 <p class="today-kicker">Brain</p>
                                 <h2>Ask Cluny</h2>
-                                <p class="panel-sub" id="clunyWidgetStatus">Ask about the week. You still pick the day.</p>
+                                <p class="panel-sub" id="clunyWidgetStatus">Ask about what you wrote. You still pick the day. Cluny does not schedule.</p>
                             </div>
                         </div>
                         <div id="clunyOffline" class="cluny-offline is-hidden">
@@ -662,7 +662,7 @@
                         <div id="clunySources" class="cluny-sources" hidden></div>
                         <div class="cluny-suggest-row">
                             <button type="button" class="btn-secondary" id="clunySuggestBtn">Suggest work</button>
-                            <p class="checklist-hint small" id="clunySuggestHint">Proposals land in All Work. You pick the day.</p>
+                            <p class="checklist-hint small" id="clunySuggestHint">Accept lands in All Work with a due date, never an HH:MM. You pick the day.</p>
                         </div>
                         <ul id="clunyInbox" class="cluny-inbox"></ul>
                     </div>
@@ -737,7 +737,7 @@
                             <div>
                                 <p class="today-kicker">Cluny</p>
                                 <h2>Brain</h2>
-                                <p id="brainStatusLine" class="panel-sub">Checking brain…</p>
+                                <p id="brainStatusLine" class="panel-sub">Ask the local brain. Kosistenz keeps the list and the clock.</p>
                             </div>
                             <div class="brain-chat-head-actions">
                                 <div id="brainHealthPill" class="brain-health-pill">…</div>
@@ -765,8 +765,9 @@
                                 <option value="ask">Ask</option>
                                 <option value="chat">Chat</option>
                                 <option value="knowledge">Knowledge</option>
-                                <option value="planner">Planner</option>
+                                <option value="propose">Propose</option>
                             </select>
+                            <p class="checklist-hint small">Propose drafts All Work items. Cluny never places HH:MM or writes the week clock.</p>
                             <button type="button" id="brainNewSessionBtn" class="btn-ghost">New chat</button>
                         </div>
                         <div id="brainChatLog" class="brain-chat-log" aria-live="polite"></div>
@@ -792,7 +793,7 @@
                             <div>
                                 <p class="today-kicker">Cluny</p>
                                 <h2>Library</h2>
-                                <p id="libraryStorageLine" class="panel-sub">Browse and organize indexed documents.</p>
+                                <p id="libraryStorageLine" class="panel-sub">Indexed PDFs and notes. Not your to-do list or week clock.</p>
                             </div>
                             <div class="library-head-actions">
                                 <button type="button" id="libraryOpenDataDirBtn" class="btn-ghost">Open data folder</button>
@@ -805,6 +806,9 @@
                             <div><dt>Chunks</dt><dd id="libraryChunkCount">—</dd></div>
                             <div><dt>Data dir</dt><dd id="libraryDataDir" class="library-data-dir">—</dd></div>
                         </dl>
+                        <div id="libraryOffline" class="brain-offline is-hidden">
+                            <p class="checklist-empty">Cluny is off. Journal, to-dos, and the clock still work.</p>
+                        </div>
                         <div class="library-layout">
                             <aside class="library-collections" aria-label="Collections">
                                 <div class="library-panel-head">

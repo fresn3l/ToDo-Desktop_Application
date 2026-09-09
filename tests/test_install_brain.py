@@ -38,6 +38,9 @@ class InstallBrainTests(unittest.TestCase):
         self.assertIn("cluny_binary_path", text)
         self.assertIn("cluny_data_dir", text)
         self.assertIn("CLUNY_DATA_DIR", text)
+        self.assertIn("$CLUNY_BIN_DIR/cluny", text)
+        self.assertIn("pip install -e", text)
+        self.assertIn('uname -s', text)
 
     def test_exits_nonzero_on_non_darwin(self) -> None:
         if platform.system() == "Darwin":

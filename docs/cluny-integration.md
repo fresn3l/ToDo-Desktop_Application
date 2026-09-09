@@ -39,7 +39,7 @@ What `macos/install_brain.sh` does on Darwin (exits 1 on Linux):
 
 Then **Settings → Cluny → Test connection**, then **Index my life**.
 
-The two apps stay separate processes. Kosistenz is usable if Cluny is quit. The phone does not run Ask Cluny. Cluny never places HH:MM, never writes packed blocks, never writes Apple Calendar, and never writes the iCloud pack.
+The two apps stay separate processes. Kosistenz is usable if Cluny is quit. The phone does not run Ask Cluny. Cluny never places HH:MM, never writes packed blocks, never writes Apple Calendar, and never writes the iCloud pack. Ask Cluny, Brain, and Library live in Kosistenz; Cluny’s own GUI is optional.
 
 ---
 
@@ -92,7 +92,7 @@ Shipped independently:
 
 - Library + Chroma + FTS, RAG, eval, backup/export.
 - CLI, PySide6 GUI, menu-bar widget, `cluny serve`.
-- **Also** `tasks.sqlite` and `calendar.sqlite`, plus planner tools that **create Cluny tasks** and **read Cluny calendar**.
+- **Also** `tasks.sqlite` and `calendar.sqlite` inside Cluny. Kosistenz does **not** treat those as live, does **not** push `/tasks/sync`, and does **not** read Cluny’s calendar. Proposals accepted here become Kosistenz All Work items with a due **date**, never an HH:MM.
 
 Sprint 11 currently assumes Cluny is the durable store for todos and calendar, and Kosistenz is a thin UI. **That assumption is inverted.** Kosistenz already has those stores and the iPhone pack. Cluny’s copies are a **second brain’s scratchpad**, not the week you carry.
 
@@ -441,9 +441,9 @@ Examples Cluny *may not* do:
 ### Kosistenz agent should (later work in this repo)
 
 1. Not add Ollama/Chroma/embeddings inside the Kosistenz process. `macos/install_brain.sh` installs Ollama + Cluny as a **separate** on-device stack.
-2. Keep `cluny_sync` ingest until HTTP ingest is proven, then prefer ingest-without-ownership.
-3. Add snapshot publish + proposal inbox when Phase 2–3 start.
-4. Optional Ask panel that degrades if port 8787 is down.
+2. Keep `cluny_sync` ingest (journals, check-ins, life digest). Do **not** resume `/tasks/sync` as a live list.
+3. Snapshot + proposal inbox are shipped: accept creates All Work, never a clock block.
+4. Ask / Brain / Library degrade if port 8787 is down; the rest of the app stays up.
 5. Keep weekly goals, packer, deadline ingest, iCloud pack entirely local to Kosistenz.
 
 ### Neither agent should

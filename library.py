@@ -1,4 +1,7 @@
-"""Library tab — browse and organize Cluny documents."""
+"""Library tab — Cluny’s indexed documents (PDFs, notes), not the to-do list or clock.
+
+Kosistenz stays usable if Cluny is quit; this tab degrades.
+"""
 
 from __future__ import annotations
 
@@ -12,20 +15,37 @@ import eel
 import cluny_client
 
 
+def _offline_payload(exc: Exception) -> Dict[str, Any]:
+    return {
+        "documents": [],
+        "collections": [],
+        "sources": [],
+        "offline": True,
+        "error": str(exc),
+        "offline_copy": "Cluny is off. Journal, to-dos, and the clock still work.",
+    }
+
+
 @eel.expose
 def library_list(
     collection: str = "",
     source: str = "",
 ) -> Dict[str, Any]:
-    return cluny_client.library_list(
-        collection=collection or None,
-        source=source or None,
-    )
+    try:
+        return cluny_client.library_list(
+            collection=collection or None,
+            source=source or None,
+        )
+    except ValueError as exc:
+        return _offline_payload(exc)
 
 
 @eel.expose
 def library_filters() -> Dict[str, Any]:
-    return cluny_client.library_collections()
+    try:
+        return cluny_client.library_collections()
+    except ValueError as exc:
+        return _offline_payload(exc)
 
 
 @eel.expose
@@ -52,12 +72,15 @@ def library_search(
     source: str = "",
     limit: int = 50,
 ) -> Dict[str, Any]:
-    return cluny_client.library_search(
-        str(q or ""),
-        collection=collection or None,
-        source=source or None,
-        limit=limit,
-    )
+    try:
+        return cluny_client.library_search(
+            str(q or ""),
+            collection=collection or None,
+            source=source or None,
+            limit=limit,
+        )
+    except ValueError as exc:
+        return _offline_payload(exc)
 
 
 @eel.expose
@@ -93,7 +116,7 @@ def library_stats() -> Dict[str, Any]:
     try:
         return cluny_client.stats()
     except ValueError as exc:
-        return {"error": str(exc)}
+        return _offline_payload(exc)
 
 
 @eel.expose

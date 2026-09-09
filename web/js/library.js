@@ -43,11 +43,19 @@ function applyStats(stats) {
     const chunks = document.getElementById('libraryChunkCount');
     const dir = document.getElementById('libraryDataDir');
     const line = document.getElementById('libraryStorageLine');
+    const offline = document.getElementById('libraryOffline');
     if (doc) doc.textContent = stats?.doc_count ?? '—';
     if (chunks) chunks.textContent = stats?.chunk_count ?? '—';
     if (dir) dir.textContent = stats?.data_dir || '—';
-    if (line && stats?.data_dir) {
-        line.textContent = `Indexed storage at ${stats.data_dir}`;
+    if (offline) offline.classList.toggle('is-hidden', !stats?.offline);
+    if (line) {
+        if (stats?.offline) {
+            line.textContent = stats.offline_copy || 'Cluny is off. Journal, to-dos, and the clock still work.';
+        } else if (stats?.data_dir) {
+            line.textContent = `Indexed storage at ${stats.data_dir}. Not your to-do list or week clock.`;
+        } else {
+            line.textContent = 'Indexed PDFs and notes. Not your to-do list or week clock.';
+        }
     }
 }
 
@@ -173,7 +181,8 @@ async function refreshLibrary() {
         }
     } catch (err) {
         console.error(err);
-        utils.showErrorFeedback(err?.message || 'Could not refresh library.');
+        applyStats({ offline: true, offline_copy: 'Cluny is off. Journal, to-dos, and the clock still work.' });
+        utils.showErrorFeedback(err?.message || 'Cluny is off. Journal, to-dos, and the clock still work.');
     }
 }
 

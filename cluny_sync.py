@@ -556,30 +556,9 @@ def sync_analytics_rollup_safe() -> Dict[str, Any]:
 
 
 def sync_task_mirror_safe(item: Dict[str, Any]) -> None:
-    """Mirror a Kosistenz todo to Cluny /tasks/sync (best-effort)."""
-    import cluny_client
-
-    item_id = str(item.get("id") or "").strip()
-    title = str(item.get("title") or "").strip()
-    if not item_id or not title:
-        return
-    status = str(item.get("status") or "open")
-    mirror_status = "done" if status == "done" else "open"
-    due = item.get("due_at") or item.get("due")
-    due_at = str(due)[:19] if due else None
-    notes = str(item.get("notes") or "").strip() or None
-    try:
-        if not cluny_client.health().get("brain_ready"):
-            return
-        cluny_client.sync_task(
-            external_id=item_id,
-            title=title,
-            status=mirror_status,
-            due_at=due_at,
-            notes=notes,
-        )
-    except ValueError as exc:
-        print(f"[Cluny sync] Task mirror failed: {exc}")
+    """Do not write Cluny /tasks. Kosistenz work_items is the live list."""
+    _ = item
+    return
 
 
 @eel.expose
@@ -645,15 +624,7 @@ def backfill_cluny_life(days: int = 180) -> Dict[str, Any]:
 
 
 def delete_task_mirror_safe(external_id: str) -> None:
-    import cluny_client
-
-    item_id = str(external_id or "").strip()
-    if not item_id:
-        return
-    try:
-        if not cluny_client.health().get("brain_ready"):
-            return
-        cluny_client.delete_synced_task(item_id)
-    except ValueError as exc:
-        print(f"[Cluny sync] Task delete mirror failed: {exc}")
+    """Do not delete from Cluny /tasks. Kosistenz work_items is the live list."""
+    _ = external_id
+    return
 

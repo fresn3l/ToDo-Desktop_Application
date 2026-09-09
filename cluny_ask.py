@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 import eel
@@ -74,19 +74,23 @@ def proposal_uid(row: Dict[str, Any]) -> str:
     return f"cluny-{digest}"
 
 
-def _hhmm(raw: Any) -> Optional[str]:
+def due_date_only(raw: Any) -> Optional[str]:
+    """Keep YYYY-MM-DD. Drop HH:MM so a proposal cannot place a clock time."""
     text = str(raw or "").strip()
     if not text:
         return None
     if "T" in text:
+        text = text.split("T", 1)[0]
+    elif " " in text:
+        text = text.split(" ", 1)[0]
+    if len(text) >= 10 and text[4] == "-" and text[7] == "-":
+        day = text[:10]
         try:
-            parsed = datetime.fromisoformat(text.replace("Z", "+00:00")[:32])
-            return parsed.strftime("%H:%M")
+            date.fromisoformat(day)
         except ValueError:
-            pass
-    if len(text) >= 5 and text[2] == ":":
-        return text[:5]
-    return text[:16]
+            return None
+        return day
+    return None
 
 
 def _minutes(hhmm: Optional[str]) -> Optional[int]:
@@ -228,7 +232,7 @@ def suggest_cluny_work(question: str = "") -> Dict[str, Any]:
             "id": uid,
             "title": row["title"],
             "estimate_minutes": row.get("estimate_minutes"),
-            "due": row.get("due"),
+            "due": due_date_only(row.get("due")),
             "keywords": row.get("keywords") or [],
             "status": "pending",
         }
@@ -255,7 +259,7 @@ def accept_cluny_proposal(proposal_id: str) -> Dict[str, Any]:
         match["title"],
         scheduled_date=None,
         source=PROPOSAL_SOURCE,
-        due_at=match.get("due"),
+        due_at=due_date_only(match.get("due")),
         estimate_minutes=match.get("estimate_minutes"),
         source_uid=uid,
         source_calendar=PROPOSAL_CALENDAR,

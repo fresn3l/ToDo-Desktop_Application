@@ -197,6 +197,19 @@ class ClunySettingsTests(unittest.TestCase):
         self.assertEqual(ingest.call_args.kwargs["collection"], "life")
         self.assertEqual(ingest.call_args.kwargs["title"], "kosistenz-life")
 
+    def test_task_mirror_does_not_write_cluny_tasks(self) -> None:
+        import cluny_client
+
+        with mock.patch.object(cluny_client, "sync_task") as sync, mock.patch.object(
+            cluny_client, "delete_synced_task"
+        ) as delete:
+            cluny_sync.sync_task_mirror_safe(
+                {"id": "abc", "title": "Essay", "status": "open", "due_at": "2026-09-10T14:30:00"}
+            )
+            cluny_sync.delete_task_mirror_safe("abc")
+        sync.assert_not_called()
+        delete.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -23,6 +23,7 @@ ASK_INSTRUCTION = (
     "todos_today, events_today, and overdue items. When asked about free time, "
     "recommend open to-dos by title using estimates and free_minutes as capacity. "
     "Never pick a clock time or say to do something at HH:MM. "
+    "Do not treat Cluny tasks or Cluny calendar as the live list. "
     "The user still picks the day; Fill week places the gap."
 )
 

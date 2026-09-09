@@ -29,7 +29,7 @@ function applyHealth(probe) {
         // Cluny status is one line — Ask about the week, or offline copy.
         status.textContent = offline
             ? (probe?.offline_copy || 'Cluny is off. Journal, to-dos, and the clock still work.')
-            : 'Ask about the week. You still pick the day.';
+            : 'Ask about what you wrote. You still pick the day. Cluny does not schedule.';
     }
 }
 
