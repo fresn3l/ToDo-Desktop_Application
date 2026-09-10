@@ -116,6 +116,43 @@ print("ok")
         with self.assertRaises(ValueError):
             lazy_eel.invoke_exposed("os_system", [])
 
+    def test_stubs_then_real_import_replaces_and_loads(self) -> None:
+        """Opening Calendar/Home after launch used to AssertionError on @eel.expose."""
+        code = r"""
+import json
+import os
+import sys
+import tempfile
+sys.path.insert(0, %r)
+tmp = tempfile.TemporaryDirectory()
+os.environ["KOSISTENZ_DATA_DIR"] = tmp.name
+import eel
+import lazy_eel
+lazy_eel.register_lazy_exposes()
+for name in lazy_eel.LAZY_MODULES:
+    lazy_eel.load_module(name)
+week = lazy_eel.invoke_exposed("get_week", [""])
+assert len(week["days"]) == 7, week
+today = lazy_eel.invoke_exposed("get_today_home", [])
+assert "beat" in today and "local_date" in today, today
+flow = lazy_eel.invoke_exposed("get_daily_checklist", [])
+assert isinstance(flow.get("nodes"), dict), flow
+json.dumps(week)
+json.dumps(today)
+json.dumps(flow)
+import home_boot
+from unittest import mock
+with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+    boot = home_boot.get_home_boot()
+json.dumps(boot)
+assert boot["glances"]["today_calendar"].get("ok") is not False
+assert "beat" in boot["glances"]["today_calendar"]
+assert boot.get("checkin") and boot["checkin"].get("ok") is not False
+print("ok")
+""" % (str(ROOT),)
+        out = subprocess.check_output([sys.executable, "-c", code], cwd=str(ROOT), text=True)
+        self.assertIn("ok", out)
+
     def test_home_boot_returns_today_when_weather_hangs(self) -> None:
         import threading
         import time

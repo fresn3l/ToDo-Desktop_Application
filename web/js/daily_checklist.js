@@ -4,7 +4,7 @@
 
 import * as utils from './utils.js';
 import { mountWorkPlanner, tomorrowISO } from './work.js';
-import { callEel, hasEel } from './lazy.js';
+import { callEel, eelErrorMessage, hasEel } from './lazy.js';
 
 let state = null;
 let checklistTemplateSelectBound = false;
@@ -16,8 +16,8 @@ async function populateChecklistTemplateSelect() {
     let bundles = [];
     let active = 'default';
     try {
-        bundles = await eel.list_bundled_checklists()();
-        active = await eel.get_active_checklist_stem()();
+        bundles = await callEel('list_bundled_checklists');
+        active = await callEel('get_active_checklist_stem');
     } catch (e) {
         console.error(e);
         return;
@@ -38,11 +38,9 @@ async function populateChecklistTemplateSelect() {
                 await openChecklistTemplate(sel.value, { announce: true });
             } catch (e) {
                 console.error(e);
-                utils.showErrorFeedback(
-                    typeof e === 'string' ? e : e?.message || 'Could not switch template.',
-                );
+                utils.showErrorFeedback(eelErrorMessage(e) || 'Could not switch template.');
                 try {
-                    sel.value = await eel.get_active_checklist_stem()();
+                    sel.value = await callEel('get_active_checklist_stem');
                 } catch (_) {
                     /* ignore */
                 }
@@ -53,7 +51,7 @@ async function populateChecklistTemplateSelect() {
 
 export async function openChecklistTemplate(stem, { announce = false } = {}) {
     if (!stem) return;
-    await eel.set_active_checklist_stem(stem)();
+    await callEel('set_active_checklist_stem', stem);
     const sel = document.getElementById('checklistTemplateSelect');
     if (sel) sel.value = stem;
     await loadDefinition();
@@ -68,7 +66,7 @@ export async function openChecklistTemplate(stem, { announce = false } = {}) {
 async function setupReminderControls() {
     const status = document.getElementById('reminderStatus');
     try {
-        const cfg = await eel.get_reminder_config()();
+        const cfg = await callEel('get_reminder_config');
         document.getElementById('reminderEnabled').checked = !!cfg.enabled;
         document.getElementById('reminderHour').value = cfg.hour ?? 20;
         document.getElementById('reminderMinute').value = cfg.minute ?? 0;
@@ -86,7 +84,7 @@ async function setupReminderControls() {
         const hour = parseInt(document.getElementById('reminderHour')?.value || '20', 10);
         const minute = parseInt(document.getElementById('reminderMinute')?.value || '0', 10);
         try {
-            const result = await eel.set_reminder_config(enabled, hour, minute)();
+            const result = await callEel('set_reminder_config', enabled, hour, minute);
             if (status) {
                 status.textContent = result.error || (result.installed ? 'Reminder saved and installed.' : 'Reminder disabled.');
             }
@@ -102,7 +100,7 @@ async function setupReminderControls() {
 
     document.getElementById('testReminderBtn')?.addEventListener('click', async () => {
         try {
-            const result = await eel.test_local_reminder()();
+            const result = await callEel('test_local_reminder');
             if (result.ok) utils.showSuccessFeedback('Test notification sent.');
             else utils.showErrorFeedback(result.error || result.stderr || 'Test failed.');
         } catch (e) {
@@ -160,7 +158,7 @@ export async function setupDailyChecklist() {
             if (type === 'yes_no' || type === 'choice') {
                 payload.trackDuration = !!document.getElementById('newItemTrackDuration')?.checked;
             }
-            await eel.add_custom_checklist_item(payload)();
+            await callEel('add_custom_checklist_item', payload);
             document.getElementById('newItemQuestion').value = '';
             const ta = document.getElementById('newItemOptions');
             if (ta) ta.value = '';
@@ -173,7 +171,7 @@ export async function setupDailyChecklist() {
             await renderCustomItemsList();
         } catch (e) {
             console.error(e);
-            utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Could not add question.');
+            utils.showErrorFeedback(eelErrorMessage(e) || 'Could not add question.');
         }
         });
     }
@@ -187,9 +185,10 @@ export async function setupDailyChecklist() {
         console.error(e);
         const el = document.getElementById('checklistWizard');
         if (el) {
-            const detail = hasEel('get_daily_checklist')
-                ? (typeof e === 'string' ? e : e?.message || String(e))
-                : 'Check-in is not ready. Restart Kosistenz.';
+            const detail = eelErrorMessage(e)
+                || (hasEel('get_daily_checklist') || hasEel('invoke_exposed')
+                    ? 'Could not load check-in.'
+                    : 'Check-in is not ready. Restart Kosistenz.');
             el.innerHTML = `<p class="checklist-error">${utils.escapeHtml(detail)}</p>`;
         }
     }
@@ -209,7 +208,7 @@ async function loadDefinition() {
 
 async function refreshCustomItems() {
     if (!state) return;
-    state.customItems = await eel.get_custom_checklist_items()();
+    state.customItems = await callEel('get_custom_checklist_items');
 }
 
 async function renderCustomItemsList() {
@@ -260,7 +259,7 @@ async function renderCustomItemsList() {
         btn.addEventListener('click', async () => {
             const id = btn.getAttribute('data-id');
             try {
-                await eel.remove_custom_checklist_item(id)();
+                await callEel('remove_custom_checklist_item', id);
                 await renderCustomItemsList();
                 utils.showSuccessFeedback('Removed.');
             } catch (err) {
@@ -948,7 +947,7 @@ async function completeFlow() {
         const id = state.def.id;
         const version = state.def.version;
         const answers = { ...state.answers };
-        await eel.submit_daily_checklist_response(id, version, answers)();
+        await callEel('submit_daily_checklist_response', id, version, answers);
         utils.showSuccessFeedback('Saved to your local database.');
         utils.notifyDataChanged();
         await loadRecentSubmissions();
@@ -1014,7 +1013,7 @@ async function loadRecentSubmissions() {
     if (!listEl) return;
     listEl.innerHTML = '<div class="empty-state empty-state--loading"><div class="loading-spinner"></div><p>Loading…</p></div>';
     try {
-        const rows = await eel.list_daily_checklist_submissions(30)();
+        const rows = await callEel('list_daily_checklist_submissions', 30);
         if (!rows.length) {
             listEl.innerHTML = `
                 <div class="empty-state empty-state--message empty-state--compact">

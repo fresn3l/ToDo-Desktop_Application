@@ -6,7 +6,7 @@ import * as utils from './utils.js';
 import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize, isFirstHomePage, widgetRegion, widgetsInRegion } from './home_layout.js';
 import { mountGlance, refreshGlances, runGlanceAction, syncHomeDayPart } from './glance_tiles.js';
 import { getAppearance, onAppearanceChange, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
-import { bootFeature, loadOnce } from './lazy.js';
+import { bootFeature, callEel, loadOnce } from './lazy.js';
 
 const FALLBACK_LAYOUT = {
     columns: 4,
@@ -72,19 +72,19 @@ function homeWidgetCards() {
 }
 
 async function persist(next) {
-    if (typeof eel === 'undefined' || !eel.save_home_layout) {
+    try {
+        layout = await callEel('save_home_layout', next);
+        return layout;
+    } catch (err) {
+        console.warn(err);
         layout = next;
         return layout;
     }
-    layout = await eel.save_home_layout(next)();
-    return layout;
 }
 
 async function fetchHomeBoot(pageId) {
     try {
-        if (typeof eel !== 'undefined' && eel.get_home_boot) {
-            return await eel.get_home_boot(pageId || '')();
-        }
+        return await callEel('get_home_boot', pageId || '');
     } catch (err) {
         console.warn(err);
     }
@@ -93,10 +93,8 @@ async function fetchHomeBoot(pageId) {
 
 async function loadLayout() {
     try {
-        if (typeof eel !== 'undefined' && eel.get_home_layout) {
-            layout = await eel.get_home_layout()();
-            return layout;
-        }
+        layout = await callEel('get_home_layout');
+        return layout;
     } catch (err) {
         console.warn(err);
     }
@@ -579,10 +577,11 @@ async function syncCheckin(prefetched) {
     band.hidden = false;
     let info = { slot: 'morning', morning_done: false, evening_done: false, current_done: false };
     try {
-        if (prefetched) {
+        const ready = prefetched && prefetched.ok !== false && (prefetched.slot || prefetched.date);
+        if (ready) {
             info = prefetched;
-        } else if (typeof eel !== 'undefined' && eel.get_home_checkin) {
-            info = await eel.get_home_checkin()();
+        } else {
+            info = await callEel('get_home_checkin');
         }
     } catch (err) {
         console.error(err);
