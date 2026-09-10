@@ -4,9 +4,11 @@
 
 import * as utils from './utils.js';
 import { mountWorkPlanner, tomorrowISO } from './work.js';
+import { callEel, hasEel } from './lazy.js';
 
 let state = null;
 let checklistTemplateSelectBound = false;
+let checklistSetupBound = false;
 
 async function populateChecklistTemplateSelect() {
     const sel = document.getElementById('checklistTemplateSelect');
@@ -110,35 +112,37 @@ async function setupReminderControls() {
 }
 
 export async function setupDailyChecklist() {
-    const restart = document.getElementById('restartChecklist');
-    if (restart) {
-        restart.addEventListener('click', () => {
-            startWizard();
-        });
-    }
-
-    const typeSel = document.getElementById('newItemType');
-    const choiceWrap = document.getElementById('choiceOptionsWrap');
-    const trackDurationWrap = document.getElementById('trackDurationWrap');
-    const toggleCustomItemFields = () => {
-        const type = typeSel?.value || 'yes_no';
-        if (choiceWrap) choiceWrap.classList.toggle('is-hidden', type !== 'choice');
-        const allowDuration = type === 'yes_no' || type === 'choice';
-        if (trackDurationWrap) {
-            trackDurationWrap.classList.toggle('is-hidden', !allowDuration);
+    if (!checklistSetupBound) {
+        checklistSetupBound = true;
+        const restart = document.getElementById('restartChecklist');
+        if (restart) {
+            restart.addEventListener('click', () => {
+                startWizard();
+            });
         }
-        if (!allowDuration) {
-            const td = document.getElementById('newItemTrackDuration');
-            if (td) td.checked = false;
-        }
-    };
-    typeSel?.addEventListener('change', toggleCustomItemFields);
-    toggleCustomItemFields();
 
-    await setupReminderControls();
-    setupChecklistKeys();
+        const typeSel = document.getElementById('newItemType');
+        const choiceWrap = document.getElementById('choiceOptionsWrap');
+        const trackDurationWrap = document.getElementById('trackDurationWrap');
+        const toggleCustomItemFields = () => {
+            const type = typeSel?.value || 'yes_no';
+            if (choiceWrap) choiceWrap.classList.toggle('is-hidden', type !== 'choice');
+            const allowDuration = type === 'yes_no' || type === 'choice';
+            if (trackDurationWrap) {
+                trackDurationWrap.classList.toggle('is-hidden', !allowDuration);
+            }
+            if (!allowDuration) {
+                const td = document.getElementById('newItemTrackDuration');
+                if (td) td.checked = false;
+            }
+        };
+        typeSel?.addEventListener('change', toggleCustomItemFields);
+        toggleCustomItemFields();
 
-    document.getElementById('addCustomItemBtn')?.addEventListener('click', async () => {
+        await setupReminderControls();
+        setupChecklistKeys();
+
+        document.getElementById('addCustomItemBtn')?.addEventListener('click', async () => {
         const type = document.getElementById('newItemType')?.value || 'yes_no';
         const question = document.getElementById('newItemQuestion')?.value.trim() || '';
         if (!question) {
@@ -171,7 +175,8 @@ export async function setupDailyChecklist() {
             console.error(e);
             utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Could not add question.');
         }
-    });
+        });
+    }
 
     try {
         await populateChecklistTemplateSelect();
@@ -182,14 +187,17 @@ export async function setupDailyChecklist() {
         console.error(e);
         const el = document.getElementById('checklistWizard');
         if (el) {
-            el.innerHTML = `<p class="checklist-error">Could not load checklist: ${utils.escapeHtml(String(e))}</p>`;
+            const detail = hasEel('get_daily_checklist')
+                ? (typeof e === 'string' ? e : e?.message || String(e))
+                : 'Check-in is not ready. Restart Kosistenz.';
+            el.innerHTML = `<p class="checklist-error">${utils.escapeHtml(detail)}</p>`;
         }
     }
 }
 
 async function loadDefinition() {
-    const def = await eel.get_daily_checklist()();
-    const customItems = await eel.get_custom_checklist_items()();
+    const def = await callEel('get_daily_checklist');
+    const customItems = await callEel('get_custom_checklist_items');
     state = {
         def,
         currentId: null,

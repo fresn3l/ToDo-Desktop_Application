@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from typing import Any, Dict, List, Optional
 
@@ -108,6 +109,32 @@ def fetch_glance(kind: str) -> Any:
     return None
 
 
+NETWORK_GLANCES = frozenset({"weather"})
+NETWORK_GLANCE_TIMEOUT_SEC = 3.0
+
+
+def _fetch_glances(kinds: List[str]) -> Dict[str, Any]:
+    """Local tiles first. Weather cannot hold up Today / To Do."""
+    out: Dict[str, Any] = {}
+    local = [kind for kind in kinds if kind not in NETWORK_GLANCES]
+    remote = [kind for kind in kinds if kind in NETWORK_GLANCES]
+    for kind in local:
+        out[kind] = fetch_glance(kind)
+    if not remote:
+        return out
+    pool = ThreadPoolExecutor(max_workers=len(remote))
+    try:
+        futs = {kind: pool.submit(fetch_glance, kind) for kind in remote}
+        for kind, fut in futs.items():
+            try:
+                out[kind] = fut.result(timeout=NETWORK_GLANCE_TIMEOUT_SEC)
+            except Exception as exc:
+                out[kind] = {"ok": False, "error": str(exc)}
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    return out
+
+
 def _ensure_cluny_supervisor() -> None:
     """Start the brain watcher after Home data is ready, not at process boot."""
     global _supervisor_started
@@ -143,7 +170,7 @@ def get_home_boot(page_id: str = "") -> Dict[str, Any]:
             continue
         seen.add(kind)
         kinds.append(kind)
-    glances = {kind: fetch_glance(kind) for kind in kinds}
+    glances = _fetch_glances(kinds)
     first = _first_page(layout)
     checkin = None
     if first and page.get("id") == first.get("id"):
