@@ -114,15 +114,7 @@ until blocks exist to show.
 
 ## Suggested order of work
 
-1. Schema: `due_at`, `estimate_minutes`, `events`, `blocks` (tests first).
-2. Mac week/day UI with hard events you type (lectures) — prove the clock
-   without Apple.
-3. EventKit: list calendars, tag one as deadlines, import → work items.
-4. Packer + Fill week.
-5. ICS URL as an alternative to EventKit.
-6. Then a **carry sprint**: iPhone today = blocks (this replaces most of
-   [iphone-sprint-2.md](iphone-sprint-2.md) UI work; shared iCloud folder
-   is still a prerequisite).
+Mac clock + packer items 1–5 **shipped**. Carry work is [iphone.md](iphone.md): the phone acts on packed blocks and unplaced work; shared iCloud Drive / Kosistenz is already the pack.
 
 ---
 
@@ -150,4 +142,4 @@ chunking without EventKit.
 - [x] Lectures exist as hard events you added in Kosistenz.
 - [x] Fill week places estimates around hard time; you can lock/skip.
 - [x] Nothing is written to Apple Calendar.
-- [x] iPhone/mail/goals/Cluny-scheduling are explicitly not in this slice.
+- [x] iPhone/mail/goals/Cluny-scheduling were not in the first Mac clock slice. Phone catch-up: [iphone.md](iphone.md).

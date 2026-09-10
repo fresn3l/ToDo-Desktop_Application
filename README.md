@@ -88,7 +88,7 @@ That still opens the **native WebKit window**, not Chrome.
   calendars (Apple subscription or ICS URL) become to-dos with due times, not
   busy bars. **Fill week** places study around class. Nothing is written back
   to Apple Calendar.
-- **iPhone (in progress)**: same Apple ID, JSON pack in iCloud Drive / Kosistenz — see `docs/iphone-sprint.md` and `ios/`
+- **iPhone**: companion in `ios/` — same Apple ID, JSON pack in iCloud Drive / Kosistenz. Carry loop (act on the packed day) is [docs/iphone.md](docs/iphone.md).
 
 ## Data Storage
 
