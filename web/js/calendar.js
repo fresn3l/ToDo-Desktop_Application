@@ -462,7 +462,7 @@ function paintFeedToggles(feeds) {
     root.querySelectorAll('input[data-feed-id]').forEach((input) => {
         input.addEventListener('change', async () => {
             try {
-                await eel.set_calendar_feed_enabled(input.getAttribute('data-feed-id'), input.checked)();
+                await callEel('set_calendar_feed_enabled', input.getAttribute('data-feed-id'), input.checked);
                 utils.notifyDataChanged();
                 await loadCalendar();
             } catch (err) {
@@ -790,9 +790,9 @@ async function onBlockPointerUp(e) {
     const end = new Date(start.getTime() + state.preview.duration * 60000);
     try {
         if (state.kind === 'hard') {
-            await eel.update_calendar_event(state.id, '', toApiIso(start), toApiIso(end), null, state.occurrenceDate)();
+            await callEel('update_calendar_event', state.id, '', toApiIso(start), toApiIso(end), null, state.occurrenceDate);
         } else {
-            await eel.update_schedule_block(state.id, '', toApiIso(start), toApiIso(end), '')();
+            await callEel('update_schedule_block', state.id, '', toApiIso(start), toApiIso(end), '');
         }
         utils.notifyDataChanged();
         await loadCalendar();
@@ -932,7 +932,7 @@ async function onDuePointerUp(e) {
     start.setMinutes(state.preview.startMin + state.preview.minutesFromStart);
     const end = new Date(start.getTime() + state.preview.duration * 60000);
     try {
-        await eel.schedule_work_at(state.id, toApiIso(start), toApiIso(end))();
+        await callEel('schedule_work_at', state.id, toApiIso(start), toApiIso(end));
         utils.notifyDataChanged();
         await loadCalendar();
         utils.showSuccessFeedback('Placed on the clock. Due date unchanged.');
@@ -952,13 +952,13 @@ async function runDueMenu(act) {
     if (!id) return;
     try {
         if (act === 'done') {
-            await eel.finish_work_item(id)();
+            await callEel('finish_work_item', id);
             utils.showSuccessFeedback('Marked done.');
         } else if (act === 'reopen') {
-            await eel.reopen_work_item(id)();
+            await callEel('reopen_work_item', id);
             utils.showSuccessFeedback('Reopened.');
         } else if (act === 'place-after') {
-            await eel.place_work_after_lecture(id, date)();
+            await callEel('place_work_after_lecture', id, date);
             utils.showSuccessFeedback('Placed after this.');
         } else if (act === 'todo') {
             document.dispatchEvent(new CustomEvent('kosistenz:open-todo', { detail: { date, itemId: id } }));
@@ -988,18 +988,18 @@ async function saveEditor() {
     }
     try {
         if (editor.mode === 'new' || editor.mode === 'hard' && !editor.id) {
-            await eel.create_calendar_event(title, start, end, selectedEventDays())();
+            await callEel('create_calendar_event', title, start, end, selectedEventDays());
             resetEditor();
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'hard') {
-            await eel.update_calendar_event(editor.id, title, start, end, selectedEventDays(), editor.occurrenceDate)();
+            await callEel('update_calendar_event', editor.id, title, start, end, selectedEventDays(), editor.occurrenceDate);
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'unplaced') {
-            await eel.schedule_work_at(editor.id, start, end)();
+            await callEel('schedule_work_at', editor.id, start, end);
             resetEditor();
             utils.showSuccessFeedback('Placed on the clock.');
         } else {
-            await eel.update_schedule_block(editor.id, title, start, end, selectedBlockStatus())();
+            await callEel('update_schedule_block', editor.id, title, start, end, selectedBlockStatus());
             utils.showSuccessFeedback('Saved.');
         }
         utils.notifyDataChanged();
@@ -1012,11 +1012,11 @@ async function saveEditor() {
 async function parkEditor() {
     try {
         if (editor.mode === 'unplaced' && editor.id) {
-            await eel.assign_work_item(editor.id, '')();
+            await callEel('assign_work_item', editor.id, '');
             resetEditor();
             utils.showSuccessFeedback('Left in All Work.');
         } else if ((editor.mode === 'work' || editor.mode === 'workout') && editor.id) {
-            await eel.park_schedule_block(editor.id)();
+            await callEel('park_schedule_block', editor.id);
             resetEditor();
             utils.showSuccessFeedback(editor.mode === 'workout' ? 'Taken off the clock.' : 'Saved for later in All Work.');
         } else {
@@ -1042,9 +1042,9 @@ async function removeEditor() {
     }))) return;
     try {
         if (hard) {
-            await eel.delete_calendar_event(editor.id)();
+            await callEel('delete_calendar_event', editor.id);
         } else {
-            await eel.delete_schedule_block(editor.id, true)();
+            await callEel('delete_schedule_block', editor.id, true);
         }
         resetEditor();
         utils.notifyDataChanged();
@@ -1111,7 +1111,7 @@ async function importPasted(raw) {
     const status = document.getElementById('calImportStatus');
     if (status) status.textContent = 'Importing…';
     try {
-        const result = await eel.import_pasted_calendar(raw)();
+        const result = await callEel('import_pasted_calendar', raw);
         const duesNew = result.created || 0;
         const duesUp = result.updated || 0;
         const clock = result.events_created || 0;

@@ -25,6 +25,23 @@ _EXPOSE_RE = re.compile(
 _lock = threading.Lock()
 _loaded: Dict[str, bool] = {}
 
+
+def _allow_reexpose() -> None:
+    """Stubs register names before the real module imports.
+
+    Eel's default ``_expose`` asserts on duplicates, so the first Calendar /
+    Today / check-in load raised ``Already exposed function with name …`` and
+    the UI painted “Could not load.” Replace the stub with the real function.
+    """
+
+    def _expose(name: str, function: object) -> None:
+        eel._exposed_functions[name] = function
+
+    eel._expose = _expose  # type: ignore[attr-defined]
+
+
+_allow_reexpose()
+
 LAZY_MODULES: Tuple[str, ...] = (
     "brain",
     "library",
@@ -51,6 +68,7 @@ LAZY_MODULES: Tuple[str, ...] = (
     "word_of_the_day",
     "journal",
     "daily_checklist",
+    "workouts",
 )
 
 FEATURE_MODULES: Dict[str, Tuple[str, ...]] = {
@@ -271,6 +289,16 @@ EXPOSE_FALLBACK: Dict[str, Tuple[str, ...]] = {
         "submit_daily_checklist_response",
         "list_daily_checklist_submissions",
         "get_home_checkin",
+    ),
+    "workouts": (
+        "get_week_template",
+        "save_week_template",
+        "get_workouts_db_path_exposed",
+        "get_workout_day",
+        "save_body_weight",
+        "add_workout_session",
+        "delete_workout_session",
+        "list_recent_workout_days",
     ),
 }
 

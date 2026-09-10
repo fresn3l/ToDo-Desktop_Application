@@ -6,7 +6,7 @@
 import * as utils from './utils.js';
 import { WIDGET_CATALOG } from './home_layout.js';
 import { copy, moreCount, countLabel, minutesLabel } from './glance_copy.js';
-import { callEel, hasEel } from './lazy.js';
+import { callEel } from './lazy.js';
 
 async function eelCall(name, ...args) {
     try {
@@ -852,36 +852,39 @@ export async function runGlanceAction(btn) {
     const id = btn?.getAttribute('data-id') || '';
     if (!act) return;
     try {
-        if (act === 'todo-finish' && (hasEel('glance_finish_work') || hasEel('finish_work_item'))) {
-            if (hasEel('glance_finish_work')) await eel.glance_finish_work(id)();
-            else await eel.finish_work_item(id)();
-        } else if (act === 'todo-plus15' && hasEel('glance_plus15')) {
-            await eel.glance_plus15(id)();
-        } else if (act === 'todo-park' && hasEel('glance_park_work')) {
-            await eel.glance_park_work(id)();
-        } else if (act === 'work-today' && hasEel('glance_do_today')) {
-            await eel.glance_do_today(id)();
-        } else if (act === 'unplaced-day' && hasEel('glance_place_unplaced')) {
-            await eel.glance_place_unplaced(id, btn.getAttribute('data-day') || '')();
-        } else if (act === 'block-skip' && hasEel('glance_skip_block')) {
-            await eel.glance_skip_block(id)();
-        } else if (act === 'workout-log' && hasEel('glance_log_expected_workout')) {
+        if (act === 'todo-finish') {
+            try {
+                await callEel('glance_finish_work', id);
+            } catch (_) {
+                await callEel('finish_work_item', id);
+            }
+        } else if (act === 'todo-plus15') {
+            await callEel('glance_plus15', id);
+        } else if (act === 'todo-park') {
+            await callEel('glance_park_work', id);
+        } else if (act === 'work-today') {
+            await callEel('glance_do_today', id);
+        } else if (act === 'unplaced-day') {
+            await callEel('glance_place_unplaced', id, btn.getAttribute('data-day') || '');
+        } else if (act === 'block-skip') {
+            await callEel('glance_skip_block', id);
+        } else if (act === 'workout-log') {
             const kind = btn.getAttribute('data-kind') || '';
             let other = '';
             if (btn.getAttribute('data-needs-name') === '1') {
                 other = window.prompt('Name this session') || '';
                 if (!other.trim()) return;
             }
-            await eel.glance_log_expected_workout(kind, null, other)();
-        } else if (act === 'todo-start' && hasEel('start_work_item')) {
-            await eel.start_work_item(id)();
-        } else if (act === 'habit-tick' && hasEel('toggle_home_habit')) {
-            await eel.toggle_home_habit(id)();
-        } else if (act === 'counter-tap' && hasEel('tap_counter')) {
+            await callEel('glance_log_expected_workout', kind, null, other);
+        } else if (act === 'todo-start') {
+            await callEel('start_work_item', id);
+        } else if (act === 'habit-tick') {
+            await callEel('toggle_home_habit', id);
+        } else if (act === 'counter-tap') {
             const step = parseInt(btn.getAttribute('data-step') || '1', 10) || 1;
-            await eel.tap_counter(id, step)();
-        } else if (act === 'focus-keep' && hasEel('keep_daily_focus')) {
-            await eel.keep_daily_focus(true)();
+            await callEel('tap_counter', id, step);
+        } else if (act === 'focus-keep') {
+            await callEel('keep_daily_focus', true);
         } else if (act === 'cluny-ask') {
             document.dispatchEvent(new CustomEvent('kosistenz:open-cluny', {
                 detail: { question: btn.getAttribute('data-q') || '' },
