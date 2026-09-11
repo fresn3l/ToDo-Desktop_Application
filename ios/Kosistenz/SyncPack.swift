@@ -215,6 +215,7 @@ struct CalendarFile: Codable {
     var days: [CalendarDay]
     var unplaced: [UnplacedItem]
     var hard_events: [HardEvent]
+    var marks: [CalendarMark]
 
     init(
         week_start: String? = nil,
@@ -223,7 +224,8 @@ struct CalendarFile: Codable {
         day_end: String? = nil,
         days: [CalendarDay] = [],
         unplaced: [UnplacedItem] = [],
-        hard_events: [HardEvent] = []
+        hard_events: [HardEvent] = [],
+        marks: [CalendarMark] = []
     ) {
         self.week_start = week_start
         self.week_end = week_end
@@ -232,6 +234,7 @@ struct CalendarFile: Codable {
         self.days = days
         self.unplaced = unplaced
         self.hard_events = hard_events
+        self.marks = marks
     }
 
     init(from decoder: Decoder) throws {
@@ -243,7 +246,14 @@ struct CalendarFile: Codable {
         days = try container.decodeIfPresent([CalendarDay].self, forKey: .days) ?? []
         unplaced = try container.decodeIfPresent([UnplacedItem].self, forKey: .unplaced) ?? []
         hard_events = try container.decodeIfPresent([HardEvent].self, forKey: .hard_events) ?? []
+        marks = try container.decodeIfPresent([CalendarMark].self, forKey: .marks) ?? []
     }
+}
+
+struct CalendarMark: Codable, Identifiable, Equatable {
+    var id: String
+    var status: String
+    var updated_at: String
 }
 
 struct CalendarDay: Codable {
@@ -288,11 +298,13 @@ struct CalendarItem: Codable, Identifiable {
     var status: String?
     var start_at: String?
     var end_at: String?
-    var id: String { "\(itemId ?? title ?? "event")-\(start_at ?? "")-\(end_at ?? "")" }
+    var work_item_id: String?
+    var updated_at: String?
+    var id: String { itemId ?? "\(title ?? "event")-\(start_at ?? "")-\(end_at ?? "")" }
 
     enum CodingKeys: String, CodingKey {
         case itemId = "id"
-        case title, kind, status, start_at, end_at
+        case title, kind, status, start_at, end_at, work_item_id, updated_at
     }
 }
 

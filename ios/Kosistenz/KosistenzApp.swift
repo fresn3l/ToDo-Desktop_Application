@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 @main
 struct KosistenzApp: App {
@@ -35,52 +36,59 @@ struct RootView: View {
             } else {
                 TabView(selection: $store.tab) {
                     TodayScreen().tag(AppTab.today).tabItem { Label(AppTab.today.title, systemImage: AppTab.today.icon) }
-                    WeekScreen().tag(AppTab.week).tabItem { Label(AppTab.week.title, systemImage: AppTab.week.icon) }
-                    JournalScreen().tag(AppTab.journal).tabItem { Label(AppTab.journal.title, systemImage: AppTab.journal.icon) }
-                    InboxScreen().tag(AppTab.inbox).tabItem { Label(AppTab.inbox.title, systemImage: AppTab.inbox.icon) }
-                    SettingsScreen().tag(AppTab.sync).tabItem { Label(AppTab.sync.title, systemImage: AppTab.sync.icon) }
+                    CalendarScreen().tag(AppTab.calendar).tabItem { Label(AppTab.calendar.title, systemImage: AppTab.calendar.icon) }
+                    TodoScreen().tag(AppTab.todo).tabItem { Label(AppTab.todo.title, systemImage: AppTab.todo.icon) }
                 }
             }
         }
         .environmentObject(store)
         .tint(store.palette.accent)
-        .onAppear { store.reload() }
+        .sheet(isPresented: $store.showSync) {
+            SettingsScreen()
+                .environmentObject(store)
+        }
+        .fileImporter(isPresented: $store.pickingFolder, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                store.chooseFolder(url)
+            }
+        }
+        .onAppear {
+            store.reload()
+            EventAlerts.request()
+            if store.access == .needsFolder {
+                store.showSync = true
+            }
+        }
     }
 
     @ViewBuilder
     private func tabBody(_ tab: AppTab) -> some View {
         switch tab {
         case .today: TodayScreen()
-        case .week: WeekScreen()
-        case .journal: JournalScreen()
-        case .inbox: InboxScreen()
-        case .sync: SettingsScreen()
+        case .calendar: CalendarScreen()
+        case .todo: TodoScreen()
         }
     }
 }
 
 enum AppTab: String, Hashable, CaseIterable, Identifiable {
-    case today, week, journal, inbox, sync
+    case today, calendar, todo
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .today: return "Today"
-        case .week: return "Week"
-        case .journal: return "Journal"
-        case .inbox: return "Inbox"
-        case .sync: return "Sync"
+        case .calendar: return "Calendar"
+        case .todo: return "To Do"
         }
     }
 
     var icon: String {
         switch self {
         case .today: return "sun.max"
-        case .week: return "calendar"
-        case .journal: return "book"
-        case .inbox: return "tray"
-        case .sync: return "icloud"
+        case .calendar: return "calendar"
+        case .todo: return "checklist"
         }
     }
 }
@@ -93,8 +101,19 @@ final class PackStore: ObservableObject {
     @Published var palette = KosistenzPalette.ocean
     @Published var tab: AppTab = .today
     @Published var pickingFolder = false
+    @Published var showSync = false
 
     var today: String { DayStamp.today() }
+
+    var statusLine: String {
+        if access == .needsFolder {
+            return "Choose iCloud Drive / Kosistenz — until then this iPhone only."
+        }
+        if let synced = syncedAt {
+            return "Pack \(synced)"
+        }
+        return "Waiting for iCloud. Pull to refresh, or Sync now."
+    }
 
     func reload() {
         do {
@@ -105,6 +124,7 @@ final class PackStore: ObservableObject {
             palette = KosistenzPalette.from(appearance: loaded.pack.appearance)
             error = nil
             WidgetBridge.write(WidgetSnapshot.from(pack: loaded.pack, access: loaded.access))
+            EventAlerts.sync(pack: loaded.pack)
         } catch {
             self.error = error.localizedDescription
         }
@@ -116,6 +136,7 @@ final class PackStore: ObservableObject {
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             try FolderBookmark.save(url)
             reload()
+            showSync = false
         } catch {
             self.error = error.localizedDescription
         }

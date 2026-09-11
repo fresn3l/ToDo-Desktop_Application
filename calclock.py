@@ -182,6 +182,15 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_cal_events_end ON calendar_events(end_at)"
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS event_marks (
+            id TEXT PRIMARY KEY,
+            status TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
 
 
 def load_settings() -> Dict[str, Any]:
@@ -2110,6 +2119,58 @@ def add_block(
         row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (block_id,)).fetchone()
     assert row is not None
     return _row_block(row)
+
+
+def list_event_marks() -> List[Dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, status, updated_at FROM event_marks ORDER BY updated_at ASC"
+        ).fetchall()
+    return [
+        {"id": row["id"], "status": row["status"], "updated_at": row["updated_at"]}
+        for row in rows
+    ]
+
+
+def upsert_event_mark(item_id: str, status: str, updated_at: str = "") -> Optional[Dict[str, Any]]:
+    key = str(item_id or "").strip()
+    state = str(status or "").strip().lower()
+    if not key or len(key) > 80:
+        return None
+    if state not in ("done", "skipped", "open"):
+        return None
+    stamp = str(updated_at or "").strip() or _now().isoformat()
+    with _connect() as conn:
+        existing = conn.execute(
+            "SELECT updated_at FROM event_marks WHERE id = ?", (key,)
+        ).fetchone()
+        if existing and str(existing["updated_at"] or "") >= stamp:
+            return {
+                "id": key,
+                "status": state,
+                "updated_at": existing["updated_at"],
+            }
+        conn.execute(
+            """
+            INSERT INTO event_marks (id, status, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                status = excluded.status,
+                updated_at = excluded.updated_at
+            """,
+            (key, state, stamp),
+        )
+        conn.commit()
+    return {"id": key, "status": state, "updated_at": stamp}
+
+
+def load_block(block_id: str) -> Optional[Dict[str, Any]]:
+    key = str(block_id or "").strip()
+    if not key:
+        return None
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (key,)).fetchone()
+    return _row_block(row) if row else None
 
 
 @eel.expose

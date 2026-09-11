@@ -46,9 +46,50 @@ enum PackActions {
             throw PackActionError.message("That to-do is gone.")
         }
         let item = pack.work.items[index]
-        pack.work.items[index].status = item.status == "done" ? "open" : "done"
+        let done = item.status != "done"
+        pack.work.items[index].status = done ? "done" : "open"
+        pack.work.items[index].finished_at = done ? DayStamp.isoNow() : nil
         pack.work.items[index].updated_at = DayStamp.isoNow()
         return try saveWork(pack)
+    }
+
+    @discardableResult
+    static func assignToToday(id: String, date: String) throws -> Pack {
+        var pack = try current()
+        guard let index = pack.work.items.firstIndex(where: { $0.id == id }) else {
+            throw PackActionError.message("That to-do is gone.")
+        }
+        pack.work.items[index].scheduled_date = date
+        pack.work.items[index].updated_at = DayStamp.isoNow()
+        return try saveWork(pack)
+    }
+
+    @discardableResult
+    static func complete(_ entry: TodayList.Entry) throws -> Pack {
+        var pack = try current()
+        let now = DayStamp.isoNow()
+        let markAt = DayStamp.localStamp()
+        let makingDone = !entry.done
+        if let workId = entry.workId, let index = pack.work.items.firstIndex(where: { $0.id == workId }) {
+            pack.work.items[index].status = makingDone ? "done" : "open"
+            pack.work.items[index].finished_at = makingDone ? now : nil
+            pack.work.items[index].updated_at = now
+        }
+        if let clockId = entry.clockId {
+            upsertMark(&pack, id: clockId, status: makingDone ? "done" : "open", at: markAt)
+            paintClockStatus(&pack, id: clockId, status: makingDone ? "done" : "open")
+            #if !WIDGET_EXTENSION
+            EventAlerts.cancel(clockId: clockId)
+            #endif
+        }
+        if entry.workId != nil {
+            try SyncPack.saveWork(pack.work)
+        }
+        if entry.clockId != nil {
+            try SyncPack.saveCalendar(pack.calendar)
+        }
+        ping(pack)
+        return pack
     }
 
     static func toggleFirstOpen(on date: String) throws -> String {
@@ -162,8 +203,31 @@ enum PackActions {
         return pack
     }
 
+    private static func upsertMark(_ pack: inout Pack, id: String, status: String, at: String) {
+        pack.calendar.marks.removeAll { $0.id == id }
+        pack.calendar.marks.append(CalendarMark(id: id, status: status, updated_at: at))
+    }
+
+    private static func paintClockStatus(_ pack: inout Pack, id: String, status: String) {
+        for index in pack.calendar.days.indices {
+            for eventIndex in pack.calendar.days[index].events.indices {
+                if pack.calendar.days[index].events[eventIndex].itemId == id {
+                    pack.calendar.days[index].events[eventIndex].status = status
+                }
+            }
+            for blockIndex in pack.calendar.days[index].blocks.indices {
+                if pack.calendar.days[index].blocks[blockIndex].itemId == id {
+                    pack.calendar.days[index].blocks[blockIndex].status = status
+                }
+            }
+        }
+    }
+
     private static func ping(_ pack: Pack) {
         WidgetBridge.write(WidgetSnapshot.from(pack: pack, access: SyncPack.usingChosenFolder() ? .iCloudDrive : .needsFolder))
+        #if !WIDGET_EXTENSION
+        EventAlerts.sync(pack: pack)
+        #endif
     }
 
     private static func newItem(title: String, date: String?, now: String) -> WorkItem {

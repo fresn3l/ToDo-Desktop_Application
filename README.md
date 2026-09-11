@@ -88,7 +88,7 @@ That still opens the **native WebKit window**, not Chrome.
   calendars (Apple subscription or ICS URL) become to-dos with due times, not
   busy bars. **Fill week** or drag places dated work around those events.
   Nothing is written back to Apple Calendar.
-- **iPhone (in progress)**: same Apple ID, JSON pack in iCloud Drive / Kosistenz — see `docs/iphone-sprint.md` and `ios/`
+- **iPhone**: Today / Calendar / To Do over the same iCloud Drive pack — see `ios/README.md`
 
 ## Data Storage
 
