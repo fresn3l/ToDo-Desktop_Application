@@ -515,6 +515,10 @@ function goalsHtml(data, size) {
     const score = target
         ? `${minutesLabel(spent)} / ${minutesLabel(target)}`
         : minutesLabel(spent);
+    const pct = target ? Math.max(0, Math.min(100, Math.round((spent / target) * 100))) : 0;
+    const bar = target
+        ? `<div class="glance-meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>`
+        : '';
     const list = size.tall
         ? listRows(weekly.length ? weekly : rows, size.board ? 5 : 4, (item) => {
             const have = Number(item.spent_minutes || 0);
@@ -528,7 +532,7 @@ function goalsHtml(data, size) {
         size,
         label: countLabel(label, weekly.length || rows.length),
         primary: size.tall ? clip(focus?.title || '', 32) : score,
-        body: `${!size.tall ? `<p class="glance-message">${utils.escapeHtml(clip(focus?.title || '', 32))}</p>` : ''}${zero && size.tall ? `<p class="glance-message">${utils.escapeHtml(copy.zeroMinutes)}</p>` : ''}${list}`,
+        body: `${!size.tall ? `<p class="glance-message">${utils.escapeHtml(clip(focus?.title || '', 32))}</p>` : ''}${bar}${zero && size.tall ? `<p class="glance-message">${utils.escapeHtml(copy.zeroMinutes)}</p>` : ''}${list}`,
         action: openWorkAction('goals'),
     });
 }

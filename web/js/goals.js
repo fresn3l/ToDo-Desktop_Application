@@ -36,56 +36,53 @@ export async function loadGoalOptions(selectId, selected) {
 }
 
 function goalCard(goal) {
-    const end = goal.end_date ? ` · by ${utils.escapeHtml(goal.end_date)}` : '';
-    const kw = goal.keyword ? `<span class="work-flag">${utils.escapeHtml(goal.keyword)}</span>` : '';
+    const bits = [];
+    if (goal.keyword) bits.push(`<span class="work-flag">${utils.escapeHtml(goal.keyword)}</span>`);
+    if (goal.end_date) bits.push(`by ${utils.escapeHtml(goal.end_date)}`);
+    const meta = bits.length ? `<p class="goal-meta">${bits.join(' · ')}</p>` : '';
     let meter = '';
     if (goal.has_target) {
         const pct = Math.max(0, Math.min(100, goal.percent || 0));
         meter = `
             <div class="goal-progress">
                 <div class="goal-progress-meta">
-                    <span>${formatMinutes(goal.spent_minutes)} of ${formatMinutes(goal.target_minutes)}</span>
+                    <span>${formatMinutes(goal.spent_minutes)} / ${formatMinutes(goal.target_minutes)}</span>
                     <span>${pct}%</span>
                 </div>
                 <div class="goal-progress-track" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
                     <div class="goal-progress-fill" style="width:${pct}%"></div>
                 </div>
             </div>`;
-    } else {
+    } else if (goal.spent_minutes) {
         meter = `<p class="goal-total">${formatMinutes(goal.spent_minutes)} logged</p>`;
     }
     const contribs = (goal.contributions || [])
-        .slice(0, 5)
-        .map(
-            (row) =>
-                `<li>${utils.escapeHtml(row.title)} · ${formatMinutes(row.minutes)}</li>`,
-        )
+        .slice(0, 3)
+        .map((row) => `<li>${utils.escapeHtml(row.title)} · ${formatMinutes(row.minutes)}</li>`)
         .join('');
-    const list = contribs
-        ? `<ul class="goal-contribs">${contribs}</ul>`
-        : `<p class="checklist-hint small">Finish a to-do attached to this goal to add minutes.</p>`;
+    const list = contribs ? `<ul class="goal-contribs">${contribs}</ul>` : '';
     return `
         <article class="goal-card${goal.overdue ? ' is-overdue' : ''}" data-id="${utils.escapeHtml(goal.id)}">
             <div class="goal-card-head">
                 <h3>${utils.escapeHtml(goal.title)}</h3>
-                <p class="work-meta">${kw}${end}</p>
+                <button type="button" class="btn-ghost goal-remove" data-act="delete">Remove</button>
             </div>
+            ${meta}
             ${meter}
             ${list}
-            <div class="work-item-actions">
-                <button type="button" class="btn-ghost" data-act="delete">Remove</button>
-            </div>
         </article>`;
 }
 
-function addForm(horizon, label) {
+function addForm(label) {
     return `
         <div class="goal-add">
-            <input type="text" class="checklist-text-input" data-field="title" placeholder="${utils.escapeHtml(label)} goal" autocomplete="off">
-            <input type="text" class="checklist-text-input goal-keyword" data-field="keyword" placeholder="keyword" title="Match this word in a to-do title, e.g. spanish" autocomplete="off">
-            <input type="number" class="checklist-text-input goal-hours" data-field="hours" min="0" step="0.5" placeholder="Hours" title="Optional target. Leave blank for a running total.">
-            <input type="date" class="checklist-text-input work-due-input" data-field="end" title="Optional end date">
+            <input type="text" class="checklist-text-input" data-field="title" placeholder="${utils.escapeHtml(label)}" autocomplete="off">
             <button type="button" class="btn-primary" data-act="add">Add</button>
+            <div class="goal-add-more">
+                <input type="text" class="checklist-text-input goal-keyword" data-field="keyword" placeholder="keyword" title="Match this word in a to-do title" autocomplete="off">
+                <input type="number" class="checklist-text-input goal-hours" data-field="hours" min="0" step="0.5" placeholder="hrs" title="Optional hour target">
+                <input type="date" class="checklist-text-input work-due-input" data-field="end" title="Optional end date">
+            </div>
         </div>`;
 }
 
@@ -96,22 +93,13 @@ export async function refreshGoals() {
         const board = await callEel('get_goals_board');
         root.innerHTML = (board.horizons || [])
             .map((col) => {
-                const hint = col.hint || 'Optional end date. Hours only if you want a bar.';
-                const count = col.goals.length
-                    ? `${col.goals.length} goal${col.goals.length === 1 ? '' : 's'}. `
-                    : '';
-                const body = col.goals.length
-                    ? col.goals.map(goalCard).join('')
-                    : `<div class="empty-state empty-state--quiet"><p>No ${utils.escapeHtml(col.label.toLowerCase())} goals yet.</p></div>`;
+                const n = col.goals.length;
+                const count = n ? `<span class="goal-horizon-count">${n}</span>` : '';
+                const body = n ? col.goals.map(goalCard).join('') : '';
                 return `
-                    <section class="panel goal-column" data-horizon="${utils.escapeHtml(col.id)}">
-                        <div class="panel-header">
-                            <div>
-                                <h2>${utils.escapeHtml(col.label)}</h2>
-                                <p class="panel-sub">${utils.escapeHtml(count + hint)}</p>
-                            </div>
-                        </div>
-                        ${addForm(col.id, col.label)}
+                    <section class="goal-column" data-horizon="${utils.escapeHtml(col.id)}">
+                        <p class="goal-horizon">${utils.escapeHtml(col.label)}${count}</p>
+                        ${addForm(col.label)}
                         <div class="goal-list">${body}</div>
                     </section>`;
             })
