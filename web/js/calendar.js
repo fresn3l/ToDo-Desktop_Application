@@ -10,7 +10,7 @@ let calView = 'week';
 let monthCursor = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 let yearCursor = new Date().getFullYear();
 let lastSettings = {};
-let editor = { mode: 'new', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
+let editor = { mode: 'idle', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
 let dragState = null;
 let lastWeek = null;
 let dueMenuChip = null;
@@ -388,7 +388,7 @@ function renderGrid(week) {
 }
 
 function agendaKind(item) {
-    if (item.kind === 'hard') return 'Class';
+    if (item.kind === 'hard') return 'Event';
     if (item.kind === 'workout') return 'Gym';
     return 'Work';
 }
@@ -484,12 +484,11 @@ function renderUnplaced(items, total) {
     const root = document.getElementById('calUnplaced');
     const block = document.getElementById('calUnplacedBlock');
     if (!root) return;
+    if (block) block.hidden = false;
     if (!items?.length) {
         root.innerHTML = '<p class="empty-state empty-state--line">Nothing to place.</p>';
-        if (block) block.hidden = true;
         return;
     }
-    if (block) block.hidden = false;
     const extra = Number(total || 0) > items.length
         ? `<p class="checklist-hint small">${Number(total) - items.length} more unplaced. Fill week still uses the rest.</p>`
         : '';
@@ -505,7 +504,18 @@ function renderUnplaced(items, total) {
         })
         .join('') + extra;
     root.querySelectorAll('.cal-unplaced-item').forEach((btn) => {
-        btn.addEventListener('click', () => openUnplaced(btn));
+        btn.addEventListener('pointerdown', onDuePointerDown);
+        btn.addEventListener('pointermove', onDuePointerMove);
+        btn.addEventListener('pointerup', onDuePointerUp);
+        btn.addEventListener('pointercancel', onDuePointerUp);
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (btn.dataset.didDrag === '1') {
+                btn.dataset.didDrag = '';
+                return;
+            }
+            openUnplaced(btn);
+        });
     });
 }
 
@@ -556,6 +566,7 @@ function toggleHidden(el, hide) {
 function paintEditor() {
     const heading = document.getElementById('calEditorHeading');
     const hint = document.getElementById('calEditorHint');
+    const fields = document.getElementById('calEditorFields');
     const weekdays = document.getElementById('calEventWeekdays');
     const status = document.getElementById('calBlockStatus');
     const park = document.getElementById('calParkItem');
@@ -564,38 +575,45 @@ function paintEditor() {
     const ask = document.getElementById('calAskCluny');
     const save = document.getElementById('calSaveItem');
     const mode = editor.mode;
+    const isIdle = mode === 'idle';
     const isNew = mode === 'new';
     const isHard = mode === 'hard' || isNew;
     const isUnplaced = mode === 'unplaced';
     const isBlock = mode === 'work' || mode === 'workout';
     if (heading) {
-        heading.textContent = isNew
-            ? 'Add to calendar'
-            : isUnplaced
-                ? 'Place on the clock'
-                : (document.getElementById('calEventTitle')?.value?.trim() || 'Edit');
+        heading.textContent = isIdle
+            ? 'Clock'
+            : isNew
+                ? 'Add event'
+                : isUnplaced
+                    ? 'Place work'
+                    : (document.getElementById('calEventTitle')?.value?.trim() || 'Edit');
     }
     if (hint) {
-        hint.textContent = isNew
-            ? 'Name anything on the clock — meeting, class, office hours.'
-            : isUnplaced
-                ? 'Pick a start time, then Save to place this work.'
-                : 'Rename, change the times, or drag the block.';
+        hint.textContent = isIdle
+            ? 'Drag Unplaced onto the clock, or Add event for a meeting.'
+            : isNew
+                ? 'Busy time — a meeting, hold, or recurring block. Work stays in Unplaced until you drag or Fill week.'
+                : isUnplaced
+                    ? 'Drag onto the clock, or set a start and Place. This is not a new event.'
+                    : 'On a bar: click locks, Shift skips, Alt marks done. Drag to move.';
     }
-    toggleHidden(weekdays, !isHard);
+    toggleHidden(fields, isIdle);
+    toggleHidden(weekdays, !isHard || isIdle);
     toggleHidden(status, !isBlock);
     toggleHidden(park, !(isBlock || isUnplaced));
-    toggleHidden(remove, isNew || isUnplaced);
+    toggleHidden(remove, isIdle || isNew || isUnplaced);
     toggleHidden(fresh, isNew);
-    toggleHidden(ask, isNew || isUnplaced || !editor.id);
+    toggleHidden(ask, isIdle || isNew || isUnplaced || !editor.id);
+    toggleHidden(save, isIdle);
+    if (fresh) fresh.textContent = isIdle ? 'Add event' : 'Add another';
     if (save) {
         save.textContent = isUnplaced ? 'Place' : 'Save';
     }
     if (park) park.textContent = isUnplaced ? 'Leave in All Work' : 'Save for later';
 }
 
-function resetEditor() {
-    editor = { mode: 'new', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
+function clearEditorFields() {
     const titleEl = document.getElementById('calEventTitle');
     if (titleEl) titleEl.value = '';
     setWeekdaySelection([]);
@@ -604,11 +622,26 @@ function resetEditor() {
     const end = document.getElementById('calEventEnd');
     if (start) start.value = '';
     if (end) end.value = '';
+}
+
+function resetEditor() {
+    editor = { mode: 'idle', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
+    clearEditorFields();
+    paintEditor();
+    document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
+        el.classList.remove('is-selected');
+    });
+}
+
+function startNewEvent() {
+    editor = { mode: 'new', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
+    clearEditorFields();
     defaultEventTimes(true);
     paintEditor();
     document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
         el.classList.remove('is-selected');
     });
+    document.getElementById('calEventTitle')?.focus();
 }
 
 function openEditorFromBlock(btn) {
@@ -697,7 +730,18 @@ function bindGrid() {
                 btn.dataset.didDrag = '';
                 return;
             }
-            openEditorFromBlock(btn);
+            void onExistingBarClick(e, btn);
+        });
+    });
+    document.querySelectorAll('.cal-day-body').forEach((body) => {
+        body.addEventListener('click', (e) => {
+            if (e.target.closest('.cal-block')) return;
+            e.stopPropagation();
+            if (editor.mode === 'new' || editor.mode === 'unplaced') {
+                applyGridTime(e, body);
+                return;
+            }
+            // Empty-grid click is not capture. Add event is an explicit control.
         });
     });
     bindDueChips(document);
@@ -708,6 +752,56 @@ function bindGrid() {
             showDayDues(btn.getAttribute('data-date'), btn);
         });
     });
+}
+
+async function onExistingBarClick(e, btn) {
+    const kind = btn.getAttribute('data-kind') || 'work';
+    const id = btn.getAttribute('data-id') || '';
+    const isWork = kind === 'work' || kind === 'workout';
+    if (isWork && id && (e.altKey || e.shiftKey || !e.metaKey)) {
+        try {
+            if (e.altKey) {
+                await callEel('set_block_status', id, 'done');
+                utils.showSuccessFeedback('Marked done.');
+                utils.notifyDataChanged();
+                await loadCalendar();
+                return;
+            }
+            if (e.shiftKey) {
+                await callEel('set_block_status', id, 'skipped');
+                utils.showSuccessFeedback('Skipped.');
+                utils.notifyDataChanged();
+                await loadCalendar();
+                return;
+            }
+            if (btn.getAttribute('data-status') !== 'locked') {
+                await callEel('set_block_status', id, 'locked');
+                btn.setAttribute('data-status', 'locked');
+                btn.classList.add('is-locked');
+            }
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not update that bar.');
+        }
+    }
+    openEditorFromBlock(btn);
+}
+
+function applyGridTime(e, body) {
+    const day = body.closest('.cal-day')?.getAttribute('data-date');
+    if (!day) return;
+    const rect = body.getBoundingClientRect();
+    const { startMin, span } = clockWindow(lastSettings);
+    let mins = Math.round((((e.clientY - rect.top) / rect.height) * span) / 15) * 15;
+    const dur = editor.mode === 'unplaced' ? Math.max(15, editor.minutes || 60) : 50;
+    mins = Math.max(0, Math.min(span - dur, mins));
+    const [y, m, d] = day.split('-').map(Number);
+    const start = new Date(y, m - 1, d, 0, 0, 0);
+    start.setMinutes(startMin + mins);
+    const end = new Date(start.getTime() + dur * 60000);
+    const startEl = document.getElementById('calEventStart');
+    const endEl = document.getElementById('calEventEnd');
+    if (startEl) startEl.value = toLocalInput(start);
+    if (endEl) endEl.value = toLocalInput(end);
 }
 
 function bindDueChips(root) {
@@ -1196,7 +1290,7 @@ function importIcs() {
         document.getElementById('calIcsUrl').value = url;
     }
     if (!url) {
-        utils.showErrorFeedback('Paste the class calendar URL, or use Paste.');
+        utils.showErrorFeedback('Paste a calendar URL, or use Paste.');
         return;
     }
     void importPasted(url);
@@ -1255,7 +1349,7 @@ export function setupCalendar() {
         void removeEditor();
     });
     document.getElementById('calNewLecture')?.addEventListener('click', () => {
-        resetEditor();
+        startNewEvent();
     });
     document.getElementById('calAskCluny')?.addEventListener('click', () => {
         // Ask about this week or this event from the editor. Never auto-placement.
@@ -1362,6 +1456,6 @@ export function setupCalendar() {
 
 export async function onCalendarTabShown() {
     if (!weekStart) weekStart = mondayISO();
-    defaultEventTimes();
+    if (editor.mode === 'idle') paintEditor();
     await loadCalendar();
 }

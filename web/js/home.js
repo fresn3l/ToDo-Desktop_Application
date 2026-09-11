@@ -4,7 +4,7 @@
 
 import * as utils from './utils.js';
 import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize, isFirstHomePage, widgetRegion, widgetsInRegion } from './home_layout.js';
-import { mountGlance, refreshGlances, runGlanceAction, syncHomeDayPart } from './glance_tiles.js';
+import { mountGlance, refreshGlances, runGlanceAction, runGlanceCapture, syncHomeDayPart } from './glance_tiles.js';
 import { getAppearance, onAppearanceChange, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { bootFeature, callEel, loadOnce } from './lazy.js';
 
@@ -18,10 +18,12 @@ const FALLBACK_LAYOUT = {
             widgets: [
                 { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2, region: 'above' },
                 { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2, region: 'above' },
-                { id: 'w-weather', kind: 'weather', x: 0, y: 0, w: 2, h: 1 },
-                { id: 'w-word', kind: 'word', x: 2, y: 0, w: 2, h: 1 },
-                { id: 'w-day', kind: 'day_brief', x: 0, y: 1, w: 2, h: 2 },
-                { id: 'w-cluny', kind: 'cluny', x: 2, y: 1, w: 2, h: 2 },
+                { id: 'w-unplaced', kind: 'unplaced', x: 0, y: 0, w: 2, h: 2 },
+                { id: 'w-now', kind: 'now_next', x: 2, y: 0, w: 2, h: 1 },
+                { id: 'w-weather', kind: 'weather', x: 2, y: 1, w: 2, h: 1 },
+                { id: 'w-word', kind: 'word', x: 0, y: 2, w: 2, h: 1 },
+                { id: 'w-day', kind: 'day_brief', x: 0, y: 3, w: 2, h: 2 },
+                { id: 'w-cluny', kind: 'cluny', x: 2, y: 2, w: 2, h: 2 },
             ],
         },
         {
@@ -34,10 +36,8 @@ const FALLBACK_LAYOUT = {
                 { id: 'w-habits', kind: 'habits', x: 2, y: 2, w: 2, h: 2 },
                 { id: 'w-heatmap', kind: 'heatmap', x: 0, y: 4, w: 2, h: 1 },
                 { id: 'w-reading', kind: 'reading', x: 2, y: 4, w: 2, h: 1 },
-                { id: 'w-unplaced', kind: 'unplaced', x: 0, y: 5, w: 2, h: 2 },
-                { id: 'w-dues', kind: 'dues', x: 2, y: 5, w: 2, h: 2 },
-                { id: 'w-free', kind: 'free_today', x: 0, y: 7, w: 2, h: 1 },
-                { id: 'w-now', kind: 'now_next', x: 2, y: 7, w: 2, h: 1 },
+                { id: 'w-dues', kind: 'dues', x: 0, y: 5, w: 2, h: 2 },
+                { id: 'w-free', kind: 'free_today', x: 2, y: 5, w: 2, h: 1 },
             ],
         },
     ],
@@ -763,9 +763,19 @@ function bindHome() {
             void runGlanceAction(act);
             return;
         }
+        if (e.target.closest('.glance-capture, .glance-capture-input')) {
+            return;
+        }
         const card = e.target.closest('.home-widget');
         if (!card) return;
         void openHomeWork(card.getAttribute('data-kind'), card);
+    });
+    document.getElementById('homeBoard')?.addEventListener('submit', (e) => {
+        const form = e.target.closest('[data-glance-capture]');
+        if (!form) return;
+        e.preventDefault();
+        e.stopPropagation();
+        void runGlanceCapture(form);
     });
     document.getElementById('homeBoard')?.addEventListener('keydown', (e) => {
         if (editing) return;
