@@ -322,16 +322,19 @@ function renderBlock(item, settings) {
     const top = Math.max(0, minutesFromClock(item.start_at, startMin));
     const start = new Date(item.start_at);
     const end = new Date(item.end_at);
-    const dur = Math.max(20, (end - start) / 60000);
-    const height = Math.max(18, (dur / span) * 100);
+    const rawMin = (end - start) / 60000;
+    const dur = Number.isFinite(rawMin) && rawMin > 0 ? rawMin : 15;
+    const height = (dur / span) * 100;
     const topPct = (top / span) * 100;
     const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
     const locked = item.status === 'locked';
     const selected = editor.id && editor.id === item.id ? ' is-selected' : '';
+    const short = dur < 45 ? ' is-short' : '';
+    const tiny = dur < 20 ? ' is-tiny' : '';
     const timeLabel = Number.isNaN(start.getTime())
         ? ''
         : formatMilitary(start.getHours() * 60 + start.getMinutes());
-    return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${selected}"
+    return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${selected}${short}${tiny}"
         style="top:${topPct}%;height:${height}%"
         data-id="${utils.escapeHtml(item.id || '')}"
         data-kind="${kind}"

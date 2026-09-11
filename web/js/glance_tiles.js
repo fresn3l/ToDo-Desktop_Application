@@ -27,8 +27,8 @@ function clip(text, n) {
 function sizeOf(card) {
     const w = Math.max(1, Number(card?.dataset.w) || 1);
     const h = Math.max(1, Number(card?.dataset.h) || 1);
-    // Glance tiles need a 2×1 cell to count as actionable (Start/Finish/Ask).
-    return { w, h, cells: w * h, wide: w >= 2, tall: h >= 2, board: w >= 3 || h >= 3, action: w >= 2 };
+    // Inline actions and capture need a 2×2 cell. A 2×1 row is label + metric only.
+    return { w, h, cells: w * h, wide: w >= 2, tall: h >= 2, board: w >= 3 || h >= 3, action: w >= 2 && h >= 2 };
 }
 
 export function dayPart(hour) {
@@ -169,7 +169,7 @@ function weatherHtml(data, size) {
             body: `${glyph}${cond ? `<p class="glance-message">${utils.escapeHtml(clip(cond, 14))}</p>` : ''}`,
         });
     }
-    const hours = (data.hourly || []).slice(0, 4);
+    const hours = size.tall ? (data.hourly || []).slice(0, 4) : [];
     const hourly = hours.length
         ? `<ul class="glance-hourly">${hours.map((row) => {
             const t = row.hour || formatHourly(row.at || row.time);
@@ -198,7 +198,7 @@ function wordHtml(data, size) {
     if (!data?.word) return emptyShell(kind, size, copy.noWord);
     const head = data.display || data.word;
     const pos = [data.language_label || (data.language === 'de' ? 'German' : 'English'), data.pos].filter(Boolean).join(' · ');
-    const meaning = clip(data.meaning || '', size.board ? 140 : size.tall ? 90 : 72);
+    const meaning = clip(data.meaning || '', size.board ? 140 : size.tall ? 90 : 48);
     const example = clip(data.example || '', size.board ? 120 : 72);
     const used = Boolean((data.used_tonight || '').trim());
     if (!size.wide && !size.tall) {
@@ -206,9 +206,9 @@ function wordHtml(data, size) {
     }
     const parts = [
         pos ? `<p class="glance-message">${utils.escapeHtml(pos)}</p>` : '',
-        meaning ? `<p class="glance-message">${utils.escapeHtml(meaning)}</p>` : '',
+        meaning && size.tall ? `<p class="glance-message">${utils.escapeHtml(meaning)}</p>` : '',
         example && size.tall ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(example)}</p>` : '',
-        used ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(copy.usedTonight)}</p>` : '',
+        used && size.tall ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(copy.usedTonight)}</p>` : '',
     ].join('');
     return shellHtml({ kind, size, label, primary: head, hero: true, body: parts });
 }
@@ -242,8 +242,10 @@ function beatBody(beat, size) {
         ? `${copy.next} · ${formatAgendaTime(nextItem)} ${clip(nextItem.title || '', 28)}`.trim()
         : copy.clearClock;
     const gapLine = gap ? `${copy.gap} · ${minutesLabel(gap)}` : '';
-    const lines = [nowLine, nextLine, size.tall ? gapLine : ''].filter(Boolean);
-    return lines.map((line) => `<p class="glance-message">${utils.escapeHtml(line)}</p>`).join('');
+    const lines = size.tall
+        ? [nowLine, nextLine, gapLine]
+        : [nowItem ? nowLine : nextLine];
+    return lines.filter(Boolean).map((line) => `<p class="glance-message">${utils.escapeHtml(line)}</p>`).join('');
 }
 
 function todayHtml(data, size) {
@@ -297,7 +299,9 @@ function todoHtml(data, size) {
             action: openBtn,
         });
     }
-    const visible = items.filter((row) => row.status !== 'done' || size.board).slice(0, size.tall ? 4 : 2);
+    const visible = size.tall
+        ? items.filter((row) => row.status !== 'done' || size.board).slice(0, size.board ? 6 : 4)
+        : [];
     const rows = listRows(visible, visible.length, (item) => (
         `<li class="${item.status === 'done' ? 'is-done' : ''}">${taskDot(item.status)}<strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
     ));
@@ -366,7 +370,7 @@ function countersHtml(data, size) {
     const rows = data?.counters || [];
     const first = rows[0];
     if (!first) return emptyShell(kind, size, copy.noCounters);
-    if (!size.wide && !size.tall) {
+    if (!size.tall) {
         return shellHtml({
             kind,
             size,
@@ -375,7 +379,7 @@ function countersHtml(data, size) {
             action: { act: 'counter-tap', label: '+', attrs: ` data-id="${utils.escapeHtml(first.id)}" data-step="1"` },
         });
     }
-    const chips = (size.tall ? rows.slice(0, 6) : rows.slice(0, 2)).map((item) => `
+    const chips = rows.slice(0, size.board ? 6 : 4).map((item) => `
         <div class="glance-counter">
             <span class="glance-counter-name">${utils.escapeHtml(clip(item.name || '', 18))}</span>
             <span class="glance-counter-value">${item.today || 0}${item.target ? `/${item.target}` : ''}</span>
@@ -438,13 +442,16 @@ function readingHtml(data, size) {
     const label = 'Reading';
     if (!data?.title) return emptyShell(kind, size, copy.noBook);
     const pages = data.pages_today ? String(data.pages_today) : String(data.page || '·');
+    const pageLine = data.page ? `Page ${data.page}` : 'pages today';
     return shellHtml({
         kind,
         size,
         label,
         primary: pages,
-        body: `<p class="glance-message">${utils.escapeHtml(clip(data.title, 48))}</p>
-            <p class="glance-message glance-message--quiet">${utils.escapeHtml(data.page ? `Page ${data.page}` : 'pages today')}</p>`,
+        body: size.tall
+            ? `<p class="glance-message">${utils.escapeHtml(clip(data.title, 48))}</p>
+            <p class="glance-message glance-message--quiet">${utils.escapeHtml(pageLine)}</p>`
+            : `<p class="glance-message">${utils.escapeHtml(clip(data.title, 32))}</p>`,
     });
 }
 
@@ -467,11 +474,13 @@ function workoutHtml(data, size) {
         : '';
     const done = Boolean(workout.done || workout.session_count);
     const headline = split || sessionLine || (done ? 'Logged' : copy.nothingLogged);
-    const bits = [
-        sessionLine && split ? `<p class="glance-message">${utils.escapeHtml(sessionLine)}</p>` : '',
-        lastDate ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(lastDate)}</p>` : '',
-        done ? `<p class="glance-message glance-message--quiet">Logged</p>` : '',
-    ].join('');
+    const bits = size.tall
+        ? [
+            sessionLine && split ? `<p class="glance-message">${utils.escapeHtml(sessionLine)}</p>` : '',
+            lastDate ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(lastDate)}</p>` : '',
+            done ? `<p class="glance-message glance-message--quiet">Logged</p>` : '',
+        ].join('')
+        : (sessionLine && split ? `<p class="glance-message">${utils.escapeHtml(sessionLine)}</p>` : '');
     const expectedKind = (data?.expected?.kinds || [])[0] || '';
     const actions = [];
     if (size.action && expectedKind && !done) {
@@ -495,6 +504,7 @@ function workoutHtml(data, size) {
 function goalsHtml(data, size) {
     const kind = 'goals';
     const label = 'Goals';
+    if (data?.ok === false) return emptyShell(kind, size, copy.couldNotLoad);
     const rows = Array.isArray(data) ? data : [];
     if (!rows.length) return emptyShell(kind, size, copy.noGoals);
     const weekly = rows.filter((row) => row.horizon === 'week');
@@ -518,7 +528,8 @@ function goalsHtml(data, size) {
         size,
         label: countLabel(label, weekly.length || rows.length),
         primary: size.tall ? clip(focus?.title || '', 32) : score,
-        body: `${!size.tall ? `<p class="glance-message">${utils.escapeHtml(clip(focus?.title || '', 32))}</p>` : ''}${zero ? `<p class="glance-message">${utils.escapeHtml(copy.zeroMinutes)}</p>` : ''}${list}`,
+        body: `${!size.tall ? `<p class="glance-message">${utils.escapeHtml(clip(focus?.title || '', 32))}</p>` : ''}${zero && size.tall ? `<p class="glance-message">${utils.escapeHtml(copy.zeroMinutes)}</p>` : ''}${list}`,
+        action: openWorkAction('goals'),
     });
 }
 
@@ -529,11 +540,13 @@ function allworkHtml(data, size) {
     if (!rows.length) {
         return emptyShell(kind, size, copy.backlogClear, { act: 'open-work', label: copy.add, attrs: ' data-kind="allwork"' });
     }
-    const limit = size.tall ? 5 : 2;
-    const extra = Math.max(0, rows.length - limit);
-    const list = listRows(rows, limit, (item) => (
-        `<li><strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
-    ));
+    const limit = size.board ? 5 : 4;
+    const extra = size.tall ? Math.max(0, rows.length - limit) : 0;
+    const list = size.tall
+        ? listRows(rows, limit, (item) => (
+            `<li><strong>${utils.escapeHtml(clip(item.title || '', 36))}</strong></li>`
+        ))
+        : '';
     const more = extra ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(moreCount(extra))}</p>` : '';
     const first = rows[0];
     const actions = [];
@@ -676,7 +689,7 @@ function clunyHtml(data, size) {
         size,
         label: n ? countLabel(label, n) : label,
         primary: n ? String(n) : '',
-        body: `${pending}<div class="glance-actions">${asks}</div>`,
+        body: `${pending}${asks ? `<div class="glance-actions">${asks}</div>` : ''}`,
     });
 }
 
@@ -721,7 +734,7 @@ function unplacedHtml(data, size) {
         size,
         label: countLabel('Unplaced', count),
         primary: clip(first?.title || '', 32),
-        body: `${list}${weekdayChips(data?.weekdays, first?.id)}`,
+        body: `${list}${size.tall ? weekdayChips(data?.weekdays, first?.id) : ''}`,
     });
 }
 
@@ -732,9 +745,11 @@ function duesHtml(data, size) {
         return emptyShell(kind, size, copy.nothingDue, openWorkAction('todo', copy.addPlace));
     }
     const first = rows[0];
-    const list = listRows(rows, size.tall ? 5 : 2, (item) => (
-        `<li><strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong><span>${utils.escapeHtml(formatShortDate(item.due))}</span></li>`
-    ));
+    const list = size.tall
+        ? listRows(rows, size.board ? 5 : 4, (item) => (
+            `<li><strong>${utils.escapeHtml(clip(item.title || '', 28))}</strong><span>${utils.escapeHtml(formatShortDate(item.due))}</span></li>`
+        ))
+        : '';
     return shellHtml({
         kind,
         size,

@@ -4,6 +4,7 @@
  */
 
 import * as utils from './utils.js';
+import { callEel } from './lazy.js';
 
 function formatMinutes(n) {
     const m = Math.max(0, Number(n) || 0);
@@ -16,9 +17,9 @@ function formatMinutes(n) {
 
 export async function loadGoalOptions(selectId, selected) {
     const el = document.getElementById(selectId);
-    if (!el || typeof eel === 'undefined' || !eel.list_goals) return;
+    if (!el) return;
     try {
-        const goals = await eel.list_goals()();
+        const goals = await callEel('list_goals');
         const current = selected || el.value || '';
         const opts = ['<option value="">Goal (optional)</option>'].concat(
             (goals || []).map((goal) => {
@@ -92,7 +93,7 @@ export async function refreshGoals() {
     const root = document.getElementById('goalsBoard');
     if (!root) return;
     try {
-        const board = await eel.get_goals_board()();
+        const board = await callEel('get_goals_board');
         root.innerHTML = (board.horizons || [])
             .map((col) => {
                 const hint = col.hint || 'Optional end date. Hours only if you want a bar.';
@@ -143,7 +144,7 @@ function bindGoals(root) {
         const id = card.getAttribute('data-id');
         card.querySelector('[data-act="delete"]')?.addEventListener('click', async () => {
             try {
-                await eel.delete_goal(id)();
+                await callEel('delete_goal', id);
                 utils.notifyDataChanged();
                 await refreshGoals();
             } catch (e) {
@@ -163,7 +164,7 @@ async function addGoal(col, horizon) {
         return;
     }
     try {
-        await eel.create_goal(title, horizon, keyword, hours, end)();
+        await callEel('create_goal', title, horizon, keyword, hours, end);
         utils.showSuccessFeedback('Goal saved.');
         utils.notifyDataChanged();
         await refreshGoals();
@@ -172,9 +173,17 @@ async function addGoal(col, horizon) {
     }
 }
 
+function goalsBoardIsOpen() {
+    const tab = document.getElementById('goalsTab');
+    return Boolean(
+        tab
+        && (tab.classList.contains('active') || tab.classList.contains('widget-source--active')),
+    );
+}
+
 export function setupGoals() {
     document.addEventListener('kosistenz:data-changed', () => {
-        if (document.getElementById('goalsTab')?.classList.contains('active')) {
+        if (goalsBoardIsOpen()) {
             void refreshGoals();
         } else {
             void loadGoalOptions('todoNewGoal');

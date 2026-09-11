@@ -2413,9 +2413,10 @@ input[type='range'] {
 
 .goals-layout {
     display: grid;
-    grid-template-columns: repeat(4, minmax(14rem, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-lg);
     align-items: start;
+    min-width: 0;
 }
 
 .goal-add {
@@ -3143,6 +3144,7 @@ html.native-shell .home-title-strip {
     gap: var(--s-2);
     height: 100%;
     min-height: 0;
+    overflow: hidden;
     color: var(--text-1);
     animation: glance-in 160ms var(--ease-out);
 }
@@ -3185,7 +3187,10 @@ html[data-motion='reduce'] .glance-tile {
 
 .home-widget[data-h="1"] .glance-primary,
 .home-widget[data-h="1"] .glance-kpi {
-    font-size: 1.35rem;
+    font-size: 1.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .home-widget[data-h="2"] .glance-primary--hero {
@@ -3444,6 +3449,43 @@ html[data-motion='reduce'] .glance-tile {
 .glance-capture-input:focus {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+}
+
+.home-widget[data-h="1"] .glance-tile {
+    gap: 2px;
+}
+
+.home-widget[data-h="1"] .glance-list,
+.home-widget[data-h="1"] .glance-hourly,
+.home-widget[data-h="1"] .glance-forecast,
+.home-widget[data-h="1"] .glance-heat,
+.home-widget[data-h="1"] .glance-counters,
+.home-widget[data-h="1"] .glance-weekdays,
+.home-widget[data-h="1"] .glance-capture {
+    display: none;
+}
+
+.home-widget[data-h="1"] .glance-message + .glance-message {
+    display: none;
+}
+
+.home-widget[data-h="1"] .glance-actions {
+    display: none;
+}
+
+.home-widget[data-kind="counters"][data-h="1"] .glance-actions {
+    display: flex;
+    margin-top: 0;
+}
+
+.home-widget[data-kind="counters"][data-h="1"] .glance-action {
+    min-height: 1.5rem;
+    margin-top: 0;
+    padding: 2px 8px;
+}
+
+.home-widget[data-w="1"][data-h="1"] .glance-message {
+    display: none;
 }
 
 .glance-counters {
@@ -3815,6 +3857,21 @@ html.home-work-open .app-content {
 .home-widget-body .checklist-layout {
     height: 100%;
     min-height: 0;
+}
+
+.home-work-body .goals-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    height: auto;
+    min-height: 0;
+}
+
+.home-work-body .goal-column {
+    min-width: 0;
+}
+
+.home-work-body .goal-add {
+    flex-wrap: wrap;
 }
 
 .home-widget-body .panel-sub,
@@ -5517,6 +5574,7 @@ html[data-motion='reduce'] *::after {
     border: 0;
     border-radius: 8px;
     padding: 6px 8px;
+    min-height: 8px;
     font-size: 12px;
     line-height: 1.25;
     text-align: left;
@@ -5525,6 +5583,35 @@ html[data-motion='reduce'] *::after {
     touch-action: none;
     z-index: 1;
     background: color-mix(in srgb, var(--accent, #4F8FCF) 22%, var(--bg-elevated));
+}
+
+.cal-block.is-short {
+    padding: 1px 6px;
+    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.cal-block.is-short .cal-block-title {
+    display: block;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: unset;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.cal-block.is-tiny {
+    padding: 0 5px;
+    gap: 0;
+}
+
+.cal-block.is-tiny .cal-block-title {
+    display: none;
+}
+
+.cal-block.is-tiny .cal-block-time {
+    font-size: 9px;
+    line-height: 1;
 }
 
 .cal-block-time {
