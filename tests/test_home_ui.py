@@ -514,8 +514,10 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("await pullPhoneOnOpen()", app)
         self.assertNotIn("maybe_pull_icloud_on_open()", bridge)
         self.assertIn("register_lazy_exposes()", bridge)
+        self.assertIn("import appearance", bridge)
         self.assertNotIn("import calclock", bridge)
         self.assertNotIn("import brain", bridge)
+        self.assertNotIn("bootFeature('settings')", TABS)
         boot = (ROOT / "home_boot.py").read_text(encoding="utf-8")
         self.assertIn("start_supervisor", boot)
         self.assertIn("get_home_boot", boot)
@@ -667,3 +669,16 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".home-work-body .goals-page-head {\n    display: none;", STYLE)
         self.assertIn("glance-meter", GLANCE_TILES)
         self.assertIn("glance-meter", STYLE)
+
+    def test_home_and_settings_clicks_stay_off_the_brain(self) -> None:
+        appearance = (ROOT / "web" / "js" / "appearance.js").read_text(encoding="utf-8")
+        self.assertIn("paintedPageId", HOME_RUNTIME)
+        self.assertIn("void refreshHomeData()", HOME_RUNTIME)
+        self.assertIn("{ force: true }", HOME_RUNTIME)
+        self.assertIn("scheduleSettingsExtras", SETTINGS_JS)
+        shown = SETTINGS_JS.split("export function onSettingsTabShown")[1].split("function paintIcloudStatus")[0]
+        self.assertNotIn("refreshClunyLiveStats", shown)
+        self.assertNotIn("refreshClunyHealth", shown)
+        self.assertNotIn("get_cluny_health", GLANCE_TILES)
+        self.assertIn("persistTimer", appearance)
+        self.assertNotIn("const saved = await eel.save_appearance_settings", appearance)

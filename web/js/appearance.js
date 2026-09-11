@@ -372,21 +372,24 @@ export function snapshotPresetFrom(settings) {
     };
 }
 
+let persistTimer = 0;
+
 export async function persistAppearance(settings) {
     const next = mergeSettings(settings);
     applyAppearance(next);
     writeLocal(next);
     if (typeof eel !== 'undefined' && eel.save_appearance_settings) {
-        try {
-            const saved = await eel.save_appearance_settings(next)();
-            applyAppearance(saved);
-            writeLocal(saved);
-            return saved;
-        } catch (e) {
-            console.warn('Could not persist appearance to disk', e);
-        }
+        window.clearTimeout(persistTimer);
+        persistTimer = window.setTimeout(() => {
+            eel.save_appearance_settings(next)()
+                .then((saved) => {
+                    applyAppearance(saved);
+                    writeLocal(saved);
+                })
+                .catch((e) => console.warn('Could not persist appearance to disk', e));
+        }, 80);
     }
-    return getAppearance();
+    return next;
 }
 
 export async function resetAppearance() {

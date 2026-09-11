@@ -37,6 +37,25 @@ print("ok")
         out = subprocess.check_output([sys.executable, "-c", code], cwd=str(ROOT), text=True)
         self.assertIn("ok", out)
 
+    def test_settings_feature_does_not_import_brain(self) -> None:
+        import lazy_eel
+
+        self.assertEqual(lazy_eel.FEATURE_MODULES["settings"], ())
+
+    def test_home_boot_does_not_probe_cluny_health(self) -> None:
+        import home_boot
+        import work
+
+        work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        with (
+            mock.patch.object(home_boot, "_ensure_cluny_supervisor"),
+            mock.patch.object(home_boot, "_call", wraps=home_boot._call) as called,
+        ):
+            home_boot.get_home_boot()
+        names = [row.args[1] for row in called.call_args_list if row.args]
+        self.assertNotIn("get_cluny_health", names)
+        self.assertIn("get_cluny_inbox", names)
+
     def test_get_home_boot_is_one_payload(self) -> None:
         import home_boot
         import work

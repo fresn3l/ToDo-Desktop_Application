@@ -47,13 +47,10 @@ def _safe_call(module: str, func_name: str, *args):
 
 
 def _cluny_glance() -> Dict[str, Any]:
+    # Inbox is local JSON. Health probes the brain over HTTP and must stay
+    # off the Home click path.
     inbox = _safe_call("cluny_ask", "get_cluny_inbox") or {}
-    health = _safe_call("cluny_ask", "get_cluny_health") or {}
-    if not isinstance(inbox, dict):
-        inbox = {}
-    if not isinstance(health, dict):
-        health = {}
-    return {**inbox, **health}
+    return inbox if isinstance(inbox, dict) else {}
 
 
 def fetch_glance(kind: str) -> Any:
@@ -114,12 +111,22 @@ NETWORK_GLANCE_TIMEOUT_SEC = 3.0
 
 
 def _fetch_glances(kinds: List[str]) -> Dict[str, Any]:
-    """Local tiles first. Weather cannot hold up Today / To Do."""
+    """Fetch tiles in parallel. Weather cannot hold up Today / To Do."""
     out: Dict[str, Any] = {}
     local = [kind for kind in kinds if kind not in NETWORK_GLANCES]
     remote = [kind for kind in kinds if kind in NETWORK_GLANCES]
-    for kind in local:
-        out[kind] = fetch_glance(kind)
+    if local:
+        workers = min(6, len(local))
+        pool = ThreadPoolExecutor(max_workers=workers)
+        try:
+            futs = {kind: pool.submit(fetch_glance, kind) for kind in local}
+            for kind, fut in futs.items():
+                try:
+                    out[kind] = fut.result(timeout=8.0)
+                except Exception as exc:
+                    out[kind] = {"ok": False, "error": str(exc)}
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
     if not remote:
         return out
     pool = ThreadPoolExecutor(max_workers=len(remote))

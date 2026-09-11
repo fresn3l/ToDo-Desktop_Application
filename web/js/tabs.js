@@ -84,7 +84,6 @@ async function loadTab(key) {
             return mod;
         }
         if (key === 'settings') {
-            await bootFeature('settings');
             const mod = await import('./settings.js');
             mod.setupSettings();
             return mod;

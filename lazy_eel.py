@@ -76,7 +76,8 @@ FEATURE_MODULES: Dict[str, Tuple[str, ...]] = {
     "journal": ("journal",),
     "brain": ("brain", "cluny_brain"),
     "library": ("library",),
-    "settings": ("export_data", "health_import", "icloud_sync", "cluny_sync", "cluny_brain"),
+    # Settings paints locally. iCloud / Cluny / calendar load on first use.
+    "settings": (),
     "icloud": ("icloud_sync",),
     "today": ("insights", "day_brief", "timeline", "workouts", "calclock", "home_glances"),
     "todo": ("work", "goals"),

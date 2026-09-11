@@ -801,11 +801,7 @@ async function loadGlance(kind) {
     if (kind === 'heatmap') return eelCall('get_heatmap');
     if (kind === 'analytics') return eelCall('get_analytics', 7);
     if (kind === 'timeline') return eelCall('get_timeline_day', utils.localISODate());
-    if (kind === 'cluny') {
-        const inbox = await eelCall('get_cluny_inbox') || {};
-        const health = await eelCall('get_cluny_health') || {};
-        return { ...inbox, ...health };
-    }
+    if (kind === 'cluny') return eelCall('get_cluny_inbox');
     if (kind === 'now_next') return eelCall('get_now_next_glance');
     if (kind === 'unplaced') return eelCall('get_unplaced_glance');
     if (kind === 'dues') return eelCall('get_dues_week_glance');

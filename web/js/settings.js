@@ -330,10 +330,7 @@ function applyLiveFontSize(n) {
 export function setupSettings() {
     if (document.body.dataset.settingsReady === '1') {
         paintSettings(getAppearance());
-        void loadAdvancedPaths();
-        void loadHomeLayoutForColors();
-        void loadClunySettings();
-        void loadCalendarFeeds();
+        scheduleSettingsExtras();
         return;
     }
     document.body.dataset.settingsReady = '1';
@@ -543,23 +540,29 @@ export function setupSettings() {
     });
 
     paintSettings(getAppearance());
-    void loadAdvancedPaths();
-    void loadIcloudSync();
-    void loadHomeLayoutForColors();
-    void loadClunySettings();
-    void loadCalendarFeeds();
     bindCalendarFeeds();
     setupSettingsResize();
+    scheduleSettingsExtras();
+}
+
+function scheduleSettingsExtras() {
+    const run = () => {
+        void loadAdvancedPaths();
+        void loadIcloudSync();
+        void loadHomeLayoutForColors();
+        void loadClunySettings();
+        void loadCalendarFeeds();
+    };
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(run, { timeout: 800 });
+        return;
+    }
+    window.setTimeout(run, 0);
 }
 
 export function onSettingsTabShown() {
     paintSettings(getAppearance());
-    void loadAdvancedPaths();
-    void loadIcloudSync();
-    void loadHomeLayoutForColors();
-    void loadClunySettings();
-    void refreshClunyLiveStats();
-    void loadCalendarFeeds();
+    scheduleSettingsExtras();
 }
 
 function paintIcloudStatus(status) {
@@ -881,7 +884,6 @@ async function loadClunySettings() {
     } catch (_) {
         /* eel not ready */
     }
-    void refreshClunyHealth();
 }
 
 async function testClunyConnection() {

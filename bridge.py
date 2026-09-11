@@ -12,6 +12,7 @@ import os
 
 import eel
 
+import appearance  # noqa: F401
 import home_layout  # noqa: F401
 import home_boot  # noqa: F401
 import work  # noqa: F401

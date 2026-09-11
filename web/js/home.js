@@ -53,6 +53,7 @@ let checkinForceOpen = null;
 let checkinSlotOverride = '';
 let lastViewedDone = false;
 let lastViewedSlot = 'morning';
+let paintedPageId = '';
 
 function rack() {
     return document.getElementById('widgetSourceRack');
@@ -640,20 +641,32 @@ function setEditing(on) {
     });
 }
 
-async function renderHome(pageId) {
-    await loadLayout();
+async function renderHome(pageId, opts = {}) {
+    if (!layout?.pages?.length) {
+        await loadLayout();
+    }
     if (pageId && (layout.pages || []).some((page) => page.id === pageId)) {
         layout.active_page_id = pageId;
     }
+    const page = activePage();
+    const keepGrid = !opts.force && paintedPageId && paintedPageId === page?.id
+        && document.querySelector('#homeGrid .home-widget, #homeGridAbove .home-widget');
     paintPages();
-    paintGrid();
+    if (!keepGrid) {
+        paintGrid();
+        paintedPageId = page?.id || '';
+    }
     paintCatalog();
     syncHomeDayPart();
     const boot = await fetchHomeBoot(pageId);
     if (boot.layout?.pages?.length) layout = boot.layout;
     paintPages();
-    const page = activePage();
-    await refreshKinds((page?.widgets || []).map((item) => item.kind), boot.glances);
+    const next = activePage();
+    if (next?.id && next.id !== paintedPageId) {
+        paintGrid();
+        paintedPageId = next.id;
+    }
+    await refreshKinds((next?.widgets || []).map((item) => item.kind), boot.glances);
     await syncCheckin(boot.checkin);
 }
 
@@ -668,11 +681,11 @@ async function refreshHomeData() {
 async function run(action) {
     try {
         layout = await action();
-        await renderHome();
+        await renderHome(undefined, { force: true });
     } catch (err) {
         console.error(err);
         utils.showErrorFeedback(err?.message || 'Could not update Home.');
-        await renderHome();
+        await renderHome(undefined, { force: true });
     }
 }
 
@@ -1034,6 +1047,13 @@ export function setupHome() {
 export async function onHomeTabShown(pageId) {
     closeHomeWork(true);
     setEditing(false);
+    const same = !pageId || pageId === layout?.active_page_id;
+    if (same && paintedPageId && document.querySelector('#homeGrid .home-widget, #homeGridAbove .home-widget')) {
+        paintPages();
+        syncPageColors();
+        void refreshHomeData();
+        return;
+    }
     await renderHome(pageId);
 }
 
@@ -1048,6 +1068,6 @@ export async function ensureHomeWidget(kind) {
             console.error(err);
         }
     }
-    await renderHome();
+    await renderHome(undefined, { force: true });
     await openHomeWork(kind);
 }
