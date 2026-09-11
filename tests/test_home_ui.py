@@ -28,6 +28,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn('data-tab="home"', INDEX)
         self.assertIn('data-tab="journal"', INDEX)
         self.assertIn('data-tab="calendar"', INDEX)
+        self.assertIn('data-tab="analytics"', INDEX)
         self.assertIn('data-tab="settings"', INDEX)
         self.assertNotIn('data-tab="today"', INDEX)
         self.assertNotIn('data-tab="workout"', INDEX)
@@ -60,6 +61,15 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn('id="checklistWizard"', INDEX)
         self.assertIn('id="journalTab"', INDEX)
         self.assertIn('id="journalTab" class="tab-content"', INDEX)
+        self.assertIn('id="analyticsTab" class="tab-content widget-source"', INDEX)
+        self.assertIn('data-value="28"', INDEX)
+        self.assertIn("4 weeks", INDEX)
+        self.assertIn('id="calBarOutcome"', INDEX)
+        self.assertIn("Did not complete", INDEX)
+        self.assertIn("create_rate_goal", GOALS_JS)
+        self.assertIn("set_bar_outcome", CAL_JS)
+        self.assertIn("is-missed", CAL_JS)
+        self.assertIn("weekChart", (ROOT / "web" / "js" / "analytics.js").read_text(encoding="utf-8"))
 
     def test_edit_home_controls_exist(self) -> None:
         for needle in (
@@ -95,6 +105,10 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("1: 'home'", TABS)
         self.assertIn("2: 'journal'", TABS)
         self.assertIn("3: 'calendar'", TABS)
+        self.assertIn("analytics: 'analyticsTab'", TABS)
+        self.assertIn("analytics: 'Analytics'", TABS)
+        self.assertNotIn("name === 'analytics'", TABS)
+        self.assertIn("key === 'analytics'", TABS)
 
     def test_js_catalog_matches_folded_tabs(self) -> None:
         for kind in (
@@ -419,7 +433,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("Place work", CAL_JS)
         self.assertIn("startNewEvent", CAL_JS)
         self.assertIn("Nothing to place.", CAL_JS)
-        self.assertIn("On a bar already on the clock", INDEX)
+        self.assertIn("Alt marks attended", INDEX)
         self.assertNotIn('id="calUnplacedBlock" hidden', INDEX)
         self.assertNotIn("Add to calendar", INDEX)
         self.assertNotIn("New lecture", INDEX)

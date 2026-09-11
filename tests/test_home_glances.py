@@ -82,6 +82,34 @@ class HomeGlanceTests(unittest.TestCase):
         self.assertEqual(beat["gap_minutes"], 60)
         self.assertTrue(beat["can_skip"])
 
+    def test_clock_beat_skips_missed_blocks(self) -> None:
+        now = datetime(2026, 9, 9, 10, 0, 0)
+        beat = home_glances.clock_beat(
+            [
+                {
+                    "id": "miss-me",
+                    "title": "Old block",
+                    "start_at": "2026-09-09T09:30:00",
+                    "end_at": "2026-09-09T11:00:00",
+                    "kind": "work",
+                    "status": "missed",
+                },
+                {
+                    "id": "next",
+                    "title": "Lab",
+                    "start_at": "2026-09-09T11:00:00",
+                    "end_at": "2026-09-09T12:00:00",
+                    "kind": "work",
+                    "status": "proposed",
+                },
+            ],
+            now=now,
+            day_end="21:30",
+        )
+        self.assertEqual(beat["phase"], "next")
+        self.assertIsNone(beat["now"])
+        self.assertEqual(beat["next"]["id"], "next")
+
     def test_dues_this_week_are_deadlines_not_busy(self) -> None:
         from datetime import date, timedelta
 

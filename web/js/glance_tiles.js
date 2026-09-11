@@ -629,14 +629,17 @@ function analyticsHtml(data, size) {
     const label = 'Analytics';
     if (!data) return emptyShell(kind, size, copy.noStreak);
     const streak = Number(data.journal?.streak || 0);
+    const attendance = data.consistency?.attendance_pct;
     const missed = (data.work?.series || []).reduce((n, row) => n + Number(row.missed || 0), 0);
     const written = Number(data.journal?.days_written || 0);
-    const detail = missed ? `${missed} misses` : `${written} days written`;
+    const detail = attendance != null
+        ? `${attendance}% attendance`
+        : (missed ? `${missed} misses` : `${written} days written`);
     return shellHtml({
         kind,
         size,
         label,
-        primary: String(streak),
+        primary: attendance != null ? `${attendance}%` : String(streak),
         body: `<p class="glance-message glance-message--quiet">${utils.escapeHtml(detail)}</p>`,
     });
 }

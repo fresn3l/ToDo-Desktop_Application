@@ -328,13 +328,15 @@ function renderBlock(item, settings) {
     const topPct = (top / span) * 100;
     const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
     const locked = item.status === 'locked';
+    const done = item.status === 'done';
+    const missed = item.status === 'missed' || item.status === 'skipped';
     const selected = editor.id && editor.id === item.id ? ' is-selected' : '';
     const short = dur < 45 ? ' is-short' : '';
     const tiny = dur < 20 ? ' is-tiny' : '';
     const timeLabel = Number.isNaN(start.getTime())
         ? ''
         : formatMilitary(start.getHours() * 60 + start.getMinutes());
-    return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${selected}${short}${tiny}"
+    return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${done ? ' is-done' : ''}${missed ? ' is-missed' : ''}${selected}${short}${tiny}"
         style="top:${topPct}%;height:${height}%"
         data-id="${utils.escapeHtml(item.id || '')}"
         data-kind="${kind}"
@@ -423,7 +425,8 @@ function renderTodayRail(today) {
     const clockHtml = items.length
         ? `<h4>On the clock</h4><ul class="cal-today-agenda">${items.map((item) => {
             const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
-            return `<li class="is-${kind}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
+            const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
+            return `<li class="is-${kind}${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
         }).join('')}</ul>`
         : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag a due onto the week clock to time-block it.</p>';
     root.innerHTML = `
@@ -546,7 +549,21 @@ async function loadWeek() {
 }
 
 function selectedBlockStatus() {
+    const outcome = selectedBarOutcome();
+    if (outcome === 'attended') return 'done';
+    if (outcome === 'missed') return 'missed';
     return document.querySelector('#calBlockStatus .work-day-chip.is-selected')?.getAttribute('data-status') || 'proposed';
+}
+
+function selectedBarOutcome() {
+    return document.querySelector('#calBarOutcome .work-day-chip.is-selected')?.getAttribute('data-outcome') || '';
+}
+
+function setOutcomeSelection(status) {
+    const key = status === 'done' ? 'attended' : (status === 'missed' || status === 'skipped' ? 'missed' : '');
+    document.querySelectorAll('#calBarOutcome .work-day-chip').forEach((btn) => {
+        btn.classList.toggle('is-selected', !!key && btn.getAttribute('data-outcome') === key);
+    });
 }
 
 function setWeekdaySelection(days) {
@@ -572,6 +589,7 @@ function paintEditor() {
     const fields = document.getElementById('calEditorFields');
     const weekdays = document.getElementById('calEventWeekdays');
     const status = document.getElementById('calBlockStatus');
+    const outcome = document.getElementById('calBarOutcome');
     const park = document.getElementById('calParkItem');
     const remove = document.getElementById('calRemoveItem');
     const fresh = document.getElementById('calNewLecture');
@@ -599,11 +617,12 @@ function paintEditor() {
                 ? 'Busy time — a meeting, hold, or recurring block. Work stays in Unplaced until you drag or Fill week.'
                 : isUnplaced
                     ? 'Drag onto the clock, or set a start and Place. This is not a new event.'
-                    : 'On a bar: click locks, Shift skips, Alt marks done. Drag to move.';
+                    : 'Alt marks attended. Shift marks did not complete. Drag to move.';
     }
     toggleHidden(fields, isIdle);
     toggleHidden(weekdays, !isHard || isIdle);
     toggleHidden(status, !isBlock);
+    toggleHidden(outcome, isIdle || isNew || isUnplaced || !editor.id);
     toggleHidden(park, !(isBlock || isUnplaced));
     toggleHidden(remove, isIdle || isNew || isUnplaced);
     toggleHidden(fresh, isNew);
@@ -621,6 +640,7 @@ function clearEditorFields() {
     if (titleEl) titleEl.value = '';
     setWeekdaySelection([]);
     setStatusSelection('proposed');
+    setOutcomeSelection('');
     const start = document.getElementById('calEventStart');
     const end = document.getElementById('calEventEnd');
     if (start) start.value = '';
@@ -674,7 +694,8 @@ function openEditorFromBlock(btn) {
     } else {
         setWeekdaySelection([]);
     }
-    setStatusSelection(editor.status);
+    setStatusSelection(editor.status === 'done' || editor.status === 'missed' || editor.status === 'skipped' ? 'locked' : editor.status);
+    setOutcomeSelection(editor.status);
     paintEditor();
     document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
         el.classList.remove('is-selected');
@@ -706,6 +727,7 @@ function openUnplaced(btn) {
     }
     setWeekdaySelection([]);
     setStatusSelection('proposed');
+    setOutcomeSelection('');
     paintEditor();
     document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
         el.classList.remove('is-selected');
@@ -760,23 +782,21 @@ function bindGrid() {
 async function onExistingBarClick(e, btn) {
     const kind = btn.getAttribute('data-kind') || 'work';
     const id = btn.getAttribute('data-id') || '';
+    const occ = btn.getAttribute('data-occurrence-date') || '';
     const isWork = kind === 'work' || kind === 'workout';
-    if (isWork && id && (e.altKey || e.shiftKey || !e.metaKey)) {
+    if (id && (e.altKey || e.shiftKey)) {
         try {
-            if (e.altKey) {
-                await callEel('set_block_status', id, 'done');
-                utils.showSuccessFeedback('Marked done.');
-                utils.notifyDataChanged();
-                await loadCalendar();
-                return;
-            }
-            if (e.shiftKey) {
-                await callEel('set_block_status', id, 'skipped');
-                utils.showSuccessFeedback('Skipped.');
-                utils.notifyDataChanged();
-                await loadCalendar();
-                return;
-            }
+            await callEel('set_bar_outcome', id, e.altKey ? 'attended' : 'missed', occ);
+            utils.showSuccessFeedback(e.altKey ? 'Marked attended.' : 'Marked did not complete.');
+            utils.notifyDataChanged();
+            await loadCalendar();
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not update that bar.');
+        }
+        return;
+    }
+    if (isWork && id && !e.metaKey) {
+        try {
             if (btn.getAttribute('data-status') !== 'locked') {
                 await callEel('set_block_status', id, 'locked');
                 btn.setAttribute('data-status', 'locked');
@@ -1090,6 +1110,10 @@ async function saveEditor() {
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'hard') {
             await callEel('update_calendar_event', editor.id, title, start, end, selectedEventDays(), editor.occurrenceDate);
+            const outcome = selectedBarOutcome();
+            if (outcome) {
+                await callEel('set_bar_outcome', editor.id, outcome, editor.occurrenceDate);
+            }
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'unplaced') {
             await callEel('schedule_work_at', editor.id, start, end);
@@ -1378,6 +1402,13 @@ export function setupCalendar() {
         const chip = e.target.closest('[data-status]');
         if (!chip) return;
         setStatusSelection(chip.getAttribute('data-status'));
+        setOutcomeSelection('');
+    });
+    document.getElementById('calBarOutcome')?.addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-outcome]');
+        if (!chip) return;
+        const next = chip.classList.contains('is-selected') ? '' : chip.getAttribute('data-outcome');
+        setOutcomeSelection(next === 'attended' ? 'done' : next === 'missed' ? 'missed' : '');
     });
     document.getElementById('calImportIcs')?.addEventListener('click', () => {
         void importIcs();

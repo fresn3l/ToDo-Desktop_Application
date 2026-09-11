@@ -1,11 +1,12 @@
 /**
- * Analytics — journal, workouts, and repeating to-do misses.
+ * Analytics — planned hours, attendance, to-do completion, plus journal cards.
  */
 
 import * as utils from './utils.js';
+import { callEel } from './lazy.js';
 import { mountWeekStrip, requestOpenTimelineDate } from './weekstrip.js';
 
-let analyticsRange = 30;
+let analyticsRange = 28;
 let allocationPeriod = 'week';
 
 function bindExportsOnce() {
@@ -75,6 +76,8 @@ export async function onAnalyticsTabShown() {
     });
     try {
         const data = await eel.get_analytics(analyticsRange)();
+        paintConsistency(data.consistency || {});
+        await paintRateGoals();
         el.innerHTML = renderAnalytics(data);
         await paintTimeAllocation();
         document.getElementById('savePatternNote')?.addEventListener('click', async () => {
@@ -145,6 +148,177 @@ function renderTimeAllocation(data) {
             <ul class="review-list alloc-list">${bars}</ul>
         </div>
     `;
+}
+
+function formatRateValue(goal) {
+    const measure = goal.measure || 'attendance';
+    const current = goal.current_value;
+    const target = goal.target_value;
+    if (measure === 'hours') {
+        const now = current == null ? '—' : `${Number(current).toFixed(1)}h`;
+        const want = target == null ? '' : ` / ${Number(target).toFixed(1)}h`;
+        return `${now}${want}`;
+    }
+    const now = current == null ? '—' : `${Math.round(Number(current))}%`;
+    const want = target == null ? '' : ` / ${Math.round(Number(target))}%`;
+    return `${now}${want}`;
+}
+
+function rateCard(goal) {
+    const pct = Math.max(0, Math.min(100, goal.percent || 0));
+    return `
+        <article class="goal-card${goal.overdue ? ' is-overdue' : ''}" data-id="${utils.escapeHtml(goal.id)}">
+            <div class="goal-card-head">
+                <h3>${utils.escapeHtml(goal.title)}</h3>
+                <button type="button" class="btn-ghost goal-remove" data-act="delete-rate">Remove</button>
+            </div>
+            <p class="goal-meta">${utils.escapeHtml(goal.measure_label || goal.measure || '')} · ${utils.escapeHtml(goal.window_label || '')}</p>
+            <div class="goal-progress">
+                <div class="goal-progress-meta">
+                    <span>${utils.escapeHtml(formatRateValue(goal))}</span>
+                    <span>${goal.percent == null ? '—' : `${pct}%`}</span>
+                </div>
+                <div class="goal-progress-track" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="goal-progress-fill" style="width:${goal.percent == null ? 0 : pct}%"></div>
+                </div>
+            </div>
+        </article>`;
+}
+
+async function paintRateGoals() {
+    const host = document.getElementById('rateGoalsBoard');
+    if (!host) return;
+    try {
+        const board = await callEel('get_goals_board');
+        const rates = board.rates?.goals || [];
+        host.innerHTML = `
+            <div class="review-card review-card--wide rate-goal-panel">
+                <h3>Rate goals</h3>
+                <p class="review-detail">Attendance, hours, or to-do completion. Title is yours. Attendance counts every bar.</p>
+                <form id="rateGoalForm" class="rate-goal-form">
+                    <input type="text" name="title" class="checklist-text-input" placeholder="Show up to these" autocomplete="off">
+                    <select name="measure" class="checklist-text-input" aria-label="Measure">
+                        <option value="attendance">Attendance %</option>
+                        <option value="hours">Hours</option>
+                        <option value="todo_completion">To-do completion %</option>
+                    </select>
+                    <input type="number" name="target" class="checklist-text-input" min="1" step="1" placeholder="Target" required>
+                    <select name="window" class="checklist-text-input" aria-label="Window">
+                        <option value="4">4 weeks</option>
+                        <option value="12">12 weeks</option>
+                        <option value="52">Year</option>
+                    </select>
+                    <button type="submit" class="btn-primary">Add rate</button>
+                </form>
+                <div class="rate-goal-list">${rates.map(rateCard).join('') || '<p class="checklist-empty">No rate goals yet.</p>'}</div>
+            </div>`;
+        host.querySelector('#rateGoalForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const title = (form.title?.value || '').trim();
+            const measure = form.measure?.value || 'attendance';
+            const target = form.target?.value || '';
+            const windowWeeks = form.window?.value || '4';
+            if (!title) {
+                utils.showErrorFeedback('Name the goal first.');
+                return;
+            }
+            try {
+                await callEel('create_rate_goal', title, measure, target, windowWeeks);
+                utils.showSuccessFeedback('Rate goal saved.');
+                utils.notifyDataChanged();
+                await paintRateGoals();
+            } catch (err) {
+                utils.showErrorFeedback(err?.message || 'Could not save that goal.');
+            }
+        });
+        host.querySelectorAll('[data-act="delete-rate"]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const id = btn.closest('[data-id]')?.getAttribute('data-id');
+                if (!id) return;
+                try {
+                    await callEel('delete_goal', id);
+                    utils.notifyDataChanged();
+                    await paintRateGoals();
+                } catch (err) {
+                    utils.showErrorFeedback('Could not remove that goal.');
+                }
+            });
+        });
+    } catch (err) {
+        console.error(err);
+        host.innerHTML = '<p class="checklist-error">Could not load rate goals.</p>';
+    }
+}
+
+function paintConsistency(data) {
+    const host = document.getElementById('consistencyCharts');
+    if (!host) return;
+    const weeks = data.weeks || [];
+    host.innerHTML = `
+        <div class="review-grid consistency-grid">
+            <div class="review-card">
+                <h3>Hours</h3>
+                <p class="review-stat">${data.hours || 0}</p>
+                <p class="review-detail">planned hours on the clock</p>
+            </div>
+            <div class="review-card">
+                <h3>Attendance</h3>
+                <p class="review-stat">${data.attendance_pct == null ? '—' : `${data.attendance_pct}%`}</p>
+                <p class="review-detail">${data.attended || 0} of ${data.closed || 0} closed bars</p>
+            </div>
+            <div class="review-card">
+                <h3>To-dos</h3>
+                <p class="review-stat">${data.todo_pct == null ? '—' : `${data.todo_pct}%`}</p>
+                <p class="review-detail">${data.todo_done || 0} of ${data.todo_total || 0} dated finished</p>
+            </div>
+        </div>
+        <div class="review-card review-card--wide">
+            <h3>Weekly hours</h3>
+            ${weekChart(weeks, 'hours', 'Hours planned each week')}
+        </div>
+        <div class="review-card review-card--wide">
+            <h3>Attendance</h3>
+            ${weekChart(weeks, 'attendance_pct', 'Attendance percent each week', true)}
+        </div>
+        <div class="review-card review-card--wide">
+            <h3>To-do completion</h3>
+            ${weekChart(weeks, 'todo_pct', 'To-do completion percent each week', true)}
+        </div>`;
+}
+
+function weekChart(weeks, key, aria, percent = false) {
+    const rows = (weeks || []).map((row) => ({
+        label: row.label || row.week_start || '',
+        value: row[key] == null ? 0 : Number(row[key]),
+        empty: row[key] == null,
+    }));
+    if (!rows.length) {
+        return '<p class="checklist-empty">Nothing in this range yet.</p>';
+    }
+    const width = 640;
+    const height = 148;
+    const padL = 8;
+    const padR = 8;
+    const padT = 10;
+    const padB = 28;
+    const max = percent ? 100 : Math.max(...rows.map((row) => row.value), 1);
+    const inner = width - padL - padR;
+    const gap = rows.length > 20 ? 2 : 6;
+    const barW = Math.max(4, (inner / rows.length) - gap);
+    const bars = rows.map((row, index) => {
+        const x = padL + index * (inner / rows.length) + gap / 2;
+        const h = row.empty ? 0 : (row.value / max) * (height - padT - padB);
+        const y = height - padB - h;
+        const label = rows.length <= 16 || index % Math.ceil(rows.length / 8) === 0
+            ? `<text x="${(x + barW / 2).toFixed(1)}" y="${height - 8}" text-anchor="middle">${utils.escapeHtml(String(row.label))}</text>`
+            : '';
+        return `<rect class="consistency-bar${row.empty ? ' is-empty' : ''}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(h, 0).toFixed(1)}" rx="3"></rect>${label}`;
+    }).join('');
+    return `
+        <svg class="consistency-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${utils.escapeHtml(aria)}">
+            ${bars}
+        </svg>`;
 }
 
 function renderAnalytics(data) {

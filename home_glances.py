@@ -49,7 +49,7 @@ def clock_beat(
     current = now or datetime.now()
     live: List[Dict[str, Any]] = []
     for item in agenda or []:
-        if str(item.get("status") or "") == "skipped":
+        if str(item.get("status") or "") in ("skipped", "missed"):
             continue
         start = _parse_dt(item.get("start_at"))
         end = _parse_dt(item.get("end_at"))
@@ -153,7 +153,7 @@ def free_today_glance() -> Dict[str, Any]:
     agenda = calclock.get_day_agenda(iso).get("items") or []
     events = []
     for item in agenda:
-        if str(item.get("status") or "") == "skipped":
+        if str(item.get("status") or "") in ("skipped", "missed"):
             continue
         start = _parse_dt(item.get("start_at"))
         end = _parse_dt(item.get("end_at"))

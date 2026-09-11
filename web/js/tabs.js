@@ -1,5 +1,5 @@
 /**
- * Tab navigation — Home, Journal, Calendar, Settings.
+ * Tab navigation — Home, Journal, Calendar, Analytics, Settings.
  * Non-Home screens load their JS and Python on first visit.
  */
 
@@ -12,6 +12,7 @@ const ID_MAP = {
     today: 'homeTab',
     journal: 'journalTab',
     calendar: 'calendarTab',
+    analytics: 'analyticsTab',
     brain: 'brainTab',
     library: 'libraryTab',
     settings: 'settingsTab',
@@ -22,6 +23,7 @@ const LABELS = {
     today: 'Home',
     journal: 'Journal',
     calendar: 'Calendar',
+    analytics: 'Analytics',
     brain: 'Brain',
     library: 'Library',
     settings: 'Settings',
@@ -29,7 +31,7 @@ const LABELS = {
 
 function canonicalTab(name) {
     if (name === 'today' || name === 'workout' || name === 'todo'
-        || name === 'goals' || name === 'allwork' || name === 'analytics' || name === 'timeline'
+        || name === 'goals' || name === 'allwork' || name === 'timeline'
         || name === 'checklist' || name === 'word') {
         return 'home';
     }
@@ -81,6 +83,12 @@ async function loadTab(key) {
             await bootFeature('library');
             const mod = await import('./library.js');
             mod.setupLibrary();
+            return mod;
+        }
+        if (key === 'analytics') {
+            await bootFeature('analytics');
+            const mod = await import('./analytics.js');
+            mod.setupAnalytics();
             return mod;
         }
         if (key === 'settings') {
@@ -164,6 +172,7 @@ export async function switchTab(name, opts = {}) {
             const mod = await loadTab(key);
             if (key === 'journal') void mod?.loadPastEntries?.();
             else if (key === 'calendar') await mod?.onCalendarTabShown?.();
+            else if (key === 'analytics') await mod?.onAnalyticsTabShown?.();
             else if (key === 'brain') await mod?.onBrainTabShown?.();
             else if (key === 'library') await mod?.onLibraryTabShown?.();
             else if (key === 'settings') mod?.onSettingsTabShown?.();

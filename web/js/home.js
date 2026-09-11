@@ -219,7 +219,10 @@ function returnSources() {
     if (!host) return;
     document.querySelectorAll('.home-widget-body > .widget-source, #homeWorkBody > .widget-source, #homeCheckinBody > .widget-source').forEach((node) => {
         node.classList.remove('widget-source--active');
-        host.appendChild(node);
+        const dest = node.classList.contains('tab-content')
+            ? document.querySelector('main.app-content')
+            : host;
+        (dest || host).appendChild(node);
     });
 }
 

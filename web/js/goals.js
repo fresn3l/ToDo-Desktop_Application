@@ -22,7 +22,7 @@ export async function loadGoalOptions(selectId, selected) {
         const goals = await callEel('list_goals');
         const current = selected || el.value || '';
         const opts = ['<option value="">Goal (optional)</option>'].concat(
-            (goals || []).map((goal) => {
+            (goals || []).filter((goal) => !goal.is_rate).map((goal) => {
                 const kw = goal.keyword ? ` · ${goal.keyword}` : '';
                 const label = `${goal.title} · ${goal.horizon_label}${kw}`;
                 const sel = goal.id === current ? ' selected' : '';
@@ -35,7 +35,70 @@ export async function loadGoalOptions(selectId, selected) {
     }
 }
 
+function formatRateValue(goal) {
+    const measure = goal.measure || 'attendance';
+    const current = goal.current_value;
+    const target = goal.target_value;
+    if (measure === 'hours') {
+        const now = current == null ? '—' : `${Number(current).toFixed(1)}h`;
+        const want = target == null ? '' : ` / ${Number(target).toFixed(1)}h`;
+        return `${now}${want}`;
+    }
+    const now = current == null ? '—' : `${Math.round(Number(current))}%`;
+    const want = target == null ? '' : ` / ${Math.round(Number(target))}%`;
+    return `${now}${want}`;
+}
+
+function rateCard(goal) {
+    const bits = [];
+    if (goal.measure_label) bits.push(utils.escapeHtml(goal.measure_label));
+    if (goal.window_label) bits.push(utils.escapeHtml(goal.window_label));
+    const meta = bits.length ? `<p class="goal-meta">${bits.join(' · ')}</p>` : '';
+    const pct = Math.max(0, Math.min(100, goal.percent || 0));
+    const meter = `
+            <div class="goal-progress">
+                <div class="goal-progress-meta">
+                    <span>${utils.escapeHtml(formatRateValue(goal))}</span>
+                    <span>${goal.percent == null ? '—' : `${pct}%`}</span>
+                </div>
+                <div class="goal-progress-track" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="goal-progress-fill" style="width:${goal.percent == null ? 0 : pct}%"></div>
+                </div>
+            </div>`;
+    return `
+        <article class="goal-card${goal.overdue ? ' is-overdue' : ''}" data-id="${utils.escapeHtml(goal.id)}" data-rate="1">
+            <div class="goal-card-head">
+                <h3>${utils.escapeHtml(goal.title)}</h3>
+                <button type="button" class="btn-ghost goal-remove" data-act="delete">Remove</button>
+            </div>
+            ${meta}
+            ${meter}
+        </article>`;
+}
+
+function rateForm() {
+    return `
+        <div class="goal-add rate-goal-add">
+            <input type="text" class="checklist-text-input" data-field="title" placeholder="Show up to these" autocomplete="off">
+            <button type="button" class="btn-primary" data-act="add-rate">Add</button>
+            <div class="goal-add-more">
+                <select class="checklist-text-input" data-field="measure" aria-label="Measure">
+                    <option value="attendance">Attendance %</option>
+                    <option value="hours">Hours</option>
+                    <option value="todo_completion">To-do completion %</option>
+                </select>
+                <input type="number" class="checklist-text-input goal-hours" data-field="target" min="1" step="1" placeholder="target">
+                <select class="checklist-text-input" data-field="window" aria-label="Window">
+                    <option value="4">4 weeks</option>
+                    <option value="12">12 weeks</option>
+                    <option value="52">Year</option>
+                </select>
+            </div>
+        </div>`;
+}
+
 function goalCard(goal) {
+    if (goal.is_rate) return rateCard(goal);
     const bits = [];
     if (goal.keyword) bits.push(`<span class="work-flag">${utils.escapeHtml(goal.keyword)}</span>`);
     if (goal.end_date) bits.push(`by ${utils.escapeHtml(goal.end_date)}`);
@@ -91,7 +154,16 @@ export async function refreshGoals() {
     if (!root) return;
     try {
         const board = await callEel('get_goals_board');
-        root.innerHTML = (board.horizons || [])
+        const rates = board.rates || { id: 'rate', label: 'Rates', hint: '', goals: [] };
+        const rateCount = rates.goals?.length ? `<span class="goal-horizon-count">${rates.goals.length}</span>` : '';
+        const rateBody = (rates.goals || []).map(rateCard).join('');
+        const rateCol = `
+                    <section class="goal-column goal-column--rate" data-horizon="rate">
+                        <p class="goal-horizon">${utils.escapeHtml(rates.label || 'Rates')}${rateCount}</p>
+                        ${rateForm()}
+                        <div class="goal-list">${rateBody}</div>
+                    </section>`;
+        root.innerHTML = rateCol + (board.horizons || [])
             .map((col) => {
                 const n = col.goals.length;
                 const count = n ? `<span class="goal-horizon-count">${n}</span>` : '';
@@ -121,10 +193,14 @@ function bindGoals(root) {
         addBtn?.addEventListener('click', () => {
             void addGoal(col, horizon);
         });
+        col.querySelector('[data-act="add-rate"]')?.addEventListener('click', () => {
+            void addRateGoal(col);
+        });
         col.querySelector('[data-field="title"]')?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                void addGoal(col, horizon);
+                if (horizon === 'rate') void addRateGoal(col);
+                else void addGoal(col, horizon);
             }
         });
     });
@@ -140,6 +216,25 @@ function bindGoals(root) {
             }
         });
     });
+}
+
+async function addRateGoal(col) {
+    const title = (col.querySelector('[data-field="title"]')?.value || '').trim();
+    const measure = col.querySelector('[data-field="measure"]')?.value || 'attendance';
+    const target = col.querySelector('[data-field="target"]')?.value || '';
+    const windowWeeks = col.querySelector('[data-field="window"]')?.value || '4';
+    if (!title) {
+        utils.showErrorFeedback('Name the goal first.');
+        return;
+    }
+    try {
+        await callEel('create_rate_goal', title, measure, target, windowWeeks);
+        utils.showSuccessFeedback('Rate goal saved.');
+        utils.notifyDataChanged();
+        await refreshGoals();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not save that goal.');
+    }
 }
 
 async function addGoal(col, horizon) {
