@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sqlite3
+import threading
 import uuid
 from collections import Counter
 from contextlib import contextmanager
@@ -113,6 +114,9 @@ def _settings_path() -> Path:
     return work._data_dir() / SETTINGS_NAME
 
 
+_schema_lock = threading.Lock()
+
+
 @contextmanager
 def _connect() -> Iterator[sqlite3.Connection]:
     with sqlite_connect(_db_path()) as conn:
@@ -121,6 +125,12 @@ def _connect() -> Iterator[sqlite3.Connection]:
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
+    with _schema_lock:
+        _ensure_schema_unlocked(conn)
+        conn.commit()
+
+
+def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS calendar_events (

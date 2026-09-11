@@ -16,7 +16,6 @@ DATA_FILES = [
             "web/js/utils.js",
             "web/js/tabs.js",
             "web/js/daily_checklist.js",
-            "web/js/review.js",
             "web/js/timeline.js",
             "web/js/weekstrip.js",
             "web/js/appearance.js",

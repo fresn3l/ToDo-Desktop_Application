@@ -41,6 +41,7 @@ print("ok")
         import lazy_eel
 
         self.assertEqual(lazy_eel.FEATURE_MODULES["settings"], ())
+        self.assertEqual(lazy_eel.FEATURE_MODULES["today"], ("insights", "calclock", "home_glances"))
 
     def test_home_boot_does_not_probe_cluny_health(self) -> None:
         import home_boot
@@ -55,6 +56,8 @@ print("ok")
         names = [row.args[1] for row in called.call_args_list if row.args]
         self.assertNotIn("get_cluny_health", names)
         self.assertIn("get_cluny_inbox", names)
+        self.assertNotIn("get_today_home", names)
+        self.assertIn("now_next_glance", names)
 
     def test_get_home_boot_is_one_payload(self) -> None:
         import home_boot
@@ -198,3 +201,24 @@ print("ok")
         self.assertIn("today_calendar", boot["glances"])
         self.assertIn("beat", boot["glances"]["today_calendar"])
         self.assertFalse(boot["glances"]["weather"].get("ok"))
+
+    def test_home_boot_skips_insights_for_today_tile(self) -> None:
+        code = r"""
+import sys
+sys.path.insert(0, %r)
+import os
+import tempfile
+from unittest import mock
+tmp = tempfile.TemporaryDirectory()
+os.environ["KOSISTENZ_DATA_DIR"] = tmp.name
+import home_boot
+with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+    boot = home_boot.get_home_boot()
+blocked = [name for name in ("insights", "workouts", "timeline") if name in sys.modules]
+assert not blocked, blocked
+assert boot["glances"]["today_calendar"].get("ok") is not False
+assert "beat" in boot["glances"]["today_calendar"]
+print("ok")
+""" % (str(ROOT),)
+        out = subprocess.check_output([sys.executable, "-c", code], cwd=str(ROOT), text=True)
+        self.assertIn("ok", out)

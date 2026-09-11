@@ -395,7 +395,7 @@ export async function openHomeWork(kind, opener) {
             closeBtn?.focus();
         }
     });
-    await refreshKinds([kind]);
+    void refreshKinds([kind]);
 }
 
 async function refreshKinds(kinds, glances) {
@@ -667,15 +667,25 @@ async function renderHome(pageId, opts = {}) {
         paintedPageId = next.id;
     }
     await refreshKinds((next?.widgets || []).map((item) => item.kind), boot.glances);
-    await syncCheckin(boot.checkin);
+    void syncCheckin(boot.checkin);
 }
+
+let homeRefreshTimer = 0;
 
 async function refreshHomeData() {
     const boot = await fetchHomeBoot();
     if (boot.layout?.pages?.length) layout = boot.layout;
     const page = activePage();
     await refreshKinds((page?.widgets || []).map((item) => item.kind), boot.glances);
-    await syncCheckin(boot.checkin);
+    void syncCheckin(boot.checkin);
+}
+
+function scheduleHomeRefresh() {
+    window.clearTimeout(homeRefreshTimer);
+    homeRefreshTimer = window.setTimeout(() => {
+        homeRefreshTimer = 0;
+        void refreshHomeData();
+    }, 160);
 }
 
 async function run(action) {
@@ -709,7 +719,7 @@ function bindHome() {
             ok: 'Add page',
         });
         if (name == null) return;
-        void run(() => eel.add_home_page(name.trim())());
+        void run(() => callEel('add_home_page', name.trim()));
     });
 
     document.getElementById('homeRenamePageBtn')?.addEventListener('click', async () => {
@@ -722,7 +732,7 @@ function bindHome() {
             ok: 'Rename',
         });
         if (name == null) return;
-        void run(() => eel.rename_home_page(page.id, name.trim())());
+        void run(() => callEel('rename_home_page', page.id, name.trim()));
     });
 
     document.getElementById('homeDeletePageBtn')?.addEventListener('click', async () => {
@@ -738,7 +748,7 @@ function bindHome() {
             danger: true,
         });
         if (!ok) return;
-        void run(() => eel.delete_home_page(page.id)());
+        void run(() => callEel('delete_home_page', page.id));
     });
 
     document.getElementById('homeEditBtn')?.addEventListener('click', () => {
@@ -753,7 +763,7 @@ function bindHome() {
         if (!btn || btn.disabled) return;
         const page = activePage();
         if (!page) return;
-        void run(() => eel.add_home_widget(page.id, btn.getAttribute('data-kind'))());
+        void run(() => callEel('add_home_widget', page.id, btn.getAttribute('data-kind')));
     });
 
     document.getElementById('homeBoard')?.addEventListener('click', (e) => {
@@ -765,7 +775,7 @@ function bindHome() {
             if (!card || !page) return;
             const id = card.getAttribute('data-id');
             if (btn.getAttribute('data-act') === 'remove') {
-                void run(() => eel.remove_home_widget(page.id, id)());
+                void run(() => callEel('remove_home_widget', page.id, id));
             }
             return;
         }
@@ -962,7 +972,7 @@ function bindHome() {
                 if (widget) paintWidgetBox(card, widget.x, widget.y, widget.w, widget.h);
                 return;
             }
-            void run(() => eel.resize_home_widget(page.id, id, w | 0, h | 0)());
+            void run(() => callEel('resize_home_widget', page.id, id, w | 0, h | 0));
             return;
         }
         const regionChanged = region !== originRegion;
@@ -970,7 +980,7 @@ function bindHome() {
             if (card && widget) paintWidgetBox(card, widget.x, widget.y, widget.w, widget.h);
             return;
         }
-        void run(() => eel.move_home_widget(page.id, id, x | 0, y | 0, region)());
+        void run(() => callEel('move_home_widget', page.id, id, x | 0, y | 0, region));
     };
 
     const onPointerDown = (e) => {
@@ -1015,7 +1025,7 @@ export function setupHome() {
     });
     document.addEventListener('kosistenz:data-changed', () => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
-            void refreshHomeData();
+            void scheduleHomeRefresh();
         }
     });
     document.addEventListener('kosistenz:open-home-work', (event) => {
@@ -1063,7 +1073,7 @@ export async function ensureHomeWidget(kind) {
     if (!page) return;
     if (!(page.widgets || []).some((item) => item.kind === kind)) {
         try {
-            layout = await eel.add_home_widget(page.id, kind)();
+            layout = await callEel('add_home_widget', page.id, kind);
         } catch (err) {
             console.error(err);
         }

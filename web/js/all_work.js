@@ -127,7 +127,7 @@ export function setupAllWork() {
         }
     });
     document.addEventListener('kosistenz:data-changed', () => {
-        if (document.getElementById('allWorkTab')?.classList.contains('active')) {
+        if (utils.sourceIsOpen('allWorkTab')) {
             void refreshAllWork();
         }
     });

@@ -162,7 +162,7 @@ export async function switchTab(name, opts = {}) {
             await onHomeTabShown(opts.homePageId);
         } else {
             const mod = await loadTab(key);
-            if (key === 'journal') await mod?.loadPastEntries?.();
+            if (key === 'journal') void mod?.loadPastEntries?.();
             else if (key === 'calendar') await mod?.onCalendarTabShown?.();
             else if (key === 'brain') await mod?.onBrainTabShown?.();
             else if (key === 'library') await mod?.onLibraryTabShown?.();

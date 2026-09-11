@@ -43,6 +43,14 @@ export function showErrorFeedback(message) {
     }, 3000);
 }
 
+export function sourceIsOpen(id) {
+    const el = document.getElementById(id);
+    return Boolean(
+        el
+        && (el.classList.contains('active') || el.classList.contains('widget-source--active')),
+    );
+}
+
 export function notifyDataChanged() {
     document.dispatchEvent(new CustomEvent('kosistenz:data-changed'));
     try {

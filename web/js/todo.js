@@ -501,7 +501,7 @@ export function setupTodo() {
     document.getElementById('workScopeSeries')?.addEventListener('click', () => closeScope('series'));
     document.getElementById('workScopeCancel')?.addEventListener('click', () => closeScope(null));
     document.addEventListener('kosistenz:data-changed', () => {
-        if (document.getElementById('todoTab')?.classList.contains('active')) {
+        if (utils.sourceIsOpen('todoTab')) {
             void refreshTodo();
         }
     });

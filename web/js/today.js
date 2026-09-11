@@ -402,7 +402,7 @@ export async function refreshToday() {
             el.innerHTML = '<span class="today-label">Today</span><span class="today-fallback">Status unavailable</span>';
         }
     }
-    if (document.getElementById('homeTab')?.classList.contains('active')) {
+    if (utils.sourceIsOpen('todayCalendarSource')) {
         await refreshTodayHome();
     }
 }

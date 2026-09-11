@@ -962,40 +962,8 @@ async function completeFlow() {
 async function showRecoveryIfNeeded() {
     const panel = document.getElementById('recoveryPanel');
     if (!panel) return;
-    try {
-        const data = await eel.get_pending_recovery()();
-        if (!data.pending) {
-            panel.classList.add('is-hidden');
-            panel.innerHTML = '';
-            return;
-        }
-        panel.classList.remove('is-hidden');
-        let options = '';
-        (data.options || []).forEach((opt) => {
-            options += `<button type="button" class="btn-secondary recovery-option" data-value="${utils.escapeHtml(opt.value)}">${utils.escapeHtml(opt.label)}</button>`;
-        });
-        panel.innerHTML = `
-            <div class="recovery-card">
-                <h3>Missed check-in: ${utils.escapeHtml(data.missed_date)}</h3>
-                <p class="checklist-q">${utils.escapeHtml(data.question)}</p>
-                <div class="recovery-options">${options}</div>
-            </div>
-        `;
-        panel.querySelectorAll('.recovery-option').forEach((btn) => {
-            btn.addEventListener('click', async () => {
-                try {
-                    await eel.submit_recovery_response(data.missed_date, btn.getAttribute('data-value'))();
-                    utils.showSuccessFeedback('Thanks — logged.');
-                    utils.notifyDataChanged();
-                    await showRecoveryIfNeeded();
-                } catch (e) {
-                    utils.showErrorFeedback('Could not save.');
-                }
-            });
-        });
-    } catch (e) {
-        console.error(e);
-    }
+    panel.classList.add('is-hidden');
+    panel.innerHTML = '';
 }
 
 function fallbackFormatted(answers) {

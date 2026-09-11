@@ -1056,7 +1056,7 @@ async function runDueMenu(act) {
             utils.showSuccessFeedback('Reopened.');
         } else if (act === 'place-after') {
             await callEel('place_work_after_lecture', id, date);
-            utils.showSuccessFeedback('Placed after this.');
+            utils.showSuccessFeedback('Placed after the first event.');
         } else if (act === 'todo') {
             document.dispatchEvent(new CustomEvent('kosistenz:open-todo', { detail: { date, itemId: id } }));
             return;

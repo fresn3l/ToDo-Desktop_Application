@@ -4,6 +4,7 @@
  */
 
 import * as utils from './utils.js';
+import { callEel } from './lazy.js';
 
 let pendingFocus = null;
 
@@ -95,20 +96,17 @@ function paintInbox(inbox) {
 export async function refreshCluny() {
     const root = document.getElementById('clunySource');
     if (!root) return;
-    if (hasEel('get_cluny_health')) {
-        try {
-            applyHealth(await eel.get_cluny_health()());
-        } catch (err) {
-            console.error(err);
-            applyHealth({ brain_ready: false });
-        }
-    }
-    if (!hasEel('get_cluny_inbox')) return;
     try {
-        paintInbox(await eel.get_cluny_inbox()());
+        paintInbox(await callEel('get_cluny_inbox'));
     } catch (err) {
         console.error(err);
     }
+    void callEel('get_cluny_health')
+        .then((health) => applyHealth(health || {}))
+        .catch((err) => {
+            console.error(err);
+            applyHealth({ brain_ready: false });
+        });
 }
 
 export async function onClunyTabShown() {

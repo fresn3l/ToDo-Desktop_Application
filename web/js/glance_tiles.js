@@ -787,7 +787,11 @@ function posterHtml(kind, _data, size) {
 async function loadGlance(kind) {
     if (kind === 'weather') return eelCall('get_weather_forecast', false);
     if (kind === 'word') return eelCall('get_word_of_the_day');
-    if (kind === 'today_calendar') return eelCall('get_today_home');
+    if (kind === 'today_calendar') {
+        const beat = await eelCall('get_now_next_glance');
+        if (!beat || beat.ok === false) return beat;
+        return { ok: true, beat, local_date: beat.local_date };
+    }
     if (kind === 'todo') return eelCall('get_work_board', utils.localISODate());
     if (kind === 'focus') return eelCall('get_daily_focus');
     if (kind === 'countdown') return eelCall('get_countdowns');
@@ -798,7 +802,7 @@ async function loadGlance(kind) {
     if (kind === 'goals') return eelCall('list_goals');
     if (kind === 'allwork') return eelCall('list_backlog');
     if (kind === 'day_brief') return eelCall('get_day_brief');
-    if (kind === 'heatmap') return eelCall('get_heatmap');
+    if (kind === 'heatmap') return eelCall('get_heatmap', '', '', '', 42);
     if (kind === 'analytics') return eelCall('get_analytics', 7);
     if (kind === 'timeline') return eelCall('get_timeline_day', utils.localISODate());
     if (kind === 'cluny') return eelCall('get_cluny_inbox');

@@ -53,6 +53,19 @@ def _cluny_glance() -> Dict[str, Any]:
     return inbox if isinstance(inbox, dict) else {}
 
 
+def _today_calendar_glance() -> Dict[str, Any]:
+    """Clock beat only. Full Today (workouts, streak, brief) stays on the overlay."""
+    beat = _safe_call("home_glances", "now_next_glance")
+    if isinstance(beat, dict) and beat.get("ok") is False:
+        return beat
+    packed = beat if isinstance(beat, dict) else {}
+    return {
+        "ok": True,
+        "beat": packed,
+        "local_date": packed.get("local_date") or _today_iso(),
+    }
+
+
 def fetch_glance(kind: str) -> Any:
     key = str(kind or "").strip()
     if key == "weather":
@@ -60,7 +73,7 @@ def fetch_glance(kind: str) -> Any:
     if key == "word":
         return _safe_call("word_of_the_day", "get_word_of_the_day")
     if key == "today_calendar":
-        return _safe_call("insights", "get_today_home")
+        return _today_calendar_glance()
     if key == "todo":
         try:
             return work.get_work_board(_today_iso())
@@ -88,7 +101,7 @@ def fetch_glance(kind: str) -> Any:
     if key == "day_brief":
         return _safe_call("day_brief", "get_day_brief")
     if key == "heatmap":
-        return _safe_call("heatmap", "get_heatmap")
+        return _safe_call("heatmap", "get_heatmap", "", "", "", 42)
     if key == "analytics":
         return _safe_call("insights", "get_analytics", 7)
     if key == "timeline":

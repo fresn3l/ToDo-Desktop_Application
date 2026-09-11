@@ -79,7 +79,7 @@ FEATURE_MODULES: Dict[str, Tuple[str, ...]] = {
     # Settings paints locally. iCloud / Cluny / calendar load on first use.
     "settings": (),
     "icloud": ("icloud_sync",),
-    "today": ("insights", "day_brief", "timeline", "workouts", "calclock", "home_glances"),
+    "today": ("insights", "calclock", "home_glances"),
     "todo": ("work", "goals"),
     "workout": ("workouts",),
     "goals": ("goals",),

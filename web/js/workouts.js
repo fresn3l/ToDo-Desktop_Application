@@ -272,7 +272,7 @@ export function setupWorkouts() {
         void saveWeekTemplate();
     });
     document.addEventListener('kosistenz:data-changed', () => {
-        if (document.getElementById('workoutTab')?.classList.contains('active')) {
+        if (utils.sourceIsOpen('workoutTab')) {
             void refreshWorkouts();
         }
     });

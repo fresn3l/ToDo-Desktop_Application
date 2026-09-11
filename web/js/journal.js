@@ -6,6 +6,7 @@
 
 import * as utils from './utils.js';
 import { getAppearance, onAppearanceChange } from './appearance.js';
+import { callEel } from './lazy.js';
 
 // ============================================
 // JOURNAL STATE
@@ -419,8 +420,10 @@ export async function loadPastEntries() {
     if (!container) return;
 
     try {
-        container.innerHTML = '<p class="empty-state empty-state--line">Loading</p>';
-        journalCache = await eel.get_recent_entries(30)();
+        if (!journalCache.length) {
+            container.innerHTML = '<p class="empty-state empty-state--line">Loading</p>';
+        }
+        journalCache = await callEel('get_recent_entries', 30);
         refreshJournalTagFilter();
         renderJournalHistory();
     } catch (error) {

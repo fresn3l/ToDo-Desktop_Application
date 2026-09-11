@@ -65,6 +65,9 @@ def get_widget_snapshot_path() -> Path:
     return _data_dir() / "widget_snapshot.json"
 
 
+_schema_lock = threading.Lock()
+
+
 @contextmanager
 def _connect() -> Iterator[sqlite3.Connection]:
     with sqlite_connect(get_work_db_path()) as conn:
@@ -73,6 +76,12 @@ def _connect() -> Iterator[sqlite3.Connection]:
 
 
 def _ensure_schema(conn: sqlite3.Connection) -> None:
+    with _schema_lock:
+        _ensure_schema_unlocked(conn)
+        conn.commit()
+
+
+def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS work_items (

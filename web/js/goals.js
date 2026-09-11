@@ -161,23 +161,9 @@ async function addGoal(col, horizon) {
     }
 }
 
-function goalsBoardIsOpen() {
-    const tab = document.getElementById('goalsTab');
-    return Boolean(
-        tab
-        && (tab.classList.contains('active') || tab.classList.contains('widget-source--active')),
-    );
-}
-
 export function setupGoals() {
     document.addEventListener('kosistenz:data-changed', () => {
-        if (goalsBoardIsOpen()) {
-            void refreshGoals();
-        } else {
-            void loadGoalOptions('todoNewGoal');
-            void loadGoalOptions('todayNewGoal');
-            void loadGoalOptions('allWorkNewGoal');
-        }
+        if (utils.sourceIsOpen('goalsTab')) void refreshGoals();
     });
 }
 
