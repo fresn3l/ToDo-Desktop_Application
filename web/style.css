@@ -3421,6 +3421,31 @@ html[data-motion='reduce'] .glance-tile {
     margin-top: var(--s-2);
 }
 
+.glance-capture {
+    display: flex;
+    gap: 6px;
+    margin-top: var(--s-2);
+}
+
+.glance-capture-input {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    height: 2rem;
+    padding: 0 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-elevated);
+    color: inherit;
+    font: inherit;
+    font-size: 13px;
+}
+
+.glance-capture-input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
 .glance-counters {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4514,13 +4539,6 @@ html.home-work-open .app-content {
     min-height: 0;
 }
 
-.today-home {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 4px 2px 28px;
-}
-
 .today-masthead {
     display: flex;
     justify-content: space-between;
@@ -4557,193 +4575,9 @@ html.home-work-open .app-content {
     margin-top: 8px;
 }
 
-.today-masthead-side {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 12px;
-    text-align: right;
-    padding-bottom: 2px;
-}
-
 .today-pulse {
     max-width: 320px;
     line-height: 1.45;
-}
-
-.today-customize-btn {
-    padding: 6px 12px;
-    font-size: 13px;
-}
-
-.today-customize {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(220px, 0.9fr);
-    gap: 16px 22px;
-    padding: 16px 18px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-}
-
-.today-customize-section {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.today-customize-label {
-    font-size: 11px;
-    font-weight: 650;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin: 0;
-}
-
-.today-toggles {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.settings-block .today-toggles {
-    margin-bottom: 12px;
-}
-
-.settings-block .today-order-list {
-    margin-top: 12px;
-}
-
-.today-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    font-size: 13px;
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-
-.today-toggle:has(input:checked) {
-    color: var(--text-primary);
-    border-color: color-mix(in srgb, var(--primary) 40%, var(--border-color));
-}
-
-.today-toggle input {
-    accent-color: var(--primary);
-}
-
-.today-order-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin: 0;
-}
-
-.today-order-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 6px 8px 6px 12px;
-    background: var(--bg-elevated);
-    border-radius: var(--radius-md);
-    font-size: 13px;
-}
-
-.today-order-moves {
-    display: flex;
-    gap: 4px;
-}
-
-.today-order-btn {
-    padding: 4px 8px;
-    font-size: 12px;
-    background: var(--bg-panel);
-}
-
-.today-order-btn:disabled {
-    opacity: 0.35;
-    cursor: default;
-}
-
-.today-board {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(240px, 0.85fr);
-    gap: 14px;
-    align-items: start;
-}
-
-.today-card {
-    background: var(--bg-panel);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    padding: 18px 20px 20px;
-    min-width: 0;
-}
-
-.today-card--wide {
-    grid-column: 1 / -1;
-}
-
-html[data-today-layout='split'] .today-card[data-module='journal'] {
-    grid-column: 1 / -1;
-}
-
-.today-card-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.today-card-head h2 {
-    font-size: 13px;
-    font-weight: 650;
-    letter-spacing: 0.04em;
-    text-transform: none;
-    color: var(--text-title);
-}
-
-.today-card-link {
-    padding: 4px 10px;
-    font-size: 12px;
-    color: var(--text-muted);
-    background: var(--bg-elevated);
-}
-
-.today-card-meta {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-bottom: 12px;
-    min-height: 0;
-}
-
-.today-card .work-list {
-    gap: 0;
-}
-
-.today-card .work-item {
-    background: transparent;
-    border: 0;
-    border-bottom: 1px solid var(--border-subtle);
-    border-radius: 0;
-    padding: 12px 0;
-}
-
-.today-card .work-item:last-child {
-    border-bottom: 0;
-}
-
-.today-card .work-add-row {
-    margin-top: 12px;
 }
 
 .today-session-list {
@@ -4760,19 +4594,6 @@ html[data-today-layout='split'] .today-card[data-module='journal'] {
     color: var(--text-muted);
 }
 
-.today-journal-input {
-    width: 100%;
-    min-height: 8.5rem;
-    margin-bottom: 12px;
-    border: 0;
-    background: transparent;
-    padding: 0;
-    box-shadow: none;
-    font-family: var(--font-serif);
-    font-size: 17px;
-    line-height: 1.6;
-}
-
 .empty-state--quiet {
     padding: 4px 0 12px;
     background: transparent;
@@ -4782,25 +4603,6 @@ html[data-today-layout='split'] .today-card[data-module='journal'] {
 .empty-state--quiet p {
     color: var(--text-muted);
     font-size: 14px;
-}
-
-html[data-today-todo='off'] #todayTodoModule,
-html[data-today-workout='off'] #todayWorkoutModule,
-html[data-today-journal='off'] #todayJournalModule {
-    display: none;
-}
-
-html[data-today-layout='stack'] .today-board {
-    grid-template-columns: 1fr;
-}
-
-html[data-today-layout='stack'] .today-card--wide,
-html[data-today-layout='columns'] .today-card--wide {
-    grid-column: auto;
-}
-
-html[data-today-layout='columns'] .today-board {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .todo-hero {
@@ -5042,9 +4844,7 @@ html[data-focus='on'] .app-topbar {
     .journal-layout,
     .checklist-layout,
     .work-layout,
-    .today-board,
     .today-masthead,
-    .today-customize,
     .settings-row {
         grid-template-columns: 1fr;
     }
@@ -5052,11 +4852,6 @@ html[data-focus='on'] .app-topbar {
     .today-masthead {
         flex-direction: column;
         align-items: flex-start;
-    }
-
-    .today-masthead-side {
-        align-items: flex-start;
-        text-align: left;
     }
 
     .todo-hero {
@@ -5909,6 +5704,13 @@ html[data-motion='reduce'] *::after {
 
 .cal-editor-actions {
     flex-wrap: wrap;
+}
+
+.cal-unplaced-hint {
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-muted);
 }
 
 .cal-unplaced {

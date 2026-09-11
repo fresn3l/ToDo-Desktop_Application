@@ -266,7 +266,10 @@ def add_todo_to_calendar(
     repeat: Any = None,
     goal_id: str = "",
 ) -> Dict[str, Any]:
-    target = work._parse_date(on_date) or work._today().isoformat()
+    """Capture a to-do. Dated is not on the clock — Fill week or drag places it."""
+    raw = str(on_date or "").strip().lower()
+    park = raw in {"allwork", "all-work", "park"}
+    target = None if park else (work._parse_date(on_date) or work._today().isoformat())
     item = work.create_work_item(
         title,
         scheduled_date=target,
@@ -277,8 +280,27 @@ def add_todo_to_calendar(
         goal_id=goal_id or None,
     )
     if item.get("is_repeating") or item.get("pending_first_occurrence"):
-        return {"ok": True, "placed": 0, "item": item, "message": "Repeating to do saved."}
-    return place_work_item(item["id"], target)
+        return {"ok": True, "placed": 0, "item": item, "message": "Repeating to-do saved."}
+    mins = int(item.get("estimate_minutes") or 0)
+    wait = (
+        " Fill week or drag onto the clock to place it."
+        if mins
+        else " Dated is not on the clock."
+    )
+    if park:
+        message = "Saved in All Work." + (
+            " Add minutes, then Fill week or drag to place." if mins else ""
+        )
+    else:
+        message = f"Dated for {target}." + wait
+    return {
+        "ok": True,
+        "placed": 0,
+        "item": item,
+        "date": target,
+        "start_at": None,
+        "message": message,
+    }
 
 
 @eel.expose

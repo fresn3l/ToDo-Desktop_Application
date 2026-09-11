@@ -84,10 +84,10 @@ That still opens the **native WebKit window**, not Chrome.
 - **Local storage**: SQLite + JSON under Application Support
 - **Goals**: 1 week, 6 months, a year, 5 years. Attach a to-do (or match a
   keyword). 1-week goals get a to-do every Sunday for the coming week.
-- **Calendar**: Week on a clock. Lectures you add stay hard. Class due-date
+- **Calendar**: Week on a clock. Events you add stay busy time. Imported
   calendars (Apple subscription or ICS URL) become to-dos with due times, not
-  busy bars. **Fill week** places study around class. Nothing is written back
-  to Apple Calendar.
+  busy bars. **Fill week** or drag places dated work around those events.
+  Nothing is written back to Apple Calendar.
 - **iPhone (in progress)**: same Apple ID, JSON pack in iCloud Drive / Kosistenz — see `docs/iphone-sprint.md` and `ios/`
 
 ## Data Storage

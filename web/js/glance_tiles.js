@@ -70,6 +70,7 @@ function shellHtml({ kind, size, state = 'ready', label, primary = '', body = ''
         return tile(kind, size, stateCls, `
             ${labelHtml}
             <p class="glance-message">${utils.escapeHtml(primary || copy.couldNotLoad)}</p>
+            ${body || ''}
             ${row}`);
     }
     const primaryHtml = primary
@@ -270,6 +271,12 @@ function todayHtml(data, size) {
     });
 }
 
+function todoCaptureHtml() {
+    return `<form class="glance-capture" data-glance-capture="todo" action="#">
+        <input type="text" class="glance-capture-input" placeholder="${utils.escapeHtml(copy.addLine)}" autocomplete="off">
+    </form>`;
+}
+
 function todoHtml(data, size) {
     const kind = 'todo';
     const label = 'To Do';
@@ -277,8 +284,18 @@ function todoHtml(data, size) {
     const open = data?.counts?.today_open ?? items.filter((row) => row.status !== 'done').length;
     const done = data?.counts?.today_done ?? items.filter((row) => row.status === 'done').length;
     const complete = open === 0 && done > 0;
+    const capture = size.action ? todoCaptureHtml() : '';
+    const openBtn = openWorkAction('todo', copy.open);
     if (!items.length && !open && !done) {
-        return emptyShell(kind, size, copy.nothingDated, { act: 'open-work', label: copy.addPlace, attrs: ' data-kind="todo"' });
+        return shellHtml({
+            kind,
+            size,
+            state: 'empty',
+            label,
+            primary: copy.nothingDated,
+            body: capture,
+            action: openBtn,
+        });
     }
     const visible = items.filter((row) => row.status !== 'done' || size.board).slice(0, size.tall ? 4 : 2);
     const rows = listRows(visible, visible.length, (item) => (
@@ -303,6 +320,7 @@ function todoHtml(data, size) {
             cls: 'glance-action--ghost',
         });
     }
+    actions.push(openBtn);
     const headline = complete ? copy.allFinished : (active?.title || nextOpen?.title || '');
     const message = complete ? copy.allFinished : open ? '' : copy.nothingDated;
     return shellHtml({
@@ -311,7 +329,7 @@ function todoHtml(data, size) {
         label: countLabel(label, open || done ? open : ''),
         primary: size.tall ? clip(headline, 42) : String(complete ? done : open),
         hero: false,
-        body: `${!size.tall && message ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(message)}</p>` : ''}${rows || ''}`,
+        body: `${!size.tall && message ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(message)}</p>` : ''}${rows || ''}${capture}`,
         actions,
     });
 }
@@ -905,5 +923,38 @@ export async function runGlanceAction(btn) {
     } catch (err) {
         console.error(err);
         utils.showErrorFeedback(err?.message || 'Could not update that.');
+    }
+}
+
+export async function runGlanceCapture(form) {
+    const kind = form?.getAttribute('data-glance-capture');
+    const input = form?.querySelector('input');
+    const title = (input?.value || '').trim();
+    if (!kind || !title) {
+        if (!title) utils.showErrorFeedback('Name the task first.');
+        return;
+    }
+    try {
+        if (kind === 'todo') {
+            const result = await callEel(
+                'add_todo_to_calendar',
+                title,
+                utils.localISODate(),
+                '',
+                '',
+                null,
+                '',
+            );
+            if (input) input.value = '';
+            const message = result?.message || 'Dated for today.';
+            if (result?.ok === false) utils.showErrorFeedback(message);
+            else utils.showSuccessFeedback(message);
+        } else {
+            return;
+        }
+        utils.notifyDataChanged();
+    } catch (err) {
+        console.error(err);
+        utils.showErrorFeedback(err?.message || 'Could not add that.');
     }
 }
