@@ -182,6 +182,11 @@ EXPOSE_FALLBACK: Dict[str, Tuple[str, ...]] = {
         "park_schedule_block",
         "schedule_work_at",
         "place_work_after_lecture",
+        "create_focus_block",
+        "set_focus_items",
+        "attach_focus_item",
+        "detach_focus_item",
+        "add_todo_to_focus",
     ),
     "schedule": ("place_work_item", "add_todo_to_calendar", "fill_week"),
     "icloud_sync": (

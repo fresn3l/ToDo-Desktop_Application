@@ -15,6 +15,8 @@ export const COLOR_SLOTS = [
     { id: 'done', label: 'Done' },
     { id: 'openNext', label: 'Open / next' },
     { id: 'sidebar', label: 'Sidebar' },
+    { id: 'event', label: 'Events' },
+    { id: 'focus', label: 'Focus blocks' },
 ];
 
 export const INK_LIGHT = '#f7fafc';
@@ -30,6 +32,8 @@ export const THEME_PALETTES = {
         done: '#5ebb8e',
         openNext: '#d4a054',
         sidebar: '#0e1620',
+        event: '#8aa4b8',
+        focus: '#c8892c',
     },
     midnight: {
         pageBg: '#0e0d0b',
@@ -40,6 +44,8 @@ export const THEME_PALETTES = {
         done: '#5ebb8e',
         openNext: '#e0b355',
         sidebar: '#161512',
+        event: '#8aa4b8',
+        focus: '#c8892c',
     },
     slate: {
         pageBg: '#171e2b',
@@ -50,6 +56,8 @@ export const THEME_PALETTES = {
         done: '#5ebb8e',
         openNext: '#d4a054',
         sidebar: '#121824',
+        event: '#8aa4b8',
+        focus: '#c8892c',
     },
     paper: {
         pageBg: '#f7f3eb',
@@ -60,6 +68,8 @@ export const THEME_PALETTES = {
         done: '#2f7d57',
         openNext: '#b5791f',
         sidebar: '#f3eee4',
+        event: '#5a6d7c',
+        focus: '#b56a14',
     },
     forest: {
         pageBg: '#141e1a',
@@ -70,6 +80,8 @@ export const THEME_PALETTES = {
         done: '#6bc49a',
         openNext: '#d4a054',
         sidebar: '#101816',
+        event: '#8aa4b8',
+        focus: '#c8892c',
     },
     dusk: {
         pageBg: '#1b1824',
@@ -80,6 +92,8 @@ export const THEME_PALETTES = {
         done: '#5ebb8e',
         openNext: '#d4a054',
         sidebar: '#16131e',
+        event: '#8aa4b8',
+        focus: '#c8892c',
     },
 };
 
@@ -283,6 +297,8 @@ function applyResolvedVars(root, settings) {
     setOrClear(root, '--attention', colors.openNext, !!overrides.openNext);
     root.style.setProperty('--home-widget-border-width', `${width}px`);
     setOrClear(root, '--home-widget-border-color', colors.widgetBorder, !!overrides.widgetBorder);
+    root.style.setProperty('--cal-event', colors.event);
+    root.style.setProperty('--cal-focus', colors.focus);
     root.style.setProperty('--on-primary', ink);
     root.style.setProperty('--primary-ink', ink);
 }

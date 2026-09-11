@@ -198,12 +198,27 @@
                                     <button type="button" class="work-day-chip" data-outcome="attended">Attended</button>
                                     <button type="button" class="work-day-chip" data-outcome="missed">Did not complete</button>
                                 </div>
+                                <div id="calFocusAttach" class="cal-focus-attach is-hidden">
+                                    <p class="cal-focus-hint">To-dos in this span. Overflow is fine — they stay in the block.</p>
+                                    <p id="calFocusOverflow" class="cal-focus-overflow"></p>
+                                    <div id="calFocusItems" class="cal-focus-items"></div>
+                                    <div class="work-add-row">
+                                        <input type="text" id="calFocusNewTitle" class="checklist-text-input" placeholder="Add a to-do" autocomplete="off">
+                                        <input type="number" id="calFocusNewMins" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Estimate in minutes">
+                                        <button type="button" id="calFocusAddItem" class="btn-ghost">Add</button>
+                                    </div>
+                                    <label class="checklist-field-label" for="calFocusPick">Attach existing</label>
+                                    <select id="calFocusPick" class="checklist-text-input">
+                                        <option value="">Unplaced to-do…</option>
+                                    </select>
+                                </div>
                                 </div>
                                 <div class="reminder-actions cal-editor-actions">
                                     <button type="button" id="calSaveItem" class="btn-primary is-hidden">Save</button>
                                     <button type="button" id="calParkItem" class="btn-ghost is-hidden">Save for later</button>
                                     <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
                                     <button type="button" id="calAskCluny" class="btn-ghost is-hidden">Ask about this</button>
+                                    <button type="button" id="calNewFocus" class="btn-ghost">Add focus</button>
                                     <button type="button" id="calNewLecture" class="btn-primary">Add event</button>
                                 </div>
                             </div>
