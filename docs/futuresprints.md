@@ -1,6 +1,6 @@
 # Future sprints
 
-The three Home-UI follow-ons below **shipped** on the future-sprints branch. Older product plans (iPhone carry, Cluny proposals) stay in their own docs.
+The three Home-UI follow-ons below **shipped**. iPhone catch-up is [iphone.md](iphone.md). Cluny is [cluny-integration.md](cluny-integration.md).
 
 ## Month / year calendar (Calendar tab) — shipped
 

@@ -50,4 +50,6 @@ The compact layout is for iPhone. On iPad (and Catalyst) a sidebar lists the sam
 
 ## Out of scope here
 
-Analytics, Timeline tab, Brain/Library, Ask Cluny over the internet, CloudKit, App Store / TestFlight, editing repeating series or the week workout template from the phone, Fill week / drag packed blocks, an “Add a class” App Intent.
+Analytics, Timeline, Brain/Library, Ask Cluny, CloudKit, App Store / TestFlight, editing repeating series or the week workout template, Fill week / drag packed blocks.
+
+**Next:** the phone should act on the packed day (unplaced → today, skip/done/park a block, due chips), not clone Mac Home. Contract: [docs/iphone.md](../docs/iphone.md).

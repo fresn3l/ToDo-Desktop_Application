@@ -86,9 +86,6 @@ That still opens the **native WebKit window**, not Chrome.
   keyword). 1-week goals get a to-do every Sunday for the coming week.
 - **Calendar**: Week on a clock. Events you add stay busy time. Imported
   calendars (Apple subscription or ICS URL) become to-dos with due times, not
-  busy bars. **Fill week** or drag places dated work around those events.
-  Nothing is written back to Apple Calendar.
-- **iPhone (in progress)**: same Apple ID, JSON pack in iCloud Drive / Kosistenz — see `docs/iphone-sprint.md` and `ios/`
 
 ## Data Storage
 
