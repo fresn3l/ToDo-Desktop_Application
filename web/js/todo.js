@@ -11,6 +11,7 @@ let repeatKind = 'daily';
 let scopeResolver = null;
 let selectedDoDate = null;
 let whenDays = [];
+let destKind = 'today';
 
 function stopTick() {
     if (tickTimer) {
@@ -91,6 +92,7 @@ function fallbackWhenDays() {
 }
 
 function selectedWhenDate() {
+    if (destKind === 'allwork') return 'allwork';
     const chip = document.querySelector('#todoWhen .work-day-chip.is-selected');
     return chip?.getAttribute('data-date') || selectedDoDate || utils.localISODate();
 }
@@ -99,11 +101,12 @@ const WEEKDAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 
 function addButtonLabel() {
     if (document.getElementById('todoRepeatToggle')?.checked) return 'Save repeating to-do';
+    if (destKind === 'allwork') return 'Add to All Work';
     const iso = selectedWhenDate();
     const day = whenDays.find((row) => row.place_date === iso);
-    if (day?.is_today) return 'Add to today';
+    if (day?.is_today) return 'Add';
     if (day && Number.isInteger(day.weekday)) return `Add to ${WEEKDAY_FULL[day.weekday] || day.label}`;
-    return 'Add to today';
+    return 'Add';
 }
 
 function updateAddButton() {
@@ -114,14 +117,30 @@ function updateAddButton() {
 function updateWhenHint() {
     const hint = document.querySelector('.todo-when-hint');
     if (!hint) return;
+    const clock = 'Dated is not on the clock. With minutes, Fill week or drag places it.';
+    if (destKind === 'allwork') {
+        hint.textContent = `Saved in All Work — not on the clock. ${clock}`;
+        updateAddButton();
+        return;
+    }
     const iso = selectedWhenDate();
     const day = whenDays.find((row) => row.place_date === iso);
     if (!day) {
-        hint.textContent = 'Pick a day this week.';
+        hint.textContent = clock;
+        updateAddButton();
         return;
     }
-    hint.textContent = day.is_today ? 'Places today.' : `Places on ${WEEKDAY_FULL[day.weekday] || day.label}.`;
+    const when = day.is_today ? 'today' : (WEEKDAY_FULL[day.weekday] || day.label);
+    hint.textContent = `Dates it ${when}. ${clock}`;
     updateAddButton();
+}
+
+function paintDest() {
+    document.querySelectorAll('#todoDest [data-dest]').forEach((btn) => {
+        const on = btn.getAttribute('data-dest') === destKind;
+        btn.classList.toggle('is-selected', on);
+        btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
 }
 
 function paintWhenChips() {
@@ -143,6 +162,7 @@ function paintWhenChips() {
         .join('');
     const selected = root.querySelector('.is-selected');
     selectedDoDate = selected?.getAttribute('data-date') || whenDays.find((row) => row.is_today)?.place_date;
+    paintDest();
     updateWhenHint();
 }
 
@@ -402,13 +422,13 @@ async function addTodayTask() {
         if (dueEl) dueEl.value = '';
         if (goalEl) goalEl.value = '';
         const message = result?.message || (repeat ? 'Repeating to-do saved.' : 'Added.');
-        if (result?.placed || repeat || result?.item?.is_repeating) {
-            const extra = (repeat || result?.item?.is_repeating)
-                ? ' Rename or delete will ask this day or the whole series.'
-                : '';
-            utils.showSuccessFeedback(message + extra);
-        } else {
+        const extra = (repeat || result?.item?.is_repeating)
+            ? ' Rename or delete will ask this day or the whole series.'
+            : '';
+        if (result?.ok === false) {
             utils.showErrorFeedback(message);
+        } else {
+            utils.showSuccessFeedback(message + extra);
         }
         utils.notifyDataChanged();
         await refreshTodo();
@@ -440,17 +460,36 @@ export function setupTodo() {
         repeatKind = btn.getAttribute('data-value') || 'daily';
         syncRepeatPanel();
     });
+    document.getElementById('todoDest')?.addEventListener('click', (e) => {
+        const chip = e.target.closest('#todoDest [data-dest]');
+        if (!chip) return;
+        e.preventDefault();
+        destKind = chip.getAttribute('data-dest') === 'allwork' ? 'allwork' : 'today';
+        if (destKind === 'today') {
+            const today = whenDays.find((row) => row.is_today);
+            if (today) selectedDoDate = today.place_date;
+            document.querySelectorAll('#todoWhen .work-day-chip').forEach((btn) => {
+                const on = btn.getAttribute('data-date') === selectedDoDate;
+                btn.classList.toggle('is-selected', on);
+                btn.setAttribute('aria-checked', on ? 'true' : 'false');
+            });
+        }
+        paintDest();
+        updateWhenHint();
+    });
     document.getElementById('todoWhen')?.addEventListener('click', (e) => {
         const root = document.getElementById('todoWhen');
         const chip = e.target.closest('#todoWhen .work-day-chip');
         if (!root || !chip) return;
         e.preventDefault();
+        destKind = 'today';
         selectedDoDate = chip.getAttribute('data-date');
         root.querySelectorAll('.work-day-chip').forEach((btn) => {
             const on = btn === chip;
             btn.classList.toggle('is-selected', on);
             btn.setAttribute('aria-checked', on ? 'true' : 'false');
         });
+        paintDest();
         updateWhenHint();
     });
     document.getElementById('todoWeekdays')?.addEventListener('click', (e) => {
@@ -473,6 +512,7 @@ export function setupTodo() {
         void openTodoForItem(date, itemId);
     });
     syncRepeatPanel();
+    paintDest();
     updateAddButton();
     void loadGoalOptions('todoNewGoal');
 }

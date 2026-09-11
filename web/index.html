@@ -157,17 +157,18 @@
                                 <aside id="calTodayRail" class="cal-today-rail" aria-label="Today"></aside>
                                 <div id="calGrid" class="cal-grid"></div>
                             </div>
-                            <p id="calClockHint" class="cal-clock-hint">Click to lock. Shift-click skips. Alt-click marks done.</p>
+                            <p id="calClockHint" class="cal-clock-hint">On a bar already on the clock: click locks, Shift skips, Alt marks done. Drag Unplaced onto the day to place work.</p>
                             <div id="calMonthGrid" class="cal-month-grid is-hidden"></div>
                             <p id="calMonthLegend" class="cal-month-legend is-hidden">Event · placed · due</p>
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
                             <div class="cal-aside-block" id="calEditor">
-                                <h3 id="calEditorHeading">Add to calendar</h3>
-                                <p id="calEditorHint" class="cal-editor-hint">Click a block to edit it. Drag to move.</p>
+                                <h3 id="calEditorHeading">Clock</h3>
+                                <p id="calEditorHint" class="cal-editor-hint">Drag Unplaced onto the clock, or Add event for a meeting.</p>
+                                <div id="calEditorFields">
                                 <label class="checklist-field-label" for="calEventTitle">Name</label>
-                                <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="Office hours" autocomplete="off">
+                                <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="Meeting" autocomplete="off">
                                 <div class="cal-time-row">
                                     <label class="checklist-field-label" for="calEventStart">Starts</label>
                                     <input type="text" id="calEventStart" class="checklist-text-input" placeholder="2026-09-08 0930" spellcheck="false" autocomplete="off" inputmode="numeric" aria-label="Starts (24-hour)">
@@ -191,16 +192,18 @@
                                     <button type="button" class="work-day-chip" data-status="done">Done</button>
                                     <button type="button" class="work-day-chip" data-status="skipped">Skip</button>
                                 </div>
+                                </div>
                                 <div class="reminder-actions cal-editor-actions">
-                                    <button type="button" id="calSaveItem" class="btn-primary">Save</button>
+                                    <button type="button" id="calSaveItem" class="btn-primary is-hidden">Save</button>
                                     <button type="button" id="calParkItem" class="btn-ghost is-hidden">Save for later</button>
                                     <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
                                     <button type="button" id="calAskCluny" class="btn-ghost is-hidden">Ask about this</button>
-                                    <button type="button" id="calNewLecture" class="btn-ghost is-hidden">Add another</button>
+                                    <button type="button" id="calNewLecture" class="btn-primary">Add event</button>
                                 </div>
                             </div>
-                            <div class="cal-aside-block" id="calUnplacedBlock" hidden>
+                            <div class="cal-aside-block" id="calUnplacedBlock">
                                 <h3>Unplaced</h3>
+                                <p class="cal-unplaced-hint">Drag onto the clock. Fill week packs the rest.</p>
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
                             <details class="cal-aside-block cal-feeds-panel">
@@ -352,14 +355,19 @@
                                 </div>
                             </div>
                             <div class="work-add-row">
-                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="45 mins calculus" autocomplete="off">
-                                <button type="button" id="todoAddBtn" class="btn-primary">Add to today</button>
+                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="45 mins board memo" autocomplete="off">
+                                <button type="button" id="todoAddBtn" class="btn-primary">Add</button>
                             </div>
-                            <p class="todo-when-label">Do this week</p>
-                            <div id="todoWhen" class="todo-when work-weekdays" role="radiogroup" aria-label="Do this week"></div>
-                            <p class="todo-when-hint"></p>
+                            <p class="todo-when-hint">Dated is not on the clock. With minutes, Fill week or drag places it.</p>
                             <details class="todo-more">
                                 <summary>More</summary>
+                                <p class="todo-when-label">Where</p>
+                                <div id="todoDest" class="todo-when work-weekdays" role="radiogroup" aria-label="Where this goes">
+                                    <button type="button" class="work-day-chip is-selected" data-dest="today" role="radio" aria-checked="true">Today</button>
+                                    <button type="button" class="work-day-chip" data-dest="allwork" role="radio" aria-checked="false">All Work</button>
+                                </div>
+                                <p class="todo-when-label">Day this week</p>
+                                <div id="todoWhen" class="todo-when work-weekdays" role="radiogroup" aria-label="Day this week"></div>
                                 <div class="work-add-row work-add-optional">
                                     <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Override minutes if the title has none">
                                     <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date (optional)">

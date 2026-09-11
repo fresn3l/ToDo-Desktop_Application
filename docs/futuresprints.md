@@ -24,14 +24,9 @@ Parked while Ask Cluny lands on Home. Do not treat these as blockers for the bra
 
 ### Composer / finish flow
 
-- The To Do composer is dense (day chips, estimate, due, goal, repeat, add-to-calendar) for a one-line capture.
 - Repeating series vs a single occurrence is easy to get wrong when renaming or deleting.
-- Fill week only appears in week view, so month/year users never see the packer.
 - Menu bar **Run** logs a 0-mile session; the Workout widget requires miles.
 
 ### Unfinished polish
 
-- Settings still lists `⌘1` Today and `2–7` other tabs. The live shortcuts are Home / Calendar / Settings.
-- `web/js/today.js` still expects a full Today dashboard (`#todayHome`, module cards) that is not in the DOM. The Home **Today** widget is the mini agenda only.
 - Appearance still stores `todayLayout` / `todayOrder` / module toggles with no Settings UI.
-- Leftover CSS for `.today-home` / `.today-card` is unused.

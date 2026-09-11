@@ -57,7 +57,7 @@ function paintAgenda(items) {
             const hh = Number.isNaN(start.getTime())
                 ? ''
                 : start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-            const kind = item.kind === 'hard' ? 'Class' : item.kind === 'workout' ? 'Gym' : 'Work';
+            const kind = item.kind === 'hard' ? 'Event' : item.kind === 'workout' ? 'Gym' : 'Work';
             return `<li><span>${utils.escapeHtml(hh)}</span> ${utils.escapeHtml(item.title || '')} <em>${kind}</em></li>`;
         })
         .join('');

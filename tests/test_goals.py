@@ -53,7 +53,7 @@ class GoalsTests(unittest.TestCase):
                 on_date="2026-09-03",
                 goal_id=goal["id"],
             )
-        self.assertEqual(placed["placed"], 1)
+        self.assertEqual(placed["placed"], 0)
         item_id = placed["item"]["id"]
         t0 = datetime(2026, 9, 3, 10, 0, 0)
         with mock.patch.object(work, "_now", return_value=t0):
@@ -72,6 +72,7 @@ class GoalsTests(unittest.TestCase):
         with mock.patch.object(schedule, "_now", return_value=datetime(2026, 9, 3, 8, 0, 0)):
             placed = schedule.add_todo_to_calendar("45 mins spanish", on_date="2026-09-03")
         self.assertEqual(placed["item"]["goal_id"], goal["id"])
+        schedule.place_work_item(placed["item"]["id"], "2026-09-03")
         work.finish_work_item(placed["item"]["id"])
         row = goals.list_goals()[0]
         self.assertEqual(row["spent_minutes"], 45)
