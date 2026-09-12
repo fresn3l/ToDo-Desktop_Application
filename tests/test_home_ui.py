@@ -25,6 +25,18 @@ PASTE_JS = (ROOT / "web" / "js" / "paste_insert.js").read_text(encoding="utf-8")
 
 
 class HomeUiTests(unittest.TestCase):
+    def test_the_widget_border_settings_reach_the_board(self) -> None:
+        """Appearance writes a width and a colour for the widget border. The
+        board drew its own border and ignored both, so those controls moved
+        nothing."""
+        appearance = (ROOT / "web" / "js" / "appearance.js").read_text(encoding="utf-8")
+        for token in ("--home-widget-border-width", "--home-widget-border-color"):
+            self.assertIn(token, appearance, f"{token} should still be written")
+            self.assertIn(f"var({token}", STYLE, f"{token} has no reader")
+        rule = STYLE.split(".home-widget {")[1].split("}")[0]
+        self.assertIn("var(--home-widget-border-width", rule)
+        self.assertIn("var(--home-widget-border-color", rule)
+
     def test_sidebar_is_home_journal_and_calendar(self) -> None:
         self.assertIn('data-tab="home"', INDEX)
         self.assertIn('data-tab="journal"', INDEX)

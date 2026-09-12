@@ -3077,7 +3077,9 @@ html.native-shell .home-title-strip {
     flex-direction: column;
     min-width: 0;
     min-height: 0;
-    border: 1px solid var(--line);
+    /* Appearance writes these two from the widget border controls. Nothing
+       read them, so moving those sliders changed nothing on the board. */
+    border: var(--home-widget-border-width, 1px) solid var(--home-widget-border-color, var(--line));
     border-radius: var(--radius-lg);
     background: var(--surface-1);
     box-shadow: none;
