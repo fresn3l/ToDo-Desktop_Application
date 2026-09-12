@@ -831,6 +831,12 @@ class HomeUiTests(unittest.TestCase):
         # A wrapped header needs a second-row gap, not just a column gap.
         head = STYLE.split("\n.page-head {")[1].split("}")[0]
         self.assertIn("row-gap: var(--space-sm)", head)
+        # With no floor on the title the actions never wrap, they just run off
+        # the side; Calendar lost "Fill week" that way at 1024px.
+        titles = STYLE.split(".page-head-titles {")[1].split("}")[0]
+        self.assertIn("min-width: 12rem", titles)
+        actions = STYLE.split("\n.page-head-actions {")[1].split("}")[0]
+        self.assertIn("max-width: 100%", actions)
         # The page layout owns the space below the header. Setting it here too
         # double-counted it inside every shell that already has a flex gap.
         self.assertNotIn("margin-bottom", head)
