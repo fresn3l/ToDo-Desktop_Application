@@ -68,27 +68,20 @@
                     <h1 id="pageCrumb">Home</h1>
                 </div>
                 <div id="todayStatus" class="today-status" aria-live="polite"></div>
-                <p class="topbar-note">Everything stays on this Mac.</p>
             </header>
 
             <main class="app-content">
                 <section id="homeTab" class="tab-content active" aria-label="Home">
                     <div id="homeShell" class="home-shell">
-                        <div class="home-title-strip">
+                        <header class="home-header">
                             <h1 id="homePageTitle" class="home-page-title">Home</h1>
-                        </div>
-                        <header class="home-toolbar">
-                            <div id="homePages" class="home-pages" role="tablist" aria-label="Home pages"></div>
-                            <div class="home-toolbar-actions">
-                                <button type="button" id="homeAddPageBtn" class="btn-ghost">New page</button>
-                                <button type="button" id="homeEditBtn" class="btn-primary">Edit Home</button>
-                            </div>
+                            <button type="button" id="homeEditBtn" class="btn-ghost home-edit-btn">Edit</button>
                         </header>
-                        <p class="home-live-copy" hidden>Drag a widget’s title bar to move it. Drag a corner or edge to snap to an allowed size. Add or remove tiles from the catalog.</p>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
-                            <p class="home-edit-copy">Live Home is look-and-tap. In Edit, drag the title bar to move, and a corner or edge to resize. On the first page, drop a widget above or below Check-in.</p>
+                            <p class="home-edit-copy">Drag a tile by its title bar to move it, or by a corner to resize it. On the first page a tile can go above or below Check-in.</p>
                             <div id="homeCatalog" class="home-catalog"></div>
                             <div class="home-edit-actions">
+                                <button type="button" id="homeAddPageBtn" class="btn-ghost">New page</button>
                                 <button type="button" id="homeRenamePageBtn" class="btn-ghost">Rename page</button>
                                 <button type="button" id="homeDeletePageBtn" class="btn-ghost">Delete page</button>
                                 <button type="button" id="homeDoneEditBtn" class="btn-secondary">Done</button>
@@ -99,7 +92,6 @@
                             <section id="homeCheckinBand" class="home-checkin-band" hidden>
                                 <header class="home-checkin-bar">
                                     <div class="home-checkin-copy">
-                                        <p id="homeCheckinKicker" class="home-checkin-kicker">Morning</p>
                                         <h2 id="homeCheckinTitle">Morning check-in</h2>
                                         <p id="homeCheckinStatus" class="home-checkin-status">Not yet</p>
                                     </div>
