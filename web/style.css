@@ -674,7 +674,6 @@ html[data-sidebar='compact'] .sidebar-footer {
     /* The action cluster wraps on a narrow window; give the second row air. */
     row-gap: var(--space-sm);
     min-height: 32px;
-    margin-bottom: var(--tab-gap);
     /* Home was the only draggable header because it was the only tab without
        a topbar. Now no tab has one, so every header drags the window. */
     -webkit-app-region: drag;
@@ -713,10 +712,10 @@ html[data-sidebar='compact'] .sidebar-footer {
     -webkit-app-region: no-drag;
 }
 
-/* Form controls in here stretch to fill by default, which stacked Brain's
-   header three rows deep and pushed it up past its own title. */
-.page-head-actions select,
-.page-head-actions input {
+/* A select in here stretches to fill by default, which stacked Brain's header
+   three rows deep and pushed it up past its own title. Inputs set their own
+   width, so leave them be. */
+.page-head-actions select {
     width: auto;
     max-width: 200px;
 }
@@ -779,6 +778,7 @@ html[data-page='settings'] .tab-content.active {
     flex: 1;
     display: flex;
     flex-direction: column;
+    gap: var(--tab-gap);
     min-height: 0;
     animation: none;
 }
@@ -5474,6 +5474,7 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
 .cal-main {
     display: flex;
     flex-direction: column;
+    gap: var(--tab-gap);
     min-height: 0;
     min-width: 0;
     height: 100%;
