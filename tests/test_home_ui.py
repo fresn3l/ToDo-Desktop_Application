@@ -18,6 +18,7 @@ UTILS = (ROOT / "web" / "js" / "utils.js").read_text(encoding="utf-8")
 SETTINGS_JS = (ROOT / "web" / "js" / "settings.js").read_text(encoding="utf-8")
 GOALS_JS = (ROOT / "web" / "js" / "goals.js").read_text(encoding="utf-8")
 STYLE = (ROOT / "web" / "style.css").read_text(encoding="utf-8")
+TOKENS = (ROOT / "web" / "tokens.css").read_text(encoding="utf-8")
 SWIFT = (ROOT / "macos" / "KosistenzWindow.swift").read_text(encoding="utf-8")
 NATIVE_MAC = (ROOT / "native_mac.py").read_text(encoding="utf-8")
 PASTE_JS = (ROOT / "web" / "js" / "paste_insert.js").read_text(encoding="utf-8")
@@ -490,7 +491,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("setPageColorSlot", SETTINGS_JS)
 
     def test_home_widgets_are_dense_and_scroll_the_page(self) -> None:
-        self.assertIn("--home-row: var(--row-h, 88px)", STYLE)
+        self.assertIn("--home-row: var(--row-h, 120px)", STYLE)
         self.assertIn("grid-auto-rows: var(--home-row)", STYLE)
         self.assertIn("min-height: 0", STYLE)
         self.assertIn("overflow-y: auto", STYLE)
@@ -502,7 +503,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".home-widget-chrome", STYLE)
         self.assertIn("countdown-days", GLANCE_JS)
         tokens = (ROOT / "web" / "tokens.css").read_text(encoding="utf-8")
-        self.assertIn("--row-h: 108px", tokens)
+        self.assertIn("--row-h: 120px", tokens)
+        self.assertIn("--glance-row-min:", tokens)
+        self.assertIn("--sheet-max:", tokens)
         self.assertIn("--line:", tokens)
         self.assertIn('href="tokens.css"', INDEX)
         self.assertIn("max-width: 1440px", STYLE)
@@ -674,6 +677,29 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn('.home-widget[data-h="1"] .glance-actions', STYLE)
         self.assertIn('.home-widget[data-h="1"] .glance-hourly', STYLE)
         self.assertIn("overflow: hidden", STYLE)
+
+    def test_every_glance_spends_one_row_budget(self) -> None:
+        self.assertIn("rows: h >= 3 ? 6 : h >= 2 ? 3 : 0", GLANCE_TILES)
+        self.assertIn("capture: h >= 3", GLANCE_TILES)
+        self.assertIn("function capLines(lines, size)", GLANCE_TILES)
+        self.assertIn("function actionRow(actions, size)", GLANCE_TILES)
+        # A narrow tile gets the move you would make plus Open, nothing more.
+        self.assertIn("size.w <= 2 && list.length > 2", GLANCE_TILES)
+        self.assertIn("size.capture ? todoCaptureHtml() : ''", GLANCE_TILES)
+        # Every list renderer reads the shared budget instead of its own number.
+        self.assertGreaterEqual(GLANCE_TILES.count("size.rows"), 8)
+        # A tile showing a list drops the headline rather than repeat row one.
+        todo = GLANCE_TILES.split("function todoHtml")[1].split("function habitsHtml")[0]
+        self.assertIn("pool.slice(0, size.rows)", todo)
+        self.assertIn("primary: size.tall ? '' :", todo)
+        self.assertIn("moreCount(extra)", todo)
+        # Headline already carries the title, so the beat line drops to a time.
+        self.assertIn("function beatBody(beat, size, titleShown = false)", GLANCE_TILES)
+        self.assertIn("size.tall && Boolean(focus)", GLANCE_TILES)
+        # Sizes and spacing live in tokens, never hard-coded twice.
+        self.assertIn("--glance-row-min:", TOKENS)
+        self.assertIn("--glance-action-h:", TOKENS)
+        self.assertIn("--tile-pad:", TOKENS)
 
     def test_goals_widget_loads_through_call_eel(self) -> None:
         self.assertIn("callEel('list_goals')", GOALS_JS)

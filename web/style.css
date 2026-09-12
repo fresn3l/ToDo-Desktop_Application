@@ -92,8 +92,8 @@
     --text-title: var(--text-primary, #eef3f7);
     --home-widget-border-width: 1px;
     --home-widget-border-color: var(--line);
-    --home-row: var(--row-h, 88px);
-    --home-gap: var(--grid-gap, 12px);
+    --home-row: var(--row-h, 120px);
+    --home-gap: var(--grid-gap, 16px);
 
     /* Green = progress / done. Amber = unfinished (Zeigarnik). Red = errors only. */
     --success: #5ebb8e;
@@ -3217,7 +3217,7 @@ html.native-shell .home-title-strip {
     flex: 1;
     min-height: 0;
     overflow: hidden;
-    padding: 12px 13px 11px;
+    padding: var(--tile-pad);
     display: flex;
     flex-direction: column;
 }
@@ -3234,7 +3234,7 @@ html.native-shell .home-title-strip {
 }
 
 .home-widget[data-h="1"] .home-widget-body {
-    padding: 10px 10px 8px;
+    padding: var(--tile-pad-short);
 }
 
 .home-widget[data-w="1"][data-h="1"] .home-widget-body {
@@ -3406,9 +3406,16 @@ html[data-motion='reduce'] .glance-tile {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
-    gap: 5px;
+    gap: 6px;
     min-height: 0;
     overflow: auto;
+}
+
+/* Capture and buttons cannot squeeze the list to nothing. */
+.home-widget[data-h="2"] .glance-list,
+.home-widget[data-h="3"] .glance-list {
+    flex: 1 1 0;
+    min-height: var(--glance-row-min);
 }
 
 .glance-list li,
@@ -3416,7 +3423,8 @@ html[data-motion='reduce'] .glance-tile {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    font-size: 13px;
+    font-size: var(--glance-list-size);
+    line-height: 1.35;
     min-width: 0;
 }
 
@@ -3435,6 +3443,16 @@ html[data-motion='reduce'] .glance-tile {
     white-space: nowrap;
     font-style: normal;
     font-weight: 550;
+}
+
+/* Two lines beat an ellipsis when the tile has the height for it. */
+.home-widget[data-h="2"] .glance-list li strong,
+.home-widget[data-h="3"] .glance-list li strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .glance-list li.is-done strong {
@@ -3512,6 +3530,19 @@ html[data-motion='reduce'] .glance-tile {
     flex-wrap: wrap;
     gap: var(--s-2);
     margin-top: var(--s-2);
+    flex: 0 0 auto;
+}
+
+/* A two-high tile gets one row of buttons, never a wrapped block. */
+.home-widget[data-h="2"] .glance-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+.home-widget[data-h="2"] .glance-action {
+    min-height: var(--glance-action-h);
+    padding: 5px 10px;
+    white-space: nowrap;
 }
 
 .glance-action--ghost {
@@ -3537,6 +3568,7 @@ html[data-motion='reduce'] .glance-tile {
     display: flex;
     gap: 6px;
     margin-top: var(--s-2);
+    flex: 0 0 auto;
 }
 
 .glance-capture-input {
@@ -3732,9 +3764,9 @@ html.home-work-open .app-content {
     inset: 0;
     border: 0;
     padding: 0;
-    background: color-mix(in srgb, var(--bg-canvas) 28%, hsl(0 0% 0% / 0.42));
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+    background: color-mix(in srgb, var(--bg-canvas) 30%, hsl(0 0% 0% / 0.52));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     opacity: 0;
     cursor: pointer;
     transition: opacity 280ms var(--ease-out);
@@ -3750,7 +3782,7 @@ html.home-work-open .app-content {
     right: auto;
     bottom: auto;
     left: auto;
-    width: min(760px, calc(100% - 36px));
+    width: min(var(--sheet-max), calc(100% - 36px));
     height: calc(100% - 20px);
     display: flex;
     flex-direction: column;
@@ -3795,7 +3827,7 @@ html.home-work-open .app-content {
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    padding: 16px 18px 12px;
+    padding: var(--sheet-head-pad);
     border-bottom: 1px solid var(--border-subtle);
     background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-main));
 }
@@ -3842,7 +3874,7 @@ html.home-work-open .app-content {
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 16px 18px 24px;
+    padding: var(--sheet-pad);
 }
 
 .home-work-body > .widget-source,
@@ -3980,6 +4012,31 @@ html.home-work-open .app-content {
 
 .home-work-body .goal-column {
     min-width: 0;
+}
+
+/* The sheet reads as one column. Side rails stack under the list. */
+.home-work-body .work-layout,
+.home-work-body .journal-layout {
+    display: block;
+    height: 100%;
+    min-height: 0;
+}
+
+.home-work-body .work-aside,
+.home-work-body .journal-inspector {
+    margin-top: var(--space-lg);
+}
+
+/* The sheet head already names the widget. */
+.home-work-body .panel-sub {
+    display: none;
+}
+
+.home-work-body .panel {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
 }
 
 .home-widget-body .panel-sub,

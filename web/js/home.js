@@ -266,9 +266,15 @@ function tileBox(tile, layer) {
     };
 }
 
+function sheetMaxWidth() {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--sheet-max');
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed >= 280 ? parsed : 820;
+}
+
 function settledBox(layer) {
     const host = layer.getBoundingClientRect();
-    const width = Math.min(760, Math.max(280, host.width - 36));
+    const width = Math.min(sheetMaxWidth(), Math.max(280, host.width - 36));
     return {
         top: 10,
         left: Math.max(10, host.width - 10 - width),
