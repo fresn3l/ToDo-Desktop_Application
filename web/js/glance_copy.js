@@ -42,6 +42,7 @@ export const copy = {
     now: 'Now',
     next: 'Next',
     gap: 'Gap',
+    leftToday: 'left today',
     clearClock: 'Clear clock.',
     nothingDue: 'Nothing due this week.',
     allPlaced: 'Nothing to place.',
@@ -62,11 +63,6 @@ export function moreCount(n) {
     const count = Number(n) || 0;
     if (count <= 0) return '';
     return `+${count} more`;
-}
-
-export function countLabel(base, n) {
-    if (n == null || n === '') return base;
-    return `${base} · ${n}`;
 }
 
 export function minutesLabel(n) {
