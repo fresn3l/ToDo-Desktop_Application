@@ -2879,16 +2879,24 @@ input[type='range'] {
     margin-inline: auto;
 }
 
-.home-title-strip {
+/* Title and the one control that belongs beside it, on one line. This was
+   two rows: a title strip, then a toolbar holding a page-chip row that was
+   styled out of sight and two buttons. */
+.home-header {
     display: flex;
-    justify-content: flex-start;
     align-items: center;
-    min-height: 28px;
+    justify-content: space-between;
+    gap: var(--space-md);
+    min-height: 32px;
     -webkit-app-region: drag;
 }
 
 .home-page-title {
     margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: var(--fs-title);
     font-weight: var(--fw-semibold);
     letter-spacing: var(--letter-tight);
@@ -2897,20 +2905,11 @@ input[type='range'] {
     -webkit-app-region: no-drag;
 }
 
-html.native-shell .home-title-strip {
-    min-height: 26px;
-}
-
-.home-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.home-pages {
-    display: none;
+/* Rearranging the board is a rare errand. It used to be the loudest button
+   on the page. */
+.home-edit-btn {
+    flex: 0 0 auto;
+    -webkit-app-region: no-drag;
 }
 
 .home-page-chip {
@@ -2928,11 +2927,6 @@ html.native-shell .home-title-strip {
     border-color: var(--accent);
     color: var(--accent);
     background: transparent;
-}
-
-.home-toolbar-actions {
-    display: flex;
-    gap: 8px;
 }
 
 .home-edit-bar {
@@ -3020,15 +3014,6 @@ html.native-shell .home-title-strip {
 
 .home-checkin-band:not(.is-open) {
     padding: 8px 12px;
-}
-
-.home-checkin-kicker {
-    margin: 0;
-    font-size: var(--fs-caption);
-    font-weight: var(--fw-semibold);
-    letter-spacing: var(--letter-wider);
-    text-transform: uppercase;
-    color: var(--text-3);
 }
 
 .home-checkin-band[hidden] {
@@ -3222,6 +3207,13 @@ html.native-shell .home-title-strip {
     display: flex;
 }
 
+/* The chrome names the tile and sits on top of it, which put the drag handle
+   over the tile's own heading. In Edit the heading stands down and keeps its
+   space, so nothing moves on the way in or out. */
+.home-shell.is-editing .glance-tile-head {
+    visibility: hidden;
+}
+
 .home-widget-size,
 .home-widget-btn {
     display: none;
@@ -3279,6 +3271,17 @@ html.native-shell .home-title-strip {
 .home-widget-size {
     cursor: pointer;
     pointer-events: auto;
+}
+
+/* Remove borrows btn-ghost, which is sized for a page, not for a strip whose
+   other text is 11px. Left alone it stands 35px tall over an 18px handle. */
+.home-widget-btn {
+    padding: 2px 7px;
+    min-height: 0;
+    font-size: var(--fs-micro);
+    font-weight: var(--fw-medium);
+    letter-spacing: var(--letter-normal);
+    line-height: 1.4;
 }
 
 .home-widget-handle:active {
@@ -4720,7 +4723,6 @@ html.home-work-open .app-content {
 @container tile (max-width: 399px) {
     .home-widget .home-widget-btn {
         padding: 1px 5px;
-        font-size: var(--fs-nano);
     }
 }
 @container tile (max-height: 189px) {
@@ -6651,14 +6653,6 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
 
 .cal-month-head.is-compact .cal-month-dow {
     font-size: var(--fs-nano);
-}
-
-.home-live-copy {
-    display: none;
-}
-
-.home-shell.is-editing .home-live-copy {
-    display: none;
 }
 
 @media (max-width: 960px) {

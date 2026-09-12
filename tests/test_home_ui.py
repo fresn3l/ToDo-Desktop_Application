@@ -113,7 +113,7 @@ class HomeUiTests(unittest.TestCase):
             "homeGridAbove",
             "homeCheckinBand",
             "homeCheckinBody",
-            "homePages",
+            "homeEditBar",
             "homeAddPageBtn",
             "homeRenamePageBtn",
             "homeCatalog",
@@ -287,7 +287,6 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("unscheduled", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
 
     def test_live_home_opens_work_edit_home_moves(self) -> None:
-        self.assertIn("home-live-copy", INDEX)
         self.assertIn("home-widget-handle", HOME_RUNTIME)
         self.assertIn("closest('.home-widget-chrome')", HOME_RUNTIME)
         self.assertIn("closest('.home-widget-body')", HOME_RUNTIME)
@@ -309,7 +308,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("callEel('resize_home_widget', page.id, id, w | 0, h | 0)", HOME_RUNTIME)
         self.assertIn("beginResize", HOME_RUNTIME)
         self.assertIn("cursor: nwse-resize", STYLE)
-        self.assertIn("Drag a corner or edge", INDEX)
+        self.assertIn("by a corner to resize it", INDEX)
 
     def test_home_widget_refresh_continues_after_one_failure(self) -> None:
         quiet = HOME_RUNTIME.split("async function runQuietly")[1].split("async function refreshWork")[0]
@@ -488,12 +487,46 @@ class HomeUiTests(unittest.TestCase):
 
     def test_home_shows_page_title_and_sidebar_pages(self) -> None:
         self.assertIn('id="homePageTitle"', INDEX)
-        self.assertIn("home-title-strip", INDEX)
+        self.assertIn("home-header", INDEX)
         self.assertIn('id="homeNavPages"', INDEX)
         self.assertIn("data-home-page", HOME_RUNTIME)
         self.assertIn("paintSidebar", HOME_RUNTIME)
         self.assertIn("homePageId", TABS)
         self.assertIn("clearHomePageColors", TABS)
+
+    def test_home_chrome_is_one_line(self) -> None:
+        self.assertNotIn("home-title-strip", INDEX)
+        self.assertNotIn("home-toolbar", INDEX)
+        self.assertNotIn('id="homePages"', INDEX)
+        self.assertNotIn("home-live-copy", INDEX)
+        self.assertNotIn("paintChips", HOME_RUNTIME)
+        self.assertIn('class="home-header"', INDEX)
+        self.assertIn('class="btn-ghost home-edit-btn"', INDEX)
+        self.assertIn(">Edit</button>", INDEX)
+        self.assertNotIn(">Edit Home</button>", INDEX)
+        # New page belongs with Rename and Delete, behind Edit.
+        actions = INDEX.split('class="home-edit-actions"')[1].split("</div>")[0]
+        for needle in ("homeAddPageBtn", "homeRenamePageBtn", "homeDeletePageBtn", "homeDoneEditBtn"):
+            self.assertIn(needle, actions)
+
+    def test_edit_mode_does_not_sit_on_the_tile_heading(self) -> None:
+        self.assertIn(".home-shell.is-editing .glance-tile-head", STYLE)
+        self.assertIn("visibility: hidden", STYLE)
+        edit = HOME_RUNTIME.split("function setEditing")[1].split("\n}")[0]
+        self.assertIn("editing ? 'Done' : 'Edit'", edit)
+        self.assertIn("aria-expanded", edit)
+        # Remove borrows btn-ghost, so it needs its own scale or it towers
+        # over an 11px handle.
+        btn = STYLE.split("\n.home-widget-btn {")[-1].split("}")[0]
+        self.assertIn("font-size: var(--fs-micro)", btn)
+        self.assertIn("min-height: 0", btn)
+
+    def test_checkin_band_has_no_kicker(self) -> None:
+        self.assertNotIn("homeCheckinKicker", INDEX)
+        self.assertNotIn("homeCheckinKicker", HOME_RUNTIME)
+        self.assertNotIn("home-checkin-kicker", STYLE)
+        self.assertIn("Evening check-in", HOME_RUNTIME)
+        self.assertNotIn("Everything stays on this Mac.", INDEX)
 
     def test_per_page_colors_and_settings_board(self) -> None:
         self.assertIn('id="colorScopeGroup"', INDEX)
@@ -597,7 +630,6 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("eelErrorMessage", checklist)
         self.assertNotIn("[object Object]", checklist)
         self.assertNotIn("String(e)", checklist)
-        self.assertIn(".home-pages {\n    display: none;", STYLE)
         self.assertIn("dropRegion", HOME_RUNTIME)
         self.assertIn("homeCheckinBand", HOME_RUNTIME)
         self.assertIn("open-evening-checkin", HOME_RUNTIME)

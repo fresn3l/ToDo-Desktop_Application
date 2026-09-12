@@ -446,15 +446,11 @@ function pageKeys(page) {
 const HOME_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>';
 const PAGE_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="4.5" width="14" height="15" rx="1.5"/><path d="M8 9h8M8 12.5h8M8 16h5"/></svg>';
 
+// The sidebar is where you switch pages. There used to be a second row of
+// page chips above the board as well, styled out of sight for long enough
+// that nobody noticed it was still being built on every repaint.
 function paintPages() {
-    const el = document.getElementById('homePages');
-    if (!el || !layout) return;
-    el.innerHTML = layout.pages
-        .map((page) => {
-            const on = page.id === layout.active_page_id;
-            return `<button type="button" class="home-page-chip${on ? ' is-selected' : ''}" data-page="${utils.escapeHtml(page.id)}" aria-selected="${on ? 'true' : 'false'}">${utils.escapeHtml(page.name)}</button>`;
-        })
-        .join('');
+    if (!layout) return;
     paintSidebar();
     paintTitle();
     syncPageColors();
@@ -577,15 +573,12 @@ function viewedCheckinSlot(info) {
 }
 
 function paintCheckinChrome(info, slot, done, open) {
-    const kicker = document.getElementById('homeCheckinKicker');
     const title = document.getElementById('homeCheckinTitle');
     const status = document.getElementById('homeCheckinStatus');
     const toggle = document.getElementById('homeCheckinToggle');
     const other = document.getElementById('homeCheckinOther');
-    const morningLabel = 'Morning check-in';
-    const eveningLabel = 'Evening check-in';
-    const label = slot === 'evening' ? eveningLabel : morningLabel;
-    if (kicker) kicker.textContent = slot === 'evening' ? 'Evening' : 'Morning';
+    // A kicker above this said "Evening" over "Evening check-in".
+    const label = slot === 'evening' ? 'Evening check-in' : 'Morning check-in';
     if (title) title.textContent = done ? `${label} done` : label;
     if (status) {
         if (info?.morning_done && info?.evening_done) status.textContent = 'Morning and evening saved';
@@ -654,10 +647,11 @@ function setEditing(on) {
     editing = next;
     document.getElementById('homeShell')?.classList.toggle('is-editing', editing);
     document.getElementById('homeEditBar')?.classList.toggle('is-hidden', !editing);
-    const howTo = document.querySelector('.home-live-copy');
-    if (howTo) howTo.hidden = true;
     const editBtn = document.getElementById('homeEditBtn');
-    if (editBtn) editBtn.textContent = editing ? 'Done' : 'Edit Home';
+    if (editBtn) {
+        editBtn.textContent = editing ? 'Done' : 'Edit';
+        editBtn.setAttribute('aria-expanded', editing ? 'true' : 'false');
+    }
     if (editing) {
         paintCatalog();
     }
@@ -738,13 +732,6 @@ function bindHome() {
     const root = document.getElementById('homeTab');
     if (!root || root.dataset.homeReady === '1') return;
     root.dataset.homeReady = '1';
-
-    document.getElementById('homePages')?.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-page]');
-        if (!btn) return;
-        closeHomeWork(true);
-        void renderHome(btn.getAttribute('data-page'));
-    });
 
     document.getElementById('homeAddPageBtn')?.addEventListener('click', async () => {
         const name = await utils.askText({
