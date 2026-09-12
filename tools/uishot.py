@@ -77,7 +77,8 @@ class Devtools:
 
 
 def capture(out: str, url: str, width: int, height: int, settle: float,
-            tab: str | None, full: bool, before: str | None) -> None:
+            tab: str | None, full: bool, before: str | None,
+            hover: str | None) -> None:
     profile = tempfile.mkdtemp(prefix="uishot-")
     port = 9222
     proc = subprocess.Popen(
@@ -109,6 +110,18 @@ def capture(out: str, url: str, width: int, height: int, settle: float,
         if before:
             dev.evaluate(before)
             time.sleep(1.5)
+        if hover:
+            # A real pointer move, because :hover cannot be set from script and
+            # the interaction states are most of what there is to look at.
+            box = dev.evaluate(
+                "(() => { const el = document.querySelector(`%s`); if (!el) return null;"
+                " const r = el.getBoundingClientRect();"
+                " return {x: r.left + r.width / 2, y: r.top + r.height / 2}; })()" % hover
+            )
+            if not box:
+                raise RuntimeError(f"nothing matched {hover}")
+            dev.call("Input.dispatchMouseEvent", type="mouseMoved", x=box["x"], y=box["y"])
+            time.sleep(0.6)
         # Let fonts and any entrance animation finish before the frame is taken.
         dev.evaluate("document.fonts ? document.fonts.ready.then(() => true) : true")
         time.sleep(0.4)
@@ -142,9 +155,10 @@ def main() -> int:
     ap.add_argument("--tab", default=None, help="sidebar tab to click first")
     ap.add_argument("--full", action="store_true", help="capture the whole scroll height")
     ap.add_argument("--before", default=None, help="JS to run just before capture")
+    ap.add_argument("--hover", default=None, help="selector to park the pointer on")
     args = ap.parse_args()
     capture(args.out, args.url, args.width, args.height, args.settle,
-            args.tab, args.full, args.before)
+            args.tab, args.full, args.before, args.hover)
     return 0
 
 
