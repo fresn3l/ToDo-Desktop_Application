@@ -574,8 +574,10 @@ class HomeUiTests(unittest.TestCase):
         # Brain's header linked to a tab the sidebar already carries.
         self.assertNotIn("brainOpenLibraryBtn", INDEX)
         self.assertNotIn("brainOpenLibraryBtn", brain)
-        # A full-width select stacked that header three rows deep.
+        # A full-width select stacked that header three rows deep. Inputs set
+        # their own width, so widening those broke Calendar's awake fields.
         self.assertIn(".page-head-actions select", STYLE)
+        self.assertNotIn(".page-head-actions input", STYLE)
 
     def test_today_pills_are_gone_with_the_topbar(self) -> None:
         # They lived in the topbar, so the Mac app never showed them, and the
@@ -829,7 +831,9 @@ class HomeUiTests(unittest.TestCase):
         # A wrapped header needs a second-row gap, not just a column gap.
         head = STYLE.split("\n.page-head {")[1].split("}")[0]
         self.assertIn("row-gap: var(--space-sm)", head)
-        self.assertIn("margin-bottom: var(--tab-gap)", head)
+        # The page layout owns the space below the header. Setting it here too
+        # double-counted it inside every shell that already has a flex gap.
+        self.assertNotIn("margin-bottom", head)
         # Three sentences of standing instructions was noise.
         self.assertNotIn("Drag Unplaced onto the day to place work.", INDEX)
         self.assertIn("Alt marks attended", INDEX)
