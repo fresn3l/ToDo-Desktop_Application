@@ -5,7 +5,7 @@
 
 import * as utils from './utils.js';
 import { splitKey, widgetLabel } from './home_layout.js';
-import { copy, moreCount, countLabel, minutesLabel } from './glance_copy.js';
+import { copy, moreCount, minutesLabel } from './glance_copy.js';
 import { callEel } from './lazy.js';
 
 async function eelCall(name, ...args) {
@@ -24,11 +24,32 @@ function clip(text, n) {
     return `${s.slice(0, Math.max(1, n - 1)).trim()}…`;
 }
 
+// How many list rows a tile holds. These mirror the tile's own metrics in
+// style.css: a row is a line of body text plus the list gap, and the chrome is
+// the padding, the heading and the button row the list sits between.
+const GLANCE_ROW_PX = 24;
+const GLANCE_CHROME_PX = 111;
+// A counter carries two icon buttons, so it stands about two text rows tall.
+const GLANCE_BLOCK_ROWS = 2;
+const GLANCE_MAX_ROWS = 14;
+
+function rowBudget(card, h) {
+    const px = card?.getBoundingClientRect?.().height || 0;
+    // A tile on a page nobody has opened measures nothing. The cell count is
+    // the fallback; it undercounts, which shows fewer rows rather than none.
+    if (px <= 0) return h >= 6 ? 6 : h >= 4 ? 3 : 0;
+    const fits = Math.floor((px - GLANCE_CHROME_PX) / GLANCE_ROW_PX);
+    return Math.max(0, Math.min(GLANCE_MAX_ROWS, fits));
+}
+
 function sizeOf(card) {
     const w = Math.max(1, Number(card?.dataset.w) || 1);
     const h = Math.max(1, Number(card?.dataset.h) || 1);
-    // One budget for every tile. Rows follow height; buttons follow width.
-    // A 4×2 row is label + metric. Capture belongs on a six-high tile.
+    // One budget for every tile. Rows follow the height the tile actually has,
+    // because the same cell count is a different number of rows depending on
+    // how the grid is divided. Buttons follow width. A short row is label plus
+    // metric. Capture belongs on a six-high tile.
+    const rows = rowBudget(card, h);
     return {
         w,
         h,
@@ -37,7 +58,8 @@ function sizeOf(card) {
         tall: h >= 4,
         board: w >= 6 || h >= 6,
         action: w >= 4 && h >= 4,
-        rows: h >= 6 ? 6 : h >= 4 ? 3 : 0,
+        rows,
+        blocks: Math.max(1, Math.floor(rows / GLANCE_BLOCK_ROWS)),
         capture: h >= 6,
     };
 }
@@ -86,25 +108,27 @@ function openWorkAction(key, label = copy.open) {
     return { act: 'open-work', label, attrs: ` data-key="${utils.escapeHtml(key)}"` };
 }
 
-function shellHtml({ key, size, state = 'ready', label, primary = '', body = '', action = null, actions = null, hero = false }) {
+/**
+ * Every tile is a heading, a middle that grows, and a row of buttons at the
+ * foot. The middle is what makes the buttons line up across the board: a tile
+ * with one line in it used to leave its button floating halfway up.
+ *
+ * The count is its own element rather than part of the heading string, so a
+ * tile reads "Today's work 7" with the number set apart instead of
+ * "Today's work · 7" run together.
+ */
+function shellHtml({ key, size, state = 'ready', label, count = '', primary = '', body = '', action = null, actions = null, hero = false }) {
     const stateCls = state !== 'ready' ? ` is-${state}` : '';
-    const labelHtml = `<p class="glance-label">${utils.escapeHtml(label)}</p>`;
+    const countHtml = count === '' || count == null
+        ? ''
+        : `<span class="glance-count">${utils.escapeHtml(String(count))}</span>`;
+    const head = `<header class="glance-tile-head"><h3 class="glance-label">${utils.escapeHtml(label)}</h3>${countHtml}</header>`;
+    const quiet = state === 'empty' || state === 'error' || state === 'loading';
+    const lead = quiet
+        ? `<p class="glance-message">${utils.escapeHtml(primary || copy.couldNotLoad)}</p>`
+        : (primary ? `<p class="glance-primary${hero ? ' glance-primary--hero' : ''}">${utils.escapeHtml(String(primary))}</p>` : '');
     const row = actionRow(actions || (action ? [action] : []), size);
-    if (state === 'empty' || state === 'error' || state === 'loading') {
-        return tile(key, size, stateCls, `
-            ${labelHtml}
-            <p class="glance-message">${utils.escapeHtml(primary || copy.couldNotLoad)}</p>
-            ${body || ''}
-            ${row}`);
-    }
-    const primaryHtml = primary
-        ? `<p class="glance-primary${hero ? ' glance-primary--hero' : ''}">${utils.escapeHtml(String(primary))}</p>`
-        : '';
-    return tile(key, size, stateCls, `
-        ${labelHtml}
-        ${primaryHtml}
-        ${body || ''}
-        ${row}`);
+    return tile(key, size, stateCls, `${head}<div class="glance-body">${lead}${body || ''}</div>${row}`);
 }
 
 function emptyShell(key, size, message, action) {
@@ -262,28 +286,26 @@ function beatActions(beat, size) {
     return actions;
 }
 
-function beatBody(beat, size, titleShown = false) {
+// The headline carries the title of whatever is in focus, so these lines carry
+// the clock instead. A tile that says "Clear clock." twice, once as its
+// headline and once underneath, is what this arrangement exists to avoid.
+function beatBody(beat, size) {
     const nowItem = beat?.now;
     const nextItem = beat?.next;
-    const gap = Number(beat?.gap_minutes || 0);
-    // When the headline already carries the title, this line drops to a time
-    // so the body spends its room on what comes after.
     const focus = nowItem || nextItem;
-    const nowLine = nowItem
-        ? (titleShown
-            ? `${copy.now} · ${formatAgendaTime(nowItem)}`.trim()
-            : `${copy.now} · ${formatAgendaTime(nowItem)} ${clip(nowItem.title || '', 28)}`.trim())
+    const gap = Number(beat?.gap_minutes || 0);
+    const line = (word, item) => (item
+        ? `${word} · ${formatAgendaTime(item)}${item === focus ? '' : ` ${clip(item.title || '', 28)}`}`.trim()
+        : '');
+    // With nothing on either side of it, the same figure is not a gap between
+    // two things, it is what is left of the day.
+    const tail = gap
+        ? (focus ? `${copy.gap} · ${minutesLabel(gap)}` : `${minutesLabel(gap)} ${copy.leftToday}`)
         : '';
-    const nextLine = nextItem
-        ? (titleShown && nextItem === focus
-            ? `${copy.next} · ${formatAgendaTime(nextItem)}`.trim()
-            : `${copy.next} · ${formatAgendaTime(nextItem)} ${clip(nextItem.title || '', 28)}`.trim())
-        : (titleShown ? '' : copy.clearClock);
-    const gapLine = gap ? `${copy.gap} · ${minutesLabel(gap)}` : '';
     const lines = size.tall
-        ? [nowLine, nextLine, gapLine]
-        : [nowItem ? nowLine : nextLine];
-    return lines.filter(Boolean).map((line) => `<p class="glance-message">${utils.escapeHtml(line)}</p>`).join('');
+        ? [line(copy.now, nowItem), line(copy.next, nextItem), tail]
+        : [line(nowItem ? copy.now : copy.next, focus)];
+    return lines.filter(Boolean).map((row) => `<p class="glance-message">${utils.escapeHtml(row)}</p>`).join('');
 }
 
 function todayHtml(data, size) {
@@ -291,22 +313,21 @@ function todayHtml(data, size) {
     if (!data || data.ok === false) {
         return emptyShell(key, size, copy.couldNotLoad);
     }
-    const label = 'Today';
     const iso = data?.local_date;
     const d = iso ? new Date(`${iso}T12:00:00`) : new Date();
-    const shortWeek = Number.isNaN(d.getTime()) ? 'Now' : d.toLocaleDateString(undefined, { weekday: 'short' });
-    const dayNum = Number.isNaN(d.getTime()) ? '' : String(d.getDate());
+    const dated = !Number.isNaN(d.getTime());
+    const shortWeek = dated ? d.toLocaleDateString(undefined, { weekday: 'short' }) : 'Now';
+    const dayNum = dated ? String(d.getDate()) : '';
     const beat = data?.beat || {};
     const focus = beat.now || beat.next;
-    const primary = beat.now
-        ? clip(beat.now.title || copy.now, 28)
-        : (focus ? formatAgendaTime(focus) : dayNum);
     return shellHtml({
         key,
         size,
-        label: size.wide || size.tall ? `${shortWeek} ${dayNum}` : label,
-        primary: size.tall ? clip(beat.now?.title || beat.next?.title || copy.clearClock, 36) : primary,
-        body: beatBody(beat, size, size.tall && Boolean(focus)),
+        label: size.wide || size.tall ? `${shortWeek} ${dayNum}` : 'Today',
+        primary: focus
+            ? clip(focus.title || (beat.now ? copy.now : copy.next), size.tall ? 36 : 28)
+            : copy.clearClock,
+        body: beatBody(beat, size),
         actions: beatActions(beat, size),
     });
 }
@@ -373,7 +394,8 @@ function workTodayHtml(data, size) {
     return shellHtml({
         key,
         size,
-        label: countLabel(label, open || done ? open : ''),
+        label,
+        count: open || done ? open : '',
         primary: size.tall ? '' : String(complete ? done : open),
         hero: false,
         body: `${message ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(message)}</p>` : ''}${rows || ''}${more}${capture}`,
@@ -400,7 +422,8 @@ function habitsHtml(data, size) {
     return shellHtml({
         key,
         size,
-        label: countLabel(label, `${done}/${total}`),
+        label,
+        count: `${done}/${total}`,
         primary: size.tall ? '' : `${done}/${total}`,
         body: `${quiet ? `<p class="glance-message glance-message--quiet">${quiet}</p>` : ''}${rows}`,
         action,
@@ -423,9 +446,10 @@ function countersHtml(data, size) {
         });
     }
     // The grid is two columns when the tile is wide, so trim to a whole number
-    // of rows rather than leaving a half-empty one at the bottom.
+    // of rows rather than leaving a half-empty one at the bottom. A counter is
+    // taller than a line of text, hence blocks rather than rows.
     const cols = size.w >= 4 ? 2 : 1;
-    const cap = Math.max(cols, Math.floor(size.rows / cols) * cols);
+    const cap = Math.max(cols, size.blocks * cols);
     const chips = rows.slice(0, cap).map((item) => `
         <div class="glance-counter">
             <span class="glance-counter-name">${utils.escapeHtml(clip(item.name || '', 18))}</span>
@@ -436,7 +460,8 @@ function countersHtml(data, size) {
     return shellHtml({
         key,
         size,
-        label: countLabel(label, rows.length),
+        label,
+        count: rows.length,
         body: `<div class="glance-counters">${chips}</div>`,
     });
 }
@@ -559,7 +584,8 @@ function goalsHtml(data, size) {
     return shellHtml({
         key,
         size,
-        label: countLabel(label, weekly.length || rows.length),
+        label,
+        count: weekly.length || rows.length,
         primary: size.tall ? '' : score,
         body: `${!size.tall ? `<p class="glance-message">${utils.escapeHtml(clip(focus?.title || '', 32))}</p>` : ''}${bar}${zero && size.tall ? `<p class="glance-message">${utils.escapeHtml(copy.zeroMinutes)}</p>` : ''}${list}`,
         action: openWorkAction(key),
@@ -593,7 +619,8 @@ function workBacklogHtml(data, size) {
     return shellHtml({
         key,
         size,
-        label: countLabel(label, rows.length),
+        label,
+        count: rows.length,
         primary: size.tall ? '' : String(rows.length),
         body: `${list}${more}`,
         actions,
@@ -685,7 +712,8 @@ function clunyHtml(data, size) {
     return shellHtml({
         key,
         size,
-        label: n ? countLabel(label, n) : label,
+        label,
+        count: n || '',
         primary: n ? String(n) : '',
         body: `${pending}${asks ? `<div class="glance-actions">${asks}</div>` : ''}`,
     });
@@ -716,7 +744,8 @@ function workUnplacedHtml(data, size) {
     return shellHtml({
         key,
         size,
-        label: countLabel(keyLabel(key), count),
+        label: keyLabel(key),
+        count,
         primary: size.tall ? '' : clip(first?.title || '', 32),
         // Seven day chips only fit on one line on a wide tile; wrapped they
         // would eat the rows the list needs.
@@ -739,7 +768,8 @@ function workDueHtml(data, size) {
     return shellHtml({
         key,
         size,
-        label: countLabel(keyLabel(key), data.count || rows.length),
+        label: keyLabel(key),
+        count: data.count || rows.length,
         primary: size.tall ? '' : formatShortDate(first.due),
         body: list,
         action: size.action ? openWorkAction(key, copy.open) : null,
