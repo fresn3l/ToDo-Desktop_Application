@@ -92,6 +92,39 @@ class OneSystemPerIdeaTests(unittest.TestCase):
         missing = sorted(r for r in rungs if f"{r}:" not in compact)
         self.assertEqual(missing, [], f"compact density skips {missing}")
 
+    def test_no_token_is_declared_and_never_read(self) -> None:
+        """A token nothing reads is a promise the stylesheet does not keep.
+        --lift-hover was declared for hover states that were never built, and
+        the widget border controls wrote two of these from the settings pane
+        while the board went on drawing its own border.
+        """
+        readers = STYLE + TOKENS
+        for path in (ROOT / "web").rglob("*"):
+            if path.suffix in (".js", ".html"):
+                readers += path.read_text(encoding="utf-8")
+        declared = set(re.findall(r"^\s*(--[a-z0-9-]+):", STYLE + TOKENS, re.M))
+        dead = sorted(t for t in declared if f"var({t}" not in readers)
+        self.assertEqual(dead, [], f"declared but never read: {dead}")
+
+
+class InteractionStateTests(unittest.TestCase):
+    def test_a_tile_answers_the_pointer(self) -> None:
+        """The hover rule used to set the border and shadow back to the values
+        they already had, so the whole board was inert under the pointer."""
+        hover = STYLE.split(".home-shell:not(.is-editing) .home-widget:hover {")[1].split("}")[0]
+        self.assertIn("var(--tint-hover)", hover)
+        self.assertIn("var(--lift-hover)", hover)
+        self.assertNotIn("box-shadow: none", hover)
+
+    def test_reduced_motion_takes_the_lift_away_once(self) -> None:
+        block = STYLE.split("html[data-motion='reduce'] {")[1].split("}")[0]
+        self.assertIn("--lift-hover: none", block)
+
+    def test_buttons_move_under_a_press(self) -> None:
+        self.assertIn(".btn-primary:active:not(:disabled)", STYLE)
+        buttons = STYLE.split(".btn-primary:active:not(:disabled),")[1].split("}")[0]
+        self.assertIn("transform: translateY(1px)", buttons)
+
 
 class NumeralTests(unittest.TestCase):
     def test_figures_line_up_where_the_app_shows_numbers(self) -> None:
