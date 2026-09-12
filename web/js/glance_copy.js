@@ -10,7 +10,6 @@ export const copy = {
     add: 'Add',
     start: 'Start',
     finish: 'Finish',
-    kept: 'Kept',
     tick: 'Tick',
     whatsOn: 'What’s on today?',
     freeTime: 'Free time',
@@ -20,12 +19,10 @@ export const copy = {
     allFinished: 'All finished.',
     noHabits: 'No habits yet.',
     noCounters: 'No counters yet.',
-    noFocus: 'No focus yet.',
     noDates: 'No dates yet.',
     noBook: 'No book yet.',
     noGoals: 'No goals yet.',
     backlogClear: 'Nothing unscheduled.',
-    noActivity: 'No activity yet.',
     noStreak: 'No streak yet.',
     nothingLogged: 'Nothing logged.',
     noForecast: 'No forecast yet.',
@@ -51,7 +48,6 @@ export const copy = {
     addLine: 'Add a line',
     zeroMinutes: '0 min this week',
     usedTonight: 'Used tonight.',
-    heldToday: 'Held for today.',
     loading: 'Loading…',
 };
 

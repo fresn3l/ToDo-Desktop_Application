@@ -142,17 +142,5 @@ class HomeGlanceTests(unittest.TestCase):
         packed = home_glances.glance_park_work(item["id"])
         self.assertIsNone(packed["scheduled_date"])
 
-    def test_free_today_compares_capacity_to_open_estimates(self) -> None:
-        work.create_work_item(
-            "Two hour paper",
-            scheduled_date=work._today().isoformat(),
-            estimate_minutes=120,
-        )
-        glance = home_glances.free_today_glance()
-        self.assertGreaterEqual(glance["needed_minutes"], 120)
-        self.assertIn("free_minutes", glance)
-        self.assertGreaterEqual(glance["open_count"], 1)
-
-
 if __name__ == "__main__":
     unittest.main()

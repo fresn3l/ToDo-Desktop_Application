@@ -12,21 +12,16 @@ export const WIDGET_CATALOG = {
     goals: { label: 'Goals', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'goalsTab' },
     allwork: { label: 'All Work', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'allWorkTab' },
     analytics: { label: 'Analytics', sizes: [[4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'analyticsTab' },
-    timeline: { label: 'Timeline', sizes: [[4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'timelineTab' },
     weather: { label: 'Weather', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'weatherSource' },
-    focus: { label: 'Focus', sizes: [[2, 2], [4, 2], [4, 4], [6, 2], [6, 4]], default: [4, 2], source: 'focusSource' },
     countdown: { label: 'Countdown', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'countdownSource' },
     habits: { label: 'Habits', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 6], source: 'habitsSource' },
-    heatmap: { label: 'Heatmap', sizes: [[4, 2], [6, 2], [4, 4], [6, 4], [6, 6]], default: [6, 2], source: 'heatmapSource' },
     day_brief: { label: 'Day', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'dayBriefSource' },
     counters: { label: 'Counters', sizes: [[2, 2], [4, 2], [4, 4], [6, 4], [6, 6]], default: [4, 2], source: 'countersSource' },
     reading: { label: 'Reading', sizes: [[2, 2], [4, 2], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'readingSource' },
     word: { label: 'Word', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'wordTab' },
     cluny: { label: 'Ask Cluny', sizes: [[4, 4], [4, 6], [6, 4], [6, 6], [8, 4]], default: [8, 4], source: 'clunySource' },
-    now_next: { label: 'Now', sizes: [[2, 2], [4, 2], [4, 4], [6, 2], [6, 4]], default: [4, 2], source: 'todayCalendarSource' },
     unplaced: { label: 'Unplaced', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'allWorkTab' },
     dues: { label: 'Due', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'todoTab' },
-    free_today: { label: 'Free', sizes: [[2, 2], [4, 2], [4, 4], [6, 2]], default: [4, 2], source: 'todayCalendarSource' },
 };
 
 export function catalogList() {

@@ -152,23 +152,20 @@ class HomeUiTests(unittest.TestCase):
             "goals",
             "allwork",
             "analytics",
-            "timeline",
             "weather",
-            "focus",
             "countdown",
             "habits",
-            "heatmap",
             "day_brief",
             "counters",
             "reading",
             "word",
             "cluny",
-            "now_next",
             "unplaced",
             "dues",
-            "free_today",
         ):
             self.assertIn(f"{kind}:", HOME_JS)
+        for gone in ("now_next", "free_today", "heatmap", "focus", "timeline"):
+            self.assertNotIn(f"{gone}:", HOME_JS)
         self.assertNotIn("journal:", HOME_JS)
         self.assertNotIn("checklist:", HOME_JS)
         self.assertNotIn("settings:", HOME_JS)
@@ -240,10 +237,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("function workoutHtml", GLANCE_TILES)
         self.assertIn("function goalsHtml", GLANCE_TILES)
         self.assertIn("function allworkHtml", GLANCE_TILES)
-        self.assertIn("function heatmapHtml", GLANCE_TILES)
         self.assertIn("function dayBriefHtml", GLANCE_TILES)
         self.assertIn("function analyticsHtml", GLANCE_TILES)
-        self.assertIn("function timelineHtml", GLANCE_TILES)
         self.assertIn("function posterHtml", GLANCE_TILES)
         self.assertIn("function shellHtml", GLANCE_TILES)
         self.assertIn("glance_copy.js", GLANCE_TILES)
@@ -252,15 +247,11 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("get_now_next_glance", GLANCE_TILES)
         self.assertIn("get_weather_forecast", GLANCE_TILES)
         self.assertIn("get_word_of_the_day", GLANCE_TILES)
-        self.assertIn("get_heatmap", GLANCE_TILES)
         self.assertIn("get_analytics", GLANCE_TILES)
-        self.assertIn("get_timeline_day", GLANCE_TILES)
         self.assertIn("get_cluny_inbox", GLANCE_TILES)
         self.assertIn("function clunyHtml", GLANCE_TILES)
-        self.assertIn("function nowNextHtml", GLANCE_TILES)
         self.assertIn("function unplacedHtml", GLANCE_TILES)
         self.assertIn("function duesHtml", GLANCE_TILES)
-        self.assertIn("function freeTodayHtml", GLANCE_TILES)
         self.assertIn("todo-plus15", GLANCE_TILES)
         self.assertIn("work-today", GLANCE_TILES)
         self.assertIn("block-skip", GLANCE_TILES)
@@ -279,11 +270,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".home-work-body > .widget-source", STYLE)
         self.assertIn("data-glance-act", GLANCE_TILES)
         self.assertIn("runGlanceAction", GLANCE_TILES)
-        self.assertIn("keep_daily_focus", GLANCE_TILES)
         self.assertIn("todo-finish", GLANCE_TILES)
         self.assertIn("habit-tick", GLANCE_TILES)
         self.assertIn("counter-tap", GLANCE_TILES)
-        self.assertIn("focus-keep", GLANCE_TILES)
         self.assertIn("dayPart", GLANCE_TILES)
         self.assertIn("syncHomeDayPart", HOME_RUNTIME)
         self.assertIn(".glance-action", STYLE)
@@ -846,4 +835,3 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("callEel('get_recent_entries'", journal)
         self.assertIn("void mod?.loadPastEntries?.()", TABS)
         self.assertNotIn("await mod?.loadPastEntries?.()", TABS)
-        self.assertIn("get_heatmap', '', '', '', 42", GLANCE_TILES)

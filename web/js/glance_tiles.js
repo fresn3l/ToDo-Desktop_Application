@@ -435,24 +435,6 @@ function countersHtml(data, size) {
     });
 }
 
-function focusHtml(data, size) {
-    const kind = 'focus';
-    const label = 'Focus';
-    const text = (data?.text || '').trim();
-    const kept = Boolean(data?.kept && text);
-    if (!text) return emptyShell(kind, size, copy.noFocus);
-    const action = size.action && text && !kept
-        ? { act: 'focus-keep', label: copy.kept }
-        : null;
-    return shellHtml({
-        kind,
-        size,
-        label,
-        primary: clip(text, size.wide ? 42 : 14),
-        body: kept ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(copy.heldToday)}</p>` : '',
-        action,
-    });
-}
 
 function countdownHtml(data, size) {
     const kind = 'countdown';
@@ -612,29 +594,6 @@ function allworkHtml(data, size) {
     });
 }
 
-function heatmapHtml(data, size) {
-    const kind = 'heatmap';
-    const label = 'Heatmap';
-    if (!data) return emptyShell(kind, size, copy.noActivity);
-    const streak = Number(data.streak || 0);
-    const source = data.series_title || data.source_label || label;
-    const days = data.days || [];
-    const recent = days.slice(-14);
-    const strip = (size.tall || size.board) && recent.length
-        ? `<div class="glance-heat" aria-hidden="true">${recent.map((day) => {
-            const hit = day.state === 'hit' || Number(day.value || 0) > 0;
-            const level = Math.max(0, Math.min(4, Number(day.level) || (hit ? 2 : 0)));
-            return `<i class="is-${utils.escapeHtml(day.state || 'none')} level-${level}"></i>`;
-        }).join('')}</div>`
-        : '';
-    return shellHtml({
-        kind,
-        size,
-        label: source,
-        primary: String(streak),
-        body: `<p class="glance-message glance-message--quiet">${streak ? 'day streak' : copy.noStreak}</p>${strip}`,
-    });
-}
 
 function dayBriefHtml(data, size) {
     const kind = 'day_brief';
@@ -685,24 +644,6 @@ function analyticsHtml(data, size) {
     });
 }
 
-function timelineHtml(data, size) {
-    const kind = 'timeline';
-    const label = 'Timeline';
-    if (!data) return emptyShell(kind, size, copy.nothingLogged);
-    const n = Number(data.journal_count || 0)
-        + Number(data.work_count || 0)
-        + Number(data.workout_count || 0)
-        + Number(data.submission_count || 0);
-    const iso = data.local_date || utils.localISODate();
-    const when = formatShortDate(iso) || 'Today';
-    return shellHtml({
-        kind,
-        size,
-        label,
-        primary: String(n),
-        body: `<p class="glance-message glance-message--quiet">${utils.escapeHtml(when)}</p>`,
-    });
-}
 
 function clunyHtml(data, size) {
     const kind = 'cluny';
@@ -744,20 +685,6 @@ function clunyHtml(data, size) {
     });
 }
 
-function nowNextHtml(data, size) {
-    const kind = 'now_next';
-    const beat = data || {};
-    const focus = beat.now || beat.next;
-    const label = beat.now ? copy.now : copy.next;
-    return shellHtml({
-        kind,
-        size,
-        label,
-        primary: focus ? clip(focus.title || '', 28) : copy.clearClock,
-        body: beatBody(beat, size, size.tall && Boolean(focus)),
-        actions: beatActions(beat, size),
-    });
-}
 
 function weekdayChips(weekdays, itemId) {
     const days = weekdays || [];
@@ -813,21 +740,6 @@ function duesHtml(data, size) {
     });
 }
 
-function freeTodayHtml(data, size) {
-    const kind = 'free_today';
-    const free = Number(data?.free_minutes || 0);
-    const needed = Number(data?.needed_minutes || 0);
-    const open = Number(data?.open_count || 0);
-    const line = `${minutesLabel(free)} free, ${minutesLabel(needed)} of open to-dos${open ? ` (${open})` : ''}.`;
-    return shellHtml({
-        kind,
-        size,
-        label: 'Free today',
-        primary: minutesLabel(free),
-        body: `<p class="glance-message">${utils.escapeHtml(line)}</p>`,
-        action: size.action ? openWorkAction('today_calendar', copy.open) : null,
-    });
-}
 
 function posterHtml(kind, _data, size) {
     return emptyShell(kind, size, copy.couldNotLoad);
@@ -842,7 +754,6 @@ async function loadGlance(kind) {
         return { ok: true, beat, local_date: beat.local_date };
     }
     if (kind === 'todo') return eelCall('get_work_board', utils.localISODate());
-    if (kind === 'focus') return eelCall('get_daily_focus');
     if (kind === 'countdown') return eelCall('get_countdowns');
     if (kind === 'habits') return eelCall('get_habits');
     if (kind === 'reading') return eelCall('get_reading');
@@ -851,14 +762,10 @@ async function loadGlance(kind) {
     if (kind === 'goals') return eelCall('list_goals');
     if (kind === 'allwork') return eelCall('list_backlog');
     if (kind === 'day_brief') return eelCall('get_day_brief');
-    if (kind === 'heatmap') return eelCall('get_heatmap', '', '', '', 42);
     if (kind === 'analytics') return eelCall('get_analytics', 7);
-    if (kind === 'timeline') return eelCall('get_timeline_day', utils.localISODate());
     if (kind === 'cluny') return eelCall('get_cluny_inbox');
-    if (kind === 'now_next') return eelCall('get_now_next_glance');
     if (kind === 'unplaced') return eelCall('get_unplaced_glance');
     if (kind === 'dues') return eelCall('get_dues_week_glance');
-    if (kind === 'free_today') return eelCall('get_free_today_glance');
     return null;
 }
 
@@ -869,21 +776,16 @@ function renderKind(kind, data, size) {
     if (kind === 'todo') return todoHtml(data, size);
     if (kind === 'habits') return habitsHtml(data, size);
     if (kind === 'counters') return countersHtml(data, size);
-    if (kind === 'focus') return focusHtml(data, size);
     if (kind === 'countdown') return countdownHtml(data, size);
     if (kind === 'reading') return readingHtml(data, size);
     if (kind === 'workout') return workoutHtml(data, size);
     if (kind === 'goals') return goalsHtml(data, size);
     if (kind === 'allwork') return allworkHtml(data, size);
-    if (kind === 'heatmap') return heatmapHtml(data, size);
     if (kind === 'day_brief') return dayBriefHtml(data, size);
     if (kind === 'analytics') return analyticsHtml(data, size);
-    if (kind === 'timeline') return timelineHtml(data, size);
     if (kind === 'cluny') return clunyHtml(data, size);
-    if (kind === 'now_next') return nowNextHtml(data, size);
     if (kind === 'unplaced') return unplacedHtml(data, size);
     if (kind === 'dues') return duesHtml(data, size);
-    if (kind === 'free_today') return freeTodayHtml(data, size);
     return posterHtml(kind, data, size);
 }
 
@@ -969,8 +871,6 @@ export async function runGlanceAction(btn) {
         } else if (act === 'counter-tap') {
             const step = parseInt(btn.getAttribute('data-step') || '1', 10) || 1;
             await callEel('tap_counter', id, step);
-        } else if (act === 'focus-keep') {
-            await callEel('keep_daily_focus', true);
         } else if (act === 'cluny-ask') {
             document.dispatchEvent(new CustomEvent('kosistenz:open-cluny', {
                 detail: { question: btn.getAttribute('data-q') || '' },
