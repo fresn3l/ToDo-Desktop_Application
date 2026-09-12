@@ -670,6 +670,30 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("min-height: 8px", STYLE)
         self.assertIn("const heightPct = (dur / span) * 100", CAL_JS)
 
+    def test_main_tabs_share_one_heading_ladder(self) -> None:
+        for token in ("--tab-title:", "--tab-heading:", "--tab-subheading:", "--tab-gap:"):
+            self.assertIn(token, TOKENS)
+        # A tab title is the Home page title size; a section heading sits below.
+        self.assertIn("--tab-title: 20px", TOKENS)
+        self.assertIn("--text-h1: var(--tab-title, 20px)", STYLE)
+        self.assertIn("--text-h2: var(--tab-heading, 18px)", STYLE)
+        # The calendar and the click sheet stop picking their own sizes.
+        self.assertIn("font-size: var(--tab-title)", STYLE)
+        self.assertIn("font-size: var(--tab-subheading)", STYLE)
+        head = STYLE.split(".home-work-head h2 {")[1].split("}")[0]
+        self.assertIn("font-size: var(--tab-title)", head)
+        # A wrapped toolbar needs a second-row gap, not just a column gap.
+        toolbar = STYLE.split(".cal-toolbar {")[1].split("}")[0]
+        self.assertIn("row-gap: var(--space-sm)", toolbar)
+        self.assertIn("padding: 0 0 var(--tab-gap)", toolbar)
+        # Compact density moves the whole ladder, not half of it.
+        compact = STYLE.split("html[data-density='compact'] {")[1].split("}")[0]
+        self.assertIn("--tab-title: 18px", compact)
+        self.assertIn("--tab-gap: 14px", compact)
+        # Three sentences of standing instructions was noise.
+        self.assertNotIn("Drag Unplaced onto the day to place work.", INDEX)
+        self.assertIn("Alt marks attended", INDEX)
+
     def test_calendar_drag_is_tracked_at_the_window(self) -> None:
         # Pointer capture alone loses the drag inside WKWebView, so the window
         # has to carry move and up the way the Home board already does.

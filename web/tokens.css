@@ -46,4 +46,13 @@
     --sheet-max: 820px;
     --sheet-pad: 20px 24px 28px;
     --sheet-head-pad: 18px 24px 14px;
+
+    /* Main tabs use the same ladder as Home: one page title, one section
+       heading, one quiet label. Tabs used to pick their own sizes per panel. */
+    --tab-title: 20px;
+    --tab-heading: 18px;
+    --tab-subheading: 14px;
+    --tab-label: 12px;
+    --tab-gap: 20px;
+    --tab-pad: 20px;
 }

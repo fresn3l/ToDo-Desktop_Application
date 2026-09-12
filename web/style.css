@@ -120,8 +120,10 @@
     --gap-md: 16px;
     --content-max: 1180px;
 
-    --text-h1: 1.2rem;
-    --text-h2: 1.05rem;
+    /* A tab title is the same size as the Home page title, and a section
+       heading is a real step below it rather than a hair. */
+    --text-h1: var(--tab-title, 20px);
+    --text-h2: var(--tab-heading, 18px);
     --text-h3: 0.78rem;
     --text-body: 15px;
     --text-caption: 12px;
@@ -347,6 +349,10 @@ html[data-density='compact'] {
     --space-section: 18px;
     --space-card: 14px;
     --text-body: 14px;
+    --tab-title: 18px;
+    --tab-heading: 16px;
+    --tab-gap: 14px;
+    --tab-pad: 16px;
 }
 
 html[data-radius='sharp'] {
@@ -1785,7 +1791,8 @@ input[type='radio'] {
     display: flex;
     flex-direction: column;
     gap: var(--space-lg);
-    padding: 0 6px;
+    /* Room for the scrollbar and for a focus ring on the first control. */
+    padding: 2px var(--space-sm) var(--space-lg);
 }
 
 .settings-col[data-settings-col='appearance'] {
@@ -3856,7 +3863,7 @@ html.home-work-open .app-content {
 
 .home-work-head h2 {
     margin: 0;
-    font-size: 1.35rem;
+    font-size: var(--tab-title);
     letter-spacing: var(--letter-tight);
     color: var(--text-title);
 }
@@ -4857,7 +4864,7 @@ html.home-work-open .app-content {
 }
 
 .todo-hero h2 {
-    font-size: 1.15rem;
+    font-size: var(--tab-heading);
     letter-spacing: var(--letter-tight);
     margin: 2px 0 0;
     color: var(--text-title);
@@ -5278,14 +5285,16 @@ html[data-motion='reduce'] *::after {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    column-gap: 12px;
+    /* The action cluster wraps on a narrow window; give the second row air. */
+    row-gap: var(--space-sm);
     flex-wrap: wrap;
-    padding: 0 0 14px;
+    padding: 0 0 var(--tab-gap);
 }
 
 .cal-toolbar h2 {
     margin: 0;
-    font-size: var(--text-h2);
+    font-size: var(--text-h1);
     font-weight: 650;
     letter-spacing: var(--letter-tight);
     color: var(--text-title);
@@ -5970,7 +5979,7 @@ html[data-motion='reduce'] *::after {
 .cal-aside {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: var(--space-md);
     min-height: 0;
     overflow: auto;
 }
@@ -5978,8 +5987,8 @@ html[data-motion='reduce'] *::after {
 .cal-aside-block {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 14px;
+    gap: var(--space-sm);
+    padding: var(--space-md);
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
@@ -5987,7 +5996,7 @@ html[data-motion='reduce'] *::after {
 
 .cal-aside-block h3 {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--tab-subheading);
     font-weight: 650;
     letter-spacing: var(--letter-tight);
     text-transform: none;
@@ -6078,7 +6087,7 @@ html[data-motion='reduce'] *::after {
 
 .cal-clock-hint {
     margin: 8px 0 0;
-    font-size: 11px;
+    font-size: var(--tab-label);
     color: var(--text-muted);
 }
 
