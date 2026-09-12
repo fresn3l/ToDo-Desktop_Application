@@ -25,6 +25,18 @@ PASTE_JS = (ROOT / "web" / "js" / "paste_insert.js").read_text(encoding="utf-8")
 
 
 class HomeUiTests(unittest.TestCase):
+    def test_the_widget_border_settings_reach_the_board(self) -> None:
+        """Appearance writes a width and a colour for the widget border. The
+        board drew its own border and ignored both, so those controls moved
+        nothing."""
+        appearance = (ROOT / "web" / "js" / "appearance.js").read_text(encoding="utf-8")
+        for token in ("--home-widget-border-width", "--home-widget-border-color"):
+            self.assertIn(token, appearance, f"{token} should still be written")
+            self.assertIn(f"var({token}", STYLE, f"{token} has no reader")
+        rule = STYLE.split(".home-widget {")[1].split("}")[0]
+        self.assertIn("var(--home-widget-border-width", rule)
+        self.assertIn("var(--home-widget-border-color", rule)
+
     def test_sidebar_is_home_journal_and_calendar(self) -> None:
         self.assertIn('data-tab="home"', INDEX)
         self.assertIn('data-tab="journal"', INDEX)
@@ -691,25 +703,18 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("bootStale = true", HOME_RUNTIME)
 
     def test_main_tabs_share_one_heading_ladder(self) -> None:
-        for token in ("--tab-title:", "--tab-heading:", "--tab-subheading:", "--tab-gap:"):
-            self.assertIn(token, TOKENS)
-        # A tab title is the Home page title size; a section heading sits below.
-        self.assertIn("--tab-title: 20px", TOKENS)
-        self.assertIn("--text-h1: var(--tab-title, 20px)", STYLE)
-        self.assertIn("--text-h2: var(--tab-heading, 18px)", STYLE)
-        # The calendar and the click sheet stop picking their own sizes.
-        self.assertIn("font-size: var(--tab-title)", STYLE)
-        self.assertIn("font-size: var(--tab-subheading)", STYLE)
+        # The click sheet and the calendar read the shared scale rather than
+        # picking a size per panel.
         head = STYLE.split(".home-work-head h2 {")[1].split("}")[0]
-        self.assertIn("font-size: var(--tab-title)", head)
+        self.assertIn("font-size: var(--fs-", head)
+        # Compact density moves the reading sizes together, not half of them.
+        compact = STYLE.split("html[data-density='compact'] {")[1].split("}")[0]
+        for token in ("--fs-body:", "--fs-lead:", "--fs-heading:", "--fs-title:"):
+            self.assertIn(token, compact)
         # A wrapped toolbar needs a second-row gap, not just a column gap.
         toolbar = STYLE.split(".cal-toolbar {")[1].split("}")[0]
         self.assertIn("row-gap: var(--space-sm)", toolbar)
         self.assertIn("padding: 0 0 var(--tab-gap)", toolbar)
-        # Compact density moves the whole ladder, not half of it.
-        compact = STYLE.split("html[data-density='compact'] {")[1].split("}")[0]
-        self.assertIn("--tab-title: 18px", compact)
-        self.assertIn("--tab-gap: 14px", compact)
         # Three sentences of standing instructions was noise.
         self.assertNotIn("Drag Unplaced onto the day to place work.", INDEX)
         self.assertIn("Alt marks attended", INDEX)
