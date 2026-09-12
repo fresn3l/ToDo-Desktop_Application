@@ -2947,6 +2947,19 @@ html.native-shell .home-title-strip {
     display: none;
 }
 
+.home-grid-empty {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    align-self: start;
+    margin: 0;
+    padding: var(--space-lg);
+    border: 1px dashed var(--border-subtle);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
+    color: var(--text-3);
+    font-size: var(--t-body);
+}
+
 .home-checkin-band {
     display: flex;
     flex-direction: column;

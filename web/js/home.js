@@ -16,28 +16,27 @@ const FALLBACK_LAYOUT = {
             id: 'local-home',
             name: 'Home',
             widgets: [
-                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2, region: 'above' },
-                { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2, region: 'above' },
-                { id: 'w-unplaced', kind: 'unplaced', x: 0, y: 0, w: 2, h: 2 },
-                { id: 'w-now', kind: 'now_next', x: 2, y: 0, w: 2, h: 1 },
-                { id: 'w-weather', kind: 'weather', x: 2, y: 1, w: 2, h: 1 },
-                { id: 'w-word', kind: 'word', x: 0, y: 2, w: 2, h: 1 },
-                { id: 'w-day', kind: 'day_brief', x: 0, y: 3, w: 2, h: 2 },
-                { id: 'w-cluny', kind: 'cluny', x: 2, y: 2, w: 2, h: 2 },
+                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 3, region: 'above' },
+                { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 3, region: 'above' },
+                { id: 'w-cluny', kind: 'cluny', x: 0, y: 0, w: 4, h: 2 },
+                { id: 'w-weather', kind: 'weather', x: 0, y: 2, w: 2, h: 1 },
+                { id: 'w-word', kind: 'word', x: 2, y: 2, w: 2, h: 1 },
+                { id: 'w-unplaced', kind: 'unplaced', x: 0, y: 3, w: 2, h: 3 },
+                { id: 'w-day', kind: 'day_brief', x: 2, y: 3, w: 2, h: 3 },
             ],
         },
         {
             id: 'local-week',
             name: 'Week',
             widgets: [
-                { id: 'w-workout', kind: 'workout', x: 0, y: 0, w: 2, h: 2 },
-                { id: 'w-goals', kind: 'goals', x: 2, y: 0, w: 2, h: 2 },
-                { id: 'w-allwork', kind: 'allwork', x: 0, y: 2, w: 2, h: 2 },
-                { id: 'w-habits', kind: 'habits', x: 2, y: 2, w: 2, h: 2 },
-                { id: 'w-heatmap', kind: 'heatmap', x: 0, y: 4, w: 2, h: 1 },
-                { id: 'w-reading', kind: 'reading', x: 2, y: 4, w: 2, h: 1 },
-                { id: 'w-dues', kind: 'dues', x: 0, y: 5, w: 2, h: 2 },
-                { id: 'w-free', kind: 'free_today', x: 2, y: 5, w: 2, h: 1 },
+                { id: 'w-goals', kind: 'goals', x: 0, y: 0, w: 2, h: 3 },
+                { id: 'w-allwork', kind: 'allwork', x: 2, y: 0, w: 2, h: 3 },
+                { id: 'w-habits', kind: 'habits', x: 0, y: 3, w: 2, h: 3 },
+                { id: 'w-dues', kind: 'dues', x: 2, y: 3, w: 2, h: 3 },
+                { id: 'w-workout', kind: 'workout', x: 0, y: 6, w: 2, h: 2 },
+                { id: 'w-heatmap', kind: 'heatmap', x: 2, y: 6, w: 2, h: 2 },
+                { id: 'w-reading', kind: 'reading', x: 0, y: 8, w: 2, h: 1 },
+                { id: 'w-free', kind: 'free_today', x: 2, y: 8, w: 2, h: 1 },
             ],
         },
     ],
@@ -507,8 +506,12 @@ function widgetCardHtml(item, live) {
         </article>`;
 }
 
-function paintOneGrid(grid, widgets, live) {
+function paintOneGrid(grid, widgets, live, emptyNote = '') {
     if (!grid) return;
+    if (!widgets.length && live && emptyNote) {
+        grid.innerHTML = `<p class="home-grid-empty">${utils.escapeHtml(emptyNote)}</p>`;
+        return;
+    }
     grid.innerHTML = widgets.map((item) => widgetCardHtml(item, live)).join('');
     widgets.forEach((item) => {
         const card = grid.querySelector(`.home-widget[data-id="${item.id}"]`);
@@ -536,7 +539,8 @@ function paintGrid() {
         band.hidden = !first;
         if (!first) band.classList.remove('is-open');
     }
-    paintOneGrid(below, belowWidgets, live);
+    // An extra page with nothing on it should say so rather than look broken.
+    paintOneGrid(below, belowWidgets, live, first ? '' : 'No widgets on this page yet. Choose Edit to add one.');
 }
 
 function parkCheckin() {
