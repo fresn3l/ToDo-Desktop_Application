@@ -3488,13 +3488,17 @@ html[data-motion='reduce'] .glance-tile {
 
 .glance-list li span,
 .glance-forecast li span {
+    font-size: var(--fs-caption);
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     flex: 0 0 auto;
 }
 
+/* The title takes the slack. A count in front of it stays in front and a
+   figure after it lands on the right edge, without the row caring which. */
 .glance-list li strong,
 .glance-forecast li em {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -4655,7 +4659,9 @@ html.home-work-open .app-content {
     outline-offset: 1px;
 }
 
-.glance-list,
+/* A habit row is a label and a Remove button, so its halves push apart. A
+   glance row is not shaped like that, and it used to be caught by this rule:
+   rows that lead with a count had the title shoved to the far edge. */
 .habit-list {
     list-style: none;
     display: flex;
@@ -4668,7 +4674,6 @@ html.home-work-open .app-content {
     overflow: auto;
 }
 
-.glance-list li,
 .habit-list li {
     display: flex;
     justify-content: space-between;
@@ -4676,18 +4681,6 @@ html.home-work-open .app-content {
     gap: 8px;
     padding: 4px 0;
     border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
-}
-
-.glance-list li div {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-}
-
-.glance-list li span {
-    font-size: var(--fs-caption);
-    color: var(--text-secondary);
 }
 
 .glance-list li .btn-ghost,
