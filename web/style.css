@@ -679,9 +679,11 @@ html[data-sidebar='compact'] .sidebar-footer {
     -webkit-app-region: drag;
 }
 
+/* The title shrinks to make room, but only so far. Past that the actions take
+   a row of their own rather than running off the side of the page. */
 .page-head-titles {
-    min-width: 0;
     flex: 1 1 auto;
+    min-width: 12rem;
     -webkit-app-region: no-drag;
 }
 
@@ -709,6 +711,7 @@ html[data-sidebar='compact'] .sidebar-footer {
     flex-wrap: wrap;
     gap: 10px;
     flex: 0 0 auto;
+    max-width: 100%;
     -webkit-app-region: no-drag;
 }
 
