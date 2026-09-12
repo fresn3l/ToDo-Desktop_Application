@@ -3,7 +3,7 @@
  */
 
 import * as utils from './utils.js';
-import { WIDGET_CATALOG, GRID_COLUMNS, catalogList, canPlace, snapCell, pickResize, isFirstHomePage, widgetRegion, widgetsInRegion } from './home_layout.js';
+import { WIDGET_CATALOG, GRID_COLUMNS, catalogEntries, canPlace, snapCell, pickResize, isFirstHomePage, widgetRegion, widgetsInRegion, widgetKey, splitKey, widgetLabel, widgetSource, keysOnPage } from './home_layout.js';
 import { mountGlance, refreshGlances, runGlanceAction, runGlanceCapture, syncHomeDayPart } from './glance_tiles.js';
 import { getAppearance, onAppearanceChange, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { bootFeature, callEel, loadOnce } from './lazy.js';
@@ -16,12 +16,12 @@ const FALLBACK_LAYOUT = {
             id: 'local-home',
             name: 'Home',
             widgets: [
-                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 4, h: 6, region: 'above' },
+                { id: 'w-todo', kind: 'work', settings: { slice: 'today' }, x: 0, y: 0, w: 4, h: 6, region: 'above' },
                 { id: 'w-today', kind: 'today_calendar', x: 4, y: 0, w: 4, h: 6, region: 'above' },
                 { id: 'w-cluny', kind: 'cluny', x: 0, y: 0, w: 8, h: 4 },
                 { id: 'w-weather', kind: 'weather', x: 0, y: 4, w: 4, h: 2 },
                 { id: 'w-word', kind: 'word', x: 4, y: 4, w: 4, h: 2 },
-                { id: 'w-unplaced', kind: 'unplaced', x: 0, y: 6, w: 4, h: 6 },
+                { id: 'w-unplaced', kind: 'work', settings: { slice: 'unplaced' }, x: 0, y: 6, w: 4, h: 6 },
                 { id: 'w-day', kind: 'day_brief', x: 4, y: 6, w: 4, h: 6 },
             ],
         },
@@ -30,13 +30,11 @@ const FALLBACK_LAYOUT = {
             name: 'Week',
             widgets: [
                 { id: 'w-goals', kind: 'goals', x: 0, y: 0, w: 4, h: 6 },
-                { id: 'w-allwork', kind: 'allwork', x: 4, y: 0, w: 4, h: 6 },
+                { id: 'w-allwork', kind: 'work', settings: { slice: 'backlog' }, x: 4, y: 0, w: 4, h: 6 },
                 { id: 'w-habits', kind: 'habits', x: 0, y: 6, w: 4, h: 6 },
-                { id: 'w-dues', kind: 'dues', x: 4, y: 6, w: 4, h: 6 },
+                { id: 'w-dues', kind: 'work', settings: { slice: 'due' }, x: 4, y: 6, w: 4, h: 6 },
                 { id: 'w-workout', kind: 'workout', x: 0, y: 12, w: 4, h: 4 },
-                { id: 'w-heatmap', kind: 'heatmap', x: 4, y: 12, w: 4, h: 4 },
-                { id: 'w-reading', kind: 'reading', x: 0, y: 16, w: 4, h: 2 },
-                { id: 'w-free', kind: 'free_today', x: 4, y: 16, w: 4, h: 2 },
+                { id: 'w-reading', kind: 'reading', x: 4, y: 12, w: 4, h: 2 },
             ],
         },
     ],
@@ -119,46 +117,53 @@ async function loadLayout() {
 
 const KIND_FEATURE = {
     today_calendar: 'today',
-    todo: 'todo',
-    allwork: 'allwork',
+    work: 'todo',
     workout: 'workout',
     goals: 'goals',
     analytics: 'analytics',
-    timeline: 'timeline',
     weather: 'weather',
-    focus: 'glance',
     countdown: 'glance',
     habits: 'glance',
-    heatmap: 'heatmap',
     day_brief: 'day_brief',
     counters: 'counters',
     reading: 'reading',
     word: 'word',
     cluny: 'cluny',
-    now_next: 'today',
-    unplaced: 'allwork',
-    dues: 'todo',
-    free_today: 'today',
 };
 
-async function ensureWork(kind) {
-    return loadOnce(`work:${kind}`, async () => {
-        const feature = KIND_FEATURE[kind];
+// Today and Due are cuts of the dated list; All work and Unplaced are cuts of
+// the backlog. Which module a Work tile opens follows the slice, not the kind.
+const WORK_SLICE_FEATURE = {
+    today: 'todo',
+    due: 'todo',
+    backlog: 'allwork',
+    unplaced: 'allwork',
+};
+
+function featureFor(kind, settings) {
+    if (kind === 'work') return WORK_SLICE_FEATURE[settings?.slice] || 'todo';
+    return KIND_FEATURE[kind] || '';
+}
+
+async function ensureWork(key) {
+    return loadOnce(`home:${key}`, async () => {
+        const { kind, settings } = splitKey(key);
+        const feature = featureFor(kind, settings);
         if (feature) await bootFeature(feature);
-        if (kind === 'today_calendar' || kind === 'now_next' || kind === 'free_today') {
-            const m = await import('./today.js');
-            m.setupToday();
-            return () => m.onTodayTabShown().then(() => m.refreshToday());
-        }
-        if (kind === 'todo' || kind === 'dues') {
-            const m = await import('./todo.js');
-            m.setupTodo();
-            return () => m.onTodoTabShown();
-        }
-        if (kind === 'allwork' || kind === 'unplaced') {
+        if (kind === 'work') {
+            if (feature === 'todo') {
+                const m = await import('./todo.js');
+                m.setupTodo();
+                return () => m.onTodoTabShown();
+            }
             const m = await import('./all_work.js');
             m.setupAllWork();
             return () => m.onAllWorkTabShown();
+        }
+        if (kind === 'today_calendar') {
+            const m = await import('./today.js');
+            m.setupToday();
+            return () => m.onTodayTabShown().then(() => m.refreshToday());
         }
         if (kind === 'workout') {
             const m = await import('./workouts.js');
@@ -175,27 +180,16 @@ async function ensureWork(kind) {
             m.setupAnalytics();
             return () => m.onAnalyticsTabShown();
         }
-        if (kind === 'timeline') {
-            const m = await import('./timeline.js');
-            m.setupTimeline();
-            return () => m.onTimelineTabShown();
-        }
         if (kind === 'weather') {
             const m = await import('./weather.js');
             m.setupWeather();
             return () => m.refreshWeather();
         }
-        if (kind === 'focus' || kind === 'countdown' || kind === 'habits') {
+        if (kind === 'countdown' || kind === 'habits') {
             const m = await import('./glance.js');
             m.setupGlance();
-            if (kind === 'focus') return () => m.refreshFocus();
             if (kind === 'countdown') return () => m.refreshCountdown();
             return () => m.refreshHabits();
-        }
-        if (kind === 'heatmap') {
-            const m = await import('./heatmap.js');
-            m.setupHeatmap();
-            return () => m.refreshHeatmap();
         }
         if (kind === 'day_brief') {
             const m = await import('./day_brief.js');
@@ -315,17 +309,19 @@ function clearPanelBox(panel) {
     panel.style.transition = '';
 }
 
-function mountWorkSource(kind) {
+function mountWorkSource(key) {
+    const { kind, settings } = splitKey(key);
     const spec = WIDGET_CATALOG[kind];
+    const label = widgetLabel(kind, settings);
     const body = document.getElementById('homeWorkBody');
     const title = document.getElementById('homeWorkTitle');
     const kicker = document.getElementById('homeWorkKicker');
-    if (title) title.textContent = spec?.label || kind;
+    if (title) title.textContent = label;
     if (kicker) kicker.textContent = 'Home';
     if (!spec || !body) return false;
-    const source = document.getElementById(spec.source);
+    const source = document.getElementById(widgetSource(kind, settings));
     if (!source) {
-        body.innerHTML = `<p class="checklist-error">Could not load ${spec.label}.</p>`;
+        body.innerHTML = `<p class="checklist-error">Could not load ${label}.</p>`;
         return false;
     }
     body.appendChild(source);
@@ -376,16 +372,17 @@ export function closeHomeWork(immediate = false) {
     }, 420);
 }
 
-export async function openHomeWork(kind, opener) {
+export async function openHomeWork(key, opener) {
+    const { kind } = splitKey(key);
     const spec = WIDGET_CATALOG[kind];
     if (!spec || editing) return;
     closeHomeWork(true);
-    workKind = kind;
-    workOpener = opener || document.querySelector(`#homeGridAbove .home-widget[data-kind="${kind}"], #homeGrid .home-widget[data-kind="${kind}"]`);
+    workKind = key;
+    workOpener = opener || document.querySelector(`#homeGridAbove .home-widget[data-key="${key}"], #homeGrid .home-widget[data-key="${key}"]`);
     const layer = workLayer();
     const panel = workPanel();
     if (!layer || !panel) return;
-    mountWorkSource(kind);
+    mountWorkSource(key);
     layer.hidden = false;
     layer.classList.remove('is-hidden');
     layer.setAttribute('data-kind', kind);
@@ -436,10 +433,14 @@ async function refreshWork() {
     await runQuietly(refresh);
 }
 
-async function refreshKinds(kinds, glances) {
-    const set = new Set(kinds);
+async function refreshKeys(keys, glances) {
+    const set = new Set(keys);
     await refreshWork();
     await runQuietly(() => refreshGlances([...set], glances));
+}
+
+function pageKeys(page) {
+    return (page?.widgets || []).map((item) => widgetKey(item.kind, item.settings));
 }
 
 const HOME_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>';
@@ -499,21 +500,21 @@ export function clearHomePageColors() {
 function paintCatalog() {
     const el = document.getElementById('homeCatalog');
     if (!el) return;
-    const page = activePage();
-    const used = new Set((page?.widgets || []).map((item) => item.kind));
-    el.innerHTML = catalogList()
-        .map((spec) => {
-            const disabled = used.has(spec.kind) ? ' disabled' : '';
-            return `<button type="button" class="btn-ghost home-catalog-btn" data-kind="${spec.kind}"${disabled}>${utils.escapeHtml(spec.label)}</button>`;
+    const used = keysOnPage(activePage());
+    el.innerHTML = catalogEntries()
+        .map((entry) => {
+            const key = widgetKey(entry.kind, entry.settings);
+            const disabled = used.has(key) ? ' disabled' : '';
+            return `<button type="button" class="btn-ghost home-catalog-btn" data-key="${utils.escapeHtml(key)}"${disabled}>${utils.escapeHtml(entry.label)}</button>`;
         })
         .join('');
 }
 
 function widgetCardHtml(item, live) {
-    const spec = WIDGET_CATALOG[item.kind] || { label: item.kind };
-    const label = utils.escapeHtml(spec.label);
+    const key = widgetKey(item.kind, item.settings);
+    const label = utils.escapeHtml(widgetLabel(item.kind, item.settings));
     return `
-        <article class="home-widget" data-id="${utils.escapeHtml(item.id)}" data-kind="${utils.escapeHtml(item.kind)}" data-w="${item.w}" data-h="${item.h}" style="grid-column:${item.x + 1} / span ${item.w};grid-row:${item.y + 1} / span ${item.h}" role="${live ? 'button' : 'group'}" tabindex="${live ? '0' : '-1'}" aria-label="${live ? `Open ${label}` : label}">
+        <article class="home-widget" data-id="${utils.escapeHtml(item.id)}" data-kind="${utils.escapeHtml(item.kind)}" data-key="${utils.escapeHtml(key)}" data-w="${item.w}" data-h="${item.h}" style="grid-column:${item.x + 1} / span ${item.w};grid-row:${item.y + 1} / span ${item.h}" role="${live ? 'button' : 'group'}" tabindex="${live ? '0' : '-1'}" aria-label="${live ? `Open ${label}` : label}">
             <div class="home-widget-chrome">
                 <span class="home-widget-handle"><span class="home-widget-grip" aria-hidden="true"></span>${label}</span>
                 <span class="home-widget-size">${item.w}×${item.h}</span>
@@ -535,7 +536,7 @@ function paintOneGrid(grid, widgets, live, emptyNote = '') {
     grid.innerHTML = widgets.map((item) => widgetCardHtml(item, live)).join('');
     widgets.forEach((item) => {
         const card = grid.querySelector(`.home-widget[data-id="${item.id}"]`);
-        mountGlance(item.kind, card?.querySelector('.home-widget-body'), card);
+        mountGlance(widgetKey(item.kind, item.settings), card?.querySelector('.home-widget-body'), card);
     });
 }
 
@@ -667,10 +668,11 @@ function setEditing(on) {
         above.classList.toggle('is-empty-drop', first && widgetsInRegion(page, 'above', true).length === 0);
     }
     homeWidgetCards().forEach((card) => {
-        const spec = WIDGET_CATALOG[card.getAttribute('data-kind')] || { label: card.getAttribute('data-kind') };
+        const { kind, settings } = splitKey(card.getAttribute('data-key'));
+        const label = widgetLabel(kind, settings);
         card.setAttribute('role', editing ? 'group' : 'button');
         card.tabIndex = editing ? -1 : 0;
-        card.setAttribute('aria-label', editing ? spec.label : `Open ${spec.label}`);
+        card.setAttribute('aria-label', editing ? label : `Open ${label}`);
     });
 }
 
@@ -699,7 +701,7 @@ async function renderHome(pageId, opts = {}) {
         paintGrid();
         paintedPageId = next.id;
     }
-    await refreshKinds((next?.widgets || []).map((item) => item.kind), boot.glances);
+    await refreshKeys(pageKeys(next), boot.glances);
     void syncCheckin(boot.checkin);
 }
 
@@ -709,7 +711,7 @@ async function refreshHomeData() {
     const boot = await fetchHomeBoot();
     if (boot.layout?.pages?.length) layout = boot.layout;
     const page = activePage();
-    await refreshKinds((page?.widgets || []).map((item) => item.kind), boot.glances);
+    await refreshKeys(pageKeys(page), boot.glances);
     void syncCheckin(boot.checkin);
 }
 
@@ -792,11 +794,12 @@ function bindHome() {
     });
 
     document.getElementById('homeCatalog')?.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-kind]');
+        const btn = e.target.closest('[data-key]');
         if (!btn || btn.disabled) return;
         const page = activePage();
         if (!page) return;
-        void run(() => callEel('add_home_widget', page.id, btn.getAttribute('data-kind')));
+        const { kind, settings } = splitKey(btn.getAttribute('data-key'));
+        void run(() => callEel('add_home_widget', page.id, kind, 'below', settings));
     });
 
     document.getElementById('homeBoard')?.addEventListener('click', (e) => {
@@ -824,7 +827,7 @@ function bindHome() {
         }
         const card = e.target.closest('.home-widget');
         if (!card) return;
-        void openHomeWork(card.getAttribute('data-kind'), card);
+        void openHomeWork(card.getAttribute('data-key'), card);
     });
     document.getElementById('homeBoard')?.addEventListener('submit', (e) => {
         const form = e.target.closest('[data-glance-capture]');
@@ -839,7 +842,7 @@ function bindHome() {
         const card = e.target.closest('.home-widget');
         if (!card || e.target !== card) return;
         e.preventDefault();
-        void openHomeWork(card.getAttribute('data-kind'), card);
+        void openHomeWork(card.getAttribute('data-key'), card);
     });
 
     document.getElementById('homeCheckinToggle')?.addEventListener('click', () => {
@@ -1063,8 +1066,8 @@ export function setupHome() {
         }
     });
     document.addEventListener('kosistenz:open-home-work', (event) => {
-        const kind = event.detail?.kind;
-        if (kind) void openHomeWork(kind);
+        const key = event.detail?.key;
+        if (key) void openHomeWork(key);
     });
     document.addEventListener('kosistenz:open-evening-checkin', () => {
         checkinSlotOverride = 'evening';
@@ -1103,17 +1106,18 @@ export async function onHomeTabShown(pageId) {
     await renderHome(pageId);
 }
 
-export async function ensureHomeWidget(kind) {
+export async function ensureHomeWidget(key) {
     await loadLayout();
     const page = activePage();
     if (!page) return;
-    if (!(page.widgets || []).some((item) => item.kind === kind)) {
+    const { kind, settings } = splitKey(key);
+    if (!keysOnPage(page).has(key)) {
         try {
-            layout = await callEel('add_home_widget', page.id, kind);
+            layout = await callEel('add_home_widget', page.id, kind, 'below', settings);
         } catch (err) {
             console.error(err);
         }
     }
     await renderHome(undefined, { force: true });
-    await openHomeWork(kind);
+    await openHomeWork(key);
 }

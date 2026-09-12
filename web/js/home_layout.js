@@ -5,32 +5,92 @@
 
 export const GRID_COLUMNS = 8;
 
+// One tile, four slices of the same list. Each slice used to be a widget of
+// its own, which put four near-identical entries in the picker.
+export const WORK_SLICES = [
+    { value: 'today', label: "Today's work", source: 'todoTab' },
+    { value: 'backlog', label: 'All work', source: 'allWorkTab' },
+    { value: 'unplaced', label: 'Unplaced', source: 'allWorkTab' },
+    { value: 'due', label: 'Due this week', source: 'todoTab' },
+];
+
 export const WIDGET_CATALOG = {
-    todo: { label: 'To Do', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'todoTab' },
+    work: { label: 'Work', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'todoTab', settings: { slice: { label: 'Show', default: 'today', options: WORK_SLICES } } },
     today_calendar: { label: 'Today', sizes: [[2, 2], [4, 2], [4, 4], [4, 6], [6, 4]], default: [4, 4], source: 'todayCalendarSource' },
     workout: { label: 'Workout', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'workoutTab' },
     goals: { label: 'Goals', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'goalsTab' },
-    allwork: { label: 'All Work', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'allWorkTab' },
     analytics: { label: 'Analytics', sizes: [[4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'analyticsTab' },
-    timeline: { label: 'Timeline', sizes: [[4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'timelineTab' },
     weather: { label: 'Weather', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'weatherSource' },
-    focus: { label: 'Focus', sizes: [[2, 2], [4, 2], [4, 4], [6, 2], [6, 4]], default: [4, 2], source: 'focusSource' },
     countdown: { label: 'Countdown', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'countdownSource' },
     habits: { label: 'Habits', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 6], source: 'habitsSource' },
-    heatmap: { label: 'Heatmap', sizes: [[4, 2], [6, 2], [4, 4], [6, 4], [6, 6]], default: [6, 2], source: 'heatmapSource' },
     day_brief: { label: 'Day', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'dayBriefSource' },
     counters: { label: 'Counters', sizes: [[2, 2], [4, 2], [4, 4], [6, 4], [6, 6]], default: [4, 2], source: 'countersSource' },
     reading: { label: 'Reading', sizes: [[2, 2], [4, 2], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'readingSource' },
     word: { label: 'Word', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'wordTab' },
     cluny: { label: 'Ask Cluny', sizes: [[4, 4], [4, 6], [6, 4], [6, 6], [8, 4]], default: [8, 4], source: 'clunySource' },
-    now_next: { label: 'Now', sizes: [[2, 2], [4, 2], [4, 4], [6, 2], [6, 4]], default: [4, 2], source: 'todayCalendarSource' },
-    unplaced: { label: 'Unplaced', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'allWorkTab' },
-    dues: { label: 'Due', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'todoTab' },
-    free_today: { label: 'Free', sizes: [[2, 2], [4, 2], [4, 4], [6, 2]], default: [4, 2], source: 'todayCalendarSource' },
 };
 
 export function catalogList() {
     return Object.entries(WIDGET_CATALOG).map(([kind, spec]) => ({ kind, ...spec }));
+}
+
+// The picker lists a tile once per thing it can show, so Work arrives as its
+// four slices rather than as one entry you then have to configure.
+export function catalogEntries() {
+    const out = [];
+    for (const spec of catalogList()) {
+        const fields = Object.entries(spec.settings || {});
+        if (!fields.length) {
+            out.push({ kind: spec.kind, settings: {}, label: spec.label });
+            continue;
+        }
+        const [name, field] = fields[0];
+        for (const option of field.options) {
+            out.push({ kind: spec.kind, settings: { [name]: option.value }, label: option.label });
+        }
+    }
+    return out;
+}
+
+/**
+ * What makes two tiles the same tile. Two Work tiles belong on one page as
+ * long as they show different slices, so a tile is named by what it is set to
+ * show, not by its kind alone.
+ */
+export function widgetKey(kind, settings) {
+    const bits = Object.entries(settings || {})
+        .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+        .map(([name, value]) => `${name}=${value}`);
+    return bits.length ? [kind, ...bits].join(':') : String(kind);
+}
+
+export function splitKey(key) {
+    const [kind, ...rest] = String(key || '').split(':');
+    const settings = {};
+    for (const bit of rest) {
+        const at = bit.indexOf('=');
+        if (at > 0) settings[bit.slice(0, at)] = bit.slice(at + 1);
+    }
+    return { kind, settings };
+}
+
+function settingOption(kind, settings) {
+    const spec = WIDGET_CATALOG[kind];
+    for (const [name, field] of Object.entries(spec?.settings || {})) {
+        const hit = field.options.find((option) => option.value === (settings || {})[name]);
+        if (hit) return hit;
+    }
+    return null;
+}
+
+// A Work tile reads as the slice it shows, not as the word Work.
+export function widgetLabel(kind, settings) {
+    return settingOption(kind, settings)?.label || WIDGET_CATALOG[kind]?.label || String(kind);
+}
+
+// The tab a tile opens. A Work slice opens the list it was cut from.
+export function widgetSource(kind, settings) {
+    return settingOption(kind, settings)?.source || WIDGET_CATALOG[kind]?.source || '';
 }
 
 export function boxesOverlap(a, b) {
@@ -110,8 +170,8 @@ export function pageById(layout, pageId) {
     return (layout?.pages || []).find((page) => page.id === pageId) || null;
 }
 
-export function kindsOnPage(page) {
-    return new Set((page?.widgets || []).map((item) => item.kind));
+export function keysOnPage(page) {
+    return new Set((page?.widgets || []).map((item) => widgetKey(item.kind, item.settings)));
 }
 
 export function isFirstHomePage(layout, page) {

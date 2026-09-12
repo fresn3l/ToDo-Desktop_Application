@@ -141,47 +141,6 @@ def unplaced_glance() -> Dict[str, Any]:
     }
 
 
-def free_today_glance() -> Dict[str, Any]:
-    import calclock
-    import cluny_snapshot
-
-    today = date.today()
-    iso = today.isoformat()
-    settings = calclock.load_settings()
-    day_start = str(settings.get("day_start") or "05:30")
-    day_end = str(settings.get("day_end") or "21:30")
-    agenda = calclock.get_day_agenda(iso).get("items") or []
-    events = []
-    for item in agenda:
-        if str(item.get("status") or "") in ("skipped", "missed"):
-            continue
-        start = _parse_dt(item.get("start_at"))
-        end = _parse_dt(item.get("end_at"))
-        if start is None or end is None:
-            continue
-        events.append({"start": start.strftime("%H:%M"), "end": end.strftime("%H:%M")})
-    free = cluny_snapshot.free_minutes(events, day_start, day_end)
-    board = work.get_work_board(iso)
-    open_items = [
-        row
-        for row in (board.get("today") or [])
-        if str(row.get("status") or "") != "done"
-    ]
-    needed = 0
-    for row in open_items:
-        try:
-            needed += max(0, int(row.get("estimate_minutes") or 0))
-        except (TypeError, ValueError):
-            continue
-    return {
-        "free_minutes": free,
-        "needed_minutes": needed,
-        "open_count": len(open_items),
-        "day_start": day_start,
-        "day_end": day_end,
-    }
-
-
 def now_next_glance() -> Dict[str, Any]:
     import calclock
 
@@ -206,11 +165,6 @@ def get_unplaced_glance() -> Dict[str, Any]:
 @eel.expose
 def get_dues_week_glance() -> Dict[str, Any]:
     return dues_this_week()
-
-
-@eel.expose
-def get_free_today_glance() -> Dict[str, Any]:
-    return free_today_glance()
 
 
 @eel.expose

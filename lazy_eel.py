@@ -264,7 +264,6 @@ EXPOSE_FALLBACK: Dict[str, Tuple[str, ...]] = {
         "get_now_next_glance",
         "get_unplaced_glance",
         "get_dues_week_glance",
-        "get_free_today_glance",
         "glance_skip_block",
         "glance_finish_work",
         "glance_park_work",
