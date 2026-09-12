@@ -239,6 +239,8 @@ def get_analytics(days: int = 30) -> Dict[str, Any]:
     import day_brief
 
     capacity = day_brief.capacity_for_range(start, end)
+    import consistency
+
     return {
         "period_start": start.isoformat(),
         "period_end": end.isoformat(),
@@ -258,6 +260,7 @@ def get_analytics(days: int = 30) -> Dict[str, Any]:
         "capacity": capacity,
         "pattern_prompt": "What pattern do you notice?",
         "pattern_note": pattern_notes.get(week_key, ""),
+        "consistency": consistency.summarize(days),
     }
 
 
@@ -303,7 +306,7 @@ def get_time_allocation(period: str = "week") -> Dict[str, Any]:
     for item in calclock.expand_hard_events(start, end):
         totals["hard"] += _minutes_between(item.get("start_at"), item.get("end_at"))
     for block in calclock.list_blocks(start, end):
-        if block.get("status") == "skipped":
+        if block.get("status") in ("skipped", "missed"):
             continue
         kind = str(block.get("kind") or "work")
         if kind not in ("work", "workout"):

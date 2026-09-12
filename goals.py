@@ -22,11 +22,19 @@ import eel
 import work
 
 HORIZONS = ("week", "six_month", "year", "five_year")
+RATE_HORIZON = "rate"
+RATE_MEASURES = ("attendance", "hours", "todo_completion")
+RATE_MEASURE_LABELS = {
+    "attendance": "Attendance",
+    "hours": "Hours",
+    "todo_completion": "To-do completion",
+}
 HORIZON_LABELS = {
     "week": "1 week",
     "six_month": "6 months",
     "year": "Year",
     "five_year": "5 years",
+    "rate": "Rates",
 }
 HORIZON_HINTS = {
     "week": "Every Sunday a to-do is added for next week. Add one now and it lands on today.",
@@ -63,6 +71,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     series_cols = {row[1] for row in conn.execute("PRAGMA table_info(work_series)")}
     if "goal_id" not in series_cols:
         conn.execute("ALTER TABLE work_series ADD COLUMN goal_id TEXT")
+    goal_cols = {row[1] for row in conn.execute("PRAGMA table_info(goals)")}
+    if "measure" not in goal_cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN measure TEXT NOT NULL DEFAULT ''")
+    if "target_value" not in goal_cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN target_value REAL")
+    if "window_weeks" not in goal_cols:
+        conn.execute("ALTER TABLE goals ADD COLUMN window_weeks INTEGER")
 
 
 def _horizon(value: Any) -> str:
@@ -295,6 +310,10 @@ def contributing_minutes(item: Dict[str, Any]) -> int:
 
 def _row_goal(row: sqlite3.Row) -> Dict[str, Any]:
     target = row["target_minutes"]
+    keys = set(row.keys())
+    measure = str(row["measure"] if "measure" in keys else "") or ""
+    raw_target = row["target_value"] if "target_value" in keys else None
+    raw_window = row["window_weeks"] if "window_weeks" in keys else None
     return {
         "id": row["id"],
         "title": row["title"],
@@ -308,10 +327,56 @@ def _row_goal(row: sqlite3.Row) -> Dict[str, Any]:
         "sort_order": int(row["sort_order"] or 0),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
+        "measure": measure,
+        "measure_label": RATE_MEASURE_LABELS.get(measure, ""),
+        "target_value": None if raw_target is None else float(raw_target),
+        "window_weeks": None if raw_window is None else int(raw_window),
+        "is_rate": bool(measure),
     }
 
 
-def _enrich(goal: Dict[str, Any], items: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _enrich_rate(goal: Dict[str, Any], cache: Optional[Dict[int, Dict[str, Any]]] = None) -> Dict[str, Any]:
+    import consistency
+
+    progress = consistency.rate_progress(
+        goal.get("measure") or "attendance",
+        goal.get("window_weeks") or 4,
+        goal.get("target_value"),
+        cache=cache,
+    )
+    packed = dict(goal)
+    current = progress.get("current")
+    target = goal.get("target_value")
+    packed.update(
+        {
+            "spent_minutes": 0,
+            "percent": progress.get("percent"),
+            "has_target": target is not None,
+            "overdue": bool(
+                target
+                and current is not None
+                and float(current) < float(target)
+            ),
+            "contributions": [],
+            "contrib_count": 0,
+            "current_value": current,
+            "window_label": {
+                4: "4 weeks",
+                12: "12 weeks",
+                52: "year",
+            }.get(int(goal.get("window_weeks") or 4), "4 weeks"),
+        }
+    )
+    return packed
+
+
+def _enrich(
+    goal: Dict[str, Any],
+    items: List[Dict[str, Any]],
+    cache: Optional[Dict[int, Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    if goal.get("is_rate"):
+        return _enrich_rate(goal, cache)
     contribs = []
     spent = 0
     today = work._today()
@@ -356,6 +421,17 @@ def _enrich(goal: Dict[str, Any], items: List[Dict[str, Any]]) -> Dict[str, Any]
     return packed
 
 
+def _rate_cache(goals: List[Dict[str, Any]]) -> Dict[int, Dict[str, Any]]:
+    import consistency
+
+    needed = {
+        consistency.coerce_window_weeks(goal.get("window_weeks"))
+        for goal in goals
+        if goal.get("is_rate")
+    }
+    return {weeks: consistency.summarize(consistency.WINDOW_DAYS[weeks]) for weeks in needed}
+
+
 @eel.expose
 def list_goals() -> List[Dict[str, Any]]:
     with work._connect() as conn:
@@ -364,12 +440,15 @@ def list_goals() -> List[Dict[str, Any]]:
             SELECT * FROM goals
             WHERE archived = 0
             ORDER BY CASE horizon
-                WHEN 'week' THEN 0 WHEN 'six_month' THEN 1 WHEN 'year' THEN 2 ELSE 3 END,
+                WHEN 'week' THEN 0 WHEN 'six_month' THEN 1 WHEN 'year' THEN 2
+                WHEN 'rate' THEN 4 ELSE 3 END,
                 sort_order ASC, created_at ASC
             """
         ).fetchall()
     items = work.list_all_work_items()
-    return [_enrich(_row_goal(row), items) for row in rows]
+    packed = [_row_goal(row) for row in rows]
+    cache = _rate_cache(packed)
+    return [_enrich(goal, items, cache) for goal in packed]
 
 
 @eel.expose
@@ -377,7 +456,11 @@ def get_goals_board() -> Dict[str, Any]:
     ensure_weekly_goal_todos()
     goals = list_goals()
     groups = {key: [] for key in HORIZONS}
+    rates = []
     for goal in goals:
+        if goal.get("is_rate"):
+            rates.append(goal)
+            continue
         groups.setdefault(goal["horizon"], []).append(goal)
     return {
         "horizons": [
@@ -389,8 +472,63 @@ def get_goals_board() -> Dict[str, Any]:
             }
             for key in HORIZONS
         ],
+        "rates": {
+            "id": "rate",
+            "label": "Rates",
+            "hint": "Attendance, hours, or to-do completion over 4 weeks, 12 weeks, or a year.",
+            "goals": rates,
+        },
         "goals": goals,
     }
+
+
+@eel.expose
+def create_rate_goal(
+    title: str,
+    measure: str = "attendance",
+    target_value: Any = None,
+    window_weeks: Any = 4,
+) -> Dict[str, Any]:
+    clean = (title or "").strip()
+    if not clean:
+        raise ValueError("Name the goal first")
+    if len(clean) > 200:
+        raise ValueError("Title is too long")
+    kind = str(measure or "").strip().lower()
+    if kind not in RATE_MEASURES:
+        raise ValueError("Pick attendance, hours, or to-do completion")
+    try:
+        target = float(target_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Set a target") from exc
+    if target <= 0:
+        raise ValueError("Target must be greater than zero")
+    if kind != "hours" and target > 100:
+        raise ValueError("Percent targets stay at 100 or below")
+    import consistency
+
+    weeks = consistency.coerce_window_weeks(window_weeks)
+    now = work._now().isoformat()
+    goal_id = str(uuid.uuid4())
+    with work._connect() as conn:
+        sort_row = conn.execute(
+            "SELECT MAX(sort_order) AS m FROM goals WHERE horizon = ?",
+            (RATE_HORIZON,),
+        ).fetchone()
+        sort_order = int(sort_row["m"] or 0) + 10
+        conn.execute(
+            """
+            INSERT INTO goals (
+                id, title, horizon, keyword, target_minutes, end_date, notes,
+                archived, sort_order, created_at, updated_at,
+                measure, target_value, window_weeks
+            ) VALUES (?, ?, ?, '', NULL, NULL, '', 0, ?, ?, ?, ?, ?, ?)
+            """,
+            (goal_id, clean, RATE_HORIZON, sort_order, now, now, kind, target, weeks),
+        )
+        row = _fetch_goal(conn, goal_id)
+    assert row is not None
+    return _enrich(_row_goal(row), [])
 
 
 @eel.expose

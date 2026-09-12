@@ -14,6 +14,7 @@ let editor = { mode: 'idle', kind: 'hard', id: '', workItemId: '', status: 'prop
 let dragState = null;
 let lastWeek = null;
 let dueMenuChip = null;
+let pendingFocusItems = [];
 
 function mondayISO(d = new Date()) {
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -266,7 +267,10 @@ function blockLabel(item) {
     if (item.kind === 'hard') return item.title;
     const mins = item.minutes ? `${item.minutes}m` : '';
     const status = item.status && item.status !== 'proposed' ? item.status : '';
-    return [item.title, mins, status].filter(Boolean).join(' · ');
+    const overflow = item.kind === 'focus' && item.overflow_minutes
+        ? `${item.planned_minutes || 0}m in ${item.minutes || 0}m`
+        : '';
+    return [item.title, overflow || mins, status].filter(Boolean).join(' · ');
 }
 
 function shortTitle(title, fallback = 'Due') {
@@ -326,15 +330,22 @@ function renderBlock(item, settings) {
     const dur = Number.isFinite(rawMin) && rawMin > 0 ? rawMin : 15;
     const height = (dur / span) * 100;
     const topPct = (top / span) * 100;
-    const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
+    const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : item.kind === 'focus' ? 'focus' : 'work';
     const locked = item.status === 'locked';
+    const done = item.status === 'done';
+    const missed = item.status === 'missed' || item.status === 'skipped';
+    const overflow = kind === 'focus' && Number(item.overflow_minutes || 0) > 0;
     const selected = editor.id && editor.id === item.id ? ' is-selected' : '';
     const short = dur < 45 ? ' is-short' : '';
     const tiny = dur < 20 ? ' is-tiny' : '';
     const timeLabel = Number.isNaN(start.getTime())
         ? ''
         : formatMilitary(start.getHours() * 60 + start.getMinutes());
-    return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${selected}${short}${tiny}"
+    const overflowHtml = overflow
+        ? `<span class="cal-block-overflow">+${Number(item.overflow_minutes)}m</span>`
+        : '';
+    const focusItems = kind === 'focus' ? utils.escapeHtml(JSON.stringify(item.items || [])) : '';
+    return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${done ? ' is-done' : ''}${missed ? ' is-missed' : ''}${overflow ? ' is-overflow' : ''}${selected}${short}${tiny}"
         style="top:${topPct}%;height:${height}%"
         data-id="${utils.escapeHtml(item.id || '')}"
         data-kind="${kind}"
@@ -345,7 +356,10 @@ function renderBlock(item, settings) {
         data-work-item-id="${utils.escapeHtml(item.work_item_id || '')}"
         data-occurrence-date="${utils.escapeHtml(item.occurrence_date || item.local_date || '')}"
         data-weekdays="${utils.escapeHtml((item.recurrence && item.recurrence.weekdays ? item.recurrence.weekdays : []).join(','))}"
-        title="${utils.escapeHtml(blockLabel(item))}"><span class="cal-block-time">${utils.escapeHtml(timeLabel)}</span><span class="cal-block-title">${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</span></button>`;
+        data-focus-items="${focusItems}"
+        data-planned-minutes="${utils.escapeHtml(String(item.planned_minutes || ''))}"
+        data-overflow-minutes="${utils.escapeHtml(String(item.overflow_minutes || ''))}"
+        title="${utils.escapeHtml(blockLabel(item))}"><span class="cal-block-time">${utils.escapeHtml(timeLabel)}</span><span class="cal-block-title">${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</span>${overflowHtml}</button>`;
 }
 
 function renderGrid(week) {
@@ -393,6 +407,7 @@ function renderGrid(week) {
 function agendaKind(item) {
     if (item.kind === 'hard') return 'Event';
     if (item.kind === 'workout') return 'Gym';
+    if (item.kind === 'focus') return 'Focus';
     return 'Work';
 }
 
@@ -422,8 +437,9 @@ function renderTodayRail(today) {
         : '<h4>Due today</h4><p class="cal-due-empty">No dues</p>';
     const clockHtml = items.length
         ? `<h4>On the clock</h4><ul class="cal-today-agenda">${items.map((item) => {
-            const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : 'work';
-            return `<li class="is-${kind}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
+            const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : item.kind === 'focus' ? 'focus' : 'work';
+            const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
+            return `<li class="is-${kind}${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
         }).join('')}</ul>`
         : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag a due onto the week clock to time-block it.</p>';
     root.innerHTML = `
@@ -546,7 +562,21 @@ async function loadWeek() {
 }
 
 function selectedBlockStatus() {
+    const outcome = selectedBarOutcome();
+    if (outcome === 'attended') return 'done';
+    if (outcome === 'missed') return 'missed';
     return document.querySelector('#calBlockStatus .work-day-chip.is-selected')?.getAttribute('data-status') || 'proposed';
+}
+
+function selectedBarOutcome() {
+    return document.querySelector('#calBarOutcome .work-day-chip.is-selected')?.getAttribute('data-outcome') || '';
+}
+
+function setOutcomeSelection(status) {
+    const key = status === 'done' ? 'attended' : (status === 'missed' || status === 'skipped' ? 'missed' : '');
+    document.querySelectorAll('#calBarOutcome .work-day-chip').forEach((btn) => {
+        btn.classList.toggle('is-selected', !!key && btn.getAttribute('data-outcome') === key);
+    });
 }
 
 function setWeekdaySelection(days) {
@@ -572,6 +602,8 @@ function paintEditor() {
     const fields = document.getElementById('calEditorFields');
     const weekdays = document.getElementById('calEventWeekdays');
     const status = document.getElementById('calBlockStatus');
+    const outcome = document.getElementById('calBarOutcome');
+    const attach = document.getElementById('calFocusAttach');
     const park = document.getElementById('calParkItem');
     const remove = document.getElementById('calRemoveItem');
     const fresh = document.getElementById('calNewLecture');
@@ -582,34 +614,45 @@ function paintEditor() {
     const isNew = mode === 'new';
     const isHard = mode === 'hard' || isNew;
     const isUnplaced = mode === 'unplaced';
+    const isFocus = mode === 'focus' || mode === 'new-focus';
+    const isNewFocus = mode === 'new-focus';
     const isBlock = mode === 'work' || mode === 'workout';
     if (heading) {
         heading.textContent = isIdle
             ? 'Clock'
             : isNew
                 ? 'Add event'
-                : isUnplaced
-                    ? 'Place work'
-                    : (document.getElementById('calEventTitle')?.value?.trim() || 'Edit');
+                : isNewFocus
+                    ? 'Add focus'
+                    : isUnplaced
+                        ? 'Place work'
+                        : (document.getElementById('calEventTitle')?.value?.trim() || 'Edit');
     }
     if (hint) {
         hint.textContent = isIdle
-            ? 'Drag Unplaced onto the clock, or Add event for a meeting.'
+            ? 'Drag Unplaced onto the clock, or Add event for a meeting. Add focus for a named span that holds several to-dos.'
             : isNew
                 ? 'Busy time — a meeting, hold, or recurring block. Work stays in Unplaced until you drag or Fill week.'
-                : isUnplaced
-                    ? 'Drag onto the clock, or set a start and Place. This is not a new event.'
-                    : 'On a bar: click locks, Shift skips, Alt marks done. Drag to move.';
+                : isNewFocus
+                    ? 'A named hold. Fill week will not pack over it. To-dos can run longer than the span.'
+                    : isUnplaced
+                        ? 'Drag onto the clock, or set a start and Place. This is not a new event.'
+                        : 'Alt marks attended. Shift marks did not complete. Drag to move.';
     }
     toggleHidden(fields, isIdle);
-    toggleHidden(weekdays, !isHard || isIdle);
+    toggleHidden(weekdays, !isHard || isIdle || isFocus);
     toggleHidden(status, !isBlock);
+    toggleHidden(outcome, isIdle || isNew || isNewFocus || isUnplaced || !editor.id);
+    toggleHidden(attach, !isFocus);
+    if (isFocus) paintFocusAttach();
     toggleHidden(park, !(isBlock || isUnplaced));
-    toggleHidden(remove, isIdle || isNew || isUnplaced);
+    toggleHidden(remove, isIdle || isNew || isNewFocus || isUnplaced);
     toggleHidden(fresh, isNew);
     toggleHidden(ask, isIdle || isNew || isUnplaced || !editor.id);
     toggleHidden(save, isIdle);
     if (fresh) fresh.textContent = isIdle ? 'Add event' : 'Add another';
+    const addFocus = document.getElementById('calNewFocus');
+    if (addFocus) addFocus.textContent = isIdle || isNewFocus ? 'Add focus' : 'Add focus';
     if (save) {
         save.textContent = isUnplaced ? 'Place' : 'Save';
     }
@@ -621,6 +664,7 @@ function clearEditorFields() {
     if (titleEl) titleEl.value = '';
     setWeekdaySelection([]);
     setStatusSelection('proposed');
+    setOutcomeSelection('');
     const start = document.getElementById('calEventStart');
     const end = document.getElementById('calEventEnd');
     if (start) start.value = '';
@@ -629,6 +673,7 @@ function clearEditorFields() {
 
 function resetEditor() {
     editor = { mode: 'idle', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
+    pendingFocusItems = [];
     clearEditorFields();
     paintEditor();
     document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
@@ -647,8 +692,155 @@ function startNewEvent() {
     document.getElementById('calEventTitle')?.focus();
 }
 
+function startNewFocus() {
+    editor = { mode: 'new-focus', kind: 'focus', id: '', workItemId: '', status: 'locked', occurrenceDate: '', minutes: 60 };
+    pendingFocusItems = [];
+    clearEditorFields();
+    defaultEventTimes(true);
+    paintEditor();
+    document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
+        el.classList.remove('is-selected');
+    });
+    document.getElementById('calEventTitle')?.focus();
+}
+
+function parseFocusItems(btn) {
+    const raw = btn.getAttribute('data-focus-items') || '[]';
+    try {
+        const rows = JSON.parse(raw);
+        return Array.isArray(rows) ? rows : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function focusSpanMinutes() {
+    const start = fromLocalInput(document.getElementById('calEventStart')?.value);
+    const end = fromLocalInput(document.getElementById('calEventEnd')?.value);
+    if (!start || !end) return 0;
+    const a = new Date(start);
+    const b = new Date(end);
+    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 0;
+    return Math.max(0, Math.round((b - a) / 60000));
+}
+
+function paintFocusAttach() {
+    const host = document.getElementById('calFocusItems');
+    const overflow = document.getElementById('calFocusOverflow');
+    const pick = document.getElementById('calFocusPick');
+    const planned = pendingFocusItems.reduce((n, row) => n + Number(row.estimate_minutes || 0), 0);
+    const span = focusSpanMinutes();
+    const over = Math.max(0, planned - span);
+    if (overflow) {
+        overflow.textContent = span
+            ? `${planned} min of to-dos in a ${span} min span${over ? ` · ${over} min over` : ''}`
+            : '';
+        overflow.classList.toggle('is-over', over > 0);
+    }
+    if (host) {
+        host.innerHTML = pendingFocusItems.length
+            ? pendingFocusItems.map((row) => `
+                <div class="cal-focus-item" data-id="${utils.escapeHtml(row.id || '')}">
+                    <span>${utils.escapeHtml(row.title || 'To-do')}${row.estimate_minutes ? ` · ${row.estimate_minutes}m` : ''}</span>
+                    <button type="button" class="btn-ghost" data-act="detach-focus">Remove</button>
+                </div>`).join('')
+            : '<p class="checklist-empty">No to-dos in this span yet.</p>';
+        host.querySelectorAll('[data-act="detach-focus"]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                void detachFocusRow(btn.closest('[data-id]')?.getAttribute('data-id'));
+            });
+        });
+    }
+    if (pick) {
+        const held = new Set(pendingFocusItems.map((row) => row.id));
+        const options = (lastWeek?.unplaced || []).filter((row) => row.id && !held.has(row.id));
+        pick.innerHTML = ['<option value="">Unplaced to-do…</option>']
+            .concat(options.map((row) => {
+                const mins = row.remaining_minutes || row.estimate_minutes;
+                const label = `${row.title || 'To-do'}${mins ? ` · ${mins}m` : ''}`;
+                return `<option value="${utils.escapeHtml(row.id)}">${utils.escapeHtml(label)}</option>`;
+            }))
+            .join('');
+    }
+}
+
+async function detachFocusRow(itemId) {
+    if (!itemId) return;
+    if (editor.id && editor.mode === 'focus') {
+        try {
+            const packed = await callEel('detach_focus_item', editor.id, itemId);
+            pendingFocusItems = packed.items || [];
+            paintFocusAttach();
+            utils.notifyDataChanged();
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not remove that to-do.');
+        }
+        return;
+    }
+    pendingFocusItems = pendingFocusItems.filter((row) => row.id !== itemId);
+    paintFocusAttach();
+}
+
+async function attachFocusExisting(itemId) {
+    if (!itemId) return;
+    const fromUnplaced = (lastWeek?.unplaced || []).find((row) => row.id === itemId);
+    const row = fromUnplaced
+        ? { id: fromUnplaced.id, title: fromUnplaced.title, estimate_minutes: fromUnplaced.estimate_minutes || fromUnplaced.remaining_minutes || 0, status: 'open' }
+        : { id: itemId, title: 'To-do', estimate_minutes: 0, status: 'open' };
+    if (editor.id && editor.mode === 'focus') {
+        try {
+            const packed = await callEel('attach_focus_item', editor.id, itemId);
+            pendingFocusItems = packed.items || [];
+            paintFocusAttach();
+            utils.notifyDataChanged();
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not attach that to-do.');
+        }
+        return;
+    }
+    if (!pendingFocusItems.some((item) => item.id === itemId)) pendingFocusItems.push(row);
+    paintFocusAttach();
+}
+
+async function addFocusTodo() {
+    const title = (document.getElementById('calFocusNewTitle')?.value || '').trim();
+    const mins = document.getElementById('calFocusNewMins')?.value || '';
+    if (!title) {
+        utils.showErrorFeedback('Name the to-do first.');
+        return;
+    }
+    if (editor.id && editor.mode === 'focus') {
+        try {
+            const packed = await callEel('add_todo_to_focus', editor.id, title, mins);
+            pendingFocusItems = packed.items || [];
+            const titleEl = document.getElementById('calFocusNewTitle');
+            const minsEl = document.getElementById('calFocusNewMins');
+            if (titleEl) titleEl.value = '';
+            if (minsEl) minsEl.value = '';
+            paintFocusAttach();
+            utils.notifyDataChanged();
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not add that to-do.');
+        }
+        return;
+    }
+    pendingFocusItems.push({
+        id: `pending-${pendingFocusItems.length}-${title}`,
+        title,
+        estimate_minutes: Number(mins) || 0,
+        status: 'open',
+        pending: true,
+    });
+    const titleEl = document.getElementById('calFocusNewTitle');
+    const minsEl = document.getElementById('calFocusNewMins');
+    if (titleEl) titleEl.value = '';
+    if (minsEl) minsEl.value = '';
+    paintFocusAttach();
+}
+
 function openEditorFromBlock(btn) {
     const kind = btn.getAttribute('data-kind') || 'work';
+    pendingFocusItems = kind === 'focus' ? parseFocusItems(btn) : [];
     editor = {
         mode: kind,
         kind,
@@ -674,7 +866,8 @@ function openEditorFromBlock(btn) {
     } else {
         setWeekdaySelection([]);
     }
-    setStatusSelection(editor.status);
+    setStatusSelection(editor.status === 'done' || editor.status === 'missed' || editor.status === 'skipped' ? 'locked' : editor.status);
+    setOutcomeSelection(editor.status);
     paintEditor();
     document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
         el.classList.remove('is-selected');
@@ -706,6 +899,7 @@ function openUnplaced(btn) {
     }
     setWeekdaySelection([]);
     setStatusSelection('proposed');
+    setOutcomeSelection('');
     paintEditor();
     document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
         el.classList.remove('is-selected');
@@ -760,23 +954,21 @@ function bindGrid() {
 async function onExistingBarClick(e, btn) {
     const kind = btn.getAttribute('data-kind') || 'work';
     const id = btn.getAttribute('data-id') || '';
+    const occ = btn.getAttribute('data-occurrence-date') || '';
     const isWork = kind === 'work' || kind === 'workout';
-    if (isWork && id && (e.altKey || e.shiftKey || !e.metaKey)) {
+    if (id && (e.altKey || e.shiftKey)) {
         try {
-            if (e.altKey) {
-                await callEel('set_block_status', id, 'done');
-                utils.showSuccessFeedback('Marked done.');
-                utils.notifyDataChanged();
-                await loadCalendar();
-                return;
-            }
-            if (e.shiftKey) {
-                await callEel('set_block_status', id, 'skipped');
-                utils.showSuccessFeedback('Skipped.');
-                utils.notifyDataChanged();
-                await loadCalendar();
-                return;
-            }
+            await callEel('set_bar_outcome', id, e.altKey ? 'attended' : 'missed', occ);
+            utils.showSuccessFeedback(e.altKey ? 'Marked attended.' : 'Marked did not complete.');
+            utils.notifyDataChanged();
+            await loadCalendar();
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not update that bar.');
+        }
+        return;
+    }
+    if (isWork && id && !e.metaKey) {
+        try {
             if (btn.getAttribute('data-status') !== 'locked') {
                 await callEel('set_block_status', id, 'locked');
                 btn.setAttribute('data-status', 'locked');
@@ -1090,7 +1282,28 @@ async function saveEditor() {
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'hard') {
             await callEel('update_calendar_event', editor.id, title, start, end, selectedEventDays(), editor.occurrenceDate);
+            const outcome = selectedBarOutcome();
+            if (outcome) {
+                await callEel('set_bar_outcome', editor.id, outcome, editor.occurrenceDate);
+            }
             utils.showSuccessFeedback('Saved on the clock.');
+        } else if (editor.mode === 'new-focus') {
+            const existing = pendingFocusItems
+                .filter((row) => row.id && !String(row.id).startsWith('pending-'))
+                .map((row) => row.id);
+            const created = await callEel('create_focus_block', title, start, end, existing);
+            for (const row of pendingFocusItems.filter((item) => item.pending)) {
+                await callEel('add_todo_to_focus', created.id, row.title, row.estimate_minutes || '');
+            }
+            resetEditor();
+            utils.showSuccessFeedback('Focus block saved.');
+        } else if (editor.mode === 'focus') {
+            await callEel('update_schedule_block', editor.id, title, start, end, 'locked');
+            const focusOutcome = selectedBarOutcome();
+            if (focusOutcome) {
+                await callEel('set_bar_outcome', editor.id, focusOutcome);
+            }
+            utils.showSuccessFeedback('Saved.');
         } else if (editor.mode === 'unplaced') {
             await callEel('schedule_work_at', editor.id, start, end);
             resetEditor();
@@ -1354,6 +1567,29 @@ export function setupCalendar() {
     document.getElementById('calNewLecture')?.addEventListener('click', () => {
         startNewEvent();
     });
+    document.getElementById('calNewFocus')?.addEventListener('click', () => {
+        startNewFocus();
+    });
+    document.getElementById('calFocusAddItem')?.addEventListener('click', () => {
+        void addFocusTodo();
+    });
+    document.getElementById('calFocusNewTitle')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            void addFocusTodo();
+        }
+    });
+    document.getElementById('calFocusPick')?.addEventListener('change', (e) => {
+        const id = e.target.value;
+        e.target.value = '';
+        if (id) void attachFocusExisting(id);
+    });
+    document.getElementById('calEventStart')?.addEventListener('input', () => {
+        if (editor.mode === 'focus' || editor.mode === 'new-focus') paintFocusAttach();
+    });
+    document.getElementById('calEventEnd')?.addEventListener('input', () => {
+        if (editor.mode === 'focus' || editor.mode === 'new-focus') paintFocusAttach();
+    });
     document.getElementById('calAskCluny')?.addEventListener('click', () => {
         // Ask about this week or this event from the editor. Never auto-placement.
         // Ask about this month stays a seeded question, never Fill week.
@@ -1378,6 +1614,13 @@ export function setupCalendar() {
         const chip = e.target.closest('[data-status]');
         if (!chip) return;
         setStatusSelection(chip.getAttribute('data-status'));
+        setOutcomeSelection('');
+    });
+    document.getElementById('calBarOutcome')?.addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-outcome]');
+        if (!chip) return;
+        const next = chip.classList.contains('is-selected') ? '' : chip.getAttribute('data-outcome');
+        setOutcomeSelection(next === 'attended' ? 'done' : next === 'missed' ? 'missed' : '');
     });
     document.getElementById('calImportIcs')?.addEventListener('click', () => {
         void importIcs();

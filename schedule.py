@@ -56,7 +56,7 @@ def _busy_intervals(
     for block in blocks:
         if block.get("local_date") != iso:
             continue
-        if block.get("status") == "skipped":
+        if block.get("kind") != "focus" and block.get("status") == "skipped":
             continue
         busy.append(
             (calclock.parse_datetime(block["start_at"]), calclock.parse_datetime(block["end_at"]))
@@ -137,6 +137,7 @@ def _clear_proposed(week_start: date, week_end: date) -> None:
             """
             DELETE FROM schedule_blocks
             WHERE status = 'proposed'
+              AND kind != 'focus'
               AND local_date >= ?
               AND local_date <= ?
             """,

@@ -36,8 +36,12 @@ CHUNK_MAX = 90
 DAY_START = "05:30"
 DAY_END = "21:30"
 UNPLACED_UI_LIMIT = 80
-BLOCK_STATUSES = ("proposed", "locked", "done", "skipped")
+BLOCK_STATUSES = ("proposed", "locked", "done", "skipped", "missed")
+EVENT_MARK_STATUSES = ("done", "missed", "skipped", "open")
+CLOSED_BAR_STATUSES = frozenset({"done", "missed", "skipped"})
+OPEN_BLOCK_STATUSES = frozenset({"proposed", "locked"})
 _last_purge_day: Optional[str] = None
+_last_rollover_day: Optional[str] = None
 _ICS_URL_RE = re.compile(r"(?:https?|webcal)://[^\s<>\"']+", re.I)
 _ICS_FETCH_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Kosistenz/1.0",
@@ -181,6 +185,28 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
     )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_cal_events_end ON calendar_events(end_at)"
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS event_marks (
+            id TEXT PRIMARY KEY,
+            status TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS focus_block_items (
+            block_id TEXT NOT NULL,
+            work_item_id TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (block_id, work_item_id)
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_focus_items_work ON focus_block_items(work_item_id)"
     )
 
 
@@ -937,8 +963,9 @@ def delete_past_imported_one_shots() -> int:
 
 
 def reset_purge_cache() -> None:
-    global _last_purge_day
+    global _last_purge_day, _last_rollover_day
     _last_purge_day = None
+    _last_rollover_day = None
 
 
 def purge_stale_imports() -> Dict[str, Any]:
@@ -1416,6 +1443,156 @@ def _load_block(block_id: str) -> Dict[str, Any]:
     return _row_block(row)
 
 
+def event_mark_key(item_id: str, occurrence_date: str = "") -> str:
+    key = str(item_id or "").strip()
+    occ = str(occurrence_date or "").strip()[:10]
+    if occ and "@" not in key:
+        return f"{key}@{occ}"
+    return key
+
+
+def list_event_marks() -> List[Dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, status, updated_at FROM event_marks ORDER BY updated_at ASC"
+        ).fetchall()
+    return [
+        {"id": row["id"], "status": row["status"], "updated_at": row["updated_at"]}
+        for row in rows
+    ]
+
+
+def event_mark_map() -> Dict[str, str]:
+    return {str(row["id"]): str(row["status"] or "") for row in list_event_marks()}
+
+
+def _apply_event_marks(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    marks = event_mark_map()
+    if not marks:
+        return items
+    out: List[Dict[str, Any]] = []
+    for item in items:
+        packed = dict(item)
+        key = event_mark_key(str(item.get("id") or ""), str(item.get("occurrence_date") or ""))
+        status = marks.get(key) or marks.get(str(item.get("id") or ""))
+        if status:
+            packed["status"] = status
+        out.append(packed)
+    return out
+
+
+def upsert_event_mark(item_id: str, status: str, updated_at: str = "") -> Optional[Dict[str, Any]]:
+    key = str(item_id or "").strip()
+    state = str(status or "").strip().lower()
+    if state == "skipped":
+        state = "missed"
+    if not key or len(key) > 80:
+        return None
+    if state not in EVENT_MARK_STATUSES:
+        return None
+    stamp = str(updated_at or "").strip() or _now().isoformat()
+    with _connect() as conn:
+        existing = conn.execute(
+            "SELECT updated_at FROM event_marks WHERE id = ?", (key,)
+        ).fetchone()
+        if existing and str(existing["updated_at"] or "") >= stamp:
+            return {
+                "id": key,
+                "status": state,
+                "updated_at": existing["updated_at"],
+            }
+        conn.execute(
+            """
+            INSERT INTO event_marks (id, status, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                status = excluded.status,
+                updated_at = excluded.updated_at
+            """,
+            (key, state, stamp),
+        )
+        conn.commit()
+    return {"id": key, "status": state, "updated_at": stamp}
+
+
+def _normalize_outcome(outcome: str) -> str:
+    key = str(outcome or "").strip().lower()
+    if key in ("attended", "done"):
+        return "done"
+    if key in ("missed", "skipped", "did_not_complete", "did-not-complete"):
+        return "missed"
+    if key == "open":
+        return "open"
+    raise ValueError("Mark the bar attended or missed")
+
+
+def rollover_missed_bars(
+    today: Optional[date] = None,
+    force: bool = False,
+    events: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Yesterday and earlier unmarked bars become missed. Idempotent for the local day."""
+    global _last_rollover_day
+    day = today or _cal_today()
+    iso = day.isoformat()
+    complete = events is None
+    if not force and complete and _last_rollover_day == iso:
+        return {"ok": True, "blocks": 0, "events": 0, "cached": True}
+    cutoff = (day - timedelta(days=1)).isoformat()
+    lookback = day - timedelta(days=120)
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            UPDATE schedule_blocks
+            SET status = 'missed', updated_at = ?
+            WHERE local_date <= ?
+              AND status IN ('proposed', 'locked')
+            """,
+            (_now().isoformat(), cutoff),
+        )
+        blocks = int(cur.rowcount or 0)
+        conn.commit()
+    rows = events if events is not None else expand_hard_events(lookback, day - timedelta(days=1))
+    marked = 0
+    marks = event_mark_map()
+    for item in rows:
+        occ = str(item.get("occurrence_date") or item.get("start_at") or "")[:10]
+        if not occ or occ > cutoff:
+            continue
+        key = event_mark_key(str(item.get("id") or ""), occ)
+        current = marks.get(key) or marks.get(str(item.get("id") or "")) or item.get("status")
+        if current in CLOSED_BAR_STATUSES:
+            continue
+        if upsert_event_mark(key, "missed"):
+            marked += 1
+            marks[key] = "missed"
+    if complete:
+        _last_rollover_day = iso
+    return {"ok": True, "blocks": blocks, "events": marked, "cached": False}
+
+
+@eel.expose
+def set_bar_outcome(bar_id: str, outcome: str, occurrence_date: str = "") -> Dict[str, Any]:
+    """Attended or did-not-complete for a hard event or a packed work bar."""
+    status = _normalize_outcome(outcome)
+    key = str(bar_id or "").strip()
+    if not key:
+        raise ValueError("Pick a bar first")
+    occ = str(occurrence_date or "").strip()[:10]
+    with _connect() as conn:
+        block = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (key,)).fetchone()
+    if block is not None:
+        return set_block_status(key, status)
+    event_id = key.split("@", 1)[0]
+    if not occ and "@" in key:
+        occ = key.split("@", 1)[1][:10]
+    _load_event(event_id)
+    mark = upsert_event_mark(event_mark_key(event_id, occ), status)
+    if mark is None:
+        raise ValueError("Could not mark that event")
+    return {"ok": True, "kind": "hard", **mark}
+
+
 def _work_item(item_id: str) -> Dict[str, Any]:
     items = work.get_work_items_by_ids([item_id])
     if not items:
@@ -1557,7 +1734,7 @@ def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
                             "start_at": occ_start.isoformat(timespec="seconds"),
                             "end_at": (occ_start + duration).isoformat(timespec="seconds"),
                             "kind": "hard",
-                            "status": "locked",
+                            "status": "open",
                         }
                     )
                 cursor += timedelta(days=1)
@@ -1573,7 +1750,7 @@ def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
                 out.append(occ)
             cursor += timedelta(days=1)
     out.sort(key=lambda item: item["start_at"])
-    return out
+    return _apply_event_marks(out)
 
 
 def _occurrence_on(event: Dict[str, Any], day: date) -> Optional[Dict[str, Any]]:
@@ -1613,8 +1790,69 @@ def _occurrence_on(event: Dict[str, Any], day: date) -> Optional[Dict[str, Any]]
         "start_at": occ_start.isoformat(timespec="seconds"),
         "end_at": occ_end.isoformat(timespec="seconds"),
         "kind": "hard",
-        "status": "locked",
+        "status": "open",
     }
+
+
+def _focus_item_rows(block_ids: List[str]) -> Dict[str, List[Dict[str, Any]]]:
+    keys = [str(item or "").strip() for item in block_ids if str(item or "").strip()]
+    if not keys:
+        return {}
+    placeholders = ",".join("?" * len(keys))
+    with _connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT block_id, work_item_id, sort_order
+            FROM focus_block_items
+            WHERE block_id IN ({placeholders})
+            ORDER BY sort_order ASC
+            """,
+            keys,
+        ).fetchall()
+    by_block: Dict[str, List[str]] = {}
+    item_ids: List[str] = []
+    for row in rows:
+        bid = str(row["block_id"])
+        wid = str(row["work_item_id"])
+        by_block.setdefault(bid, []).append(wid)
+        item_ids.append(wid)
+    items = {str(item["id"]): item for item in work.get_work_items_by_ids(item_ids)} if item_ids else {}
+    out: Dict[str, List[Dict[str, Any]]] = {}
+    for bid, wids in by_block.items():
+        packed = []
+        for wid in wids:
+            item = items.get(wid) or {}
+            packed.append(
+                {
+                    "id": wid,
+                    "title": item.get("title") or "",
+                    "estimate_minutes": int(item.get("estimate_minutes") or 0),
+                    "status": item.get("status") or "open",
+                }
+            )
+        out[bid] = packed
+    return out
+
+
+def _focus_stats(block: Dict[str, Any], items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    planned = sum(max(0, int(row.get("estimate_minutes") or 0)) for row in items)
+    span = int(block.get("minutes") or 0)
+    packed = dict(block)
+    packed["items"] = items
+    packed["planned_minutes"] = planned
+    packed["overflow_minutes"] = max(0, planned - span)
+    return packed
+
+
+def _enrich_focus_blocks(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    ids = [str(row.get("id") or "") for row in blocks if str(row.get("kind") or "") == "focus"]
+    attached = _focus_item_rows(ids)
+    return [
+        _focus_stats(row, attached.get(str(row.get("id") or ""), []))
+        if str(row.get("kind") or "") == "focus"
+        else row
+        for row in blocks
+    ]
 
 
 def list_blocks(start: date, end: date) -> List[Dict[str, Any]]:
@@ -1627,7 +1865,7 @@ def list_blocks(start: date, end: date) -> List[Dict[str, Any]]:
             """,
             (start.isoformat(), end.isoformat()),
         ).fetchall()
-    return [_row_block(row) for row in rows]
+    return _enrich_focus_blocks([_row_block(row) for row in rows])
 
 
 def blocks_for_item(item_id: str) -> List[Dict[str, Any]]:
@@ -1661,7 +1899,7 @@ def _placed_minutes_map() -> Dict[str, int]:
             """
         ).fetchall()
     for row in rows:
-        if row["status"] == "skipped":
+        if row["status"] in ("skipped", "missed"):
             continue
         item_id = row["work_item_id"]
         if not item_id:
@@ -1673,7 +1911,7 @@ def _placed_minutes_map() -> Dict[str, int]:
 def placed_minutes(item_id: str) -> int:
     total = 0
     for block in blocks_for_item(item_id):
-        if block["status"] == "skipped":
+        if block["status"] in ("skipped", "missed"):
             continue
         total += int(block["minutes"])
     return total
@@ -1689,8 +1927,15 @@ def remaining_minutes(item: Dict[str, Any], placed: Optional[int] = None) -> int
     return max(0, estimate - used)
 
 
+def attached_work_ids() -> set:
+    with _connect() as conn:
+        rows = conn.execute("SELECT work_item_id FROM focus_block_items").fetchall()
+    return {str(row["work_item_id"]) for row in rows if row["work_item_id"]}
+
+
 def unplaced_work() -> List[Dict[str, Any]]:
     placed = _placed_minutes_map()
+    held = attached_work_ids()
     items = []
     now = work._now()
     with work._connect() as conn:
@@ -1705,6 +1950,8 @@ def unplaced_work() -> List[Dict[str, Any]]:
         ).fetchall()
     for row in rows:
         item = work._row_to_dict(row, now)
+        if item.get("id") in held:
+            continue
         leftover = remaining_minutes(item, placed.get(item["id"], 0))
         if leftover <= 0:
             continue
@@ -1749,6 +1996,10 @@ def _slim_clock_item(item: Dict[str, Any]) -> Dict[str, Any]:
         out["local_date"] = item["local_date"]
     if item.get("minutes"):
         out["minutes"] = item["minutes"]
+    if str(item.get("kind") or "") == "focus":
+        out["items"] = item.get("items") or []
+        out["planned_minutes"] = int(item.get("planned_minutes") or 0)
+        out["overflow_minutes"] = int(item.get("overflow_minutes") or 0)
     rec = item.get("recurrence")
     if isinstance(rec, dict) and rec.get("weekdays"):
         out["recurrence"] = {"weekdays": rec.get("weekdays")}
@@ -1772,6 +2023,8 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
     start = monday_of(start)
     end = start + timedelta(days=6)
     hard = expand_hard_events(start, end)
+    rollover_missed_bars(events=hard)
+    hard = _apply_event_marks(hard)
     blocks = list_blocks(start, end)
     dues = _dues_by_day(start, end)
     days = []
@@ -2056,7 +2309,9 @@ def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
     iso = work._parse_date(local_date) or _cal_today().isoformat()
     day = date.fromisoformat(iso)
     settings = load_settings()
-    items = list(expand_hard_events(day, day)) + list(list_blocks(day, day))
+    hard = expand_hard_events(day, day)
+    rollover_missed_bars(events=hard)
+    items = list(_apply_event_marks(hard)) + list(list_blocks(day, day))
     items.sort(key=lambda row: str(row.get("start_at") or ""))
     overdue = []
     if iso == _cal_today().isoformat():
@@ -2138,8 +2393,9 @@ def delete_schedule_block(block_id: str, force: bool = False) -> Dict[str, Any]:
         row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (block_id,)).fetchone()
         if row is None:
             raise ValueError("Block not found")
-        if row["status"] == "locked" and not force:
+        if row["status"] == "locked" and row["kind"] != "focus" and not force:
             raise ValueError("Locked blocks stay until you unlock them")
+        conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
         conn.execute("DELETE FROM schedule_blocks WHERE id = ?", (block_id,))
         conn.commit()
     return {"ok": True, "id": block_id}
@@ -2195,6 +2451,7 @@ def park_schedule_block(block_id: str) -> Dict[str, Any]:
     block = _load_block(block_id)
     work_item_id = block.get("work_item_id")
     with _connect() as conn:
+        conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
         if work_item_id:
             conn.execute("DELETE FROM schedule_blocks WHERE work_item_id = ?", (work_item_id,))
         else:
@@ -2248,3 +2505,114 @@ def place_work_after_lecture(item_id: str, local_date: str = "") -> Dict[str, An
         start = datetime(day.year, day.month, day.day, hour, minute, 0)
     end = start + timedelta(minutes=duration)
     return schedule_work_at(item_id, start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds"))
+
+
+def _set_focus_items(block_id: str, item_ids: Any) -> List[Dict[str, Any]]:
+    block = _load_block(block_id)
+    if str(block.get("kind") or "") != "focus":
+        raise ValueError("That bar is not a focus block")
+    seen = set()
+    ordered: List[str] = []
+    for raw in item_ids or []:
+        key = str(raw or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        ordered.append(key)
+    now = work._now()
+    with work._connect() as conn:
+        valid = []
+        for item_id in ordered:
+            row = work._fetch(conn, item_id)
+            if row is None:
+                continue
+            valid.append(work._row_to_dict(row, now)["id"])
+    day = str(block.get("local_date") or "")[:10]
+    with _connect() as conn:
+        conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
+        for index, item_id in enumerate(valid):
+            conn.execute(
+                """
+                INSERT INTO focus_block_items (block_id, work_item_id, sort_order)
+                VALUES (?, ?, ?)
+                """,
+                (block_id, item_id, index * 10),
+            )
+        conn.commit()
+    if day:
+        for item_id in valid:
+            try:
+                work.assign_work_item(item_id, day)
+            except Exception:
+                continue
+    enriched = _enrich_focus_blocks([_load_block(block_id)])
+    return enriched[0].get("items") or []
+
+
+@eel.expose
+def create_focus_block(
+    title: str,
+    start_at: str,
+    end_at: str,
+    item_ids: Any = None,
+) -> Dict[str, Any]:
+    """Named span on the clock. To-dos can overflow the span."""
+    clean = (title or "").strip()
+    if not clean:
+        raise ValueError("Name the focus block")
+    start = parse_datetime(start_at)
+    end = parse_datetime(end_at)
+    _validate_span(start, end, hard=False)
+    block = add_block(
+        title=clean,
+        start=start,
+        end=end,
+        kind="focus",
+        status="locked",
+    )
+    _set_focus_items(block["id"], item_ids)
+    return _enrich_focus_blocks([_load_block(block["id"])])[0]
+
+
+@eel.expose
+def set_focus_items(block_id: str, item_ids: Any = None) -> Dict[str, Any]:
+    items = _set_focus_items(block_id, item_ids)
+    packed = _enrich_focus_blocks([_load_block(block_id)])[0]
+    packed["items"] = items
+    return packed
+
+
+@eel.expose
+def attach_focus_item(block_id: str, item_id: str) -> Dict[str, Any]:
+    current = [row["id"] for row in (_enrich_focus_blocks([_load_block(block_id)])[0].get("items") or [])]
+    if item_id and item_id not in current:
+        current.append(item_id)
+    return set_focus_items(block_id, current)
+
+
+@eel.expose
+def detach_focus_item(block_id: str, item_id: str) -> Dict[str, Any]:
+    current = [
+        row["id"]
+        for row in (_enrich_focus_blocks([_load_block(block_id)])[0].get("items") or [])
+        if row.get("id") != item_id
+    ]
+    return set_focus_items(block_id, current)
+
+
+@eel.expose
+def add_todo_to_focus(
+    block_id: str,
+    title: str,
+    estimate_minutes: Any = None,
+) -> Dict[str, Any]:
+    block = _load_block(block_id)
+    if str(block.get("kind") or "") != "focus":
+        raise ValueError("That bar is not a focus block")
+    item = work.create_work_item(
+        title,
+        scheduled_date=str(block.get("local_date") or "")[:10],
+        estimate_minutes=estimate_minutes,
+        source="manual",
+    )
+    return attach_focus_item(block_id, item["id"])

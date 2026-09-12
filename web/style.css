@@ -804,8 +804,10 @@ html[data-page='home'] .tab-content.active {
 
 html[data-page='journal'] .app-topbar .eyebrow,
 html[data-page='calendar'] .app-topbar .eyebrow,
+html[data-page='analytics'] .app-topbar .eyebrow,
 html[data-page='journal'] .topbar-note,
-html[data-page='calendar'] .topbar-note {
+html[data-page='calendar'] .topbar-note,
+html[data-page='analytics'] .topbar-note {
     display: none;
 }
 
@@ -849,6 +851,24 @@ html[data-page='calendar'] .tab-content.active {
     display: flex;
     flex-direction: column;
     min-height: 0;
+}
+
+html[data-page='analytics'] .app-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+html[data-page='analytics'] .tab-content.active {
+    max-width: none;
+    width: 100%;
+    flex: 1;
+    display: block;
+    min-height: 0;
+}
+
+html[data-page='analytics'] #analyticsTab.widget-source {
+    display: block;
 }
 
 html[data-page='calendar'] .cal-layout {
@@ -5729,15 +5749,148 @@ html[data-motion='reduce'] *::after {
 }
 
 .cal-block.is-hard {
-    background: color-mix(in srgb, var(--text-primary) 14%, var(--bg-elevated));
+    background: color-mix(in srgb, var(--cal-event, var(--text-primary)) 22%, var(--bg-elevated));
 }
 
 .cal-block.is-workout {
     background: color-mix(in srgb, #2A9A8C 26%, var(--bg-elevated));
 }
 
+.cal-block.is-focus {
+    background: color-mix(in srgb, var(--cal-focus, #c8892c) 34%, var(--bg-elevated));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cal-focus, #c8892c) 45%, transparent);
+}
+
+.cal-block-overflow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: inherit;
+    opacity: 0.88;
+}
+
+.cal-focus-attach {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.cal-focus-attach.is-hidden {
+    display: none;
+}
+
+.cal-focus-hint,
+.cal-focus-overflow {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.cal-focus-overflow.is-over {
+    color: var(--text-primary);
+    font-weight: 650;
+}
+
+.cal-focus-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cal-focus-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--cal-focus, #c8892c) 12%, var(--bg-elevated));
+}
+
 .cal-block.is-locked {
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 35%, transparent);
+}
+
+.cal-block.is-done {
+    background: color-mix(in srgb, var(--success) 22%, var(--bg-elevated));
+    opacity: 0.78;
+}
+
+.cal-block.is-done .cal-block-title {
+    text-decoration: line-through;
+}
+
+.cal-block.is-missed {
+    background: color-mix(in srgb, var(--text-primary) 82%, var(--bg-elevated));
+    color: var(--bg-elevated);
+    opacity: 1;
+}
+
+.cal-block.is-missed .cal-block-time,
+.cal-block.is-missed .cal-block-title {
+    color: inherit;
+    text-decoration: none;
+}
+
+.cal-today-agenda li.is-done b {
+    text-decoration: line-through;
+    opacity: 0.72;
+}
+
+.cal-today-agenda li.is-missed {
+    background: color-mix(in srgb, var(--text-primary) 82%, var(--bg-elevated));
+    color: var(--bg-elevated);
+}
+
+.consistency-chart {
+    width: 100%;
+    height: 148px;
+    color: var(--accent, var(--text-primary));
+}
+
+.consistency-chart text {
+    fill: var(--text-muted);
+    font-size: 10px;
+}
+
+.consistency-bar {
+    fill: currentColor;
+}
+
+.consistency-bar.is-empty {
+    fill: color-mix(in srgb, var(--text-muted) 18%, transparent);
+}
+
+.rate-goal-form,
+.rate-goal-add .goal-add-more {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 88px minmax(0, 0.8fr) auto;
+    gap: 8px;
+    align-items: center;
+    margin: 10px 0 14px;
+}
+
+.rate-goal-add {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rate-goal-add .goal-add-more {
+    grid-template-columns: minmax(0, 1fr) 88px minmax(0, 0.8fr);
+    margin: 0;
+}
+
+.rate-goal-list {
+    display: grid;
+    gap: 10px;
+}
+
+@media (max-width: 860px) {
+    .rate-goal-form {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 .cal-aside {

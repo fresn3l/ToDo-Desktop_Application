@@ -24,6 +24,8 @@ COLOR_SLOTS = (
     "done",
     "openNext",
     "sidebar",
+    "event",
+    "focus",
 )
 
 INK_LIGHT = "#f7fafc"
@@ -40,6 +42,8 @@ THEME_PALETTES: Dict[str, Dict[str, str]] = {
         "done": "#5ebb8e",
         "openNext": "#d4a054",
         "sidebar": "#0e1620",
+        "event": "#8aa4b8",
+        "focus": "#c8892c",
     },
     "midnight": {
         "pageBg": "#0e0d0b",
@@ -50,6 +54,8 @@ THEME_PALETTES: Dict[str, Dict[str, str]] = {
         "done": "#5ebb8e",
         "openNext": "#e0b355",
         "sidebar": "#161512",
+        "event": "#8aa4b8",
+        "focus": "#c8892c",
     },
     "slate": {
         "pageBg": "#171e2b",
@@ -60,6 +66,8 @@ THEME_PALETTES: Dict[str, Dict[str, str]] = {
         "done": "#5ebb8e",
         "openNext": "#d4a054",
         "sidebar": "#121824",
+        "event": "#8aa4b8",
+        "focus": "#c8892c",
     },
     "paper": {
         "pageBg": "#f7f3eb",
@@ -70,6 +78,8 @@ THEME_PALETTES: Dict[str, Dict[str, str]] = {
         "done": "#2f7d57",
         "openNext": "#b5791f",
         "sidebar": "#f3eee4",
+        "event": "#5a6d7c",
+        "focus": "#b56a14",
     },
     "forest": {
         "pageBg": "#141e1a",
@@ -80,6 +90,8 @@ THEME_PALETTES: Dict[str, Dict[str, str]] = {
         "done": "#6bc49a",
         "openNext": "#d4a054",
         "sidebar": "#101816",
+        "event": "#8aa4b8",
+        "focus": "#c8892c",
     },
     "dusk": {
         "pageBg": "#1b1824",
@@ -90,6 +102,8 @@ THEME_PALETTES: Dict[str, Dict[str, str]] = {
         "done": "#5ebb8e",
         "openNext": "#d4a054",
         "sidebar": "#16131e",
+        "event": "#8aa4b8",
+        "focus": "#c8892c",
     },
 }
 

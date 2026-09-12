@@ -35,6 +35,10 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
                     <span class="nav-label">Calendar</span>
                 </button>
+                <button type="button" class="nav-item" data-tab="analytics">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 19V9"/><path d="M10 19V5"/><path d="M15 19v-7"/><path d="M20 19V8"/></svg>
+                    <span class="nav-label">Analytics</span>
+                </button>
                 <button type="button" class="nav-item" data-tab="brain">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3a4 4 0 0 0-4 4v1.1A4.9 4.9 0 0 0 4 12.9V14a4 4 0 0 0 4 4h1"/><path d="M12 3a4 4 0 0 1 4 4v1.1A4.9 4.9 0 0 1 20 12.9V14a4 4 0 0 1-4 4h-1"/><path d="M9.5 10.5h5M10 14h4"/></svg>
                     <span class="nav-label">Brain</span>
@@ -157,7 +161,7 @@
                                 <aside id="calTodayRail" class="cal-today-rail" aria-label="Today"></aside>
                                 <div id="calGrid" class="cal-grid"></div>
                             </div>
-                            <p id="calClockHint" class="cal-clock-hint">On a bar already on the clock: click locks, Shift skips, Alt marks done. Drag Unplaced onto the day to place work.</p>
+                            <p id="calClockHint" class="cal-clock-hint">On a bar: Alt marks attended, Shift marks did not complete. Click a work bar to lock it. Drag Unplaced onto the day to place work.</p>
                             <div id="calMonthGrid" class="cal-month-grid is-hidden"></div>
                             <p id="calMonthLegend" class="cal-month-legend is-hidden">Event · placed · due</p>
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
@@ -189,8 +193,24 @@
                                 <div id="calBlockStatus" class="work-weekdays is-hidden" role="group" aria-label="On the clock">
                                     <button type="button" class="work-day-chip" data-status="proposed">Flexible</button>
                                     <button type="button" class="work-day-chip" data-status="locked">Locked</button>
-                                    <button type="button" class="work-day-chip" data-status="done">Done</button>
-                                    <button type="button" class="work-day-chip" data-status="skipped">Skip</button>
+                                </div>
+                                <div id="calBarOutcome" class="work-weekdays is-hidden" role="group" aria-label="Attendance">
+                                    <button type="button" class="work-day-chip" data-outcome="attended">Attended</button>
+                                    <button type="button" class="work-day-chip" data-outcome="missed">Did not complete</button>
+                                </div>
+                                <div id="calFocusAttach" class="cal-focus-attach is-hidden">
+                                    <p class="cal-focus-hint">To-dos in this span. Overflow is fine — they stay in the block.</p>
+                                    <p id="calFocusOverflow" class="cal-focus-overflow"></p>
+                                    <div id="calFocusItems" class="cal-focus-items"></div>
+                                    <div class="work-add-row">
+                                        <input type="text" id="calFocusNewTitle" class="checklist-text-input" placeholder="Add a to-do" autocomplete="off">
+                                        <input type="number" id="calFocusNewMins" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Estimate in minutes">
+                                        <button type="button" id="calFocusAddItem" class="btn-ghost">Add</button>
+                                    </div>
+                                    <label class="checklist-field-label" for="calFocusPick">Attach existing</label>
+                                    <select id="calFocusPick" class="checklist-text-input">
+                                        <option value="">Unplaced to-do…</option>
+                                    </select>
                                 </div>
                                 </div>
                                 <div class="reminder-actions cal-editor-actions">
@@ -198,6 +218,7 @@
                                     <button type="button" id="calParkItem" class="btn-ghost is-hidden">Save for later</button>
                                     <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
                                     <button type="button" id="calAskCluny" class="btn-ghost is-hidden">Ask about this</button>
+                                    <button type="button" id="calNewFocus" class="btn-ghost">Add focus</button>
                                     <button type="button" id="calNewLecture" class="btn-primary">Add event</button>
                                 </div>
                             </div>
@@ -440,20 +461,22 @@
                     </div>
                 </section>
 
-                <section id="analyticsTab" class="widget-source" aria-label="Analytics">
+                <section id="analyticsTab" class="tab-content widget-source" aria-label="Analytics">
                     <div class="panel review-section">
                         <div class="panel-header">
                             <div>
                                 <h2>Analytics</h2>
-                                <p class="panel-sub">Journal, workouts, and repeating to dos. Missed days stay on that date.</p>
+                                <p class="panel-sub">Hours you planned, how often you showed up, and to-dos you finished.</p>
                             </div>
                             <div class="segmented" id="analyticsRange" role="group" aria-label="Analytics range">
-                                <button type="button" data-value="7">7 days</button>
-                                <button type="button" data-value="30" class="is-selected">30 days</button>
-                                <button type="button" data-value="90">90 days</button>
+                                <button type="button" data-value="28" class="is-selected">4 weeks</button>
+                                <button type="button" data-value="84">12 weeks</button>
+                                <button type="button" data-value="365">Year</button>
                             </div>
                         </div>
                         <div id="analyticsWeekStrip" class="week-strip-host"></div>
+                        <div id="consistencyCharts" class="review-content consistency-charts"></div>
+                        <div id="rateGoalsBoard" class="review-content rate-goals-board"></div>
                         <div id="timeAllocation" class="review-content time-allocation-host"></div>
                         <div id="analyticsContent" class="review-content"></div>
                     </div>
