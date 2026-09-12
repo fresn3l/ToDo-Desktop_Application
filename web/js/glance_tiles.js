@@ -4,7 +4,7 @@
  */
 
 import * as utils from './utils.js';
-import { WIDGET_CATALOG } from './home_layout.js';
+import { splitKey, widgetLabel } from './home_layout.js';
 import { copy, moreCount, countLabel, minutesLabel } from './glance_copy.js';
 import { callEel } from './lazy.js';
 
@@ -54,8 +54,14 @@ export function syncHomeDayPart(hour) {
     document.documentElement.setAttribute('data-daypart', part);
 }
 
-function tile(kind, size, extraClass, inner) {
-    return `<div class="glance-tile glance-tile--${kind} glance-tile--${size.w}x${size.h}${extraClass ? ` ${extraClass}` : ''}" data-glance="${kind}">${inner}</div>`;
+function keyLabel(key) {
+    const { kind, settings } = splitKey(key);
+    return widgetLabel(kind, settings);
+}
+
+function tile(key, size, extraClass, inner) {
+    const { kind } = splitKey(key);
+    return `<div class="glance-tile glance-tile--${kind} glance-tile--${size.w}x${size.h}${extraClass ? ` ${extraClass}` : ''}" data-glance="${utils.escapeHtml(key)}">${inner}</div>`;
 }
 
 function actionBtn(act, label, attrs = '', extraClass = '') {
@@ -76,16 +82,16 @@ function actionRow(actions, size) {
     return `<div class="glance-actions">${list.map((row) => actionBtn(row.act, row.label, row.attrs || '', row.cls || '')).join('')}</div>`;
 }
 
-function openWorkAction(kind, label = copy.open) {
-    return { act: 'open-work', label, attrs: ` data-kind="${utils.escapeHtml(kind)}"` };
+function openWorkAction(key, label = copy.open) {
+    return { act: 'open-work', label, attrs: ` data-key="${utils.escapeHtml(key)}"` };
 }
 
-function shellHtml({ kind, size, state = 'ready', label, primary = '', body = '', action = null, actions = null, hero = false }) {
+function shellHtml({ key, size, state = 'ready', label, primary = '', body = '', action = null, actions = null, hero = false }) {
     const stateCls = state !== 'ready' ? ` is-${state}` : '';
     const labelHtml = `<p class="glance-label">${utils.escapeHtml(label)}</p>`;
     const row = actionRow(actions || (action ? [action] : []), size);
     if (state === 'empty' || state === 'error' || state === 'loading') {
-        return tile(kind, size, stateCls, `
+        return tile(key, size, stateCls, `
             ${labelHtml}
             <p class="glance-message">${utils.escapeHtml(primary || copy.couldNotLoad)}</p>
             ${body || ''}
@@ -94,21 +100,21 @@ function shellHtml({ kind, size, state = 'ready', label, primary = '', body = ''
     const primaryHtml = primary
         ? `<p class="glance-primary${hero ? ' glance-primary--hero' : ''}">${utils.escapeHtml(String(primary))}</p>`
         : '';
-    return tile(kind, size, stateCls, `
+    return tile(key, size, stateCls, `
         ${labelHtml}
         ${primaryHtml}
         ${body || ''}
         ${row}`);
 }
 
-function emptyShell(kind, size, message, action) {
+function emptyShell(key, size, message, action) {
     return shellHtml({
-        kind,
+        key,
         size,
         state: 'empty',
-        label: (WIDGET_CATALOG[kind] || { label: kind }).label,
+        label: keyLabel(key),
         primary: message,
-        action: action || openWorkAction(kind),
+        action: action || openWorkAction(key),
     });
 }
 
@@ -166,13 +172,13 @@ function formatShortDate(iso) {
 }
 
 function weatherHtml(data, size) {
-    const kind = 'weather';
+    const key = 'weather';
     const label = 'Weather';
     if (!data || data.need_place) {
-        return emptyShell(kind, size, copy.setPlace, { act: 'open-work', label: copy.setPlace, attrs: ' data-kind="weather"' });
+        return emptyShell(key, size, copy.setPlace, { act: 'open-work', label: copy.setPlace, attrs: ` data-key="${key}"` });
     }
     if (!data.ok) {
-        return emptyShell(kind, size, data.error ? copy.couldNotLoad : copy.noForecast);
+        return emptyShell(key, size, data.error ? copy.couldNotLoad : copy.noForecast);
     }
     const cur = data.current || {};
     const unit = data.unit_symbol || '°';
@@ -185,7 +191,7 @@ function weatherHtml(data, size) {
     const hilow = high && low ? `${high} / ${low}` : high || low;
     if (!size.wide && !size.tall) {
         return shellHtml({
-            kind,
+            key,
             size,
             label,
             primary: temp,
@@ -202,7 +208,7 @@ function weatherHtml(data, size) {
         }).join('')}</ul>`
         : '';
     return shellHtml({
-        kind,
+        key,
         size,
         label,
         primary: temp,
@@ -217,16 +223,16 @@ function weatherHtml(data, size) {
 }
 
 function wordHtml(data, size) {
-    const kind = 'word';
+    const key = 'word';
     const label = 'Word';
-    if (!data?.word) return emptyShell(kind, size, copy.noWord);
+    if (!data?.word) return emptyShell(key, size, copy.noWord);
     const head = data.display || data.word;
     const pos = [data.language_label || (data.language === 'de' ? 'German' : 'English'), data.pos].filter(Boolean).join(' · ');
     const meaning = clip(data.meaning || '', size.board ? 140 : size.tall ? 90 : 48);
     const example = clip(data.example || '', size.board ? 120 : 72);
     const used = Boolean((data.used_tonight || '').trim());
     if (!size.wide && !size.tall) {
-        return shellHtml({ kind, size, label, primary: clip(head, 12), hero: true });
+        return shellHtml({ key, size, label, primary: clip(head, 12), hero: true });
     }
     // Meaning first: it is the reason to look at the tile at all.
     const parts = capLines([
@@ -235,7 +241,7 @@ function wordHtml(data, size) {
         example && size.tall ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(example)}</p>` : '',
         used && size.tall ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(copy.usedTonight)}</p>` : '',
     ], size);
-    return shellHtml({ kind, size, label, primary: head, hero: true, body: parts });
+    return shellHtml({ key, size, label, primary: head, hero: true, body: parts });
 }
 
 function beatActions(beat, size) {
@@ -281,9 +287,9 @@ function beatBody(beat, size, titleShown = false) {
 }
 
 function todayHtml(data, size) {
-    const kind = 'today_calendar';
+    const key = 'today_calendar';
     if (!data || data.ok === false) {
-        return emptyShell(kind, size, copy.couldNotLoad);
+        return emptyShell(key, size, copy.couldNotLoad);
     }
     const label = 'Today';
     const iso = data?.local_date;
@@ -296,7 +302,7 @@ function todayHtml(data, size) {
         ? clip(beat.now.title || copy.now, 28)
         : (focus ? formatAgendaTime(focus) : dayNum);
     return shellHtml({
-        kind,
+        key,
         size,
         label: size.wide || size.tall ? `${shortWeek} ${dayNum}` : label,
         primary: size.tall ? clip(beat.now?.title || beat.next?.title || copy.clearClock, 36) : primary,
@@ -311,18 +317,18 @@ function todoCaptureHtml() {
     </form>`;
 }
 
-function todoHtml(data, size) {
-    const kind = 'todo';
-    const label = 'To Do';
+function workTodayHtml(data, size) {
+    const key = 'work:slice=today';
+    const label = keyLabel(key);
     const items = data?.today || [];
     const open = data?.counts?.today_open ?? items.filter((row) => row.status !== 'done').length;
     const done = data?.counts?.today_done ?? items.filter((row) => row.status === 'done').length;
     const complete = open === 0 && done > 0;
     const capture = size.capture ? todoCaptureHtml() : '';
-    const openBtn = openWorkAction('todo', copy.open);
+    const openBtn = openWorkAction(key, copy.open);
     if (!items.length && !open && !done) {
         return shellHtml({
-            kind,
+            key,
             size,
             state: 'empty',
             label,
@@ -365,7 +371,7 @@ function todoHtml(data, size) {
     // The list carries the titles; the headline would only say them twice.
     const message = complete ? copy.allFinished : open ? '' : copy.nothingDated;
     return shellHtml({
-        kind,
+        key,
         size,
         label: countLabel(label, open || done ? open : ''),
         primary: size.tall ? '' : String(complete ? done : open),
@@ -376,11 +382,11 @@ function todoHtml(data, size) {
 }
 
 function habitsHtml(data, size) {
-    const kind = 'habits';
+    const key = 'habits';
     const label = 'Habits';
     const total = data?.total || 0;
     const done = data?.done || 0;
-    if (!total) return emptyShell(kind, size, copy.noHabits);
+    if (!total) return emptyShell(key, size, copy.noHabits);
     const next = (data?.habits || []).find((row) => !row.done);
     const rows = size.tall
         ? listRows(data?.habits || [], size.rows, (item) => (
@@ -392,7 +398,7 @@ function habitsHtml(data, size) {
         : null;
     const quiet = done === total ? 'All ticked.' : '';
     return shellHtml({
-        kind,
+        key,
         size,
         label: countLabel(label, `${done}/${total}`),
         primary: size.tall ? '' : `${done}/${total}`,
@@ -402,14 +408,14 @@ function habitsHtml(data, size) {
 }
 
 function countersHtml(data, size) {
-    const kind = 'counters';
+    const key = 'counters';
     const label = 'Counters';
     const rows = data?.counters || [];
     const first = rows[0];
-    if (!first) return emptyShell(kind, size, copy.noCounters);
+    if (!first) return emptyShell(key, size, copy.noCounters);
     if (!size.tall) {
         return shellHtml({
-            kind,
+            key,
             size,
             label: clip(first.name || label, 16),
             primary: String(first.today || 0),
@@ -428,7 +434,7 @@ function countersHtml(data, size) {
             <button type="button" class="glance-action glance-action--icon" data-glance-act="counter-tap" data-id="${utils.escapeHtml(item.id)}" data-step="1" aria-label="Plus">+</button>
         </div>`).join('');
     return shellHtml({
-        kind,
+        key,
         size,
         label: countLabel(label, rows.length),
         body: `<div class="glance-counters">${chips}</div>`,
@@ -437,11 +443,11 @@ function countersHtml(data, size) {
 
 
 function countdownHtml(data, size) {
-    const kind = 'countdown';
+    const key = 'countdown';
     const label = 'Countdown';
     const rows = Array.isArray(data) ? data : [];
     const next = rows.find((row) => row.state !== 'past') || rows[0];
-    if (!next) return emptyShell(kind, size, copy.noDates);
+    if (!next) return emptyShell(key, size, copy.noDates);
     const days = Number(next.days);
     const count = next.state === 'today' ? '0' : (Number.isFinite(days) ? String(Math.abs(days)) : '—');
     const unit = next.state === 'today' ? 'today' : Number(next.days) < 0 ? 'ago' : 'days';
@@ -452,7 +458,7 @@ function countdownHtml(data, size) {
         })
         : '';
     return shellHtml({
-        kind,
+        key,
         size,
         label,
         primary: count,
@@ -461,13 +467,13 @@ function countdownHtml(data, size) {
 }
 
 function readingHtml(data, size) {
-    const kind = 'reading';
+    const key = 'reading';
     const label = 'Reading';
-    if (!data?.title) return emptyShell(kind, size, copy.noBook);
+    if (!data?.title) return emptyShell(key, size, copy.noBook);
     const pages = data.pages_today ? String(data.pages_today) : String(data.page || '·');
     const pageLine = data.page ? `Page ${data.page}` : 'pages today';
     return shellHtml({
-        kind,
+        key,
         size,
         label,
         primary: pages,
@@ -479,7 +485,7 @@ function readingHtml(data, size) {
 }
 
 function workoutHtml(data, size) {
-    const kind = 'workout';
+    const key = 'workout';
     const label = 'Workout';
     const workout = data?.workout || data || {};
     const split = (data?.expected?.labels || []).join(' · ');
@@ -487,7 +493,7 @@ function workoutHtml(data, size) {
     const latest = (workout.sessions || [])[(workout.sessions || []).length - 1];
     const session = latest || last;
     if (!split && !session && !workout.session_count) {
-        return emptyShell(kind, size, copy.nothingLogged);
+        return emptyShell(key, size, copy.nothingLogged);
     }
     const lastDate = formatShortDate(last?.local_date || (workout.done ? data?.local_date : ''));
     const sessionLine = session
@@ -515,7 +521,7 @@ function workoutHtml(data, size) {
         });
     }
     return shellHtml({
-        kind,
+        key,
         size,
         label,
         primary: clip(headline, size.tall ? 36 : 22),
@@ -525,11 +531,11 @@ function workoutHtml(data, size) {
 }
 
 function goalsHtml(data, size) {
-    const kind = 'goals';
+    const key = 'goals';
     const label = 'Goals';
-    if (data?.ok === false) return emptyShell(kind, size, copy.couldNotLoad);
+    if (data?.ok === false) return emptyShell(key, size, copy.couldNotLoad);
     const rows = Array.isArray(data) ? data : [];
-    if (!rows.length) return emptyShell(kind, size, copy.noGoals);
+    if (!rows.length) return emptyShell(key, size, copy.noGoals);
     const weekly = rows.filter((row) => row.horizon === 'week');
     const focus = weekly[0] || rows[0];
     const spent = Number(focus?.spent_minutes || 0);
@@ -551,21 +557,21 @@ function goalsHtml(data, size) {
         })
         : '';
     return shellHtml({
-        kind,
+        key,
         size,
         label: countLabel(label, weekly.length || rows.length),
         primary: size.tall ? '' : score,
         body: `${!size.tall ? `<p class="glance-message">${utils.escapeHtml(clip(focus?.title || '', 32))}</p>` : ''}${bar}${zero && size.tall ? `<p class="glance-message">${utils.escapeHtml(copy.zeroMinutes)}</p>` : ''}${list}`,
-        action: openWorkAction('goals'),
+        action: openWorkAction(key),
     });
 }
 
-function allworkHtml(data, size) {
-    const kind = 'allwork';
-    const label = 'All Work';
+function workBacklogHtml(data, size) {
+    const key = 'work:slice=backlog';
+    const label = keyLabel(key);
     const rows = Array.isArray(data) ? data : [];
     if (!rows.length) {
-        return emptyShell(kind, size, copy.backlogClear, { act: 'open-work', label: copy.add, attrs: ' data-kind="allwork"' });
+        return emptyShell(key, size, copy.backlogClear, { act: 'open-work', label: copy.add, attrs: ` data-key="${key}"` });
     }
     const limit = size.rows;
     const extra = size.tall ? Math.max(0, rows.length - limit) : 0;
@@ -585,7 +591,7 @@ function allworkHtml(data, size) {
         });
     }
     return shellHtml({
-        kind,
+        key,
         size,
         label: countLabel(label, rows.length),
         primary: size.tall ? '' : String(rows.length),
@@ -596,7 +602,7 @@ function allworkHtml(data, size) {
 
 
 function dayBriefHtml(data, size) {
-    const kind = 'day_brief';
+    const key = 'day_brief';
     const evening = data?.slot === 'evening';
     const label = evening ? 'Evening' : 'Morning';
     const leftover = data?.review?.leftover?.length || 0;
@@ -606,28 +612,28 @@ function dayBriefHtml(data, size) {
     const nextLine = next ? `${formatAgendaTime(next)} ${next.title || ''}`.trim() : copy.noEvents;
     if (evening) {
         return shellHtml({
-            kind,
+            key,
             size,
             label,
             primary: leftover ? String(leftover) : (recap ? clip(recap, 28) : copy.writeRecap),
             body: `<p class="glance-message">${leftover ? `${leftover} leftover` : (recap ? utils.escapeHtml(clip(recap, 72)) : copy.writeRecap)}</p>`,
-            action: size.action ? openWorkAction(kind, recap ? copy.open : copy.writeRecap) : null,
+            action: size.action ? openWorkAction(key, recap ? copy.open : copy.writeRecap) : null,
         });
     }
     return shellHtml({
-        kind,
+        key,
         size,
         label,
         primary: intention ? clip(intention, 32) : (next ? formatAgendaTime(next) : copy.writeIntention),
         body: `<p class="glance-message">${utils.escapeHtml(intention ? clip(intention, 72) : nextLine)}</p>`,
-        action: size.action ? openWorkAction(kind, intention ? copy.open : copy.writeIntention) : null,
+        action: size.action ? openWorkAction(key, intention ? copy.open : copy.writeIntention) : null,
     });
 }
 
 function analyticsHtml(data, size) {
-    const kind = 'analytics';
+    const key = 'analytics';
     const label = 'Analytics';
-    if (!data) return emptyShell(kind, size, copy.noStreak);
+    if (!data) return emptyShell(key, size, copy.noStreak);
     const streak = Number(data.journal?.streak || 0);
     const attendance = data.consistency?.attendance_pct;
     const missed = (data.work?.series || []).reduce((n, row) => n + Number(row.missed || 0), 0);
@@ -636,7 +642,7 @@ function analyticsHtml(data, size) {
         ? `${attendance}% attendance`
         : (missed ? `${missed} misses` : `${written} days written`);
     return shellHtml({
-        kind,
+        key,
         size,
         label,
         primary: attendance != null ? `${attendance}%` : String(streak),
@@ -646,13 +652,13 @@ function analyticsHtml(data, size) {
 
 
 function clunyHtml(data, size) {
-    const kind = 'cluny';
+    const key = 'cluny';
     const label = 'Ask Cluny';
     // Glance Cluny stays a health tile when the brain is off.
     const offline = data && data.brain_ready === false;
     if (offline) {
         return shellHtml({
-            kind,
+            key,
             size,
             state: 'error',
             label,
@@ -677,7 +683,7 @@ function clunyHtml(data, size) {
             ? `<p class="glance-message">${n === 1 ? '1 suggestion waiting' : `${n} suggestions waiting`}</p>`
             : `<p class="glance-message">${utils.escapeHtml(ask.label)}</p>`;
     return shellHtml({
-        kind,
+        key,
         size,
         label: n ? countLabel(label, n) : label,
         primary: n ? String(n) : '',
@@ -694,12 +700,12 @@ function weekdayChips(weekdays, itemId) {
     )).join('')}</div>`;
 }
 
-function unplacedHtml(data, size) {
-    const kind = 'unplaced';
+function workUnplacedHtml(data, size) {
+    const key = 'work:slice=unplaced';
     const rows = data?.items || [];
     const count = data?.count ?? rows.length;
     if (!count) {
-        return emptyShell(kind, size, copy.allPlaced, openWorkAction('allwork', copy.add));
+        return emptyShell(key, size, copy.allPlaced, openWorkAction(key, copy.add));
     }
     const first = rows[0];
     const list = size.tall
@@ -708,9 +714,9 @@ function unplacedHtml(data, size) {
         ))
         : '';
     return shellHtml({
-        kind,
+        key,
         size,
-        label: countLabel('Unplaced', count),
+        label: countLabel(keyLabel(key), count),
         primary: size.tall ? '' : clip(first?.title || '', 32),
         // Seven day chips only fit on one line on a wide tile; wrapped they
         // would eat the rows the list needs.
@@ -718,11 +724,11 @@ function unplacedHtml(data, size) {
     });
 }
 
-function duesHtml(data, size) {
-    const kind = 'dues';
+function workDueHtml(data, size) {
+    const key = 'work:slice=due';
     const rows = data?.items || [];
     if (!rows.length) {
-        return emptyShell(kind, size, copy.nothingDue, openWorkAction('todo', copy.addPlace));
+        return emptyShell(key, size, copy.nothingDue, openWorkAction(key, copy.addPlace));
     }
     const first = rows[0];
     const list = size.tall
@@ -731,21 +737,39 @@ function duesHtml(data, size) {
         ))
         : '';
     return shellHtml({
-        kind,
+        key,
         size,
-        label: countLabel('Due', data.count || rows.length),
+        label: countLabel(keyLabel(key), data.count || rows.length),
         primary: size.tall ? '' : formatShortDate(first.due),
         body: list,
-        action: size.action ? openWorkAction('todo', copy.open) : null,
+        action: size.action ? openWorkAction(key, copy.open) : null,
     });
 }
 
 
-function posterHtml(kind, _data, size) {
-    return emptyShell(kind, size, copy.couldNotLoad);
+function posterHtml(key, _data, size) {
+    return emptyShell(key, size, copy.couldNotLoad);
 }
 
-async function loadGlance(kind) {
+// Four cuts of one list. Today and Due come off the dated board; All work and
+// Unplaced come off the backlog.
+const WORK_SLICE_CALL = {
+    today: () => eelCall('get_work_board', utils.localISODate()),
+    backlog: () => eelCall('list_backlog'),
+    unplaced: () => eelCall('get_unplaced_glance'),
+    due: () => eelCall('get_dues_week_glance'),
+};
+
+const WORK_SLICE_HTML = {
+    today: workTodayHtml,
+    backlog: workBacklogHtml,
+    unplaced: workUnplacedHtml,
+    due: workDueHtml,
+};
+
+async function loadGlance(key) {
+    const { kind, settings } = splitKey(key);
+    if (kind === 'work') return (WORK_SLICE_CALL[settings.slice] || WORK_SLICE_CALL.today)();
     if (kind === 'weather') return eelCall('get_weather_forecast', false);
     if (kind === 'word') return eelCall('get_word_of_the_day');
     if (kind === 'today_calendar') {
@@ -753,85 +777,77 @@ async function loadGlance(kind) {
         if (!beat || beat.ok === false) return beat;
         return { ok: true, beat, local_date: beat.local_date };
     }
-    if (kind === 'todo') return eelCall('get_work_board', utils.localISODate());
     if (kind === 'countdown') return eelCall('get_countdowns');
     if (kind === 'habits') return eelCall('get_habits');
     if (kind === 'reading') return eelCall('get_reading');
     if (kind === 'counters') return eelCall('get_tap_counters');
     if (kind === 'workout') return eelCall('get_today_status');
     if (kind === 'goals') return eelCall('list_goals');
-    if (kind === 'allwork') return eelCall('list_backlog');
     if (kind === 'day_brief') return eelCall('get_day_brief');
     if (kind === 'analytics') return eelCall('get_analytics', 7);
     if (kind === 'cluny') return eelCall('get_cluny_inbox');
-    if (kind === 'unplaced') return eelCall('get_unplaced_glance');
-    if (kind === 'dues') return eelCall('get_dues_week_glance');
     return null;
 }
 
-function renderKind(kind, data, size) {
+function renderKey(key, data, size) {
+    const { kind, settings } = splitKey(key);
+    if (kind === 'work') return (WORK_SLICE_HTML[settings.slice] || workTodayHtml)(data, size);
     if (kind === 'weather') return weatherHtml(data, size);
     if (kind === 'word') return wordHtml(data, size);
     if (kind === 'today_calendar') return todayHtml(data, size);
-    if (kind === 'todo') return todoHtml(data, size);
     if (kind === 'habits') return habitsHtml(data, size);
     if (kind === 'counters') return countersHtml(data, size);
     if (kind === 'countdown') return countdownHtml(data, size);
     if (kind === 'reading') return readingHtml(data, size);
     if (kind === 'workout') return workoutHtml(data, size);
     if (kind === 'goals') return goalsHtml(data, size);
-    if (kind === 'allwork') return allworkHtml(data, size);
     if (kind === 'day_brief') return dayBriefHtml(data, size);
     if (kind === 'analytics') return analyticsHtml(data, size);
     if (kind === 'cluny') return clunyHtml(data, size);
-    if (kind === 'unplaced') return unplacedHtml(data, size);
-    if (kind === 'dues') return duesHtml(data, size);
-    return posterHtml(kind, data, size);
+    return posterHtml(key, data, size);
 }
 
-export function mountGlance(kind, body, card) {
-    const spec = WIDGET_CATALOG[kind] || { label: kind };
+export function mountGlance(key, body, card) {
     if (!body) return;
-    const size = sizeOf(card);
     body.innerHTML = shellHtml({
-        kind,
-        size,
+        key,
+        size: sizeOf(card),
         state: 'loading',
-        label: spec.label,
+        label: keyLabel(key),
         primary: copy.loading,
     });
 }
 
-export function paintGlanceFromData(kind, body, card, data) {
+export function paintGlanceFromData(key, body, card, data) {
     if (!body) return;
     try {
-        body.innerHTML = renderKind(kind, data, sizeOf(card));
+        body.innerHTML = renderKey(key, data, sizeOf(card));
     } catch (err) {
         console.error(err);
-        body.innerHTML = emptyShell(kind, sizeOf(card), copy.couldNotLoad);
+        body.innerHTML = emptyShell(key, sizeOf(card), copy.couldNotLoad);
     }
 }
 
-export async function paintGlance(kind, body, card) {
+export async function paintGlance(key, body, card) {
     if (!body) return;
-    const data = await loadGlance(kind);
+    const data = await loadGlance(key);
     if (!body.isConnected) return;
-    paintGlanceFromData(kind, body, card, data);
+    paintGlanceFromData(key, body, card, data);
 }
 
-export async function refreshGlances(kinds, dataByKind) {
-    const set = kinds ? new Set(kinds) : null;
+export async function refreshGlances(keys, dataByKey) {
+    const set = keys ? new Set(keys) : null;
     const cards = [...document.querySelectorAll('#homeGridAbove .home-widget, #homeGrid .home-widget')];
     await Promise.all(cards.map(async (card) => {
-        const kind = card.getAttribute('data-kind');
-        if (set && !set.has(kind)) return;
+        const key = card.getAttribute('data-key');
+        if (set && !set.has(key)) return;
         const body = card.querySelector('.home-widget-body');
         if (!body) return;
-        if (dataByKind && Object.prototype.hasOwnProperty.call(dataByKind, kind)) {
-            paintGlanceFromData(kind, body, card, dataByKind[kind]);
+        if (dataByKey && Object.prototype.hasOwnProperty.call(dataByKey, key)) {
+            paintGlanceFromData(key, body, card, dataByKey[key]);
             return;
         }
-        await paintGlance(kind, body, card);
+        await paintGlance(key, body, card);
     }));
 }
 
@@ -881,7 +897,7 @@ export async function runGlanceAction(btn) {
             return;
         } else if (act === 'open-work') {
             document.dispatchEvent(new CustomEvent('kosistenz:open-home-work', {
-                detail: { kind: btn.getAttribute('data-kind') || '' },
+                detail: { key: btn.getAttribute('data-key') || '' },
             }));
             return;
         } else {
