@@ -82,9 +82,13 @@ class IphoneTodayTimelineTests(unittest.TestCase):
         today = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "TodayScreen.swift").read_text(
             encoding="utf-8"
         )
-        self.assertIn("DayClockView", today)
-        self.assertIn("AddEventSheet", today)
-        self.assertIn("Unplaced", today)
+        calendar = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "CalendarScreen.swift").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("TodayList.entries", today)
+        self.assertIn("PackActions.complete", today)
+        self.assertIn("DayClockView", calendar)
+        self.assertIn("AddEventSheet", calendar)
 
 
 if __name__ == "__main__":

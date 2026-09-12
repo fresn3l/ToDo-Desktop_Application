@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct SettingsScreen: View {
     @EnvironmentObject private var store: PackStore
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -24,6 +25,10 @@ struct SettingsScreen: View {
                             .foregroundStyle(.secondary)
                             .listRowBackground(store.palette.widgetBg)
                     }
+                    Text("Alerts fire 30, 15, and 5 minutes before a timed event. Checking one off cancels the rest.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(store.palette.widgetBg)
                 }
                 Section("Cluny") {
                     Text("Ask Cluny stays on the Mac. The phone syncs the week through this pack. If the Mac is asleep, Cluny is off here on purpose — your to-dos still save.")
@@ -40,6 +45,11 @@ struct SettingsScreen: View {
             .scrollContentBackground(.hidden)
             .background(store.palette.pageBg)
             .navigationTitle("Sync")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
             .fileImporter(isPresented: $store.pickingFolder, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
                 if case .success(let urls) = result, let url = urls.first {
                     store.chooseFolder(url)

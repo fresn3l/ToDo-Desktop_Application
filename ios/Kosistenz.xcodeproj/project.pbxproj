@@ -13,9 +13,10 @@
 		A10000000000000000000004 /* SyncPack.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* SyncPack.swift */; };
 		A10000000000000000000005 /* KosistenzApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* KosistenzApp.swift */; };
 		A10000000000000000000006 /* TodayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* TodayScreen.swift */; };
-		A10000000000000000000007 /* JournalScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* JournalScreen.swift */; };
-		A10000000000000000000008 /* WeekScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* WeekScreen.swift */; };
-		A10000000000000000000009 /* InboxScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* InboxScreen.swift */; };
+		A10000000000000000000007 /* EventAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* EventAlerts.swift */; };
+		A10000000000000000000008 /* CalendarScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* CalendarScreen.swift */; };
+		A10000000000000000000009 /* TodoScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* TodoScreen.swift */; };
+		A10000000000000000000013 /* TodayList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* TodayList.swift */; };
 		A1000000000000000000000A /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* SettingsScreen.swift */; };
 		A1000000000000000000000B /* DayTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* DayTimeline.swift */; };
 		A1000000000000000000000D /* PackActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* PackActions.swift */; };
@@ -33,6 +34,7 @@
 		B10000000000000000000007 /* AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* AppIntents.swift */; };
 		B10000000000000000000008 /* KosistenzWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* KosistenzWidget.swift */; };
 		B10000000000000000000009 /* PhoneCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PhoneCalendar.swift */; };
+		B1000000000000000000000A /* TodayList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* TodayList.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,9 +68,10 @@
 		A20000000000000000000004 /* SyncPack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPack.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* KosistenzApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KosistenzApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000006 /* TodayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayScreen.swift; sourceTree = "<group>"; };
-		A20000000000000000000007 /* JournalScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalScreen.swift; sourceTree = "<group>"; };
-		A20000000000000000000008 /* WeekScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekScreen.swift; sourceTree = "<group>"; };
-		A20000000000000000000009 /* InboxScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxScreen.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* EventAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventAlerts.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* CalendarScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarScreen.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* TodoScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoScreen.swift; sourceTree = "<group>"; };
+		A2000000000000000000001C /* TodayList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayList.swift; sourceTree = "<group>"; };
 		A2000000000000000000000A /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000000000000000000000C /* DayTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTimeline.swift; sourceTree = "<group>"; };
@@ -121,9 +124,10 @@
 				A20000000000000000000018 /* DayClock.swift */,
 				A20000000000000000000017 /* AddEventSheet.swift */,
 				A20000000000000000000016 /* PhoneCalendar.swift */,
-				A20000000000000000000008 /* WeekScreen.swift */,
-				A20000000000000000000007 /* JournalScreen.swift */,
-				A20000000000000000000009 /* InboxScreen.swift */,
+				A20000000000000000000008 /* CalendarScreen.swift */,
+				A20000000000000000000007 /* EventAlerts.swift */,
+				A20000000000000000000009 /* TodoScreen.swift */,
+				A2000000000000000000001C /* TodayList.swift */,
 				A2000000000000000000000A /* SettingsScreen.swift */,
 				A20000000000000000000004 /* SyncPack.swift */,
 				A20000000000000000000002 /* FolderBookmark.swift */,
@@ -264,9 +268,10 @@
 				A10000000000000000000010 /* PhoneCalendar.swift in Sources */,
 				A10000000000000000000011 /* AddEventSheet.swift in Sources */,
 				A10000000000000000000012 /* DayClock.swift in Sources */,
-				A10000000000000000000007 /* JournalScreen.swift in Sources */,
-				A10000000000000000000008 /* WeekScreen.swift in Sources */,
-				A10000000000000000000009 /* InboxScreen.swift in Sources */,
+				A10000000000000000000007 /* EventAlerts.swift in Sources */,
+				A10000000000000000000008 /* CalendarScreen.swift in Sources */,
+				A10000000000000000000009 /* TodoScreen.swift in Sources */,
+				A10000000000000000000013 /* TodayList.swift in Sources */,
 				A1000000000000000000000A /* SettingsScreen.swift in Sources */,
 				A1000000000000000000000D /* PackActions.swift in Sources */,
 				A1000000000000000000000E /* AppIntents.swift in Sources */,
@@ -284,6 +289,7 @@
 				B10000000000000000000005 /* DayTimeline.swift in Sources */,
 				B10000000000000000000009 /* PhoneCalendar.swift in Sources */,
 				B10000000000000000000006 /* PackActions.swift in Sources */,
+				B1000000000000000000000A /* TodayList.swift in Sources */,
 				B10000000000000000000007 /* AppIntents.swift in Sources */,
 				B10000000000000000000008 /* KosistenzWidget.swift in Sources */,
 			);

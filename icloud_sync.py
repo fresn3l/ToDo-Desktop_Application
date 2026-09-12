@@ -500,7 +500,7 @@ def _dump_calendar() -> Dict[str, Any]:
         }
 
     def slim(item: Dict[str, Any]) -> Dict[str, Any]:
-        return {
+        packed = {
             "id": item.get("id"),
             "title": item.get("title") or "",
             "kind": item.get("kind") or "",
@@ -508,6 +508,11 @@ def _dump_calendar() -> Dict[str, Any]:
             "start_at": item.get("start_at"),
             "end_at": item.get("end_at"),
         }
+        if item.get("work_item_id"):
+            packed["work_item_id"] = item.get("work_item_id")
+        if item.get("updated_at"):
+            packed["updated_at"] = item.get("updated_at")
+        return packed
 
     def slim_due(item: Dict[str, Any]) -> Dict[str, Any]:
         return {
@@ -537,6 +542,28 @@ def _dump_calendar() -> Dict[str, Any]:
         for item in (week.get("unplaced") or [])
         if item.get("title")
     ]
+    marks: Dict[str, Dict[str, Any]] = {}
+    for day in days:
+        for item in (day.get("events") or []) + (day.get("blocks") or []):
+            state = str(item.get("status") or "").strip().lower()
+            item_id = str(item.get("id") or "").strip()
+            if item_id and state in ("done", "skipped"):
+                marks[item_id] = {
+                    "id": item_id,
+                    "status": state,
+                    "updated_at": item.get("updated_at") or "",
+                }
+    for row in calclock.list_event_marks():
+        item_id = str(row.get("id") or "").strip()
+        if not item_id:
+            continue
+        current = marks.get(item_id) or {}
+        if str(row.get("updated_at") or "") >= str(current.get("updated_at") or ""):
+            marks[item_id] = {
+                "id": item_id,
+                "status": row.get("status") or "",
+                "updated_at": row.get("updated_at") or "",
+            }
     return {
         "week_start": week.get("week_start"),
         "week_end": week.get("week_end"),
@@ -545,6 +572,7 @@ def _dump_calendar() -> Dict[str, Any]:
         "days": days,
         "unplaced": unplaced[:40],
         "hard_events": hard_events[:500],
+        "marks": list(marks.values())[:500],
     }
 
 
@@ -568,7 +596,44 @@ def _apply_calendar(payload: Dict[str, Any]) -> Dict[str, int]:
         stored = calclock.upsert_phone_event(incoming)
         if stored:
             applied += 1
-    return {"calendar": applied}
+    marks_applied = _apply_calendar_marks(payload)
+    return {"calendar": applied, "calendar_marks": marks_applied}
+
+
+def _apply_calendar_marks(payload: Dict[str, Any]) -> int:
+    """Phone check-off: schedule blocks plus hard-event marks."""
+    import calclock
+
+    rows = payload.get("marks") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return 0
+    applied = 0
+    for row in rows[:500]:
+        if not isinstance(row, dict):
+            continue
+        item_id = str(row.get("id") or "").strip()
+        status = str(row.get("status") or "").strip().lower()
+        if not item_id or status not in ("done", "skipped", "open"):
+            continue
+        stamp = str(row.get("updated_at") or "").strip()
+        if not _plausible_stamp(stamp):
+            stamp = _now()
+        block = calclock.load_block(item_id)
+        if block:
+            if not _newer(stamp, block.get("updated_at")):
+                continue
+            next_status = status
+            if status == "open":
+                next_status = "locked" if block.get("kind") in ("work", "workout") else "proposed"
+            try:
+                calclock.set_block_status(item_id, next_status)
+            except ValueError:
+                continue
+            applied += 1
+            continue
+        if calclock.upsert_event_mark(item_id, status, stamp):
+            applied += 1
+    return applied
 
 
 def build_pack() -> Dict[str, Any]:

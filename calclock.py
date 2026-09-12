@@ -2367,6 +2367,15 @@ def add_block(
     return _row_block(row)
 
 
+def load_block(block_id: str) -> Optional[Dict[str, Any]]:
+    key = str(block_id or "").strip()
+    if not key:
+        return None
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (key,)).fetchone()
+    return _row_block(row) if row else None
+
+
 @eel.expose
 def set_block_status(block_id: str, status: str) -> Dict[str, Any]:
     key = str(status or "").strip().lower()

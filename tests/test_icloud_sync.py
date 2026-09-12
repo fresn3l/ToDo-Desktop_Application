@@ -377,6 +377,32 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertEqual(row["title"], "Imported CHEM")
         self.assertEqual(row["source"], "ics")
 
+    def test_phone_calendar_mark_completes_a_block(self) -> None:
+        import calclock
+
+        self._use(self.src)
+        start = datetime(2026, 9, 8, 16, 0, 0)
+        end = datetime(2026, 9, 8, 17, 0, 0)
+        block = calclock.add_block(title="Write the brief", start=start, end=end, kind="work", status="locked")
+        icloud_sync.write_pack(self.pack)
+        payload = icloud_sync._read_json(self.pack / "calendar.json", {})
+        later = (datetime.now() + timedelta(minutes=1)).isoformat(timespec="seconds")
+        payload.setdefault("marks", []).append(
+            {"id": block["id"], "status": "done", "updated_at": later}
+        )
+        icloud_sync._write_json(self.pack / "calendar.json", payload)
+        result = icloud_sync.apply_pack(self.pack)
+        self.assertGreaterEqual((result.get("applied") or {}).get("calendar_marks") or 0, 1)
+        stored = calclock.load_block(block["id"])
+        self.assertEqual(stored["status"], "done")
+        calclock.upsert_event_mark("hard-1", "done", later)
+        marks = {row["id"]: row["status"] for row in calclock.list_event_marks()}
+        self.assertEqual(marks["hard-1"], "done")
+        dumped = icloud_sync._dump_calendar()
+        dumped_ids = {row["id"] for row in dumped.get("marks") or []}
+        self.assertIn("hard-1", dumped_ids)
+        self.assertIn(block["id"], dumped_ids)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,9 +4,11 @@ Companion to the Mac app. Same Apple ID. Data moves through **iCloud Drive / Kos
 
 The Mac writes a JSON pack (`work.json`, `workouts.json`, `journal.json`, `calendar.json`, `appearance.json`). This iOS app reads and writes those files through a folder you pick in Files. Appearance comes from the Mac pack — there is no second theme picker on the phone.
 
-Ask Cluny stays on the Mac. If the laptop is asleep, Cluny is off on the phone on purpose. To-dos, journal, workouts, and **named busy time** still save.
+Ask Cluny stays on the Mac. If the laptop is asleep, Cluny is off on the phone on purpose. To-dos and **named busy time** still save.
 
-Today and Week show the **awake-window clock** from the pack (`day_start`–`day_end`, default 05:30–21:30), with dues as chips. **Add** a named event (one-off or weekly day chips). Times are 24-hour, same as the Mac (`0930`, `21:30`). After Save, the block is on the phone clock immediately; opening the Mac merges it (`source: iphone`) and writes the canonical week back. Packed study still cannot be dragged from the phone. Nights stay empty unless you add a block yourself.
+Three tabs: **Today** (check-off list), **Calendar** (week or today clock), **To Do** (later + All Work). Sync is a sheet, not a tab. Local alerts fire **30, 15, and 5 minutes** before a timed event; checking it off cancels the rest.
+
+**Add** a named event on Calendar (one-off or weekly day chips). Times are 24-hour, same as the Mac (`0930`, `21:30`). After Save, the block is on the phone clock immediately; opening the Mac merges it (`source: iphone`) and writes the canonical week back. Packed study still cannot be dragged from the phone.
 
 **Shortcuts / Siri / Action Button:** Park in All Work, check off today’s first to-do, log the expected workout. **Home Screen widget:** today’s to-dos; tap the circle to toggle. The widget reads a snapshot in the App Group; open the app once after installing so it fills.
 
@@ -25,29 +27,29 @@ Both the app and **KosistenzWidget** need the same Team. Add **App Groups** → 
 1. Open `ios/Kosistenz.xcodeproj` in Xcode.
 2. Signing & Capabilities → your Personal Team. Bundle id defaults to `com.kosistenz.app` — change it if Apple asks you to.
 3. Run on your iPhone (or iPad). The same target supports Mac Catalyst if you want the companion window on a laptop next to the full Mac app.
-4. First launch: **Sync → Choose iCloud Drive / Kosistenz**. Pick the `Kosistenz` folder in iCloud Drive (the one the Mac just pushed). Saves go through that bookmark with `NSFileCoordinator`.
+4. First launch: pick **Files → iCloud Drive → Kosistenz**. Saves go through that bookmark with `NSFileCoordinator`. Allow notifications when asked.
 
 Until you pick the folder, the app says **On this iPhone only**.
 
 ## After it launches
 
 1. On the Mac: Settings → Phone → Push to iCloud. Leave **Pull phone changes when this Mac app opens** on.
-2. On the iPhone: pull to refresh, or Sync now.
-3. Check off a to-do, log the expected workout (miles for a run, a name for Other), write in Journal, or **Add** an event on Today or Week.
-4. Open Kosistenz on the Mac. Today should update without visiting Settings → Phone.
+2. On the iPhone: pull to refresh, or open Sync (cloud icon) → Sync now.
+3. Check off Today’s list, move All Work onto today, or **Add** an event on Calendar.
+4. Open Kosistenz on the Mac. Checks and new events should be there without visiting Settings → Phone.
 
 ## Phone tabs
 
 | Tab | What it is |
 | --- | --- |
-| Today | Awake-window clock, dues, dated to-dos, expected workout chips, journal teaser. **Add** a busy block. |
-| Week | This week’s clock (events + packed blocks + dues). **Add** a named event; no Fill week / drag. |
-| Journal | Full-screen editor; edits today’s entry instead of minting a second one |
-| Inbox | Park a thought in All Work + goals from the pack |
-| Sync | Folder picker, last pack time, Cluny note |
+| Today | Ordered list of today’s timed events and dated work. Check off with a short animation. Add a task → dated today. |
+| Calendar | Toggle week clock / today’s clock. **Add** a named event; no Fill week / drag. |
+| To Do | Everything not dated today (later + All Work). Park a new thought, or send a row to today. |
+
+Sync (folder, last pack time, alerts note) is the cloud icon, not a tab. Journal is not on the phone.
 
 The compact layout is for iPhone. On iPad (and Catalyst) a sidebar lists the same tabs.
 
 ## Out of scope here
 
-Analytics, Timeline tab, Brain/Library, Ask Cluny over the internet, CloudKit, App Store / TestFlight, editing repeating series or the week workout template from the phone, Fill week / drag packed blocks, an “Add a class” App Intent.
+Day-rollover `missed` marks and Mac Analytics consistency, Timeline, Brain/Library, Ask Cluny over the internet, CloudKit, App Store / TestFlight, editing repeating series or the week workout template from the phone, Fill week / drag packed blocks.
