@@ -670,6 +670,29 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("min-height: 8px", STYLE)
         self.assertIn("const heightPct = (dur / span) * 100", CAL_JS)
 
+    def test_calendar_drag_is_tracked_at_the_window(self) -> None:
+        # Pointer capture alone loses the drag inside WKWebView, so the window
+        # has to carry move and up the way the Home board already does.
+        self.assertIn("window.addEventListener('pointermove', onDragMove)", CAL_JS)
+        self.assertIn("window.addEventListener('pointerup', onDragUp)", CAL_JS)
+        self.assertIn("window.addEventListener('pointercancel', onDragUp)", CAL_JS)
+        self.assertIn("window.addEventListener('mousemove', onDragMove)", CAL_JS)
+        self.assertIn("window.addEventListener('mouseup', onDragUp)", CAL_JS)
+        self.assertIn("trackDragAtWindow()", CAL_JS)
+        # A mouse event has no pointerId; the guard must not drop it.
+        self.assertIn("e.pointerId == null || e.pointerId === dragState.pointerId", CAL_JS)
+        self.assertNotIn("btn.addEventListener('pointermove', onDuePointerMove)", CAL_JS)
+        self.assertNotIn("btn.addEventListener('pointerup', onDuePointerUp)", CAL_JS)
+        self.assertNotIn("btn.addEventListener('pointermove', onBlockPointerMove)", CAL_JS)
+        # A drop that lands nowhere says so instead of failing in silence.
+        self.assertIn("Switch to Week view to place this on the clock.", CAL_JS)
+        self.assertIn("Switch to Week to drag these onto the clock.", CAL_JS)
+        # The browser must not claim the gesture before the handler sees it.
+        chip = STYLE.split(".cal-due-chip {")[1].split("}")[0]
+        self.assertIn("touch-action: none", chip)
+        item = STYLE.split(".cal-unplaced-item {")[1].split("}")[0]
+        self.assertIn("touch-action: none", item)
+
     def test_glance_tiles_fit_one_row_height(self) -> None:
         self.assertIn("action: w >= 2 && h >= 2", GLANCE_TILES)
         self.assertIn('.home-widget[data-h="1"] .glance-list', STYLE)

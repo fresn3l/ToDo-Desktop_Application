@@ -5505,6 +5505,10 @@ html[data-motion='reduce'] *::after {
     border: 0;
     border-radius: 10px;
     cursor: pointer;
+    /* These are drag handles onto the clock, so the browser must not claim
+       the gesture for scrolling or text selection first. */
+    touch-action: none;
+    user-select: none;
     background: color-mix(in srgb, hsl(var(--due-h, 32) 42% 46%) 18%, var(--bg-input));
     color: var(--text-primary);
 }
@@ -6126,6 +6130,8 @@ html[data-motion='reduce'] *::after {
     border-radius: 8px;
     padding: 8px 10px;
     cursor: pointer;
+    touch-action: none;
+    user-select: none;
     color: inherit;
 }
 

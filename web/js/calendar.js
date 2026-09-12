@@ -48,6 +48,13 @@ function setCalView(next) {
     document.getElementById('calClockHint')?.classList.toggle('is-hidden', calView !== 'week');
     // Month and year views show the event / placed / due legend.
     document.getElementById('calMonthLegend')?.classList.toggle('is-hidden', calView === 'week');
+    // There is no clock to drop onto outside Week, so stop inviting the drag.
+    const unplacedHint = document.querySelector('.cal-unplaced-hint');
+    if (unplacedHint) {
+        unplacedHint.textContent = calView === 'week'
+            ? 'Drag onto the clock. Fill week packs the rest.'
+            : 'Switch to Week to drag these onto the clock.';
+    }
     document.querySelectorAll('#calViewGroup [data-cal-view]').forEach((btn) => {
         btn.classList.toggle('is-selected', btn.getAttribute('data-cal-view') === calView);
     });
@@ -524,9 +531,6 @@ function renderUnplaced(items, total) {
         .join('') + extra;
     root.querySelectorAll('.cal-unplaced-item').forEach((btn) => {
         btn.addEventListener('pointerdown', onDuePointerDown);
-        btn.addEventListener('pointermove', onDuePointerMove);
-        btn.addEventListener('pointerup', onDuePointerUp);
-        btn.addEventListener('pointercancel', onDuePointerUp);
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             if (btn.dataset.didDrag === '1') {
@@ -918,9 +922,6 @@ function isoFromEditor() {
 function bindGrid() {
     document.querySelectorAll('.cal-block').forEach((btn) => {
         btn.addEventListener('pointerdown', onBlockPointerDown);
-        btn.addEventListener('pointermove', onBlockPointerMove);
-        btn.addEventListener('pointerup', onBlockPointerUp);
-        btn.addEventListener('pointercancel', onBlockPointerUp);
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (btn.dataset.didDrag === '1') {
@@ -1004,9 +1005,6 @@ function bindDueChips(root) {
         if (btn.dataset.bound === '1') return;
         btn.dataset.bound = '1';
         btn.addEventListener('pointerdown', onDuePointerDown);
-        btn.addEventListener('pointermove', onDuePointerMove);
-        btn.addEventListener('pointerup', onDuePointerUp);
-        btn.addEventListener('pointercancel', onDuePointerUp);
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -1017,6 +1015,33 @@ function bindDueChips(root) {
             showDueMenu(btn);
         });
     });
+}
+
+// A drag has to be followed at the window, not on the element that started it.
+// Pointer capture is the tidier route but WKWebView drops it often enough that
+// the drop was silently doing nothing, so the window is the source of truth.
+function samePointer(e) {
+    return e.pointerId == null || e.pointerId === dragState.pointerId;
+}
+
+function onDragMove(e) {
+    if (!dragState || !samePointer(e)) return;
+    if (dragState.kind === 'due') onDuePointerMove(e);
+    else onBlockPointerMove(e);
+}
+
+function onDragUp(e) {
+    if (!dragState || !samePointer(e)) return;
+    if (dragState.kind === 'due') void onDuePointerUp(e);
+    else void onBlockPointerUp(e);
+}
+
+function trackDragAtWindow() {
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', onDragUp);
+    window.addEventListener('pointercancel', onDragUp);
+    window.addEventListener('mousemove', onDragMove);
+    window.addEventListener('mouseup', onDragUp);
 }
 
 function onBlockPointerDown(e) {
@@ -1039,7 +1064,7 @@ function onBlockPointerDown(e) {
 }
 
 function onBlockPointerMove(e) {
-    if (!dragState || e.pointerId !== dragState.pointerId) return;
+    if (!dragState || dragState.kind === 'due' || !samePointer(e)) return;
     const dx = e.clientX - dragState.originX;
     const dy = e.clientY - dragState.originY;
     if (!dragState.moved && (dx * dx + dy * dy) < 36) return;
@@ -1066,12 +1091,15 @@ function onBlockPointerMove(e) {
 }
 
 async function onBlockPointerUp(e) {
-    if (!dragState || dragState.kind === 'due' || e.pointerId !== dragState.pointerId) return;
+    if (!dragState || dragState.kind === 'due' || !samePointer(e)) return;
     const state = dragState;
     dragState = null;
     state.el.classList.remove('is-dragging');
-    try { state.el.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
-    if (!state.moved || !state.preview) return;
+    try { state.el.releasePointerCapture(state.pointerId); } catch (_) { /* ignore */ }
+    if (!state.moved || !state.preview) {
+        if (state.moved) await loadCalendar();
+        return;
+    }
     const { startMin } = clockWindow(lastSettings);
     const [y, m, d] = state.preview.date.split('-').map(Number);
     const start = new Date(y, m - 1, d, 0, 0, 0);
@@ -1176,7 +1204,7 @@ function onDuePointerDown(e) {
 }
 
 function onDuePointerMove(e) {
-    if (!dragState || dragState.kind !== 'due' || e.pointerId !== dragState.pointerId) return;
+    if (!dragState || dragState.kind !== 'due' || !samePointer(e)) return;
     const dx = e.clientX - dragState.originX;
     const dy = e.clientY - dragState.originY;
     if (!dragState.moved && (dx * dx + dy * dy) < 36) return;
@@ -1209,13 +1237,21 @@ function onDuePointerMove(e) {
 }
 
 async function onDuePointerUp(e) {
-    if (!dragState || dragState.kind !== 'due' || e.pointerId !== dragState.pointerId) return;
+    if (!dragState || dragState.kind !== 'due' || !samePointer(e)) return;
     const state = dragState;
     dragState = null;
     state.ghost?.remove();
     document.querySelectorAll('.cal-day-body.is-drop').forEach((el) => el.classList.remove('is-drop'));
-    try { state.el.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
-    if (!state.moved || !state.preview || !state.id) return;
+    try { state.el.releasePointerCapture(state.pointerId); } catch (_) { /* ignore */ }
+    if (!state.moved || !state.preview || !state.id) {
+        // A drag that lands nowhere used to end in silence, which read as broken.
+        if (state.moved && !state.preview) {
+            utils.showErrorFeedback(calView === 'week'
+                ? 'Drop it on a day column to put it on the clock.'
+                : 'Switch to Week view to place this on the clock.');
+        }
+        return;
+    }
     const [y, m, d] = state.preview.date.split('-').map(Number);
     const start = new Date(y, m - 1, d, 0, 0, 0);
     start.setMinutes(state.preview.startMin + state.preview.minutesFromStart);
@@ -1514,6 +1550,7 @@ function importIcs() {
 
 export function setupCalendar() {
     setCalView(calView);
+    trackDragAtWindow();
     paintEditor();
     document.getElementById('calDueMenu')?.addEventListener('click', (e) => {
         const act = e.target.closest('[data-act]')?.getAttribute('data-act');
