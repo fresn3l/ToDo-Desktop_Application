@@ -24,6 +24,27 @@ NATIVE_MAC = (ROOT / "native_mac.py").read_text(encoding="utf-8")
 PASTE_JS = (ROOT / "web" / "js" / "paste_insert.js").read_text(encoding="utf-8")
 
 
+def container_rules(condition: str) -> str:
+    """Every rule the tile applies when its box matches `condition`.
+
+    Tiles are styled by the room they have rather than the cells they span,
+    so the tests ask the same question the stylesheet does.
+    """
+    out = []
+    for chunk in STYLE.split("@container tile ")[1:]:
+        head, _, rest = chunk.partition("{")
+        if condition not in head:
+            continue
+        depth, end = 1, 0
+        for i, ch in enumerate(rest):
+            depth += (ch == "{") - (ch == "}")
+            if depth == 0:
+                end = i
+                break
+        out.append(rest[:end])
+    return "\n".join(out)
+
+
 class HomeUiTests(unittest.TestCase):
     def test_the_widget_border_settings_reach_the_board(self) -> None:
         """Appearance writes a width and a colour for the widget border. The
@@ -512,7 +533,10 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn('sizes: [[1, 1]', HOME_JS)
         self.assertIn("default: [2, 2]", HOME_JS)
         self.assertIn("default: [2, 1]", HOME_JS)
-        self.assertIn('[data-w="1"][data-h="1"]', STYLE)
+        # The smallest tile is a chip: one figure, one label, no furniture.
+        self.assertIn("container: tile / size", STYLE)
+        tiny = container_rules("(max-height: 189px) and (max-width: 399px)")
+        self.assertIn(".home-widget-body", tiny)
         self.assertIn(".home-widget-chrome", STYLE)
         self.assertIn("countdown-days", GLANCE_JS)
         tokens = (ROOT / "web" / "tokens.css").read_text(encoding="utf-8")
@@ -744,10 +768,11 @@ class HomeUiTests(unittest.TestCase):
 
     def test_glance_tiles_fit_one_row_height(self) -> None:
         self.assertIn("action: w >= 2 && h >= 2", GLANCE_TILES)
-        self.assertIn('.home-widget[data-h="1"] .glance-list', STYLE)
-        self.assertIn('.home-widget[data-h="1"] .glance-capture', STYLE)
-        self.assertIn('.home-widget[data-h="1"] .glance-actions', STYLE)
-        self.assertIn('.home-widget[data-h="1"] .glance-hourly', STYLE)
+        # A tile with one row of room shows a headline and nothing that needs
+        # a second line to make sense.
+        short = container_rules("(max-height: 189px)")
+        for dropped in (".glance-list", ".glance-capture", ".glance-actions", ".glance-hourly"):
+            self.assertIn(dropped, short, f"a short tile should drop {dropped}")
         self.assertIn("overflow: hidden", STYLE)
 
     def test_every_glance_spends_one_row_budget(self) -> None:
