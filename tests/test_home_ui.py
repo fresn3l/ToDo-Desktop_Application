@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -145,30 +146,30 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("key === 'analytics'", TABS)
 
     def test_js_catalog_matches_folded_tabs(self) -> None:
-        for kind in (
-            "todo",
-            "today_calendar",
-            "workout",
-            "goals",
-            "allwork",
-            "analytics",
-            "weather",
-            "countdown",
-            "habits",
-            "day_brief",
-            "counters",
-            "reading",
-            "word",
-            "cluny",
-            "unplaced",
-            "dues",
-        ):
-            self.assertIn(f"{kind}:", HOME_JS)
-        for gone in ("now_next", "free_today", "heatmap", "focus", "timeline"):
-            self.assertNotIn(f"{gone}:", HOME_JS)
-        self.assertNotIn("journal:", HOME_JS)
-        self.assertNotIn("checklist:", HOME_JS)
-        self.assertNotIn("settings:", HOME_JS)
+        body = HOME_JS.split("export const WIDGET_CATALOG = {", 1)[1].split("\n};", 1)[0]
+        kinds = set(re.findall(r"^ {4}(\w+): \{", body, re.M))
+        # Journal, Checklist and Settings are tabs, not tiles. To Do, All Work,
+        # Unplaced and Due are one Work tile with a setting.
+        self.assertEqual(
+            kinds,
+            {
+                "work",
+                "today_calendar",
+                "workout",
+                "goals",
+                "analytics",
+                "weather",
+                "countdown",
+                "habits",
+                "day_brief",
+                "counters",
+                "reading",
+                "word",
+                "cluny",
+            },
+        )
+        for slice_name in ("'today'", "'backlog'", "'unplaced'", "'due'"):
+            self.assertIn(f"value: {slice_name}", HOME_JS)
 
     def test_calendar_month_year_markup(self) -> None:
         for needle in ("calViewGroup", "calMonthGrid", "calYearGrid", "calFillWeek", "calPrevWeek"):
@@ -217,7 +218,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("homeWorkBackdrop", HOME_RUNTIME)
         begin = HOME_RUNTIME.split("const beginDrag")[1].split("const beginResize")[0]
         self.assertIn("if (!editing) return", begin)
-        self.assertIn("openHomeWork(card.getAttribute('data-kind')", HOME_RUNTIME)
+        self.assertIn("openHomeWork(card.getAttribute('data-key')", HOME_RUNTIME)
         self.assertIn("Escape", HOME_RUNTIME)
         self.assertIn("w-weather", HOME_RUNTIME)
         self.assertIn("w-word", HOME_RUNTIME)
@@ -231,12 +232,12 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("function weatherHtml", GLANCE_TILES)
         self.assertIn("function wordHtml", GLANCE_TILES)
         self.assertIn("function todayHtml", GLANCE_TILES)
-        self.assertIn("function todoHtml", GLANCE_TILES)
+        self.assertIn("function workTodayHtml", GLANCE_TILES)
         self.assertIn("function countdownHtml", GLANCE_TILES)
         self.assertIn("function readingHtml", GLANCE_TILES)
         self.assertIn("function workoutHtml", GLANCE_TILES)
         self.assertIn("function goalsHtml", GLANCE_TILES)
-        self.assertIn("function allworkHtml", GLANCE_TILES)
+        self.assertIn("function workBacklogHtml", GLANCE_TILES)
         self.assertIn("function dayBriefHtml", GLANCE_TILES)
         self.assertIn("function analyticsHtml", GLANCE_TILES)
         self.assertIn("function posterHtml", GLANCE_TILES)
@@ -250,8 +251,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("get_analytics", GLANCE_TILES)
         self.assertIn("get_cluny_inbox", GLANCE_TILES)
         self.assertIn("function clunyHtml", GLANCE_TILES)
-        self.assertIn("function unplacedHtml", GLANCE_TILES)
-        self.assertIn("function duesHtml", GLANCE_TILES)
+        self.assertIn("function workUnplacedHtml", GLANCE_TILES)
+        self.assertIn("function workDueHtml", GLANCE_TILES)
         self.assertIn("todo-plus15", GLANCE_TILES)
         self.assertIn("work-today", GLANCE_TILES)
         self.assertIn("block-skip", GLANCE_TILES)
@@ -313,9 +314,9 @@ class HomeUiTests(unittest.TestCase):
     def test_home_widget_refresh_continues_after_one_failure(self) -> None:
         quiet = HOME_RUNTIME.split("async function runQuietly")[1].split("async function refreshWork")[0]
         self.assertIn("console.error(err)", quiet)
-        work = HOME_RUNTIME.split("async function refreshWork")[1].split("async function refreshKinds")[0]
+        work = HOME_RUNTIME.split("async function refreshWork")[1].split("async function refreshKeys")[0]
         self.assertIn("await runQuietly(refresh)", work)
-        refresh = HOME_RUNTIME.split("async function refreshKinds")[1].split("function paintPages")[0]
+        refresh = HOME_RUNTIME.split("async function refreshKeys")[1].split("function pageKeys")[0]
         self.assertIn("await runQuietly(() => refreshGlances", refresh)
         self.assertIn("ensureWork", HOME_RUNTIME)
 
@@ -701,7 +702,7 @@ class HomeUiTests(unittest.TestCase):
         boot_py = (ROOT / "home_boot.py").read_text(encoding="utf-8")
         # The check-in rides in the glance pool instead of waiting behind it.
         self.assertIn("CHECKIN_TASK", boot_py)
-        self.assertIn("glances = _fetch_glances(kinds, extra)", boot_py)
+        self.assertIn("glances = _fetch_glances(keys, extra)", boot_py)
         self.assertIn("checkin = glances.pop(CHECKIN_TASK, None)", boot_py)
         # Rate-goal voice reads every goal over three windows; off the trip.
         self.assertIn("_nudge_rate_voice_later()", boot_py)
@@ -710,7 +711,7 @@ class HomeUiTests(unittest.TestCase):
         # Opening a widget loads the sheet, not the tile behind it again.
         opener = HOME_RUNTIME.split("export async function openHomeWork")[1].split("async function runQuietly")[0]
         self.assertIn("void refreshWork()", opener)
-        self.assertNotIn("refreshKinds([kind])", opener)
+        self.assertNotIn("refreshKeys([key])", opener)
         # Coming back to a board that is still current skips another boot.
         self.assertIn("function bootIsFresh()", HOME_RUNTIME)
         self.assertIn("if (!bootIsFresh()) void refreshHomeData()", HOME_RUNTIME)
@@ -779,7 +780,7 @@ class HomeUiTests(unittest.TestCase):
         # Every list renderer reads the shared budget instead of its own number.
         self.assertGreaterEqual(GLANCE_TILES.count("size.rows"), 8)
         # A tile showing a list drops the headline rather than repeat row one.
-        todo = GLANCE_TILES.split("function todoHtml")[1].split("function habitsHtml")[0]
+        todo = GLANCE_TILES.split("function workTodayHtml")[1].split("function habitsHtml")[0]
         self.assertIn("pool.slice(0, size.rows)", todo)
         self.assertIn("primary: size.tall ? '' :", todo)
         self.assertIn("moreCount(extra)", todo)
@@ -801,7 +802,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("sourceIsOpen('goalsTab')", GOALS_JS)
         self.assertIn("widget-source--active", UTILS)
         self.assertIn("data?.ok === false", GLANCE_TILES)
-        self.assertIn("openWorkAction('goals')", GLANCE_TILES)
+        self.assertIn("action: openWorkAction(key),", GLANCE_TILES)
         self.assertIn(".home-work-body .goals-layout", STYLE)
         self.assertIn("repeat(2, minmax(0, 1fr))", STYLE)
         self.assertNotIn("repeat(4, minmax(14rem, 1fr))", STYLE)

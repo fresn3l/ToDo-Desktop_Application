@@ -68,46 +68,52 @@ def _today_calendar_glance() -> Dict[str, Any]:
     }
 
 
-def fetch_glance(kind: str) -> Any:
-    key = str(kind or "").strip()
-    if key == "weather":
-        return _safe_call("weather", "get_weather_forecast", False)
-    if key == "word":
-        return _safe_call("word_of_the_day", "get_word_of_the_day")
-    if key == "today_calendar":
-        return _today_calendar_glance()
-    if key == "todo":
-        try:
-            return work.get_work_board(_today_iso())
-        except Exception as exc:
-            return {"ok": False, "error": str(exc), "today": [], "counts": {}}
-    if key == "countdown":
-        return _safe_call("glance", "get_countdowns")
-    if key == "habits":
-        return _safe_call("glance", "get_habits")
-    if key == "reading":
-        return _safe_call("reading", "get_reading")
-    if key == "counters":
-        return _safe_call("tap_counters", "get_tap_counters")
-    if key == "workout":
-        return _safe_call("insights", "get_today_status")
-    if key == "goals":
-        return _safe_call("goals", "list_goals")
-    if key == "allwork":
+def _work_glance(slice_name: str) -> Any:
+    """Four cuts of one list. Today and Due come off the dated board; All work
+    and Unplaced come off the backlog."""
+    if slice_name == "backlog":
         try:
             return work.list_backlog()
         except Exception as exc:
             return {"ok": False, "error": str(exc)}
-    if key == "day_brief":
-        return _safe_call("day_brief", "get_day_brief")
-    if key == "analytics":
-        return _safe_call("insights", "get_analytics", 7)
-    if key == "cluny":
-        return _cluny_glance()
-    if key == "unplaced":
+    if slice_name == "unplaced":
         return _safe_call("home_glances", "unplaced_glance")
-    if key == "dues":
+    if slice_name == "due":
         return _safe_call("home_glances", "dues_this_week")
+    try:
+        return work.get_work_board(_today_iso())
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "today": [], "counts": {}}
+
+
+def fetch_glance(key: str) -> Any:
+    kind, settings = home_layout.split_key(str(key or "").strip())
+    if kind == "work":
+        return _work_glance(settings.get("slice") or "today")
+    if kind == "weather":
+        return _safe_call("weather", "get_weather_forecast", False)
+    if kind == "word":
+        return _safe_call("word_of_the_day", "get_word_of_the_day")
+    if kind == "today_calendar":
+        return _today_calendar_glance()
+    if kind == "countdown":
+        return _safe_call("glance", "get_countdowns")
+    if kind == "habits":
+        return _safe_call("glance", "get_habits")
+    if kind == "reading":
+        return _safe_call("reading", "get_reading")
+    if kind == "counters":
+        return _safe_call("tap_counters", "get_tap_counters")
+    if kind == "workout":
+        return _safe_call("insights", "get_today_status")
+    if kind == "goals":
+        return _safe_call("goals", "list_goals")
+    if kind == "day_brief":
+        return _safe_call("day_brief", "get_day_brief")
+    if kind == "analytics":
+        return _safe_call("insights", "get_analytics", 7)
+    if kind == "cluny":
+        return _cluny_glance()
     return None
 
 
@@ -135,13 +141,13 @@ def _run_together(tasks: Dict[str, Any], timeout: float) -> Dict[str, Any]:
     return out
 
 
-def _fetch_glances(kinds: List[str], extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Fetch tiles in parallel. Weather cannot hold up Today / To Do."""
+def _fetch_glances(keys: List[str], extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Fetch tiles in parallel. Weather cannot hold up Today / Work."""
     local: Dict[str, Any] = {
-        kind: (lambda k=kind: fetch_glance(k)) for kind in kinds if kind not in NETWORK_GLANCES
+        key: (lambda k=key: fetch_glance(k)) for key in keys if key not in NETWORK_GLANCES
     }
     remote: Dict[str, Any] = {
-        kind: (lambda k=kind: fetch_glance(k)) for kind in kinds if kind in NETWORK_GLANCES
+        key: (lambda k=key: fetch_glance(k)) for key in keys if key in NETWORK_GLANCES
     }
     # Anything else Home needs on open rides along with the tiles rather than
     # waiting for them to finish first.
@@ -203,20 +209,25 @@ def get_home_boot(page_id: str = "") -> Dict[str, Any]:
     else:
         layout = home_layout.get_home_layout()
     page = _active_page(layout) or {}
-    kinds: List[str] = []
+    # Keyed by widget key, not by kind: two Work tiles on one page ask two
+    # different questions and each needs its own answer.
+    keys: List[str] = []
     seen = set()
     for widget in page.get("widgets") or []:
         kind = str(widget.get("kind") or "").strip()
-        if not kind or kind in seen:
+        if not kind:
             continue
-        seen.add(kind)
-        kinds.append(kind)
+        key = home_layout.widget_key(kind, widget.get("settings"))
+        if key in seen:
+            continue
+        seen.add(key)
+        keys.append(key)
     _safe_call("calclock", "rollover_missed_bars")
     first = _first_page(layout)
     extra: Dict[str, Any] = {}
     if first and page.get("id") == first.get("id"):
         extra[CHECKIN_TASK] = lambda: _safe_call("daily_checklist", "get_home_checkin")
-    glances = _fetch_glances(kinds, extra)
+    glances = _fetch_glances(keys, extra)
     checkin = glances.pop(CHECKIN_TASK, None)
     _ensure_cluny_supervisor()
     _nudge_rate_voice_later()

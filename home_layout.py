@@ -18,20 +18,31 @@ from appearance import COLOR_SLOTS, _as_hex
 from paths import data_directory
 
 GRID_COLUMNS = 8
-LAYOUT_VERSION = 4
+LAYOUT_VERSION = 5
 MAX_PAGES = 12
 MAX_WIDGETS_PER_PAGE = 32
 MAX_PAGE_NAME = 40
 MAX_SCAN_ROWS = 64
 
+# One tile, four slices of the same list. Each slice used to be a widget of
+# its own, which put four near-identical entries in the picker and kept four
+# renderers alive for one question asked four ways.
+WORK_SLICES = (
+    {"value": "today", "label": "Today", "source": "todoTab"},
+    {"value": "backlog", "label": "All work", "source": "allWorkTab"},
+    {"value": "unplaced", "label": "Unplaced", "source": "allWorkTab"},
+    {"value": "due", "label": "Due this week", "source": "todoTab"},
+)
+
 # Allowed (width, height) in cells. 2-wide tiles are glance chips; 8-wide is the full board.
 # Anything that renders a list defaults six rows tall: at four rows the tile
 # has to spend its height on a headline and buttons and the list collapses.
 WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
-    "todo": {
-        "label": "To Do",
+    "work": {
+        "label": "Work",
         "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
         "default": (4, 6),
+        "settings": {"slice": {"label": "Show", "default": "today", "options": WORK_SLICES}},
     },
     "today_calendar": {
         "label": "Today",
@@ -45,11 +56,6 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     },
     "goals": {
         "label": "Goals",
-        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
-        "default": (4, 6),
-    },
-    "allwork": {
-        "label": "All Work",
         "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
         "default": (4, 6),
     },
@@ -98,24 +104,13 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((4, 4), (4, 6), (6, 4), (6, 6), (8, 4)),
         "default": (8, 4),
     },
-    "unplaced": {
-        "label": "Unplaced",
-        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
-        "default": (4, 6),
-    },
-    "dues": {
-        "label": "Due",
-        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
-        "default": (4, 6),
-    },
 }
 
 SOURCE_TAB = {
-    "todo": "todoTab",
+    "work": "todoTab",
     "today_calendar": "todayCalendarSource",
     "workout": "workoutTab",
     "goals": "goalsTab",
-    "allwork": "allWorkTab",
     "analytics": "analyticsTab",
     "weather": "weatherSource",
     "countdown": "countdownSource",
@@ -125,26 +120,101 @@ SOURCE_TAB = {
     "reading": "readingSource",
     "word": "wordTab",
     "cluny": "clunySource",
-    "unplaced": "allWorkTab",
-    "dues": "todoTab",
 }
+
+
+LEGACY_WORK_SLICE = {"todo": "today", "allwork": "backlog", "unplaced": "unplaced", "dues": "due"}
 
 
 def _new_id() -> str:
     return str(uuid.uuid4())
 
 
+def settings_spec(kind: str) -> Dict[str, Any]:
+    return (WIDGET_CATALOG.get(kind) or {}).get("settings") or {}
+
+
+def coerce_settings(kind: str, raw: Any) -> Dict[str, str]:
+    """Keep only settings the kind declares, with values it offers."""
+    spec = settings_spec(kind)
+    if not spec:
+        return {}
+    given = raw if isinstance(raw, dict) else {}
+    out: Dict[str, str] = {}
+    for name, field in spec.items():
+        want = str(given.get(name) or "").strip()
+        allowed = {option["value"] for option in field["options"]}
+        out[name] = want if want in allowed else field["default"]
+    return out
+
+
+def widget_key(kind: str, settings: Any = None) -> str:
+    """What makes two tiles the same tile.
+
+    Two Work tiles belong on one page as long as they show different slices,
+    so a tile is named by what it is set to show, not by its kind alone.
+    """
+    bits = [f"{name}={value}" for name, value in sorted((settings or {}).items())]
+    return ":".join([kind, *bits]) if bits else kind
+
+
+def split_key(key: str) -> Tuple[str, Dict[str, str]]:
+    kind, _, rest = str(key or "").partition(":")
+    settings: Dict[str, str] = {}
+    for bit in rest.split(":") if rest else []:
+        name, _, value = bit.partition("=")
+        if name and value:
+            settings[name] = value
+    return kind, settings
+
+
+def widget_source(kind: str, settings: Any = None) -> str:
+    """The tab a tile opens. A Work slice opens the list it was cut from."""
+    for name, field in settings_spec(kind).items():
+        want = (settings or {}).get(name)
+        for option in field["options"]:
+            if option["value"] == want and option.get("source"):
+                return str(option["source"])
+    return SOURCE_TAB.get(kind, "")
+
+
+def fold_legacy_kind(kind: str, settings: Any) -> Tuple[str, Any]:
+    """To Do, All Work, Unplaced and Due were four cuts of one list."""
+    cut = LEGACY_WORK_SLICE.get(kind)
+    if cut is None:
+        return kind, settings
+    return "work", {"slice": cut}
+
+
+def _widget(key: str, x: int, y: int, w: int, h: int, region: str = "") -> Dict[str, Any]:
+    kind, settings = split_key(key)
+    item: Dict[str, Any] = {"id": _new_id(), "kind": kind, "x": x, "y": y, "w": w, "h": h}
+    if settings:
+        item["settings"] = settings
+    if region == "above":
+        item["region"] = "above"
+    return item
+
+
+def _slot(key: str, x: int, y: int, w: int, h: int, region: str = "below") -> Dict[str, Any]:
+    kind, settings = split_key(key)
+    slot: Dict[str, Any] = {"kind": kind, "x": x, "y": y, "w": w, "h": h, "region": region}
+    if settings:
+        slot["settings"] = settings
+    return slot
+
+
 def _stock_home_widgets() -> List[Dict[str, Any]]:
     # Today already shows what is running and what is next, so the board does
     # not carry a second clock tile saying the same thing one row down.
     return [
-        {"id": _new_id(), "kind": "todo", "x": 0, "y": 0, "w": 4, "h": 6, "region": "above"},
-        {"id": _new_id(), "kind": "today_calendar", "x": 4, "y": 0, "w": 4, "h": 6, "region": "above"},
-        {"id": _new_id(), "kind": "cluny", "x": 0, "y": 0, "w": 8, "h": 4},
-        {"id": _new_id(), "kind": "weather", "x": 0, "y": 4, "w": 4, "h": 2},
-        {"id": _new_id(), "kind": "word", "x": 4, "y": 4, "w": 4, "h": 2},
-        {"id": _new_id(), "kind": "unplaced", "x": 0, "y": 6, "w": 4, "h": 6},
-        {"id": _new_id(), "kind": "day_brief", "x": 4, "y": 6, "w": 4, "h": 6},
+        _widget("work:slice=today", 0, 0, 4, 6, "above"),
+        _widget("today_calendar", 4, 0, 4, 6, "above"),
+        _widget("cluny", 0, 0, 8, 4),
+        _widget("weather", 0, 4, 4, 2),
+        _widget("word", 4, 4, 4, 2),
+        _widget("work:slice=unplaced", 0, 6, 4, 6),
+        _widget("day_brief", 4, 6, 4, 6),
     ]
 
 
@@ -154,12 +224,12 @@ def default_week_page(name: str = "Week") -> Dict[str, Any]:
         "id": _new_id(),
         "name": _clip_name(name, "Week"),
         "widgets": [
-            {"id": _new_id(), "kind": "goals", "x": 0, "y": 0, "w": 4, "h": 6},
-            {"id": _new_id(), "kind": "allwork", "x": 4, "y": 0, "w": 4, "h": 6},
-            {"id": _new_id(), "kind": "habits", "x": 0, "y": 6, "w": 4, "h": 6},
-            {"id": _new_id(), "kind": "dues", "x": 4, "y": 6, "w": 4, "h": 6},
-            {"id": _new_id(), "kind": "workout", "x": 0, "y": 12, "w": 4, "h": 4},
-            {"id": _new_id(), "kind": "reading", "x": 4, "y": 12, "w": 4, "h": 2},
+            _widget("goals", 0, 0, 4, 6),
+            _widget("work:slice=backlog", 4, 0, 4, 6),
+            _widget("habits", 0, 6, 4, 6),
+            _widget("work:slice=due", 4, 6, 4, 6),
+            _widget("workout", 0, 12, 4, 4),
+            _widget("reading", 4, 12, 4, 2),
         ],
     }
 
@@ -184,15 +254,24 @@ def default_layout() -> Dict[str, Any]:
 def catalog() -> List[Dict[str, Any]]:
     rows = []
     for kind, spec in WIDGET_CATALOG.items():
-        rows.append(
-            {
-                "kind": kind,
-                "label": spec["label"],
-                "sizes": [list(size) for size in spec["sizes"]],
-                "default": list(spec["default"]),
-                "source": SOURCE_TAB[kind],
+        row = {
+            "kind": kind,
+            "label": spec["label"],
+            "sizes": [list(size) for size in spec["sizes"]],
+            "default": list(spec["default"]),
+            "source": SOURCE_TAB[kind],
+        }
+        settings = settings_spec(kind)
+        if settings:
+            row["settings"] = {
+                name: {
+                    "label": field["label"],
+                    "default": field["default"],
+                    "options": [dict(option) for option in field["options"]],
+                }
+                for name, field in settings.items()
             }
-        )
+        rows.append(row)
     return rows
 
 
@@ -368,6 +447,8 @@ def _pack_widget(item: Dict[str, Any], region: str) -> Dict[str, Any]:
         "w": item["w"],
         "h": item["h"],
     }
+    if item.get("settings"):
+        widget["settings"] = dict(item["settings"])
     if region == "above":
         widget["region"] = "above"
     return widget
@@ -386,7 +467,7 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
         page_id = str(page.get("id") or "").strip() or _new_id()
         name = _clip_name(page.get("name"), f"Page {index + 1}")
         widgets: List[Dict[str, Any]] = []
-        seen_kinds = set()
+        seen = set()
         incoming = page.get("widgets")
         if not isinstance(incoming, list):
             incoming = []
@@ -394,15 +475,29 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
         for item in incoming[:MAX_WIDGETS_PER_PAGE]:
             if not isinstance(item, dict):
                 continue
-            kind = str(item.get("kind") or "").strip()
-            if kind not in WIDGET_CATALOG or kind in seen_kinds:
+            kind, raw_settings = fold_legacy_kind(
+                str(item.get("kind") or "").strip(), item.get("settings")
+            )
+            if kind not in WIDGET_CATALOG:
+                continue
+            settings = coerce_settings(kind, raw_settings)
+            key = widget_key(kind, settings)
+            if key in seen:
                 continue
             w, h = coerce_size(kind, item.get("w"), item.get("h"))
             x = _as_int(item.get("x"), 0, 0, GRID_COLUMNS - w)
             y = _as_int(item.get("y"), 0, 0, MAX_SCAN_ROWS - 1)
             region = coerce_region(item.get("region"), first_page)
             widget = _pack_widget(
-                {"id": item.get("id"), "kind": kind, "x": x, "y": y, "w": w, "h": h},
+                {
+                    "id": item.get("id"),
+                    "kind": kind,
+                    "settings": settings,
+                    "x": x,
+                    "y": y,
+                    "w": w,
+                    "h": h,
+                },
                 region,
             )
             occupied = region_widgets(widgets, region, first_page)
@@ -411,7 +506,7 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
                 if spot is None:
                     continue
                 widget["x"], widget["y"] = spot
-            seen_kinds.add(kind)
+            seen.add(key)
             widgets.append(widget)
         packed_page: Dict[str, Any] = {"id": page_id, "name": name, "widgets": widgets}
         colors = sanitize_colors(page.get("colors") or page.get("colorOverrides"))
@@ -431,55 +526,83 @@ def sanitize_layout(raw: Any) -> Dict[str, Any]:
     }
 
 
-STOCK_HOME_KINDS = frozenset({"todo", "today_calendar", "weather", "word"})
+# Stock boards are compared and rebuilt by widget key, because two Work tiles
+# on one page are two different tiles.
+STOCK_HOME_KINDS = frozenset({"work:slice=today", "today_calendar", "weather", "word"})
 STOCK_HOME_WITH_CLUNY = STOCK_HOME_KINDS | {"cluny"}
 STOCK_HOME_WITH_DAY = STOCK_HOME_KINDS | {"day_brief"}
 STOCK_HOME_FULL = STOCK_HOME_KINDS | {"cluny", "day_brief"}
-STOCK_HOME_PLANNED = STOCK_HOME_FULL | {"unplaced"}
+STOCK_HOME_PLANNED = STOCK_HOME_FULL | {"work:slice=unplaced"}
 STOCK_HOME_CORE_SLOTS = {
-    "todo": {"x": 0, "y": 0, "w": 4, "h": 6, "region": "above"},
-    "today_calendar": {"x": 4, "y": 0, "w": 4, "h": 6, "region": "above"},
-    "cluny": {"x": 0, "y": 0, "w": 8, "h": 4, "region": "below"},
-    "weather": {"x": 0, "y": 4, "w": 4, "h": 2, "region": "below"},
-    "word": {"x": 4, "y": 4, "w": 4, "h": 2, "region": "below"},
-    "day_brief": {"x": 0, "y": 6, "w": 4, "h": 6, "region": "below"},
+    key: _slot(key, *box)
+    for key, box in (
+        ("work:slice=today", (0, 0, 4, 6, "above")),
+        ("today_calendar", (4, 0, 4, 6, "above")),
+        ("cluny", (0, 0, 8, 4)),
+        ("weather", (0, 4, 4, 2)),
+        ("word", (4, 4, 4, 2)),
+        ("day_brief", (0, 6, 4, 6)),
+    )
 }
 STOCK_HOME_SLOTS = {
-    "todo": {"x": 0, "y": 0, "w": 4, "h": 6, "region": "above"},
-    "today_calendar": {"x": 4, "y": 0, "w": 4, "h": 6, "region": "above"},
-    "cluny": {"x": 0, "y": 0, "w": 8, "h": 4, "region": "below"},
-    "weather": {"x": 0, "y": 4, "w": 4, "h": 2, "region": "below"},
-    "word": {"x": 4, "y": 4, "w": 4, "h": 2, "region": "below"},
-    "unplaced": {"x": 0, "y": 6, "w": 4, "h": 6, "region": "below"},
-    "day_brief": {"x": 4, "y": 6, "w": 4, "h": 6, "region": "below"},
+    key: _slot(key, *box)
+    for key, box in (
+        ("work:slice=today", (0, 0, 4, 6, "above")),
+        ("today_calendar", (4, 0, 4, 6, "above")),
+        ("cluny", (0, 0, 8, 4)),
+        ("weather", (0, 4, 4, 2)),
+        ("word", (4, 4, 4, 2)),
+        ("work:slice=unplaced", (0, 6, 4, 6)),
+        ("day_brief", (4, 6, 4, 6)),
+    )
 }
-WEEK_STOCK_KINDS = frozenset({"workout", "goals", "allwork", "habits", "reading"})
-WEEK_PLAN_KINDS = ("dues",)
+WEEK_STOCK_KINDS = frozenset(
+    {"workout", "goals", "work:slice=backlog", "habits", "reading"}
+)
+WEEK_PLAN_KINDS = ("work:slice=due",)
 
 
-def seed_ask_cluny(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    """Put Ask Cluny on a stock first Home page that does not have it yet."""
+def page_keys(page: Dict[str, Any]) -> set:
+    return {widget_key(item["kind"], item.get("settings")) for item in page["widgets"]}
+
+
+def _seed_stock_tile(
+    layout: Dict[str, Any], key: str, shapes: Tuple[Any, ...]
+) -> Tuple[Dict[str, Any], bool]:
+    """Put one stock tile on a first Home page that still matches an older
+    arrangement. `shapes` are the boards that predate the tile."""
     packed = sanitize_layout(layout)
     page = packed["pages"][0]
-    kinds = {item["kind"] for item in page["widgets"]}
-    if "cluny" in kinds:
+    keys = page_keys(page)
+    if key in keys or keys not in shapes:
         return packed, False
-    if kinds not in (STOCK_HOME_KINDS, STOCK_HOME_WITH_DAY):
-        return packed, False
+    slot = STOCK_HOME_SLOTS[key]
+    w, h = coerce_size(slot["kind"], slot["w"], slot["h"])
     occupied = region_widgets(page["widgets"], "below", True)
-    slot = STOCK_HOME_SLOTS["cluny"]
-    w, h = coerce_size("cluny", slot["w"], slot["h"])
     trial = {"id": "_", "x": slot["x"], "y": slot["y"], "w": w, "h": h}
     if all(not boxes_overlap(trial, other) for other in occupied):
-        spot = (slot["x"], slot["y"])
+        spot: Optional[Tuple[int, int]] = (slot["x"], slot["y"])
     else:
         spot = first_fit(occupied, w, h)
     if spot is None:
         return packed, False
-    page["widgets"].append(
-        {"id": _new_id(), "kind": "cluny", "x": spot[0], "y": spot[1], "w": w, "h": h}
-    )
+    page["widgets"].append(_widget(key, spot[0], spot[1], w, h))
     return packed, True
+
+
+def seed_ask_cluny(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
+    """Put Ask Cluny on a stock first Home page that does not have it yet."""
+    return _seed_stock_tile(layout, "cluny", (STOCK_HOME_KINDS, STOCK_HOME_WITH_DAY))
+
+
+def seed_day_brief(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
+    """Put Morning/Evening on a stock Home that only had Work, Today and chips."""
+    return _seed_stock_tile(layout, "day_brief", (STOCK_HOME_KINDS, STOCK_HOME_WITH_CLUNY))
+
+
+def seed_home_plan_tiles(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
+    """Put the Unplaced slice of Work on a stock first Home page."""
+    return _seed_stock_tile(layout, "work:slice=unplaced", (STOCK_HOME_FULL,))
 
 
 def seed_week_page(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
@@ -487,8 +610,8 @@ def seed_week_page(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     packed = sanitize_layout(layout)
     if len(packed["pages"]) != 1:
         return packed, False
-    kinds = {item["kind"] for item in packed["pages"][0]["widgets"]}
-    if kinds not in (STOCK_HOME_WITH_CLUNY, STOCK_HOME_FULL, STOCK_HOME_PLANNED):
+    keys = page_keys(packed["pages"][0])
+    if keys not in (STOCK_HOME_WITH_CLUNY, STOCK_HOME_FULL, STOCK_HOME_PLANNED):
         return packed, False
     packed["pages"].append(default_week_page())
     return packed, True
@@ -498,24 +621,22 @@ def restack_stock_home(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     """Give the first-install Home board room to breathe if it was never customized."""
     packed = sanitize_layout(layout)
     page = packed["pages"][0]
-    kinds = {item["kind"] for item in page["widgets"]}
-    if kinds == STOCK_HOME_PLANNED:
+    keys = page_keys(page)
+    if keys == STOCK_HOME_PLANNED:
         slots = STOCK_HOME_SLOTS
-    elif kinds == STOCK_HOME_FULL:
+    elif keys == STOCK_HOME_FULL:
         slots = STOCK_HOME_CORE_SLOTS
     else:
         return packed, False
-    by_kind = {item["kind"]: item for item in page["widgets"]}
+    by_key = {widget_key(item["kind"], item.get("settings")): item for item in page["widgets"]}
     widgets: List[Dict[str, Any]] = []
     changed = False
-    for kind, slot in slots.items():
-        item = by_kind.get(kind)
+    for key, slot in slots.items():
+        item = by_key.get(key)
         if item is None:
             continue
-        w, h = coerce_size(kind, slot["w"], slot["h"])
-        nxt = {"id": item["id"], "kind": kind, "x": slot["x"], "y": slot["y"], "w": w, "h": h}
-        if slot["region"] == "above":
-            nxt["region"] = "above"
+        w, h = coerce_size(slot["kind"], slot["w"], slot["h"])
+        nxt = dict(_widget(key, slot["x"], slot["y"], w, h, slot["region"]), id=item["id"])
         if (
             int(item.get("x") or 0) != nxt["x"]
             or int(item.get("y") or 0) != nxt["y"]
@@ -531,79 +652,30 @@ def restack_stock_home(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     return packed, True
 
 
-def seed_day_brief(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    """Put Morning/Evening on a stock Home that only had To Do / Today / chips / Cluny."""
-    packed = sanitize_layout(layout)
-    page = packed["pages"][0]
-    kinds = {item["kind"] for item in page["widgets"]}
-    if "day_brief" in kinds:
-        return packed, False
-    if kinds not in (STOCK_HOME_KINDS, STOCK_HOME_WITH_CLUNY):
-        return packed, False
-    occupied = region_widgets(page["widgets"], "below", True)
-    slot = STOCK_HOME_SLOTS["day_brief"]
-    w, h = coerce_size("day_brief", slot["w"], slot["h"])
-    trial = {"id": "_", "x": slot["x"], "y": slot["y"], "w": w, "h": h}
-    if all(not boxes_overlap(trial, other) for other in occupied):
-        spot = (slot["x"], slot["y"])
-    else:
-        spot = first_fit(occupied, w, h)
-    if spot is None:
-        return packed, False
-    page["widgets"].append(
-        {"id": _new_id(), "kind": "day_brief", "x": spot[0], "y": spot[1], "w": w, "h": h}
-    )
-    return packed, True
-
-
 def seed_week_plan_tiles(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    """Add dues / free to an uncustomized Week page."""
+    """Add the Due slice of Work to an uncustomized Week page."""
     packed = sanitize_layout(layout)
     if len(packed["pages"]) < 2:
         return packed, False
     page = packed["pages"][1]
-    kinds = [item["kind"] for item in page["widgets"]]
-    if set(kinds) != WEEK_STOCK_KINDS:
+    keys = page_keys(page)
+    if keys != WEEK_STOCK_KINDS:
         return packed, False
     occupied = list(page["widgets"])
     added = False
-    for kind in WEEK_PLAN_KINDS:
-        if any(item["kind"] == kind for item in occupied):
+    for key in WEEK_PLAN_KINDS:
+        if key in keys:
             continue
+        kind, _ = split_key(key)
         w, h = spec_default(kind)
         spot = first_fit(occupied, w, h)
         if spot is None:
             continue
-        widget = {"id": _new_id(), "kind": kind, "x": spot[0], "y": spot[1], "w": w, "h": h}
+        widget = _widget(key, spot[0], spot[1], w, h)
         occupied.append(widget)
         page["widgets"].append(widget)
         added = True
     return packed, added
-
-
-def seed_home_plan_tiles(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    """Put Unplaced on a stock first Home page."""
-    packed = sanitize_layout(layout)
-    page = packed["pages"][0]
-    kinds = {item["kind"] for item in page["widgets"]}
-    if "unplaced" in kinds:
-        return packed, False
-    if kinds != STOCK_HOME_FULL:
-        return packed, False
-    occupied = region_widgets(page["widgets"], "below", True)
-    slot = STOCK_HOME_SLOTS["unplaced"]
-    w, h = coerce_size("unplaced", slot["w"], slot["h"])
-    trial = {"id": "_", "x": slot["x"], "y": slot["y"], "w": w, "h": h}
-    if all(not boxes_overlap(trial, other) for other in occupied):
-        spot = (slot["x"], slot["y"])
-    else:
-        spot = first_fit(occupied, w, h)
-    if spot is None:
-        return packed, False
-    page["widgets"].append(
-        {"id": _new_id(), "kind": "unplaced", "x": spot[0], "y": spot[1], "w": w, "h": h}
-    )
-    return packed, True
 
 
 def catch_up_stock_board(layout: Dict[str, Any]) -> Dict[str, Any]:
@@ -708,7 +780,11 @@ def set_page_colors(layout: Dict[str, Any], page_id: str, colors: Any) -> Dict[s
 
 
 def add_widget(
-    layout: Dict[str, Any], page_id: str, kind: str, region: str = "below"
+    layout: Dict[str, Any],
+    page_id: str,
+    kind: str,
+    region: str = "below",
+    settings: Any = None,
 ) -> Dict[str, Any]:
     packed = sanitize_layout(layout)
     page = _page(packed, page_id)
@@ -716,7 +792,10 @@ def add_widget(
         raise ValueError("Page not found")
     if kind not in WIDGET_CATALOG:
         raise ValueError("Unknown widget")
-    if any(item["kind"] == kind for item in page["widgets"]):
+    cleaned = coerce_settings(kind, settings)
+    key = widget_key(kind, cleaned)
+    # Two Work tiles are the same tile only when they show the same slice.
+    if key in page_keys(page):
         raise ValueError("That widget is already on this page")
     if len(page["widgets"]) >= MAX_WIDGETS_PER_PAGE:
         raise ValueError("This page is full")
@@ -727,10 +806,7 @@ def add_widget(
     spot = first_fit(occupied, w, h)
     if spot is None:
         raise ValueError("No free space for that size")
-    widget = {"id": _new_id(), "kind": kind, "x": spot[0], "y": spot[1], "w": w, "h": h}
-    if region == "above":
-        widget["region"] = "above"
-    page["widgets"].append(widget)
+    page["widgets"].append(_widget(key, spot[0], spot[1], w, h, region))
     return packed
 
 
@@ -884,8 +960,10 @@ def set_home_page_colors(page_id: str, colors: Any) -> Dict[str, Any]:
 
 
 @eel.expose
-def add_home_widget(page_id: str, kind: str, region: str = "below") -> Dict[str, Any]:
-    return _write(add_widget(get_home_layout(), page_id, kind, region))
+def add_home_widget(
+    page_id: str, kind: str, region: str = "below", settings: Any = None
+) -> Dict[str, Any]:
+    return _write(add_widget(get_home_layout(), page_id, kind, region, settings))
 
 
 @eel.expose
