@@ -344,7 +344,9 @@ function todoHtml(data, size) {
     const actions = [];
     if (size.action && target?.id) {
         actions.push({ act: 'todo-finish', label: copy.done, attrs: ` data-id="${utils.escapeHtml(target.id)}"` });
-        if (size.board) {
+        // Buttons fit by width, not by area: a two-wide tile holds Done and
+        // Open on one line and nothing more, however tall it gets.
+        if (size.w >= 3) {
             actions.push({
                 act: 'todo-plus15',
                 label: copy.plus15,
@@ -783,7 +785,9 @@ function unplacedHtml(data, size) {
         size,
         label: countLabel('Unplaced', count),
         primary: size.tall ? '' : clip(first?.title || '', 32),
-        body: `${list}${size.board ? weekdayChips(data?.weekdays, first?.id) : ''}`,
+        // Seven day chips only fit on one line on a wide tile; wrapped they
+        // would eat the rows the list needs.
+        body: `${list}${size.w >= 3 ? weekdayChips(data?.weekdays, first?.id) : ''}`,
     });
 }
 

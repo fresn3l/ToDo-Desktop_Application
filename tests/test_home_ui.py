@@ -753,6 +753,9 @@ class HomeUiTests(unittest.TestCase):
         # A narrow tile gets the move you would make plus Open, nothing more.
         self.assertIn("size.w <= 2 && list.length > 2", GLANCE_TILES)
         self.assertIn("size.capture ? todoCaptureHtml() : ''", GLANCE_TILES)
+        # Buttons and day chips fit by width, so height must not add them back.
+        self.assertIn("if (size.w >= 3) {", GLANCE_TILES)
+        self.assertIn("size.w >= 3 ? weekdayChips", GLANCE_TILES)
         # Every list renderer reads the shared budget instead of its own number.
         self.assertGreaterEqual(GLANCE_TILES.count("size.rows"), 8)
         # A tile showing a list drops the headline rather than repeat row one.
