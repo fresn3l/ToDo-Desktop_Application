@@ -289,12 +289,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("Drag a corner or edge", INDEX)
 
     def test_home_widget_refresh_continues_after_one_failure(self) -> None:
+        quiet = HOME_RUNTIME.split("async function runQuietly")[1].split("async function refreshWork")[0]
+        self.assertIn("console.error(err)", quiet)
+        work = HOME_RUNTIME.split("async function refreshWork")[1].split("async function refreshKinds")[0]
+        self.assertIn("await runQuietly(refresh)", work)
         refresh = HOME_RUNTIME.split("async function refreshKinds")[1].split("function paintPages")[0]
-        self.assertIn("const run = async (fn)", refresh)
-        self.assertIn("await run(refresh)", refresh)
-        self.assertIn("refreshGlances", refresh)
+        self.assertIn("await runQuietly(() => refreshGlances", refresh)
         self.assertIn("ensureWork", HOME_RUNTIME)
-        self.assertIn("console.error(err)", refresh)
 
     def test_native_prompts_use_in_app_dialog(self) -> None:
         self.assertIn('id="appDialog"', INDEX)
@@ -669,6 +670,25 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".cal-block.is-tiny", STYLE)
         self.assertIn("min-height: 8px", STYLE)
         self.assertIn("const heightPct = (dur / span) * 100", CAL_JS)
+
+    def test_home_does_not_refetch_what_boot_already_returned(self) -> None:
+        boot_py = (ROOT / "home_boot.py").read_text(encoding="utf-8")
+        # The check-in rides in the glance pool instead of waiting behind it.
+        self.assertIn("CHECKIN_TASK", boot_py)
+        self.assertIn("glances = _fetch_glances(kinds, extra)", boot_py)
+        self.assertIn("checkin = glances.pop(CHECKIN_TASK, None)", boot_py)
+        # Rate-goal voice reads every goal over three windows; off the trip.
+        self.assertIn("_nudge_rate_voice_later()", boot_py)
+        self.assertNotIn('_safe_call("cluny_voice", "refresh_rate_voice_safe")\n    glances', boot_py)
+        self.assertIn("def wait_for_boot_background", boot_py)
+        # Opening a widget loads the sheet, not the tile behind it again.
+        opener = HOME_RUNTIME.split("export async function openHomeWork")[1].split("async function runQuietly")[0]
+        self.assertIn("void refreshWork()", opener)
+        self.assertNotIn("refreshKinds([kind])", opener)
+        # Coming back to a board that is still current skips another boot.
+        self.assertIn("function bootIsFresh()", HOME_RUNTIME)
+        self.assertIn("if (!bootIsFresh()) void refreshHomeData()", HOME_RUNTIME)
+        self.assertIn("bootStale = true", HOME_RUNTIME)
 
     def test_main_tabs_share_one_heading_ladder(self) -> None:
         for token in ("--tab-title:", "--tab-heading:", "--tab-subheading:", "--tab-gap:"):

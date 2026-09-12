@@ -82,13 +82,26 @@ async function persist(next) {
     }
 }
 
+// Home already has the whole board in one payload. Anything that repaints from
+// it should reuse that payload instead of asking the bridge for it again.
+const BOOT_FRESH_MS = 15000;
+let lastBootAt = 0;
+let bootStale = true;
+
 async function fetchHomeBoot(pageId) {
     try {
-        return await callEel('get_home_boot', pageId || '');
+        const boot = await callEel('get_home_boot', pageId || '');
+        lastBootAt = Date.now();
+        bootStale = false;
+        return boot;
     } catch (err) {
         console.warn(err);
     }
     return { layout: layout || structuredClone(FALLBACK_LAYOUT), glances: {}, checkin: null };
+}
+
+function bootIsFresh() {
+    return !bootStale && lastBootAt > 0 && Date.now() - lastBootAt < BOOT_FRESH_MS;
 }
 
 async function loadLayout() {
@@ -403,23 +416,30 @@ export async function openHomeWork(kind, opener) {
             closeBtn?.focus();
         }
     });
-    void refreshKinds([kind]);
+    // Only the sheet needs data here. The tile behind it was already painted
+    // from the boot payload, so repainting it would be a second trip for the
+    // same rows.
+    void refreshWork();
+}
+
+async function runQuietly(fn) {
+    try {
+        await fn();
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function refreshWork() {
+    if (!workKind) return;
+    const refresh = await ensureWork(workKind);
+    await runQuietly(refresh);
 }
 
 async function refreshKinds(kinds, glances) {
     const set = new Set(kinds);
-    const run = async (fn) => {
-        try {
-            await fn();
-        } catch (err) {
-            console.error(err);
-        }
-    };
-    if (workKind) {
-        const refresh = await ensureWork(workKind);
-        await run(refresh);
-    }
-    await run(() => refreshGlances([...set], glances));
+    await refreshWork();
+    await runQuietly(() => refreshGlances([...set], glances));
 }
 
 const HOME_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>';
@@ -1037,6 +1057,7 @@ export function setupHome() {
         }
     });
     document.addEventListener('kosistenz:data-changed', () => {
+        bootStale = true;
         if (document.getElementById('homeTab')?.classList.contains('active')) {
             void scheduleHomeRefresh();
         }
@@ -1074,7 +1095,9 @@ export async function onHomeTabShown(pageId) {
     if (same && paintedPageId && document.querySelector('#homeGrid .home-widget, #homeGridAbove .home-widget')) {
         paintPages();
         syncPageColors();
-        void refreshHomeData();
+        // The board is still on screen and still current. Stepping away to
+        // Calendar and back does not make it worth another full boot.
+        if (!bootIsFresh()) void refreshHomeData();
         return;
     }
     await renderHome(pageId);
