@@ -464,8 +464,6 @@ function paintTitle() {
     document.documentElement.setAttribute('data-home-page', page?.id || '');
     if (document.documentElement.getAttribute('data-page') === 'home' || document.getElementById('homeTab')?.classList.contains('active')) {
         document.title = `${name} · Kosistenz`;
-        const crumb = document.getElementById('pageCrumb');
-        if (crumb) crumb.textContent = name;
         notifyNativeTab('home', name);
     }
 }

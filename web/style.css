@@ -330,10 +330,6 @@ html.native-shell .nav-item.active {
     background: var(--bg-elevated);
 }
 
-html.native-shell .app-topbar {
-    display: none;
-}
-
 html.native-shell .app-main {
     background: var(--bg-main);
 }
@@ -657,17 +653,9 @@ html[data-sidebar='compact'] .sidebar-footer {
     background: var(--bg-main);
 }
 
-.app-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: var(--space-md);
-    padding: 18px 28px 14px;
-    border-bottom: 1px solid var(--border-subtle);
-    background: color-mix(in srgb, var(--bg-main) 82%, var(--bg-panel));
-}
-
+/* One page header for every tab. The topbar this replaces carried the page
+   name, and it was display:none in the native shell, so Journal and Settings
+   shipped with no title at all while Brain and Library showed theirs twice. */
 .eyebrow {
     font-size: var(--fs-micro);
     font-weight: var(--fw-semibold);
@@ -677,100 +665,60 @@ html[data-sidebar='compact'] .sidebar-footer {
     margin-bottom: 2px;
 }
 
-.app-topbar h1 {
+.page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    column-gap: var(--space-md);
+    /* The action cluster wraps on a narrow window; give the second row air. */
+    row-gap: var(--space-sm);
+    min-height: 32px;
+    margin-bottom: var(--tab-gap);
+    /* Home was the only draggable header because it was the only tab without
+       a topbar. Now no tab has one, so every header drags the window. */
+    -webkit-app-region: drag;
+}
+
+.page-head-titles {
+    min-width: 0;
+    flex: 1 1 auto;
+    -webkit-app-region: no-drag;
+}
+
+.page-title {
     font-size: var(--fs-title);
     font-weight: var(--fw-semibold);
     letter-spacing: var(--letter-tight);
+    color: var(--text-title);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.topbar-note {
+.page-sub {
     font-size: var(--fs-body);
-    color: var(--text-muted);
+    color: var(--text-secondary);
+    margin: 3px 0 0;
+    max-width: 68ch;
 }
 
-.today-status {
+.page-head-actions {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-left: auto;
+    gap: 10px;
+    flex: 0 0 auto;
+    -webkit-app-region: no-drag;
 }
 
-.today-label {
-    font-size: var(--fs-micro);
-    font-weight: var(--fw-semibold);
-    letter-spacing: var(--letter-wide);
-    text-transform: uppercase;
-    color: var(--text-muted);
-}
-
-.today-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.today-pill {
-    font: inherit;
-    font-size: var(--fs-caption);
-    font-weight: var(--fw-semibold);
-    padding: 6px 11px;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--border-subtle);
-    background: var(--bg-elevated);
-    color: var(--text-secondary);
-    cursor: pointer;
-    white-space: nowrap;
-    letter-spacing: var(--letter-normal);
-    transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
-}
-
-.today-pill.is-todo:hover,
-.today-pill.is-suggested:hover,
-.today-pill.is-done:hover,
-.today-pill.is-muted:hover {
-    color: var(--text-primary);
-}
-
-.today-pill.is-suggested {
-    border-color: color-mix(in srgb, var(--attention) 55%, transparent);
-    background: var(--attention-muted);
-    color: var(--text-primary);
-}
-
-.today-pill.is-suggested:hover {
-    border-color: var(--attention);
-}
-
-.today-pill.is-done {
-    color: var(--text-primary);
-    border-color: color-mix(in srgb, var(--success) 35%, transparent);
-    background: var(--success-muted);
-}
-
-.today-pill.is-done::before {
-    content: "";
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    margin-right: 6px;
-    border-radius: 50%;
-    background: var(--success);
-    vertical-align: middle;
-}
-
-.today-pill.is-muted,
-.today-journal {
-    font-weight: var(--fw-medium);
-}
-
-.today-journal.is-muted:hover {
-    border-color: var(--attention);
-}
-
-.today-fallback {
-    font-size: var(--fs-caption);
-    color: var(--text-muted);
+/* Form controls in here stretch to fill by default, which stacked Brain's
+   header three rows deep and pushed it up past its own title. */
+.page-head-actions select,
+.page-head-actions input {
+    width: auto;
+    max-width: 200px;
 }
 
 .app-content {
@@ -791,10 +739,6 @@ html[data-sidebar='compact'] .sidebar-footer {
     display: block;
 }
 
-html[data-page='home'] .app-topbar {
-    display: none;
-}
-
 html[data-page='home'] .app-content {
     padding-top: 10px;
     padding-bottom: 88px;
@@ -810,14 +754,25 @@ html.native-shell[data-page='home'] .app-content {
     padding-bottom: 96px;
 }
 
+/* Journal, Calendar, Analytics and Settings fill the content area instead of
+   sitting in the centred column Home uses. Four copies of this said the same
+   thing with one stray declaration each. */
+html[data-page='journal'] .app-content,
+html[data-page='calendar'] .app-content,
+html[data-page='analytics'] .app-content,
+html[data-page='brain'] .app-content,
+html[data-page='library'] .app-content,
 html[data-page='settings'] .app-content {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    overflow: hidden;
-    padding-bottom: 16px;
 }
 
+html[data-page='journal'] .tab-content.active,
+html[data-page='calendar'] .tab-content.active,
+html[data-page='analytics'] .tab-content.active,
+html[data-page='brain'] .tab-content.active,
+html[data-page='library'] .tab-content.active,
 html[data-page='settings'] .tab-content.active {
     max-width: none;
     width: 100%;
@@ -828,6 +783,11 @@ html[data-page='settings'] .tab-content.active {
     animation: none;
 }
 
+html[data-page='settings'] .app-content {
+    overflow: hidden;
+    padding-bottom: 16px;
+}
+
 html[data-page='home'] .tab-content.active {
     max-width: 1440px;
     width: 100%;
@@ -836,73 +796,14 @@ html[data-page='home'] .tab-content.active {
     overflow: visible;
 }
 
-html[data-page='journal'] .app-topbar .eyebrow,
-html[data-page='calendar'] .app-topbar .eyebrow,
-html[data-page='analytics'] .app-topbar .eyebrow,
-html[data-page='journal'] .topbar-note,
-html[data-page='calendar'] .topbar-note,
-html[data-page='analytics'] .topbar-note {
-    display: none;
-}
-
-html[data-page='journal'] .app-topbar,
-html[data-page='calendar'] .app-topbar {
-    padding-top: 12px;
-    padding-bottom: 10px;
-}
-
-html[data-page='journal'] .app-content {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-html[data-page='journal'] .tab-content.active {
-    max-width: none;
-    width: 100%;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
 html[data-page='journal'] .journal-layout {
     flex: 1;
     min-height: 0;
     align-items: stretch;
 }
 
-html[data-page='calendar'] .app-content {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-html[data-page='calendar'] .tab-content.active {
-    max-width: none;
-    width: 100%;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-html[data-page='analytics'] .app-content {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-html[data-page='analytics'] .tab-content.active {
-    max-width: none;
-    width: 100%;
-    flex: 1;
-    display: block;
-    min-height: 0;
-}
-
 html[data-page='analytics'] #analyticsTab.widget-source {
-    display: block;
+    display: flex;
 }
 
 html[data-page='calendar'] .cal-layout {
@@ -944,7 +845,6 @@ html[data-page='calendar'] .cal-layout {
 }
 
 .panel-header h2,
-.journal-header h2,
 .checklist-intro h2,
 .review-section h2,
 .timeline-section-wrap h2 {
@@ -2096,12 +1996,6 @@ input[type='range'] {
     margin-bottom: 16px;
 }
 
-.journal-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 .journal-history-toolbar {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -2877,39 +2771,6 @@ input[type='range'] {
     max-width: 1120px;
     width: 100%;
     margin-inline: auto;
-}
-
-/* Title and the one control that belongs beside it, on one line. This was
-   two rows: a title strip, then a toolbar holding a page-chip row that was
-   styled out of sight and two buttons. */
-.home-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-md);
-    min-height: 32px;
-    -webkit-app-region: drag;
-}
-
-.home-page-title {
-    margin: 0;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--fs-title);
-    font-weight: var(--fw-semibold);
-    letter-spacing: var(--letter-tight);
-    color: var(--text-title);
-    text-align: left;
-    -webkit-app-region: no-drag;
-}
-
-/* Rearranging the board is a rare errand. It used to be the loudest button
-   on the page. */
-.home-edit-btn {
-    flex: 0 0 auto;
-    -webkit-app-region: no-drag;
 }
 
 .home-page-chip {
@@ -5425,8 +5286,7 @@ html[data-focus='on'] .journal-layout {
     grid-template-columns: 1fr;
 }
 
-html[data-focus='on'] .today-status,
-html[data-focus='on'] .app-topbar {
+html[data-focus='on'] .page-head {
     display: none;
 }
 
@@ -5506,20 +5366,13 @@ html[data-focus='on'] .app-topbar {
         display: none;
     }
 
-    .app-content,
-    .app-topbar {
+    .app-content {
         padding-left: 16px;
         padding-right: 16px;
     }
 
-    .topbar-note {
-        display: none;
-    }
-
-    .today-status {
-        margin-left: 0;
+    .page-head-actions {
         width: 100%;
-        order: 3;
     }
 
     .work-item {
@@ -5642,32 +5495,6 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     min-height: 0;
     height: 100%;
     align-items: stretch;
-}
-
-.cal-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    column-gap: 12px;
-    /* The action cluster wraps on a narrow window; give the second row air. */
-    row-gap: var(--space-sm);
-    flex-wrap: wrap;
-    padding: 0 0 var(--tab-gap);
-}
-
-.cal-toolbar h2 {
-    margin: 0;
-    font-size: var(--fs-title);
-    font-weight: var(--fw-semibold);
-    letter-spacing: var(--letter-tight);
-    color: var(--text-title);
-}
-
-.cal-toolbar-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
 }
 
 .cal-nav {
@@ -7030,24 +6857,6 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     color: var(--text-secondary);
 }
 
-.brain-shell {
-    display: grid;
-    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
-    gap: 16px;
-    min-height: calc(100vh - 120px);
-}
-
-.brain-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 16px;
-    border: 1px solid color-mix(in srgb, var(--text-secondary) 16%, transparent);
-    border-radius: var(--radius-lg, 12px);
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
-    max-height: calc(100vh - 120px);
-}
-
 .brain-main {
     display: flex;
     flex-direction: column;
@@ -7212,36 +7021,12 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     gap: 8px;
 }
 
-@media (max-width: 900px) {
-    .brain-shell {
-        grid-template-columns: 1fr;
-    }
-
-    .brain-sidebar {
-        max-height: none;
-    }
-}
-
 .brain-shell--chat {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-height: calc(100vh - 120px);
-}
-
-.brain-chat-head {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: flex-start;
-}
-
-.brain-chat-head-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
+    flex: 1;
+    min-height: 0;
 }
 
 .brain-stats--inline {
@@ -7252,22 +7037,8 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-height: calc(100vh - 120px);
-}
-
-.library-head {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: flex-start;
-}
-
-.library-head-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
+    flex: 1;
+    min-height: 0;
 }
 
 .library-stats {

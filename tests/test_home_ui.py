@@ -487,7 +487,7 @@ class HomeUiTests(unittest.TestCase):
 
     def test_home_shows_page_title_and_sidebar_pages(self) -> None:
         self.assertIn('id="homePageTitle"', INDEX)
-        self.assertIn("home-header", INDEX)
+        self.assertIn("page-head--home", INDEX)
         self.assertIn('id="homeNavPages"', INDEX)
         self.assertIn("data-home-page", HOME_RUNTIME)
         self.assertIn("paintSidebar", HOME_RUNTIME)
@@ -500,8 +500,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn('id="homePages"', INDEX)
         self.assertNotIn("home-live-copy", INDEX)
         self.assertNotIn("paintChips", HOME_RUNTIME)
-        self.assertIn('class="home-header"', INDEX)
-        self.assertIn('class="btn-ghost home-edit-btn"', INDEX)
+        self.assertIn('class="page-head page-head--home"', INDEX)
         self.assertIn(">Edit</button>", INDEX)
         self.assertNotIn(">Edit Home</button>", INDEX)
         # New page belongs with Rename and Delete, behind Edit.
@@ -520,6 +519,75 @@ class HomeUiTests(unittest.TestCase):
         btn = STYLE.split("\n.home-widget-btn {")[-1].split("}")[0]
         self.assertIn("font-size: var(--fs-micro)", btn)
         self.assertIn("min-height: 0", btn)
+
+    def test_every_tab_names_itself_with_the_shared_head(self) -> None:
+        # The topbar carried the page name and was display:none in the native
+        # shell, so Journal and Settings shipped with no title at all.
+        self.assertNotIn("app-topbar", INDEX)
+        self.assertNotIn("app-topbar", STYLE)
+        self.assertNotIn("pageCrumb", INDEX)
+        self.assertNotIn("pageCrumb", TABS)
+        self.assertNotIn("pageCrumb", HOME_RUNTIME)
+
+        heads = re.findall(r'<section id="(\w+)Tab" class="tab-content', INDEX)
+        self.assertEqual(
+            heads,
+            ["home", "calendar", "journal", "analytics", "brain", "library", "settings"],
+        )
+        for tab in heads:
+            body = INDEX.split(f'<section id="{tab}Tab" class="tab-content')[1].split("</section>")[0]
+            self.assertIn('class="page-head', body, tab)
+            self.assertIn('class="page-title"', body, tab)
+
+        # Brain and Library printed their name twice: once in the crumb, once
+        # in the tab. Their two header rules were byte-identical.
+        self.assertNotIn("brain-chat-head", INDEX)
+        self.assertNotIn("brain-chat-head", STYLE)
+        self.assertNotIn("library-head", INDEX)
+        self.assertNotIn("library-head", STYLE)
+        self.assertNotIn("cal-toolbar", INDEX)
+        self.assertNotIn("cal-toolbar", STYLE)
+
+    def test_tabs_that_fill_the_window_share_one_rule(self) -> None:
+        fill = STYLE.split("html[data-page='journal'] .tab-content.active,")[1].split("}")[0]
+        for tab in ("calendar", "analytics", "brain", "library", "settings"):
+            self.assertIn(f"html[data-page='{tab}'] .tab-content.active", fill)
+        self.assertIn("flex-direction: column", fill)
+        # Brain and Library filled the window by subtracting a topbar height.
+        self.assertNotIn("calc(100vh - 120px)", STYLE)
+
+    def test_brain_and_library_say_cluny_is_off_once(self) -> None:
+        brain = (ROOT / "web" / "js" / "brain.js").read_text(encoding="utf-8")
+        library = (ROOT / "web" / "js" / "library.js").read_text(encoding="utf-8")
+        # Both put the offline sentence in the subtitle and again in the
+        # notice right below it. The subtitle now keeps its own job.
+        self.assertIn(
+            "if (line) line.textContent = 'Ask the local brain."
+            " Kosistenz keeps the list and the clock.';",
+            brain,
+        )
+        self.assertNotIn("offline_copy", library.split("if (line) {")[1].split("\n    }")[0])
+        self.assertIn("#brainOffline p", brain)
+        self.assertIn("offline.querySelector('p')", library)
+        # One notice per Cluny surface: the Ask source, Brain, and Library.
+        self.assertEqual(INDEX.count("Cluny is off. Journal, to-dos, and the clock still work."), 3)
+        # Brain's header linked to a tab the sidebar already carries.
+        self.assertNotIn("brainOpenLibraryBtn", INDEX)
+        self.assertNotIn("brainOpenLibraryBtn", brain)
+        # A full-width select stacked that header three rows deep.
+        self.assertIn(".page-head-actions select", STYLE)
+
+    def test_today_pills_are_gone_with_the_topbar(self) -> None:
+        # They lived in the topbar, so the Mac app never showed them, and the
+        # Home board already has a tile for each one.
+        self.assertNotIn("renderPills", TODAY_JS)
+        self.assertNotIn("today-pill", TODAY_JS)
+        self.assertNotIn("today-pill", STYLE)
+        self.assertNotIn("todayStatus", INDEX)
+        self.assertNotIn("todayStatus", TODAY_JS)
+        # .eyebrow outlives the topbar; Calendar, Today and To Do still use it.
+        self.assertIn("\n.eyebrow {", STYLE)
+        self.assertIn('class="eyebrow"', CAL_JS)
 
     def test_checkin_band_has_no_kicker(self) -> None:
         self.assertNotIn("homeCheckinKicker", INDEX)
@@ -758,10 +826,10 @@ class HomeUiTests(unittest.TestCase):
         compact = STYLE.split("html[data-density='compact'] {")[1].split("}")[0]
         for token in ("--fs-body:", "--fs-lead:", "--fs-heading:", "--fs-title:"):
             self.assertIn(token, compact)
-        # A wrapped toolbar needs a second-row gap, not just a column gap.
-        toolbar = STYLE.split(".cal-toolbar {")[1].split("}")[0]
-        self.assertIn("row-gap: var(--space-sm)", toolbar)
-        self.assertIn("padding: 0 0 var(--tab-gap)", toolbar)
+        # A wrapped header needs a second-row gap, not just a column gap.
+        head = STYLE.split("\n.page-head {")[1].split("}")[0]
+        self.assertIn("row-gap: var(--space-sm)", head)
+        self.assertIn("margin-bottom: var(--tab-gap)", head)
         # Three sentences of standing instructions was noise.
         self.assertNotIn("Drag Unplaced onto the day to place work.", INDEX)
         self.assertIn("Alt marks attended", INDEX)
