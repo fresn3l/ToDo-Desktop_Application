@@ -3,30 +3,30 @@
  * Mutations persist through the Python store; this is for edit-mode preview.
  */
 
-export const GRID_COLUMNS = 4;
+export const GRID_COLUMNS = 8;
 
 export const WIDGET_CATALOG = {
-    todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'todoTab' },
-    today_calendar: { label: 'Today', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 2], source: 'todayCalendarSource' },
-    workout: { label: 'Workout', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'workoutTab' },
-    goals: { label: 'Goals', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'goalsTab' },
-    allwork: { label: 'All Work', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'allWorkTab' },
-    analytics: { label: 'Analytics', sizes: [[2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'analyticsTab' },
-    timeline: { label: 'Timeline', sizes: [[2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'timelineTab' },
-    weather: { label: 'Weather', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'weatherSource' },
-    focus: { label: 'Focus', sizes: [[1, 1], [2, 1], [2, 2], [3, 1], [3, 2]], default: [2, 1], source: 'focusSource' },
-    countdown: { label: 'Countdown', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'countdownSource' },
-    habits: { label: 'Habits', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 3], source: 'habitsSource' },
-    heatmap: { label: 'Heatmap', sizes: [[2, 1], [3, 1], [2, 2], [3, 2], [3, 3]], default: [3, 1], source: 'heatmapSource' },
-    day_brief: { label: 'Day', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'dayBriefSource' },
-    counters: { label: 'Counters', sizes: [[1, 1], [2, 1], [2, 2], [3, 2], [3, 3]], default: [2, 1], source: 'countersSource' },
-    reading: { label: 'Reading', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'readingSource' },
-    word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'wordTab' },
-    cluny: { label: 'Ask Cluny', sizes: [[2, 2], [2, 3], [3, 2], [3, 3], [4, 2]], default: [4, 2], source: 'clunySource' },
-    now_next: { label: 'Now', sizes: [[1, 1], [2, 1], [2, 2], [3, 1], [3, 2]], default: [2, 1], source: 'todayCalendarSource' },
-    unplaced: { label: 'Unplaced', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'allWorkTab' },
-    dues: { label: 'Due', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'todoTab' },
-    free_today: { label: 'Free', sizes: [[1, 1], [2, 1], [2, 2], [3, 1]], default: [2, 1], source: 'todayCalendarSource' },
+    todo: { label: 'To Do', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'todoTab' },
+    today_calendar: { label: 'Today', sizes: [[2, 2], [4, 2], [4, 4], [4, 6], [6, 4]], default: [4, 4], source: 'todayCalendarSource' },
+    workout: { label: 'Workout', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'workoutTab' },
+    goals: { label: 'Goals', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'goalsTab' },
+    allwork: { label: 'All Work', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'allWorkTab' },
+    analytics: { label: 'Analytics', sizes: [[4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'analyticsTab' },
+    timeline: { label: 'Timeline', sizes: [[4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'timelineTab' },
+    weather: { label: 'Weather', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'weatherSource' },
+    focus: { label: 'Focus', sizes: [[2, 2], [4, 2], [4, 4], [6, 2], [6, 4]], default: [4, 2], source: 'focusSource' },
+    countdown: { label: 'Countdown', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'countdownSource' },
+    habits: { label: 'Habits', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 6], source: 'habitsSource' },
+    heatmap: { label: 'Heatmap', sizes: [[4, 2], [6, 2], [4, 4], [6, 4], [6, 6]], default: [6, 2], source: 'heatmapSource' },
+    day_brief: { label: 'Day', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'dayBriefSource' },
+    counters: { label: 'Counters', sizes: [[2, 2], [4, 2], [4, 4], [6, 4], [6, 6]], default: [4, 2], source: 'countersSource' },
+    reading: { label: 'Reading', sizes: [[2, 2], [4, 2], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'readingSource' },
+    word: { label: 'Word', sizes: [[2, 2], [4, 2], [2, 4], [4, 4], [4, 6], [6, 4]], default: [4, 2], source: 'wordTab' },
+    cluny: { label: 'Ask Cluny', sizes: [[4, 4], [4, 6], [6, 4], [6, 6], [8, 4]], default: [8, 4], source: 'clunySource' },
+    now_next: { label: 'Now', sizes: [[2, 2], [4, 2], [4, 4], [6, 2], [6, 4]], default: [4, 2], source: 'todayCalendarSource' },
+    unplaced: { label: 'Unplaced', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'allWorkTab' },
+    dues: { label: 'Due', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'todoTab' },
+    free_today: { label: 'Free', sizes: [[2, 2], [4, 2], [4, 4], [6, 2]], default: [4, 2], source: 'todayCalendarSource' },
 };
 
 export function catalogList() {
@@ -44,7 +44,7 @@ export function boxesOverlap(a, b) {
 
 export function firstFit(occupied, w, h, ignoreId) {
     const others = (occupied || []).filter((box) => box.id !== ignoreId);
-    for (let y = 0; y < 32; y += 1) {
+    for (let y = 0; y < 64; y += 1) {
         for (let x = 0; x <= GRID_COLUMNS - w; x += 1) {
             const trial = { x, y, w, h };
             if (others.every((other) => !boxesOverlap(trial, other))) {
@@ -61,7 +61,7 @@ export function snapCell(clientX, clientY, gridEl) {
     const styles = window.getComputedStyle(gridEl);
     const gap = parseCssPx(styles.columnGap || styles.gap, 12);
     const colW = (rect.width - gap * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
-    const rowH = parseCssPx(styles.gridAutoRows, 108);
+    const rowH = parseCssPx(styles.gridAutoRows, 54);
     const x = Math.max(0, Math.min(GRID_COLUMNS - 1, Math.floor((clientX - rect.left) / (colW + gap))));
     const y = Math.max(0, Math.floor((clientY - rect.top) / (rowH + gap)));
     return { x, y };

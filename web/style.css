@@ -81,8 +81,8 @@
     --text-title: var(--text-primary, #eef3f7);
     --home-widget-border-width: 1px;
     --home-widget-border-color: var(--line);
-    --home-row: var(--row-h, 120px);
-    --home-gap: var(--grid-gap, 16px);
+    --home-row: var(--row-h, 54px);
+    --home-gap: var(--grid-gap, 12px);
 
     /* Green = progress / done. Amber = unfinished (Zeigarnik). Red = errors only. */
     --success: #5ebb8e;
@@ -2620,9 +2620,10 @@ input[type='range'] {
     margin-top: 2px;
     flex: 0 0 auto;
 }
-
-.home-widget[data-h="1"] .glance-meter {
-    display: none;
+@container tile (max-height: 189px) {
+    .home-widget .glance-meter {
+        display: none;
+    }
 }
 
 .goal-progress-fill,
@@ -2963,11 +2964,11 @@ html.native-shell .home-title-strip {
 
 .home-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(0, 1fr));
     grid-auto-rows: var(--home-row);
     gap: var(--home-gap);
     align-items: stretch;
-    min-height: calc(var(--home-row) * 2);
+    min-height: calc(var(--home-row) * 4 + var(--home-gap) * 3);
     overflow: visible;
     padding-bottom: 28px;
 }
@@ -2984,7 +2985,7 @@ html.native-shell .home-title-strip {
 }
 
 .home-grid.is-empty-drop {
-    min-height: calc(var(--home-row) * 2);
+    min-height: calc(var(--home-row) * 4 + var(--home-gap) * 3);
     border: 1px dashed var(--border-subtle);
     border-radius: 14px;
     background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
@@ -3094,6 +3095,11 @@ html.native-shell .home-title-strip {
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+    /* Tiles used to be styled by how many grid cells they spanned, which
+       only answers the question when the cells are a known size. A tile asks
+       how much room it actually has instead, so it reads the same whether the
+       window is wide or narrow and whatever the grid is divided into. */
+    container: tile / size;
     /* Appearance writes these two from the widget border controls. Nothing
        read them, so moving those sliders changed nothing on the board. */
     border: var(--home-widget-border-width, 1px) solid var(--home-widget-border-color, var(--line));
@@ -3263,9 +3269,10 @@ html.native-shell .home-title-strip {
     );
     border-radius: 1px;
 }
-
-.home-widget[data-w="1"] .home-widget-grip {
-    display: none;
+@container tile (max-width: 399px) {
+    .home-widget .home-widget-grip {
+        display: none;
+    }
 }
 
 .home-widget-btn,
@@ -3291,10 +3298,16 @@ html.native-shell .home-title-strip {
     display: flex;
     flex-direction: column;
 }
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget .home-widget-body {
+        overflow: auto;
+    }
+}
 
-.home-widget[data-h="2"] .home-widget-body,
-.home-widget[data-h="3"] .home-widget-body {
-    overflow: auto;
+@container tile (min-height: 330px) and (max-height: 459px) {
+    .home-widget .home-widget-body {
+        overflow: auto;
+    }
 }
 
 .home-shell.is-editing .home-widget-body {
@@ -3302,14 +3315,16 @@ html.native-shell .home-title-strip {
     pointer-events: none;
     user-select: none;
 }
-
-.home-widget[data-h="1"] .home-widget-body {
-    padding: var(--tile-pad-short);
+@container tile (max-height: 189px) {
+    .home-widget .home-widget-body {
+        padding: var(--tile-pad-short);
+    }
 }
-
-.home-widget[data-w="1"][data-h="1"] .home-widget-body {
-    padding: 9px 8px 7px;
-    justify-content: center;
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget .home-widget-body {
+        padding: 9px 8px 7px;
+        justify-content: center;
+    }
 }
 
 .glance-tile {
@@ -3335,9 +3350,13 @@ html[data-motion='reduce'] .glance-tile {
     animation: none;
 }
 
-.glance-tile--1x1 {
-    justify-content: flex-start;
-    align-items: flex-start;
+/* The smallest tile. This was keyed to a class naming the cell span, which
+   stopped meaning anything the moment the grid was divided differently. */
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .glance-tile {
+        justify-content: flex-start;
+        align-items: flex-start;
+    }
 }
 
 .glance-label {
@@ -3361,17 +3380,19 @@ html[data-motion='reduce'] .glance-tile {
 .glance-primary--hero {
     font-size: var(--fs-hero);
 }
-
-.home-widget[data-h="1"] .glance-primary,
-.home-widget[data-h="1"] .glance-kpi {
-    font-size: var(--fs-heading);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+@container tile (max-height: 189px) {
+    .home-widget .glance-primary,
+    .home-widget .glance-kpi {
+        font-size: var(--fs-heading);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 }
-
-.home-widget[data-h="2"] .glance-primary--hero {
-    font-size: var(--fs-metric);
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget .glance-primary--hero {
+        font-size: var(--fs-metric);
+    }
 }
 
 .glance-message {
@@ -3402,9 +3423,10 @@ html[data-motion='reduce'] .glance-tile {
     line-height: var(--lh-flat);
     color: var(--text-1);
 }
-
-.home-widget[data-w="1"][data-h="1"] .glance-kpi {
-    font-size: var(--fs-metric);
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget .glance-kpi {
+        font-size: var(--fs-metric);
+    }
 }
 
 .glance-kpi--word {
@@ -3461,11 +3483,12 @@ html[data-motion='reduce'] .glance-tile {
     width: 1.15rem;
     height: 1.15rem;
 }
-
-.home-widget[data-w="1"][data-h="1"] .glance-glyph {
-    width: 1.55rem;
-    height: 1.55rem;
-    margin-bottom: 4px;
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget .glance-glyph {
+        width: 1.55rem;
+        height: 1.55rem;
+        margin-bottom: 4px;
+    }
 }
 
 .glance-list,
@@ -3480,12 +3503,19 @@ html[data-motion='reduce'] .glance-tile {
     min-height: 0;
     overflow: auto;
 }
-
 /* Capture and buttons cannot squeeze the list to nothing. */
-.home-widget[data-h="2"] .glance-list,
-.home-widget[data-h="3"] .glance-list {
-    flex: 1 1 0;
-    min-height: var(--glance-row-min);
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget .glance-list {
+        flex: 1 1 0;
+        min-height: var(--glance-row-min);
+    }
+}
+
+@container tile (min-height: 330px) and (max-height: 459px) {
+    .home-widget .glance-list {
+        flex: 1 1 0;
+        min-height: var(--glance-row-min);
+    }
 }
 
 .glance-list li,
@@ -3518,15 +3548,25 @@ html[data-motion='reduce'] .glance-tile {
     font-style: normal;
     font-weight: var(--fw-medium);
 }
-
 /* Two lines beat an ellipsis when the tile has the height for it. */
-.home-widget[data-h="2"] .glance-list li strong,
-.home-widget[data-h="3"] .glance-list li strong {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    white-space: normal;
-    overflow-wrap: anywhere;
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget .glance-list li strong {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
+@container tile (min-height: 330px) and (max-height: 459px) {
+    .home-widget .glance-list li strong {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
 }
 
 .glance-list li.is-done strong {
@@ -3606,17 +3646,19 @@ html[data-motion='reduce'] .glance-tile {
     margin-top: var(--space-xs);
     flex: 0 0 auto;
 }
-
 /* A two-high tile gets one row of buttons, never a wrapped block. */
-.home-widget[data-h="2"] .glance-actions {
-    flex-wrap: nowrap;
-    gap: 6px;
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget .glance-actions {
+        flex-wrap: nowrap;
+        gap: 6px;
+    }
 }
-
-.home-widget[data-h="2"] .glance-action {
-    min-height: var(--glance-action-h);
-    padding: 5px 10px;
-    white-space: nowrap;
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget .glance-action {
+        min-height: var(--glance-action-h);
+        padding: 5px 10px;
+        white-space: nowrap;
+    }
 }
 
 .glance-action--ghost {
@@ -3663,42 +3705,49 @@ html[data-motion='reduce'] .glance-tile {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
 }
-
-.home-widget[data-h="1"] .glance-tile {
-    gap: 2px;
+@container tile (max-height: 189px) {
+    .home-widget .glance-tile {
+        gap: 2px;
+    }
 }
-
-.home-widget[data-h="1"] .glance-list,
-.home-widget[data-h="1"] .glance-hourly,
-.home-widget[data-h="1"] .glance-forecast,
-.home-widget[data-h="1"] .glance-heat,
-.home-widget[data-h="1"] .glance-counters,
-.home-widget[data-h="1"] .glance-weekdays,
-.home-widget[data-h="1"] .glance-capture {
-    display: none;
+@container tile (max-height: 189px) {
+    .home-widget .glance-list,
+    .home-widget .glance-hourly,
+    .home-widget .glance-forecast,
+    .home-widget .glance-heat,
+    .home-widget .glance-counters,
+    .home-widget .glance-weekdays,
+    .home-widget .glance-capture {
+        display: none;
+    }
 }
-
-.home-widget[data-h="1"] .glance-message + .glance-message {
-    display: none;
+@container tile (max-height: 189px) {
+    .home-widget .glance-message + .glance-message {
+        display: none;
+    }
 }
-
-.home-widget[data-h="1"] .glance-actions {
-    display: none;
+@container tile (max-height: 189px) {
+    .home-widget .glance-actions {
+        display: none;
+    }
 }
-
-.home-widget[data-kind="counters"][data-h="1"] .glance-actions {
-    display: flex;
-    margin-top: 0;
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="counters"] .glance-actions {
+        display: flex;
+        margin-top: 0;
+    }
 }
-
-.home-widget[data-kind="counters"][data-h="1"] .glance-action {
-    min-height: 1.5rem;
-    margin-top: 0;
-    padding: 2px 8px;
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="counters"] .glance-action {
+        min-height: 1.5rem;
+        margin-top: 0;
+        padding: 2px 8px;
+    }
 }
-
-.home-widget[data-w="1"][data-h="1"] .glance-message {
-    display: none;
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget .glance-message {
+        display: none;
+    }
 }
 
 .glance-counters {
@@ -3706,9 +3755,10 @@ html[data-motion='reduce'] .glance-tile {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-xs);
 }
-
-.home-widget[data-w="1"] .glance-counters {
-    grid-template-columns: 1fr;
+@container tile (max-width: 399px) {
+    .home-widget .glance-counters {
+        grid-template-columns: 1fr;
+    }
 }
 
 .glance-counter {
@@ -4118,11 +4168,22 @@ html.home-work-open .app-content {
     font-size: var(--fs-caption);
     margin-bottom: 6px;
 }
+@container tile (max-height: 189px) {
+    .home-widget .panel-sub {
+        display: none;
+    }
+}
 
-.home-widget[data-h="1"] .panel-sub,
-.home-widget[data-h="2"] .panel-sub,
-.home-widget[data-w="2"] .panel-sub {
-    display: none;
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget .panel-sub {
+        display: none;
+    }
+}
+
+@container tile (min-width: 400px) and (max-width: 699px) {
+    .home-widget .panel-sub {
+        display: none;
+    }
 }
 
 .home-widget #journalEntry,
@@ -4140,178 +4201,310 @@ html.home-work-open .app-content {
 .home-widget-body .work-item {
     padding: 8px 10px;
 }
-
-.home-widget[data-kind="workout"]:not([data-h="4"]) .work-aside,
-.home-widget[data-kind="todo"]:not([data-w="4"]) .work-aside,
-.home-widget[data-kind="journal"]:not([data-w="4"]) .journal-inspector {
-    display: none;
+@container tile (max-height: 459px) {
+    .home-widget[data-kind="workout"] .work-aside {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="workout"]:not([data-w="4"]) .work-layout,
-.home-widget[data-kind="todo"]:not([data-w="4"]) .work-layout,
-.home-widget[data-kind="journal"]:not([data-w="4"]) .journal-layout {
-    display: block;
+@container tile (max-width: 979px) {
+    .home-widget[data-kind="todo"] .work-aside,
+    .home-widget[data-kind="journal"] .journal-inspector {
+        display: none;
+    }
+}
+@container tile (max-width: 979px) {
+    .home-widget[data-kind="workout"] .work-layout,
+    .home-widget[data-kind="todo"] .work-layout,
+    .home-widget[data-kind="journal"] .journal-layout {
+        display: block;
+    }
+}
+@container tile (min-width: 400px) and (max-width: 699px) {
+    .home-widget[data-kind="goals"] .goals-layout {
+        grid-template-columns: 1fr;
+    }
 }
 
-.home-widget[data-kind="goals"][data-w="2"] .goals-layout,
-.home-widget[data-kind="goals"][data-w="1"] .goals-layout {
-    grid-template-columns: 1fr;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="goals"] .goals-layout {
+        grid-template-columns: 1fr;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="weather"] .weather-hourly,
+    .home-widget[data-kind="weather"] .weather-daily,
+    .home-widget[data-kind="weather"] .weather-units,
+    .home-widget[data-kind="weather"] .weather-meta,
+    .home-widget[data-kind="weather"] .weather-next,
+    .home-widget[data-kind="weather"] .weather-precip,
+    .home-widget[data-kind="weather"] .today-date-sub,
+    .home-widget[data-kind="weather"] .weather-place-form.is-collapsed {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="weather"][data-h="1"] .weather-hourly,
-.home-widget[data-kind="weather"][data-h="1"] .weather-daily,
-.home-widget[data-kind="weather"][data-h="1"] .weather-units,
-.home-widget[data-kind="weather"][data-h="1"] .weather-meta,
-.home-widget[data-kind="weather"][data-h="1"] .weather-next,
-.home-widget[data-kind="weather"][data-h="1"] .weather-precip,
-.home-widget[data-kind="weather"][data-h="1"] .today-date-sub,
-.home-widget[data-kind="weather"][data-w="1"] .weather-hourly,
-.home-widget[data-kind="weather"][data-w="1"] .weather-daily,
-.home-widget[data-kind="weather"][data-w="1"] .weather-units,
-.home-widget[data-kind="weather"][data-w="1"] .weather-meta,
-.home-widget[data-kind="weather"][data-w="1"] .weather-next,
-.home-widget[data-kind="weather"][data-w="1"] .today-date-sub,
-.home-widget[data-kind="weather"][data-w="2"][data-h="2"] .weather-daily,
-.home-widget[data-kind="weather"][data-h="1"] .weather-place-form.is-collapsed,
-.home-widget[data-kind="weather"][data-w="1"] .weather-place-form.is-collapsed,
-.home-widget[data-kind="weather"][data-w="1"][data-h="1"]:has(.weather-current:not(:empty)) .glance-head,
-.home-widget[data-kind="weather"][data-w="1"][data-h="1"]:has(.weather-place-form:not(.is-collapsed)) .glance-head,
-.home-widget[data-kind="weather"][data-w="1"][data-h="1"] .weather-current-copy,
-.home-widget[data-kind="weather"][data-w="1"][data-h="1"] #weatherStatus {
-    display: none;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="weather"] .weather-hourly,
+    .home-widget[data-kind="weather"] .weather-daily,
+    .home-widget[data-kind="weather"] .weather-units,
+    .home-widget[data-kind="weather"] .weather-meta,
+    .home-widget[data-kind="weather"] .weather-next,
+    .home-widget[data-kind="weather"] .today-date-sub,
+    .home-widget[data-kind="weather"] .weather-place-form.is-collapsed {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="weather"][data-h="1"] .weather-current,
-.home-widget[data-kind="weather"][data-w="1"] .weather-current {
-    gap: 6px;
-    align-items: baseline;
+@container tile (min-height: 190px) and (max-height: 329px) and (min-width: 400px) and (max-width: 699px) {
+    .home-widget[data-kind="weather"] .weather-daily {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="weather"][data-h="1"] .weather-temp,
-.home-widget[data-kind="weather"][data-w="1"] .weather-temp {
-    font-size: var(--fs-metric);
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget[data-kind="weather"]:has(.weather-current:not(:empty)) .glance-head,
+    .home-widget[data-kind="weather"]:has(.weather-place-form:not(.is-collapsed)) .glance-head,
+    .home-widget[data-kind="weather"] .weather-current-copy,
+    .home-widget[data-kind="weather"] #weatherStatus {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="weather"] .weather-current {
+        gap: 6px;
+        align-items: baseline;
+    }
 }
 
-.home-widget[data-kind="weather"][data-h="1"] .glance-head h2,
-.home-widget[data-kind="weather"][data-w="1"] .glance-head h2 {
-    font-size: var(--fs-body);
-    margin: 0;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="weather"] .weather-current {
+        gap: 6px;
+        align-items: baseline;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="weather"] .weather-temp {
+        font-size: var(--fs-metric);
+    }
 }
 
-.home-widget[data-kind="weather"][data-w="1"][data-h="1"] .weather-widget,
-.home-widget[data-kind="weather"][data-w="1"][data-h="1"] .weather-current {
-    height: 100%;
-    justify-content: center;
-    align-items: center;
-    gap: 0;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="weather"] .weather-temp {
+        font-size: var(--fs-metric);
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="weather"] .glance-head h2 {
+        font-size: var(--fs-body);
+        margin: 0;
+    }
 }
 
-.home-widget[data-kind="weather"][data-w="1"][data-h="1"] .weather-temp {
-    font-size: var(--fs-title);
-    letter-spacing: var(--letter-tighter);
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="weather"] .glance-head h2 {
+        font-size: var(--fs-body);
+        margin: 0;
+    }
+}
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget[data-kind="weather"] .weather-widget,
+    .home-widget[data-kind="weather"] .weather-current {
+        height: 100%;
+        justify-content: center;
+        align-items: center;
+        gap: 0;
+    }
+}
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget[data-kind="weather"] .weather-temp {
+        font-size: var(--fs-title);
+        letter-spacing: var(--letter-tighter);
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="weather"] .weather-place-form {
+        margin-top: 2px;
+        gap: 4px;
+    }
 }
 
-.home-widget[data-kind="weather"][data-h="1"] .weather-place-form,
-.home-widget[data-kind="weather"][data-w="1"] .weather-place-form {
-    margin-top: 2px;
-    gap: 4px;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="weather"] .weather-place-form {
+        margin-top: 2px;
+        gap: 4px;
+    }
+}
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="weather"] .weather-place-form .btn-secondary {
+        padding: 4px 8px;
+        font-size: var(--fs-caption);
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="habits"] .today-date-sub,
+    .home-widget[data-kind="habits"]:has(.habit-tick) .glance-add {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="weather"][data-w="1"] .weather-place-form .btn-secondary {
-    padding: 4px 8px;
-    font-size: var(--fs-caption);
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="habits"]:has(.habit-tick) .glance-add {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="habits"][data-h="1"] .today-date-sub,
-.home-widget[data-kind="habits"][data-h="1"]:has(.habit-tick) .glance-add,
-.home-widget[data-kind="habits"][data-w="1"]:has(.habit-tick) .glance-add,
-.home-widget[data-kind="habits"][data-h="2"] .today-date-sub {
-    display: none;
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget[data-kind="habits"] .today-date-sub {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="habits"] .habit-list li:nth-child(n+3) {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="habits"][data-h="1"] .habit-list li:nth-child(n+3),
-.home-widget[data-kind="habits"][data-w="1"] .habit-list li:nth-child(n+4) {
-    display: none;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="habits"] .habit-list li:nth-child(n+4) {
+        display: none;
+    }
+}
+@container tile (max-width: 979px) {
+    .home-widget[data-kind="checklist"] .checklist-aside {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="checklist"]:not([data-w="4"]) .checklist-aside,
-.home-widget[data-kind="checklist"]:not([data-h="4"]) .checklist-aside {
-    display: none;
+@container tile (max-height: 459px) {
+    .home-widget[data-kind="checklist"] .checklist-aside {
+        display: none;
+    }
+}
+@container tile (max-width: 979px) {
+    .home-widget[data-kind="checklist"] .checklist-layout {
+        display: block;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="word"] .word-example,
+    .home-widget[data-kind="word"] .word-evening-hint,
+    .home-widget[data-kind="word"] .word-evening-btn,
+    .home-widget[data-kind="word"] .word-used {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="checklist"]:not([data-w="4"]) .checklist-layout {
-    display: block;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="word"] .word-example,
+    .home-widget[data-kind="word"] .word-evening-hint,
+    .home-widget[data-kind="word"] .word-evening-btn {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="word"][data-h="1"] .word-example,
-.home-widget[data-kind="word"][data-h="1"] .word-evening-hint,
-.home-widget[data-kind="word"][data-h="1"] .word-evening-btn,
-.home-widget[data-kind="word"][data-h="1"] .word-used,
-.home-widget[data-kind="word"][data-w="1"] .word-example,
-.home-widget[data-kind="word"][data-w="1"] .word-evening-hint,
-.home-widget[data-kind="word"][data-w="1"] .word-evening-btn,
-.home-widget[data-kind="word"]:not([data-h="3"]):not([data-w="4"]) .word-example,
-.home-widget[data-kind="word"]:not([data-h="3"]):not([data-w="4"]) .word-evening-hint {
-    display: none;
+@container tile (max-height: 329px) and (max-width: 979px) {
+    .home-widget[data-kind="word"] .word-example,
+    .home-widget[data-kind="word"] .word-evening-hint {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget[data-kind="word"] .word-meaning,
+    .home-widget[data-kind="word"] .word-chip {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) and (min-width: 400px) and (max-width: 699px) {
+    .home-widget[data-kind="word"] .word-meaning {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        font-size: var(--fs-caption);
+        line-height: var(--lh-snug);
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="word"] .word-head {
+        font-size: var(--fs-lead);
+    }
 }
 
-.home-widget[data-kind="word"][data-w="1"][data-h="1"] .word-meaning,
-.home-widget[data-kind="word"][data-w="1"][data-h="1"] .word-chip {
-    display: none;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="word"] .word-head {
+        font-size: var(--fs-lead);
+    }
+}
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget[data-kind="word"] .word-card {
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        gap: 0;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="focus"] .checklist-hint {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="word"][data-h="1"][data-w="2"] .word-meaning {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: var(--fs-caption);
-    line-height: var(--lh-snug);
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="focus"] .checklist-hint {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="focus"] .focus-input {
+        min-height: 0;
+        height: 100%;
+        font-size: var(--fs-body);
+        padding: 2px 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="countdown"]:has(.countdown-item) .glance-add,
+    .home-widget[data-kind="countdown"] #countdownList li:nth-child(n+2),
+    .home-widget[data-kind="countdown"] .countdown-item:nth-child(n+2) {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="word"][data-h="1"] .word-head,
-.home-widget[data-kind="word"][data-w="1"] .word-head {
-    font-size: var(--fs-lead);
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="countdown"]:has(.countdown-item) .glance-add,
+    .home-widget[data-kind="countdown"] #countdownList li:nth-child(n+3),
+    .home-widget[data-kind="countdown"] .countdown-item:nth-child(n+3) {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="word"][data-w="1"][data-h="1"] .word-card {
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    gap: 0;
+@container tile (max-height: 329px) and (max-width: 979px) {
+    .home-widget[data-kind="countdown"] .countdown-item:nth-child(n+4) {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="focus"][data-h="1"] .checklist-hint,
-.home-widget[data-kind="focus"][data-w="1"] .checklist-hint {
-    display: none;
+@container tile (max-height: 189px) and (min-width: 400px) and (max-width: 699px) {
+    .home-widget[data-kind="countdown"] .countdown-item:nth-child(n+2) {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="today_calendar"] .today-agenda,
+    .home-widget[data-kind="today_calendar"] .today-pulse,
+    .home-widget[data-kind="today_calendar"] .today-date-sub {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="focus"][data-h="1"] .focus-input {
-    min-height: 0;
-    height: 100%;
-    font-size: var(--fs-body);
-    padding: 2px 0;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-}
-
-.home-widget[data-kind="countdown"][data-h="1"]:has(.countdown-item) .glance-add,
-.home-widget[data-kind="countdown"][data-w="1"]:has(.countdown-item) .glance-add,
-.home-widget[data-kind="countdown"][data-h="1"] #countdownList li:nth-child(n+2),
-.home-widget[data-kind="countdown"][data-w="1"] #countdownList li:nth-child(n+3),
-.home-widget[data-kind="countdown"][data-h="1"] .countdown-item:nth-child(n+2),
-.home-widget[data-kind="countdown"][data-w="1"] .countdown-item:nth-child(n+3),
-.home-widget[data-kind="countdown"]:not([data-h="3"]):not([data-w="4"]) .countdown-item:nth-child(n+4),
-.home-widget[data-kind="countdown"][data-w="2"][data-h="1"] .countdown-item:nth-child(n+2) {
-    display: none;
-}
-
-.home-widget[data-kind="today_calendar"][data-h="1"] .today-agenda,
-.home-widget[data-kind="today_calendar"][data-w="1"] .today-agenda,
-.home-widget[data-kind="today_calendar"][data-h="1"] .today-pulse,
-.home-widget[data-kind="today_calendar"][data-h="1"] .today-date-sub {
-    display: none;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="today_calendar"] .today-agenda {
+        display: none;
+    }
 }
 
 .home-widget[data-kind="today_calendar"] .today-masthead {
@@ -4328,125 +4521,198 @@ html.home-work-open .app-content {
     margin: 0;
     line-height: var(--lh-tight);
 }
-
-.home-widget[data-kind="today_calendar"][data-h="1"] .today-masthead,
-.home-widget[data-kind="today_calendar"][data-w="1"] .today-masthead {
-    border: 0;
-    padding: 0;
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="today_calendar"] .today-masthead {
+        border: 0;
+        padding: 0;
+    }
 }
 
-.home-widget[data-kind="today_calendar"][data-h="1"] #todayDateTitle,
-.home-widget[data-kind="today_calendar"][data-w="1"] #todayDateTitle {
-    font-size: var(--fs-lead);
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="today_calendar"] .today-masthead {
+        border: 0;
+        padding: 0;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="today_calendar"] #todayDateTitle {
+        font-size: var(--fs-lead);
+    }
 }
 
-.home-widget[data-kind="counters"][data-h="1"]:has(.counter-card) .counters-form,
-.home-widget[data-kind="counters"][data-w="1"]:has(.counter-card) .counters-form,
-.home-widget[data-kind="counters"][data-h="1"] .panel-sub,
-.home-widget[data-kind="counters"][data-h="1"] .compact-widget-head,
-.home-widget[data-kind="counters"][data-h="1"] .counters-list > :nth-child(n+2) {
-    display: none;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="today_calendar"] #todayDateTitle {
+        font-size: var(--fs-lead);
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="counters"]:has(.counter-card) .counters-form,
+    .home-widget[data-kind="counters"] .panel-sub,
+    .home-widget[data-kind="counters"] .compact-widget-head,
+    .home-widget[data-kind="counters"] .counters-list > :nth-child(n+2) {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="reading"][data-h="1"] .reading-journal-form,
-.home-widget[data-kind="reading"][data-h="1"] .day-brief-form,
-.home-widget[data-kind="reading"][data-h="1"] .reading-page-btns,
-.home-widget[data-kind="reading"][data-h="1"] .panel-sub,
-.home-widget[data-kind="reading"][data-h="1"] .compact-widget-head,
-.home-widget[data-kind="reading"][data-w="1"] .reading-page-btns .btn-secondary:nth-child(n+2),
-.home-widget[data-kind="reading"][data-w="2"] .reading-page-btns .btn-secondary:nth-child(n+3) {
-    display: none;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="counters"]:has(.counter-card) .counters-form {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="reading"] .reading-journal-form,
+    .home-widget[data-kind="reading"] .day-brief-form,
+    .home-widget[data-kind="reading"] .reading-page-btns,
+    .home-widget[data-kind="reading"] .panel-sub,
+    .home-widget[data-kind="reading"] .compact-widget-head {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="heatmap"][data-h="1"] .heatmap-filters,
-.home-widget[data-kind="heatmap"][data-h="1"] .heatmap-controls,
-.home-widget[data-kind="heatmap"][data-h="1"] .panel-sub,
-.home-widget[data-kind="heatmap"][data-h="1"] .compact-widget-head,
-.home-widget[data-kind="heatmap"][data-h="1"] #heatmapHint,
-.home-widget[data-kind="heatmap"][data-h="2"] .heatmap-filters {
-    display: none;
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="reading"] .reading-page-btns .btn-secondary:nth-child(n+2) {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="heatmap"][data-h="1"] .heatmap-grid {
-    grid-template-rows: repeat(7, 6px);
-    grid-auto-columns: 6px;
-    gap: 2px;
+@container tile (min-width: 400px) and (max-width: 699px) {
+    .home-widget[data-kind="reading"] .reading-page-btns .btn-secondary:nth-child(n+3) {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="heatmap"] .heatmap-filters,
+    .home-widget[data-kind="heatmap"] .heatmap-controls,
+    .home-widget[data-kind="heatmap"] .panel-sub,
+    .home-widget[data-kind="heatmap"] .compact-widget-head,
+    .home-widget[data-kind="heatmap"] #heatmapHint {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="heatmap"][data-h="1"] .heatmap-cell {
-    width: 6px;
-    height: 6px;
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget[data-kind="heatmap"] .heatmap-filters {
+        display: none;
+    }
 }
-
-.home-widget[data-kind="day_brief"][data-h="1"] .day-brief-form,
-.home-widget[data-kind="day_brief"][data-h="1"] .panel-sub,
-.home-widget[data-kind="day_brief"][data-h="1"] #dayBriefSlotToggle {
-    display: none;
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="heatmap"] .heatmap-grid {
+        grid-template-rows: repeat(7, 6px);
+        grid-auto-columns: 6px;
+        gap: 2px;
+    }
 }
-
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="heatmap"] .heatmap-cell {
+        width: 6px;
+        height: 6px;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="day_brief"] .day-brief-form,
+    .home-widget[data-kind="day_brief"] .panel-sub,
+    .home-widget[data-kind="day_brief"] #dayBriefSlotToggle {
+        display: none;
+    }
+}
 .home-widget[data-kind="todo"] .todo-when-hint,
-.home-widget[data-kind="todo"] .work-repeat-toggle,
-.home-widget[data-kind="todo"]:not([data-h="4"]) .work-repeat-panel,
-.home-widget[data-kind="todo"][data-h="1"] .work-add-row,
-.home-widget[data-kind="todo"][data-h="1"] .todo-when,
-.home-widget[data-kind="todo"][data-h="2"] .work-add-optional,
-.home-widget[data-kind="todo"][data-h="2"] .panel-sub,
-.home-widget[data-kind="workout"][data-h="1"] .work-aside,
-.home-widget[data-kind="workout"][data-h="1"] .workout-form,
-.home-widget[data-kind="workout"][data-h="1"] .panel-sub,
-.home-widget[data-kind="journal"][data-h="1"] .journal-tags-details,
-.home-widget[data-kind="journal"][data-h="1"] .journal-timer-container,
-.home-widget[data-kind="journal"][data-h="1"] .journal-actions,
-.home-widget[data-kind="checklist"][data-h="1"] .checklist-template-row,
-.home-widget[data-kind="checklist"][data-h="1"] .panel-sub {
+.home-widget[data-kind="todo"] .work-repeat-toggle {
     display: none;
 }
 
-.home-widget[data-h="1"] .glance-list .btn-ghost,
-.home-widget[data-w="1"] .glance-list .btn-ghost,
-.home-widget[data-h="1"] .habit-list .btn-ghost,
-.home-widget[data-w="1"] .habit-list .btn-ghost {
-    display: none;
+@container tile (max-height: 459px) {
+    .home-widget[data-kind="todo"] .work-repeat-panel {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="countdown"][data-h="1"] .countdown-date,
-.home-widget[data-kind="countdown"][data-w="1"] .countdown-date,
-.home-widget[data-kind="countdown"][data-h="1"] .countdown-item .btn-ghost,
-.home-widget[data-kind="countdown"][data-w="1"] .countdown-item .btn-ghost {
-    display: none;
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="todo"] .work-add-row,
+    .home-widget[data-kind="todo"] .todo-when,
+    .home-widget[data-kind="workout"] .work-aside,
+    .home-widget[data-kind="workout"] .workout-form,
+    .home-widget[data-kind="workout"] .panel-sub,
+    .home-widget[data-kind="journal"] .journal-tags-details,
+    .home-widget[data-kind="journal"] .journal-timer-container,
+    .home-widget[data-kind="journal"] .journal-actions,
+    .home-widget[data-kind="checklist"] .checklist-template-row,
+    .home-widget[data-kind="checklist"] .panel-sub {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="countdown"][data-w="1"][data-h="1"] .countdown-item {
-    grid-template-columns: 1fr auto;
+@container tile (min-height: 190px) and (max-height: 329px) {
+    .home-widget[data-kind="todo"] .work-add-optional,
+    .home-widget[data-kind="todo"] .panel-sub {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget .glance-list .btn-ghost,
+    .home-widget .habit-list .btn-ghost {
+        display: none;
+    }
 }
 
-.home-widget[data-w="1"] .home-widget-btn {
-    padding: 1px 5px;
-    font-size: var(--fs-nano);
+@container tile (max-width: 399px) {
+    .home-widget .glance-list .btn-ghost,
+    .home-widget .habit-list .btn-ghost {
+        display: none;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="countdown"] .countdown-date,
+    .home-widget[data-kind="countdown"] .countdown-item .btn-ghost {
+        display: none;
+    }
 }
 
-.home-widget[data-kind="reading"][data-h="1"] .review-stat {
-    font-size: var(--fs-title);
+@container tile (max-width: 399px) {
+    .home-widget[data-kind="countdown"] .countdown-date,
+    .home-widget[data-kind="countdown"] .countdown-item .btn-ghost {
+        display: none;
+    }
 }
-
-.home-widget[data-kind="reading"][data-h="1"] .review-detail {
-    font-size: var(--fs-micro);
+@container tile (max-height: 189px) and (max-width: 399px) {
+    .home-widget[data-kind="countdown"] .countdown-item {
+        grid-template-columns: 1fr auto;
+    }
 }
-
-.home-widget[data-kind="counters"][data-h="1"] .counter-tap {
-    padding: 2px 4px 4px;
+@container tile (max-width: 399px) {
+    .home-widget .home-widget-btn {
+        padding: 1px 5px;
+        font-size: var(--fs-nano);
+    }
 }
-
-.home-widget[data-kind="counters"][data-h="1"] .counter-icon {
-    font-size: var(--fs-lead);
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="reading"] .review-stat {
+        font-size: var(--fs-title);
+    }
 }
-
-.home-widget[data-kind="counters"][data-h="1"] .counter-count {
-    font-size: var(--fs-lead);
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="reading"] .review-detail {
+        font-size: var(--fs-micro);
+    }
 }
-
-.home-widget[data-kind="counters"][data-h="1"] .counter-actions {
-    display: none;
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="counters"] .counter-tap {
+        padding: 2px 4px 4px;
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="counters"] .counter-icon {
+        font-size: var(--fs-lead);
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="counters"] .counter-count {
+        font-size: var(--fs-lead);
+    }
+}
+@container tile (max-height: 189px) {
+    .home-widget[data-kind="counters"] .counter-actions {
+        display: none;
+    }
 }
 
 .visually-hidden {

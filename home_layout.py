@@ -17,121 +17,121 @@ import eel
 from appearance import COLOR_SLOTS, _as_hex
 from paths import data_directory
 
-GRID_COLUMNS = 4
-LAYOUT_VERSION = 2
+GRID_COLUMNS = 8
+LAYOUT_VERSION = 3
 MAX_PAGES = 12
 MAX_WIDGETS_PER_PAGE = 32
 MAX_PAGE_NAME = 40
-MAX_SCAN_ROWS = 32
+MAX_SCAN_ROWS = 64
 
-# Allowed (width, height) in cells. 1-wide tiles are glance chips; 4-wide is the full board.
-# Anything that renders a list defaults three rows tall: at two rows the tile
+# Allowed (width, height) in cells. 2-wide tiles are glance chips; 8-wide is the full board.
+# Anything that renders a list defaults six rows tall: at four rows the tile
 # has to spend its height on a headline and buttons and the list collapses.
 WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "todo": {
         "label": "To Do",
-        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 3),
+        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 6),
     },
     "today_calendar": {
         "label": "Today",
-        "sizes": ((1, 1), (2, 1), (2, 2), (2, 3), (3, 2)),
-        "default": (2, 2),
+        "sizes": ((2, 2), (4, 2), (4, 4), (4, 6), (6, 4)),
+        "default": (4, 4),
     },
     "workout": {
         "label": "Workout",
-        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 4),
     },
     "goals": {
         "label": "Goals",
-        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 3),
+        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 6),
     },
     "allwork": {
         "label": "All Work",
-        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 3),
+        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 6),
     },
     "analytics": {
         "label": "Analytics",
-        "sizes": ((2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "sizes": ((4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 4),
     },
     "timeline": {
         "label": "Timeline",
-        "sizes": ((2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "sizes": ((4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 4),
     },
     "weather": {
         "label": "Weather",
-        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
-        "default": (2, 1),
+        "sizes": ((2, 2), (4, 2), (2, 4), (4, 4), (4, 6), (6, 4)),
+        "default": (4, 2),
     },
     "focus": {
         "label": "Focus",
-        "sizes": ((1, 1), (2, 1), (2, 2), (3, 1), (3, 2)),
-        "default": (2, 1),
+        "sizes": ((2, 2), (4, 2), (4, 4), (6, 2), (6, 4)),
+        "default": (4, 2),
     },
     "countdown": {
         "label": "Countdown",
-        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
-        "default": (2, 1),
+        "sizes": ((2, 2), (4, 2), (2, 4), (4, 4), (4, 6), (6, 4)),
+        "default": (4, 2),
     },
     "habits": {
         "label": "Habits",
-        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
-        "default": (2, 3),
+        "sizes": ((2, 2), (4, 2), (2, 4), (4, 4), (4, 6), (6, 4)),
+        "default": (4, 6),
     },
     "heatmap": {
         "label": "Heatmap",
-        "sizes": ((2, 1), (3, 1), (2, 2), (3, 2), (3, 3)),
-        "default": (3, 1),
+        "sizes": ((4, 2), (6, 2), (4, 4), (6, 4), (6, 6)),
+        "default": (6, 2),
     },
     "day_brief": {
         "label": "Day",
-        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 4),
     },
     "counters": {
         "label": "Counters",
-        "sizes": ((1, 1), (2, 1), (2, 2), (3, 2), (3, 3)),
-        "default": (2, 1),
+        "sizes": ((2, 2), (4, 2), (4, 4), (6, 4), (6, 6)),
+        "default": (4, 2),
     },
     "reading": {
         "label": "Reading",
-        "sizes": ((1, 1), (2, 1), (2, 2), (2, 3), (3, 2)),
-        "default": (2, 1),
+        "sizes": ((2, 2), (4, 2), (4, 4), (4, 6), (6, 4)),
+        "default": (4, 2),
     },
     "word": {
         "label": "Word",
-        "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
-        "default": (2, 1),
+        "sizes": ((2, 2), (4, 2), (2, 4), (4, 4), (4, 6), (6, 4)),
+        "default": (4, 2),
     },
     "cluny": {
         "label": "Ask Cluny",
-        "sizes": ((2, 2), (2, 3), (3, 2), (3, 3), (4, 2)),
-        "default": (4, 2),
+        "sizes": ((4, 4), (4, 6), (6, 4), (6, 6), (8, 4)),
+        "default": (8, 4),
     },
     "now_next": {
         "label": "Now",
-        "sizes": ((1, 1), (2, 1), (2, 2), (3, 1), (3, 2)),
-        "default": (2, 1),
+        "sizes": ((2, 2), (4, 2), (4, 4), (6, 2), (6, 4)),
+        "default": (4, 2),
     },
     "unplaced": {
         "label": "Unplaced",
-        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 3),
+        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 6),
     },
     "dues": {
         "label": "Due",
-        "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 3),
+        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
+        "default": (4, 6),
     },
     "free_today": {
         "label": "Free",
-        "sizes": ((1, 1), (2, 1), (2, 2), (3, 1)),
-        "default": (2, 1),
+        "sizes": ((2, 2), (4, 2), (4, 4), (6, 2)),
+        "default": (4, 2),
     },
 }
 
@@ -168,13 +168,13 @@ def _stock_home_widgets() -> List[Dict[str, Any]]:
     # Today already shows what is running and what is next, so the board does
     # not carry a second clock tile saying the same thing one row down.
     return [
-        {"id": _new_id(), "kind": "todo", "x": 0, "y": 0, "w": 2, "h": 3, "region": "above"},
-        {"id": _new_id(), "kind": "today_calendar", "x": 2, "y": 0, "w": 2, "h": 3, "region": "above"},
-        {"id": _new_id(), "kind": "cluny", "x": 0, "y": 0, "w": 4, "h": 2},
-        {"id": _new_id(), "kind": "weather", "x": 0, "y": 2, "w": 2, "h": 1},
-        {"id": _new_id(), "kind": "word", "x": 2, "y": 2, "w": 2, "h": 1},
-        {"id": _new_id(), "kind": "unplaced", "x": 0, "y": 3, "w": 2, "h": 3},
-        {"id": _new_id(), "kind": "day_brief", "x": 2, "y": 3, "w": 2, "h": 3},
+        {"id": _new_id(), "kind": "todo", "x": 0, "y": 0, "w": 4, "h": 6, "region": "above"},
+        {"id": _new_id(), "kind": "today_calendar", "x": 4, "y": 0, "w": 4, "h": 6, "region": "above"},
+        {"id": _new_id(), "kind": "cluny", "x": 0, "y": 0, "w": 8, "h": 4},
+        {"id": _new_id(), "kind": "weather", "x": 0, "y": 4, "w": 4, "h": 2},
+        {"id": _new_id(), "kind": "word", "x": 4, "y": 4, "w": 4, "h": 2},
+        {"id": _new_id(), "kind": "unplaced", "x": 0, "y": 6, "w": 4, "h": 6},
+        {"id": _new_id(), "kind": "day_brief", "x": 4, "y": 6, "w": 4, "h": 6},
     ]
 
 
@@ -184,14 +184,14 @@ def default_week_page(name: str = "Week") -> Dict[str, Any]:
         "id": _new_id(),
         "name": _clip_name(name, "Week"),
         "widgets": [
-            {"id": _new_id(), "kind": "goals", "x": 0, "y": 0, "w": 2, "h": 3},
-            {"id": _new_id(), "kind": "allwork", "x": 2, "y": 0, "w": 2, "h": 3},
-            {"id": _new_id(), "kind": "habits", "x": 0, "y": 3, "w": 2, "h": 3},
-            {"id": _new_id(), "kind": "dues", "x": 2, "y": 3, "w": 2, "h": 3},
-            {"id": _new_id(), "kind": "workout", "x": 0, "y": 6, "w": 2, "h": 2},
-            {"id": _new_id(), "kind": "heatmap", "x": 2, "y": 6, "w": 2, "h": 2},
-            {"id": _new_id(), "kind": "reading", "x": 0, "y": 8, "w": 2, "h": 1},
-            {"id": _new_id(), "kind": "free_today", "x": 2, "y": 8, "w": 2, "h": 1},
+            {"id": _new_id(), "kind": "goals", "x": 0, "y": 0, "w": 4, "h": 6},
+            {"id": _new_id(), "kind": "allwork", "x": 4, "y": 0, "w": 4, "h": 6},
+            {"id": _new_id(), "kind": "habits", "x": 0, "y": 6, "w": 4, "h": 6},
+            {"id": _new_id(), "kind": "dues", "x": 4, "y": 6, "w": 4, "h": 6},
+            {"id": _new_id(), "kind": "workout", "x": 0, "y": 12, "w": 4, "h": 4},
+            {"id": _new_id(), "kind": "heatmap", "x": 4, "y": 12, "w": 4, "h": 4},
+            {"id": _new_id(), "kind": "reading", "x": 0, "y": 16, "w": 4, "h": 2},
+            {"id": _new_id(), "kind": "free_today", "x": 4, "y": 16, "w": 4, "h": 2},
         ],
     }
 
@@ -238,7 +238,7 @@ def allowed_sizes(kind: str) -> Tuple[Tuple[int, int], ...]:
 def coerce_size(kind: str, w: Any, h: Any) -> Tuple[int, int]:
     sizes = allowed_sizes(kind)
     if not sizes:
-        return (2, 2)
+        return (4, 4)
     try:
         want = (int(w), int(h))
     except (TypeError, ValueError):
@@ -252,7 +252,7 @@ def nearest_size(kind: str, w: Any, h: Any) -> Tuple[int, int]:
     """Closest catalog size to a dragged width/height, not a cycle."""
     sizes = allowed_sizes(kind)
     if not sizes:
-        return (2, 2)
+        return (4, 4)
     try:
         want = (int(w), int(h))
     except (TypeError, ValueError):
@@ -273,7 +273,7 @@ def nearest_size(kind: str, w: Any, h: Any) -> Tuple[int, int]:
 def spec_default(kind: str) -> Tuple[int, int]:
     spec = WIDGET_CATALOG.get(kind)
     if not spec:
-        return (2, 2)
+        return (4, 4)
     return spec["default"]
 
 
@@ -312,6 +312,31 @@ def first_fit(
             if all(not boxes_overlap(trial, other) for other in others):
                 return (x, y)
     return None
+
+
+def widen_to_eight_columns(raw: Any) -> Dict[str, Any]:
+    """Carry a four-column board onto the eight-column grid.
+
+    Every cell split in two, and the row height halved with it, so doubling
+    each box leaves the board looking exactly as it did. Sizes between the
+    old ones are what the finer grid buys; nothing has to move to get them.
+    """
+    if not isinstance(raw, dict):
+        return raw
+    for page in raw.get("pages") or []:
+        if not isinstance(page, dict):
+            continue
+        for item in page.get("widgets") or []:
+            if not isinstance(item, dict):
+                continue
+            for axis in ("x", "y", "w", "h"):
+                try:
+                    item[axis] = int(item[axis]) * 2
+                except (KeyError, TypeError, ValueError):
+                    continue
+    raw["columns"] = GRID_COLUMNS
+    raw["version"] = LAYOUT_VERSION
+    return raw
 
 
 def _clip_name(raw: Any, fallback: str) -> str:
@@ -447,21 +472,21 @@ STOCK_HOME_FULL = STOCK_HOME_KINDS | {"cluny", "day_brief"}
 STOCK_HOME_WITH_PLAN = STOCK_HOME_FULL | {"unplaced", "now_next"}
 STOCK_HOME_PLANNED = STOCK_HOME_FULL | {"unplaced"}
 STOCK_HOME_CORE_SLOTS = {
-    "todo": {"x": 0, "y": 0, "w": 2, "h": 3, "region": "above"},
-    "today_calendar": {"x": 2, "y": 0, "w": 2, "h": 3, "region": "above"},
-    "cluny": {"x": 0, "y": 0, "w": 4, "h": 2, "region": "below"},
-    "weather": {"x": 0, "y": 2, "w": 2, "h": 1, "region": "below"},
-    "word": {"x": 2, "y": 2, "w": 2, "h": 1, "region": "below"},
-    "day_brief": {"x": 0, "y": 3, "w": 2, "h": 3, "region": "below"},
+    "todo": {"x": 0, "y": 0, "w": 4, "h": 6, "region": "above"},
+    "today_calendar": {"x": 4, "y": 0, "w": 4, "h": 6, "region": "above"},
+    "cluny": {"x": 0, "y": 0, "w": 8, "h": 4, "region": "below"},
+    "weather": {"x": 0, "y": 4, "w": 4, "h": 2, "region": "below"},
+    "word": {"x": 4, "y": 4, "w": 4, "h": 2, "region": "below"},
+    "day_brief": {"x": 0, "y": 6, "w": 4, "h": 6, "region": "below"},
 }
 STOCK_HOME_SLOTS = {
-    "todo": {"x": 0, "y": 0, "w": 2, "h": 3, "region": "above"},
-    "today_calendar": {"x": 2, "y": 0, "w": 2, "h": 3, "region": "above"},
-    "cluny": {"x": 0, "y": 0, "w": 4, "h": 2, "region": "below"},
-    "weather": {"x": 0, "y": 2, "w": 2, "h": 1, "region": "below"},
-    "word": {"x": 2, "y": 2, "w": 2, "h": 1, "region": "below"},
-    "unplaced": {"x": 0, "y": 3, "w": 2, "h": 3, "region": "below"},
-    "day_brief": {"x": 2, "y": 3, "w": 2, "h": 3, "region": "below"},
+    "todo": {"x": 0, "y": 0, "w": 4, "h": 6, "region": "above"},
+    "today_calendar": {"x": 4, "y": 0, "w": 4, "h": 6, "region": "above"},
+    "cluny": {"x": 0, "y": 0, "w": 8, "h": 4, "region": "below"},
+    "weather": {"x": 0, "y": 4, "w": 4, "h": 2, "region": "below"},
+    "word": {"x": 4, "y": 4, "w": 4, "h": 2, "region": "below"},
+    "unplaced": {"x": 0, "y": 6, "w": 4, "h": 6, "region": "below"},
+    "day_brief": {"x": 4, "y": 6, "w": 4, "h": 6, "region": "below"},
 }
 WEEK_STOCK_KINDS = frozenset({"workout", "goals", "allwork", "habits", "heatmap", "reading"})
 WEEK_PLAN_KINDS = ("dues", "free_today")
@@ -829,7 +854,12 @@ def get_home_layout() -> Dict[str, Any]:
     try:
         with open(path, "r", encoding="utf-8") as handle:
             raw = json.load(handle)
-        if int((raw or {}).get("version") or 0) < LAYOUT_VERSION:
+        stored = int((raw or {}).get("version") or 0)
+        if stored == 2:
+            # A board someone arranged by hand is worth more than a clean
+            # reset, and the split is exact, so widen it instead.
+            return _write(widen_to_eight_columns(raw))
+        if stored < LAYOUT_VERSION:
             return _write(default_layout())
         packed, added = seed_ask_cluny(raw)
         packed, dayed = seed_day_brief(packed)

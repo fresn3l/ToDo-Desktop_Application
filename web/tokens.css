@@ -20,8 +20,12 @@
     /* Spacing and radius live on the --space-* and --radius-* ladders in
        style.css. A second set of names here meant two answers for the same
        question, which is how the type sizes drifted apart. */
-    --grid-gap: 16px;
-    --row-h: 120px;
+    /* Eight columns and half-height rows. A cell split in two both ways, so
+       a box that was 2x1 is 4x2 and lands on the same pixels; the sizes in
+       between are what the finer grid is for. The row is (120 - gap) / 2 so
+       two of them plus the gap still measure the old 120. */
+    --grid-gap: 12px;
+    --row-h: 54px;
 
     /* One budget for every tile: row floor and button height. List type comes
        from the shared scale like everything else. */

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import os
 import re
 import tempfile
@@ -54,9 +55,11 @@ class HomeLayoutTests(unittest.TestCase):
             self.assertEqual(client[kind]["sizes"], tuple(spec["sizes"]), kind)
             self.assertEqual(client[kind]["default"], tuple(spec["default"]), kind)
 
-    def test_anything_with_a_list_starts_three_rows_tall(self) -> None:
+    def test_anything_with_a_list_starts_tall_enough_to_show_one(self) -> None:
+        # Half the board wide and six rows tall. At four rows the tile spends
+        # its height on a headline and buttons and the list collapses.
         for kind in ("todo", "goals", "allwork", "habits", "unplaced", "dues"):
-            self.assertEqual(home_layout.spec_default(kind), (2, 3), kind)
+            self.assertEqual(home_layout.spec_default(kind), (4, 6), kind)
 
     def test_catalog_lists_folded_tabs_not_settings_or_calendar(self) -> None:
         kinds = {row["kind"] for row in home_layout.catalog()}
@@ -104,16 +107,16 @@ class HomeLayoutTests(unittest.TestCase):
         word = layout["pages"][0]["widgets"][4]
         unplaced = layout["pages"][0]["widgets"][5]
         day = layout["pages"][0]["widgets"][6]
-        self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 2, 3))
+        self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 4, 6))
         self.assertEqual(todo.get("region"), "above")
-        self.assertEqual((today["x"], today["y"], today["w"], today["h"]), (2, 0, 2, 3))
+        self.assertEqual((today["x"], today["y"], today["w"], today["h"]), (4, 0, 4, 6))
         self.assertEqual(today.get("region"), "above")
-        self.assertEqual((cluny["x"], cluny["y"], cluny["w"], cluny["h"]), (0, 0, 4, 2))
+        self.assertEqual((cluny["x"], cluny["y"], cluny["w"], cluny["h"]), (0, 0, 8, 4))
         self.assertNotEqual(cluny.get("region"), "above")
-        self.assertEqual((weather["x"], weather["y"], weather["w"], weather["h"]), (0, 2, 2, 1))
-        self.assertEqual((word["x"], word["y"], word["w"], word["h"]), (2, 2, 2, 1))
-        self.assertEqual((unplaced["x"], unplaced["y"], unplaced["w"], unplaced["h"]), (0, 3, 2, 3))
-        self.assertEqual((day["x"], day["y"], day["w"], day["h"]), (2, 3, 2, 3))
+        self.assertEqual((weather["x"], weather["y"], weather["w"], weather["h"]), (0, 4, 4, 2))
+        self.assertEqual((word["x"], word["y"], word["w"], word["h"]), (4, 4, 4, 2))
+        self.assertEqual((unplaced["x"], unplaced["y"], unplaced["w"], unplaced["h"]), (0, 6, 4, 6))
+        self.assertEqual((day["x"], day["y"], day["w"], day["h"]), (4, 6, 4, 6))
         self.assertFalse(home_layout.boxes_overlap(todo, today))
         self.assertFalse(home_layout.boxes_overlap(cluny, weather))
         self.assertFalse(home_layout.boxes_overlap(weather, word))
@@ -140,20 +143,23 @@ class HomeLayoutTests(unittest.TestCase):
             self.assertIn(spec["default"], sizes)
             self.assertEqual(home_layout.coerce_size(kind, 99, 99), spec["default"])
 
-    def test_glance_widgets_can_be_one_by_one(self) -> None:
-        self.assertIn((1, 1), home_layout.allowed_sizes("weather"))
-        self.assertIn((1, 1), home_layout.allowed_sizes("word"))
-        self.assertIn((1, 1), home_layout.allowed_sizes("focus"))
-        self.assertEqual(home_layout.spec_default("weather"), (2, 1))
-        self.assertEqual(home_layout.spec_default("word"), (2, 1))
-        self.assertEqual(home_layout.spec_default("cluny"), (4, 2))
-        self.assertIn((2, 2), home_layout.allowed_sizes("analytics"))
-        self.assertEqual(home_layout.coerce_size("analytics", 2, 2), (2, 2))
+    def test_glance_widgets_can_shrink_to_a_single_chip(self) -> None:
+        # A chip is a quarter of the board wide and one old row tall, which on
+        # the eight column grid is two cells each way.
+        for kind in ("weather", "word", "focus"):
+            self.assertIn((2, 2), home_layout.allowed_sizes(kind), kind)
+        self.assertEqual(home_layout.spec_default("weather"), (4, 2))
+        self.assertEqual(home_layout.spec_default("word"), (4, 2))
+        self.assertEqual(home_layout.spec_default("cluny"), (8, 4))
+        self.assertIn((4, 4), home_layout.allowed_sizes("analytics"))
+        self.assertEqual(home_layout.coerce_size("analytics", 4, 4), (4, 4))
 
     def test_first_fit_skips_occupied_cells(self) -> None:
-        occupied = [{"id": "a", "x": 0, "y": 0, "w": 2, "h": 2}]
-        self.assertEqual(home_layout.first_fit(occupied, 2, 2), (2, 0))
-        self.assertEqual(home_layout.first_fit(occupied, 4, 2), (0, 2))
+        occupied = [{"id": "a", "x": 0, "y": 0, "w": 4, "h": 4}]
+        # Room to the right of it, so the next tile goes there.
+        self.assertEqual(home_layout.first_fit(occupied, 4, 4), (4, 0))
+        # Too wide to sit beside it, so the next row down.
+        self.assertEqual(home_layout.first_fit(occupied, 8, 4), (0, 4))
 
     def test_sanitize_drops_unknown_and_duplicate_kinds(self) -> None:
         raw = {
@@ -236,15 +242,15 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertNotEqual((todo["w"], todo["h"]), (2, 2))
 
     def test_resize_snaps_to_nearest_allowed_size(self) -> None:
-        self.assertEqual(home_layout.nearest_size("todo", 2, 2), (2, 2))
-        self.assertEqual(home_layout.nearest_size("todo", 4, 3), (3, 3))
-        self.assertEqual(home_layout.nearest_size("analytics", 5, 5), (3, 3))
-        self.assertEqual(home_layout.nearest_size("weather", 1, 1), (1, 1))
+        self.assertEqual(home_layout.nearest_size("todo", 4, 4), (4, 4))
+        self.assertEqual(home_layout.nearest_size("todo", 8, 6), (6, 6))
+        self.assertEqual(home_layout.nearest_size("analytics", 10, 10), (6, 6))
+        self.assertEqual(home_layout.nearest_size("weather", 2, 2), (2, 2))
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
         with self.assertRaises(ValueError):
-            home_layout.resize_widget(layout, page_id, todo["id"], 4, 2)
+            home_layout.resize_widget(layout, page_id, todo["id"], 8, 4)
         today = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "today_calendar")
         layout = home_layout.remove_home_widget(page_id, today["id"])
         weather = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "weather")
@@ -252,9 +258,9 @@ class HomeLayoutTests(unittest.TestCase):
         word = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "word")
         layout = home_layout.remove_home_widget(page_id, word["id"])
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
-        layout = home_layout.resize_home_widget(page_id, todo["id"], 4, 3)
+        layout = home_layout.resize_home_widget(page_id, todo["id"], 8, 6)
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
-        self.assertEqual((todo["w"], todo["h"], todo["x"], todo["y"]), (3, 3, 0, 0))
+        self.assertEqual((todo["w"], todo["h"], todo["x"], todo["y"]), (6, 6, 0, 0))
 
     def test_remove_widget(self) -> None:
         layout = home_layout.get_home_layout()
@@ -268,9 +274,9 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
         today = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "today_calendar")
-        moved = home_layout.move_home_widget(page_id, today["id"], 2, 3)
+        moved = home_layout.move_home_widget(page_id, today["id"], 4, 6)
         row = next(item for item in moved["pages"][0]["widgets"] if item["id"] == today["id"])
-        self.assertEqual((row["x"], row["y"]), (2, 3))
+        self.assertEqual((row["x"], row["y"]), (4, 6))
         todo = next(item for item in moved["pages"][0]["widgets"] if item["kind"] == "todo")
         self.assertEqual((todo["x"], todo["y"]), (0, 0))
 
@@ -329,10 +335,10 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("word", kinds)
         self.assertIn("cluny", kinds)
         self.assertNotIn("checklist", kinds)
-        self.assertEqual(home_layout.coerce_size("countdown", 4, 2), (2, 1))
-        self.assertEqual(home_layout.coerce_size("heatmap", 2, 2), (2, 2))
-        self.assertEqual(home_layout.coerce_size("heatmap", 3, 1), (3, 1))
-        self.assertEqual(home_layout.coerce_size("day_brief", 2, 3), (2, 3))
+        self.assertEqual(home_layout.coerce_size("countdown", 8, 4), (4, 2))
+        self.assertEqual(home_layout.coerce_size("heatmap", 4, 4), (4, 4))
+        self.assertEqual(home_layout.coerce_size("heatmap", 6, 2), (6, 2))
+        self.assertEqual(home_layout.coerce_size("day_brief", 4, 6), (4, 6))
 
     def test_reset_restores_first_install(self) -> None:
         layout = home_layout.get_home_layout()
@@ -368,10 +374,10 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
         weather = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "weather")
-        layout = home_layout.move_home_widget(page_id, weather["id"], 0, 3, "above")
+        layout = home_layout.move_home_widget(page_id, weather["id"], 0, 6, "above")
         weather = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "weather")
         self.assertEqual(weather.get("region"), "above")
-        self.assertEqual((weather["x"], weather["y"]), (0, 3))
+        self.assertEqual((weather["x"], weather["y"]), (0, 6))
         extra = home_layout.add_home_page("Studio")
         extra_id = extra["pages"][-1]["id"]
         extra = home_layout.add_home_widget(extra_id, "focus", "above")
@@ -425,11 +431,11 @@ class HomeLayoutTests(unittest.TestCase):
         packed, changed = home_layout.restack_stock_home(raw)
         self.assertTrue(changed)
         by_kind = {item["kind"]: item for item in packed["pages"][0]["widgets"]}
-        self.assertEqual((by_kind["todo"]["w"], by_kind["todo"]["h"]), (2, 3))
-        self.assertEqual((by_kind["today_calendar"]["w"], by_kind["today_calendar"]["h"]), (2, 3))
-        self.assertEqual((by_kind["word"]["w"], by_kind["word"]["h"]), (2, 1))
-        self.assertEqual((by_kind["day_brief"]["w"], by_kind["day_brief"]["h"]), (2, 3))
-        self.assertEqual((by_kind["cluny"]["w"], by_kind["cluny"]["h"]), (4, 2))
+        self.assertEqual((by_kind["todo"]["w"], by_kind["todo"]["h"]), (4, 6))
+        self.assertEqual((by_kind["today_calendar"]["w"], by_kind["today_calendar"]["h"]), (4, 6))
+        self.assertEqual((by_kind["word"]["w"], by_kind["word"]["h"]), (4, 2))
+        self.assertEqual((by_kind["day_brief"]["w"], by_kind["day_brief"]["h"]), (4, 6))
+        self.assertEqual((by_kind["cluny"]["w"], by_kind["cluny"]["h"]), (8, 4))
         again, changed_again = home_layout.restack_stock_home(packed)
         self.assertFalse(changed_again)
 
@@ -440,17 +446,58 @@ class HomeLayoutTests(unittest.TestCase):
             encoding="utf-8",
         )
         layout = home_layout.get_home_layout()
-        self.assertEqual(layout["version"], 2)
+        self.assertEqual(layout["version"], home_layout.LAYOUT_VERSION)
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
         self.assertEqual(
             kinds,
             ["todo", "today_calendar", "cluny", "weather", "word", "unplaced", "day_brief"],
         )
         word = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "word")
-        self.assertEqual((word["w"], word["h"]), (2, 1))
+        self.assertEqual((word["w"], word["h"]), (4, 2))
         todo = next(item for item in layout["pages"][0]["widgets"] if item["kind"] == "todo")
-        self.assertEqual((todo["w"], todo["h"]), (2, 3))
+        self.assertEqual((todo["w"], todo["h"]), (4, 6))
         self.assertEqual(len(layout["pages"]), 2)
+
+    def test_a_four_column_board_is_widened_rather_than_thrown_away(self) -> None:
+        """Someone who arranged their board by hand keeps that arrangement.
+        Each cell split in two, so doubling every box lands on the same
+        pixels; the sizes in between are what the finer grid buys."""
+        path = self.root / "home_layout.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "columns": 4,
+                    "active_page_id": "p1",
+                    "pages": [
+                        {
+                            "id": "p1",
+                            "name": "Home",
+                            "widgets": [
+                                {"id": "a", "kind": "todo", "x": 0, "y": 0, "w": 2, "h": 3},
+                                {"id": "b", "kind": "weather", "x": 2, "y": 1, "w": 1, "h": 1},
+                            ],
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        layout = home_layout.get_home_layout()
+        self.assertEqual(layout["version"], home_layout.LAYOUT_VERSION)
+        self.assertEqual(layout["columns"], 8)
+        by_kind = {item["kind"]: item for item in layout["pages"][0]["widgets"]}
+        self.assertEqual(
+            (by_kind["todo"]["x"], by_kind["todo"]["y"], by_kind["todo"]["w"], by_kind["todo"]["h"]),
+            (0, 0, 4, 6),
+        )
+        self.assertEqual(
+            (by_kind["weather"]["x"], by_kind["weather"]["y"],
+             by_kind["weather"]["w"], by_kind["weather"]["h"]),
+            (4, 2, 2, 2),
+        )
+        # The page was kept, not replaced with the first-install board.
+        self.assertEqual(len(layout["pages"]), 1)
 
     def test_stock_one_page_home_gains_the_week_board(self) -> None:
         raw = {
@@ -556,8 +603,8 @@ class HomeLayoutTests(unittest.TestCase):
         restacked, changed = home_layout.restack_stock_home(packed)
         self.assertTrue(changed)
         by_kind = {item["kind"]: item for item in restacked["pages"][0]["widgets"]}
-        self.assertEqual((by_kind["unplaced"]["x"], by_kind["unplaced"]["y"]), (0, 3))
-        self.assertEqual((by_kind["unplaced"]["w"], by_kind["unplaced"]["h"]), (2, 3))
+        self.assertEqual((by_kind["unplaced"]["x"], by_kind["unplaced"]["y"]), (0, 6))
+        self.assertEqual((by_kind["unplaced"]["w"], by_kind["unplaced"]["h"]), (4, 6))
         again, added_again = home_layout.seed_home_plan_tiles(restacked)
         self.assertFalse(added_again)
 
