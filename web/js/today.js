@@ -1,6 +1,5 @@
 /**
  * Today home — open to-dos, expected workout, short journal.
- * Also paints the compact status pills used in the web topbar.
  */
 
 import * as utils from './utils.js';
@@ -331,7 +330,7 @@ export async function refreshToday() {
 }
 
 export function setupToday() {
-    // setupToday returns after the status pills when the old Today composer is gone
+    // Without the old Today composer there is nothing to wire but the refresh.
     if (!document.getElementById('todayAddBtn')) {
         void refreshToday();
         document.addEventListener('kosistenz:data-changed', () => {
