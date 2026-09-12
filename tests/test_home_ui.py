@@ -18,6 +18,7 @@ UTILS = (ROOT / "web" / "js" / "utils.js").read_text(encoding="utf-8")
 SETTINGS_JS = (ROOT / "web" / "js" / "settings.js").read_text(encoding="utf-8")
 GOALS_JS = (ROOT / "web" / "js" / "goals.js").read_text(encoding="utf-8")
 STYLE = (ROOT / "web" / "style.css").read_text(encoding="utf-8")
+TOKENS = (ROOT / "web" / "tokens.css").read_text(encoding="utf-8")
 SWIFT = (ROOT / "macos" / "KosistenzWindow.swift").read_text(encoding="utf-8")
 NATIVE_MAC = (ROOT / "native_mac.py").read_text(encoding="utf-8")
 PASTE_JS = (ROOT / "web" / "js" / "paste_insert.js").read_text(encoding="utf-8")
@@ -288,12 +289,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("Drag a corner or edge", INDEX)
 
     def test_home_widget_refresh_continues_after_one_failure(self) -> None:
+        quiet = HOME_RUNTIME.split("async function runQuietly")[1].split("async function refreshWork")[0]
+        self.assertIn("console.error(err)", quiet)
+        work = HOME_RUNTIME.split("async function refreshWork")[1].split("async function refreshKinds")[0]
+        self.assertIn("await runQuietly(refresh)", work)
         refresh = HOME_RUNTIME.split("async function refreshKinds")[1].split("function paintPages")[0]
-        self.assertIn("const run = async (fn)", refresh)
-        self.assertIn("await run(refresh)", refresh)
-        self.assertIn("refreshGlances", refresh)
+        self.assertIn("await runQuietly(() => refreshGlances", refresh)
         self.assertIn("ensureWork", HOME_RUNTIME)
-        self.assertIn("console.error(err)", refresh)
 
     def test_native_prompts_use_in_app_dialog(self) -> None:
         self.assertIn('id="appDialog"', INDEX)
@@ -490,7 +492,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("setPageColorSlot", SETTINGS_JS)
 
     def test_home_widgets_are_dense_and_scroll_the_page(self) -> None:
-        self.assertIn("--home-row: var(--row-h, 88px)", STYLE)
+        self.assertIn("--home-row: var(--row-h, 120px)", STYLE)
         self.assertIn("grid-auto-rows: var(--home-row)", STYLE)
         self.assertIn("min-height: 0", STYLE)
         self.assertIn("overflow-y: auto", STYLE)
@@ -502,7 +504,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".home-widget-chrome", STYLE)
         self.assertIn("countdown-days", GLANCE_JS)
         tokens = (ROOT / "web" / "tokens.css").read_text(encoding="utf-8")
-        self.assertIn("--row-h: 108px", tokens)
+        self.assertIn("--row-h: 120px", tokens)
+        self.assertIn("--glance-row-min:", tokens)
+        self.assertIn("--sheet-max:", tokens)
         self.assertIn("--line:", tokens)
         self.assertIn('href="tokens.css"', INDEX)
         self.assertIn("max-width: 1440px", STYLE)
@@ -667,6 +671,72 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("min-height: 8px", STYLE)
         self.assertIn("const heightPct = (dur / span) * 100", CAL_JS)
 
+    def test_home_does_not_refetch_what_boot_already_returned(self) -> None:
+        boot_py = (ROOT / "home_boot.py").read_text(encoding="utf-8")
+        # The check-in rides in the glance pool instead of waiting behind it.
+        self.assertIn("CHECKIN_TASK", boot_py)
+        self.assertIn("glances = _fetch_glances(kinds, extra)", boot_py)
+        self.assertIn("checkin = glances.pop(CHECKIN_TASK, None)", boot_py)
+        # Rate-goal voice reads every goal over three windows; off the trip.
+        self.assertIn("_nudge_rate_voice_later()", boot_py)
+        self.assertNotIn('_safe_call("cluny_voice", "refresh_rate_voice_safe")\n    glances', boot_py)
+        self.assertIn("def wait_for_boot_background", boot_py)
+        # Opening a widget loads the sheet, not the tile behind it again.
+        opener = HOME_RUNTIME.split("export async function openHomeWork")[1].split("async function runQuietly")[0]
+        self.assertIn("void refreshWork()", opener)
+        self.assertNotIn("refreshKinds([kind])", opener)
+        # Coming back to a board that is still current skips another boot.
+        self.assertIn("function bootIsFresh()", HOME_RUNTIME)
+        self.assertIn("if (!bootIsFresh()) void refreshHomeData()", HOME_RUNTIME)
+        self.assertIn("bootStale = true", HOME_RUNTIME)
+
+    def test_main_tabs_share_one_heading_ladder(self) -> None:
+        for token in ("--tab-title:", "--tab-heading:", "--tab-subheading:", "--tab-gap:"):
+            self.assertIn(token, TOKENS)
+        # A tab title is the Home page title size; a section heading sits below.
+        self.assertIn("--tab-title: 20px", TOKENS)
+        self.assertIn("--text-h1: var(--tab-title, 20px)", STYLE)
+        self.assertIn("--text-h2: var(--tab-heading, 18px)", STYLE)
+        # The calendar and the click sheet stop picking their own sizes.
+        self.assertIn("font-size: var(--tab-title)", STYLE)
+        self.assertIn("font-size: var(--tab-subheading)", STYLE)
+        head = STYLE.split(".home-work-head h2 {")[1].split("}")[0]
+        self.assertIn("font-size: var(--tab-title)", head)
+        # A wrapped toolbar needs a second-row gap, not just a column gap.
+        toolbar = STYLE.split(".cal-toolbar {")[1].split("}")[0]
+        self.assertIn("row-gap: var(--space-sm)", toolbar)
+        self.assertIn("padding: 0 0 var(--tab-gap)", toolbar)
+        # Compact density moves the whole ladder, not half of it.
+        compact = STYLE.split("html[data-density='compact'] {")[1].split("}")[0]
+        self.assertIn("--tab-title: 18px", compact)
+        self.assertIn("--tab-gap: 14px", compact)
+        # Three sentences of standing instructions was noise.
+        self.assertNotIn("Drag Unplaced onto the day to place work.", INDEX)
+        self.assertIn("Alt marks attended", INDEX)
+
+    def test_calendar_drag_is_tracked_at_the_window(self) -> None:
+        # Pointer capture alone loses the drag inside WKWebView, so the window
+        # has to carry move and up the way the Home board already does.
+        self.assertIn("window.addEventListener('pointermove', onDragMove)", CAL_JS)
+        self.assertIn("window.addEventListener('pointerup', onDragUp)", CAL_JS)
+        self.assertIn("window.addEventListener('pointercancel', onDragUp)", CAL_JS)
+        self.assertIn("window.addEventListener('mousemove', onDragMove)", CAL_JS)
+        self.assertIn("window.addEventListener('mouseup', onDragUp)", CAL_JS)
+        self.assertIn("trackDragAtWindow()", CAL_JS)
+        # A mouse event has no pointerId; the guard must not drop it.
+        self.assertIn("e.pointerId == null || e.pointerId === dragState.pointerId", CAL_JS)
+        self.assertNotIn("btn.addEventListener('pointermove', onDuePointerMove)", CAL_JS)
+        self.assertNotIn("btn.addEventListener('pointerup', onDuePointerUp)", CAL_JS)
+        self.assertNotIn("btn.addEventListener('pointermove', onBlockPointerMove)", CAL_JS)
+        # A drop that lands nowhere says so instead of failing in silence.
+        self.assertIn("Switch to Week view to place this on the clock.", CAL_JS)
+        self.assertIn("Switch to Week to drag these onto the clock.", CAL_JS)
+        # The browser must not claim the gesture before the handler sees it.
+        chip = STYLE.split(".cal-due-chip {")[1].split("}")[0]
+        self.assertIn("touch-action: none", chip)
+        item = STYLE.split(".cal-unplaced-item {")[1].split("}")[0]
+        self.assertIn("touch-action: none", item)
+
     def test_glance_tiles_fit_one_row_height(self) -> None:
         self.assertIn("action: w >= 2 && h >= 2", GLANCE_TILES)
         self.assertIn('.home-widget[data-h="1"] .glance-list', STYLE)
@@ -674,6 +744,32 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn('.home-widget[data-h="1"] .glance-actions', STYLE)
         self.assertIn('.home-widget[data-h="1"] .glance-hourly', STYLE)
         self.assertIn("overflow: hidden", STYLE)
+
+    def test_every_glance_spends_one_row_budget(self) -> None:
+        self.assertIn("rows: h >= 3 ? 6 : h >= 2 ? 3 : 0", GLANCE_TILES)
+        self.assertIn("capture: h >= 3", GLANCE_TILES)
+        self.assertIn("function capLines(lines, size)", GLANCE_TILES)
+        self.assertIn("function actionRow(actions, size)", GLANCE_TILES)
+        # A narrow tile gets the move you would make plus Open, nothing more.
+        self.assertIn("size.w <= 2 && list.length > 2", GLANCE_TILES)
+        self.assertIn("size.capture ? todoCaptureHtml() : ''", GLANCE_TILES)
+        # Buttons and day chips fit by width, so height must not add them back.
+        self.assertIn("if (size.w >= 3) {", GLANCE_TILES)
+        self.assertIn("size.w >= 3 ? weekdayChips", GLANCE_TILES)
+        # Every list renderer reads the shared budget instead of its own number.
+        self.assertGreaterEqual(GLANCE_TILES.count("size.rows"), 8)
+        # A tile showing a list drops the headline rather than repeat row one.
+        todo = GLANCE_TILES.split("function todoHtml")[1].split("function habitsHtml")[0]
+        self.assertIn("pool.slice(0, size.rows)", todo)
+        self.assertIn("primary: size.tall ? '' :", todo)
+        self.assertIn("moreCount(extra)", todo)
+        # Headline already carries the title, so the beat line drops to a time.
+        self.assertIn("function beatBody(beat, size, titleShown = false)", GLANCE_TILES)
+        self.assertIn("size.tall && Boolean(focus)", GLANCE_TILES)
+        # Sizes and spacing live in tokens, never hard-coded twice.
+        self.assertIn("--glance-row-min:", TOKENS)
+        self.assertIn("--glance-action-h:", TOKENS)
+        self.assertIn("--tile-pad:", TOKENS)
 
     def test_goals_widget_loads_through_call_eel(self) -> None:
         self.assertIn("callEel('list_goals')", GOALS_JS)

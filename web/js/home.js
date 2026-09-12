@@ -16,28 +16,27 @@ const FALLBACK_LAYOUT = {
             id: 'local-home',
             name: 'Home',
             widgets: [
-                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 2, region: 'above' },
-                { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 2, region: 'above' },
-                { id: 'w-unplaced', kind: 'unplaced', x: 0, y: 0, w: 2, h: 2 },
-                { id: 'w-now', kind: 'now_next', x: 2, y: 0, w: 2, h: 1 },
-                { id: 'w-weather', kind: 'weather', x: 2, y: 1, w: 2, h: 1 },
-                { id: 'w-word', kind: 'word', x: 0, y: 2, w: 2, h: 1 },
-                { id: 'w-day', kind: 'day_brief', x: 0, y: 3, w: 2, h: 2 },
-                { id: 'w-cluny', kind: 'cluny', x: 2, y: 2, w: 2, h: 2 },
+                { id: 'w-todo', kind: 'todo', x: 0, y: 0, w: 2, h: 3, region: 'above' },
+                { id: 'w-today', kind: 'today_calendar', x: 2, y: 0, w: 2, h: 3, region: 'above' },
+                { id: 'w-cluny', kind: 'cluny', x: 0, y: 0, w: 4, h: 2 },
+                { id: 'w-weather', kind: 'weather', x: 0, y: 2, w: 2, h: 1 },
+                { id: 'w-word', kind: 'word', x: 2, y: 2, w: 2, h: 1 },
+                { id: 'w-unplaced', kind: 'unplaced', x: 0, y: 3, w: 2, h: 3 },
+                { id: 'w-day', kind: 'day_brief', x: 2, y: 3, w: 2, h: 3 },
             ],
         },
         {
             id: 'local-week',
             name: 'Week',
             widgets: [
-                { id: 'w-workout', kind: 'workout', x: 0, y: 0, w: 2, h: 2 },
-                { id: 'w-goals', kind: 'goals', x: 2, y: 0, w: 2, h: 2 },
-                { id: 'w-allwork', kind: 'allwork', x: 0, y: 2, w: 2, h: 2 },
-                { id: 'w-habits', kind: 'habits', x: 2, y: 2, w: 2, h: 2 },
-                { id: 'w-heatmap', kind: 'heatmap', x: 0, y: 4, w: 2, h: 1 },
-                { id: 'w-reading', kind: 'reading', x: 2, y: 4, w: 2, h: 1 },
-                { id: 'w-dues', kind: 'dues', x: 0, y: 5, w: 2, h: 2 },
-                { id: 'w-free', kind: 'free_today', x: 2, y: 5, w: 2, h: 1 },
+                { id: 'w-goals', kind: 'goals', x: 0, y: 0, w: 2, h: 3 },
+                { id: 'w-allwork', kind: 'allwork', x: 2, y: 0, w: 2, h: 3 },
+                { id: 'w-habits', kind: 'habits', x: 0, y: 3, w: 2, h: 3 },
+                { id: 'w-dues', kind: 'dues', x: 2, y: 3, w: 2, h: 3 },
+                { id: 'w-workout', kind: 'workout', x: 0, y: 6, w: 2, h: 2 },
+                { id: 'w-heatmap', kind: 'heatmap', x: 2, y: 6, w: 2, h: 2 },
+                { id: 'w-reading', kind: 'reading', x: 0, y: 8, w: 2, h: 1 },
+                { id: 'w-free', kind: 'free_today', x: 2, y: 8, w: 2, h: 1 },
             ],
         },
     ],
@@ -83,13 +82,26 @@ async function persist(next) {
     }
 }
 
+// Home already has the whole board in one payload. Anything that repaints from
+// it should reuse that payload instead of asking the bridge for it again.
+const BOOT_FRESH_MS = 15000;
+let lastBootAt = 0;
+let bootStale = true;
+
 async function fetchHomeBoot(pageId) {
     try {
-        return await callEel('get_home_boot', pageId || '');
+        const boot = await callEel('get_home_boot', pageId || '');
+        lastBootAt = Date.now();
+        bootStale = false;
+        return boot;
     } catch (err) {
         console.warn(err);
     }
     return { layout: layout || structuredClone(FALLBACK_LAYOUT), glances: {}, checkin: null };
+}
+
+function bootIsFresh() {
+    return !bootStale && lastBootAt > 0 && Date.now() - lastBootAt < BOOT_FRESH_MS;
 }
 
 async function loadLayout() {
@@ -266,9 +278,15 @@ function tileBox(tile, layer) {
     };
 }
 
+function sheetMaxWidth() {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--sheet-max');
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed >= 280 ? parsed : 820;
+}
+
 function settledBox(layer) {
     const host = layer.getBoundingClientRect();
-    const width = Math.min(760, Math.max(280, host.width - 36));
+    const width = Math.min(sheetMaxWidth(), Math.max(280, host.width - 36));
     return {
         top: 10,
         left: Math.max(10, host.width - 10 - width),
@@ -398,23 +416,30 @@ export async function openHomeWork(kind, opener) {
             closeBtn?.focus();
         }
     });
-    void refreshKinds([kind]);
+    // Only the sheet needs data here. The tile behind it was already painted
+    // from the boot payload, so repainting it would be a second trip for the
+    // same rows.
+    void refreshWork();
+}
+
+async function runQuietly(fn) {
+    try {
+        await fn();
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function refreshWork() {
+    if (!workKind) return;
+    const refresh = await ensureWork(workKind);
+    await runQuietly(refresh);
 }
 
 async function refreshKinds(kinds, glances) {
     const set = new Set(kinds);
-    const run = async (fn) => {
-        try {
-            await fn();
-        } catch (err) {
-            console.error(err);
-        }
-    };
-    if (workKind) {
-        const refresh = await ensureWork(workKind);
-        await run(refresh);
-    }
-    await run(() => refreshGlances([...set], glances));
+    await refreshWork();
+    await runQuietly(() => refreshGlances([...set], glances));
 }
 
 const HOME_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>';
@@ -501,8 +526,12 @@ function widgetCardHtml(item, live) {
         </article>`;
 }
 
-function paintOneGrid(grid, widgets, live) {
+function paintOneGrid(grid, widgets, live, emptyNote = '') {
     if (!grid) return;
+    if (!widgets.length && live && emptyNote) {
+        grid.innerHTML = `<p class="home-grid-empty">${utils.escapeHtml(emptyNote)}</p>`;
+        return;
+    }
     grid.innerHTML = widgets.map((item) => widgetCardHtml(item, live)).join('');
     widgets.forEach((item) => {
         const card = grid.querySelector(`.home-widget[data-id="${item.id}"]`);
@@ -530,7 +559,8 @@ function paintGrid() {
         band.hidden = !first;
         if (!first) band.classList.remove('is-open');
     }
-    paintOneGrid(below, belowWidgets, live);
+    // An extra page with nothing on it should say so rather than look broken.
+    paintOneGrid(below, belowWidgets, live, first ? '' : 'No widgets on this page yet. Choose Edit to add one.');
 }
 
 function parkCheckin() {
@@ -1027,6 +1057,7 @@ export function setupHome() {
         }
     });
     document.addEventListener('kosistenz:data-changed', () => {
+        bootStale = true;
         if (document.getElementById('homeTab')?.classList.contains('active')) {
             void scheduleHomeRefresh();
         }
@@ -1064,7 +1095,9 @@ export async function onHomeTabShown(pageId) {
     if (same && paintedPageId && document.querySelector('#homeGrid .home-widget, #homeGridAbove .home-widget')) {
         paintPages();
         syncPageColors();
-        void refreshHomeData();
+        // The board is still on screen and still current. Stepping away to
+        // Calendar and back does not make it worth another full boot.
+        if (!bootIsFresh()) void refreshHomeData();
         return;
     }
     await renderHome(pageId);

@@ -20,6 +20,11 @@ class HomeBootTests(unittest.TestCase):
         self.env.start()
 
     def tearDown(self) -> None:
+        # Boot finishes the rate-goal nudge off the round-trip; let it land
+        # before the data directory disappears out from under it.
+        import home_boot
+
+        home_boot.wait_for_boot_background()
         self.env.stop()
         self.tmp.cleanup()
 
@@ -74,6 +79,8 @@ print("ok")
         titles = [row.get("title") for row in (todo.get("today") or [])]
         self.assertIn("Write the paper", titles)
         self.assertIsNotNone(boot.get("checkin"))
+        # The check-in runs beside the tiles but is not one of them.
+        self.assertNotIn(home_boot.CHECKIN_TASK, boot["glances"])
 
     def test_week_clock_items_are_slim(self) -> None:
         import calclock

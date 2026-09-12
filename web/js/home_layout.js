@@ -6,17 +6,17 @@
 export const GRID_COLUMNS = 4;
 
 export const WIDGET_CATALOG = {
-    todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'todoTab' },
+    todo: { label: 'To Do', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'todoTab' },
     today_calendar: { label: 'Today', sizes: [[1, 1], [2, 1], [2, 2], [2, 3], [3, 2]], default: [2, 2], source: 'todayCalendarSource' },
     workout: { label: 'Workout', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'workoutTab' },
-    goals: { label: 'Goals', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'goalsTab' },
-    allwork: { label: 'All Work', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'allWorkTab' },
+    goals: { label: 'Goals', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'goalsTab' },
+    allwork: { label: 'All Work', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'allWorkTab' },
     analytics: { label: 'Analytics', sizes: [[2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'analyticsTab' },
     timeline: { label: 'Timeline', sizes: [[2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'timelineTab' },
     weather: { label: 'Weather', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'weatherSource' },
     focus: { label: 'Focus', sizes: [[1, 1], [2, 1], [2, 2], [3, 1], [3, 2]], default: [2, 1], source: 'focusSource' },
     countdown: { label: 'Countdown', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'countdownSource' },
-    habits: { label: 'Habits', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 2], source: 'habitsSource' },
+    habits: { label: 'Habits', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 3], source: 'habitsSource' },
     heatmap: { label: 'Heatmap', sizes: [[2, 1], [3, 1], [2, 2], [3, 2], [3, 3]], default: [3, 1], source: 'heatmapSource' },
     day_brief: { label: 'Day', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'dayBriefSource' },
     counters: { label: 'Counters', sizes: [[1, 1], [2, 1], [2, 2], [3, 2], [3, 3]], default: [2, 1], source: 'countersSource' },
@@ -24,8 +24,8 @@ export const WIDGET_CATALOG = {
     word: { label: 'Word', sizes: [[1, 1], [2, 1], [1, 2], [2, 2], [2, 3], [3, 2]], default: [2, 1], source: 'wordTab' },
     cluny: { label: 'Ask Cluny', sizes: [[2, 2], [2, 3], [3, 2], [3, 3], [4, 2]], default: [4, 2], source: 'clunySource' },
     now_next: { label: 'Now', sizes: [[1, 1], [2, 1], [2, 2], [3, 1], [3, 2]], default: [2, 1], source: 'todayCalendarSource' },
-    unplaced: { label: 'Unplaced', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'allWorkTab' },
-    dues: { label: 'Due', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 2], source: 'todoTab' },
+    unplaced: { label: 'Unplaced', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'allWorkTab' },
+    dues: { label: 'Due', sizes: [[2, 1], [2, 2], [2, 3], [3, 2], [3, 3]], default: [2, 3], source: 'todoTab' },
     free_today: { label: 'Free', sizes: [[1, 1], [2, 1], [2, 2], [3, 1]], default: [2, 1], source: 'todayCalendarSource' },
 };
 

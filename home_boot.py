@@ -15,6 +15,8 @@ import work
 
 _supervisor_lock = threading.Lock()
 _supervisor_started = False
+_rate_voice_lock = threading.Lock()
+_rate_voice_thread: Optional[threading.Thread] = None
 
 
 def _today_iso() -> str:
@@ -121,37 +123,41 @@ def fetch_glance(kind: str) -> Any:
 
 NETWORK_GLANCES = frozenset({"weather"})
 NETWORK_GLANCE_TIMEOUT_SEC = 3.0
+# Not a widget kind. Rides in the glance pool so the check-in does not wait.
+CHECKIN_TASK = "__checkin"
 
 
-def _fetch_glances(kinds: List[str]) -> Dict[str, Any]:
-    """Fetch tiles in parallel. Weather cannot hold up Today / To Do."""
+def _run_together(tasks: Dict[str, Any], timeout: float) -> Dict[str, Any]:
+    """Run named zero-argument calls at once; one slow call cannot hold the rest."""
     out: Dict[str, Any] = {}
-    local = [kind for kind in kinds if kind not in NETWORK_GLANCES]
-    remote = [kind for kind in kinds if kind in NETWORK_GLANCES]
-    if local:
-        workers = min(6, len(local))
-        pool = ThreadPoolExecutor(max_workers=workers)
-        try:
-            futs = {kind: pool.submit(fetch_glance, kind) for kind in local}
-            for kind, fut in futs.items():
-                try:
-                    out[kind] = fut.result(timeout=8.0)
-                except Exception as exc:
-                    out[kind] = {"ok": False, "error": str(exc)}
-        finally:
-            pool.shutdown(wait=False, cancel_futures=True)
-    if not remote:
+    if not tasks:
         return out
-    pool = ThreadPoolExecutor(max_workers=len(remote))
+    pool = ThreadPoolExecutor(max_workers=min(8, len(tasks)))
     try:
-        futs = {kind: pool.submit(fetch_glance, kind) for kind in remote}
-        for kind, fut in futs.items():
+        futs = {name: pool.submit(fn) for name, fn in tasks.items()}
+        for name, fut in futs.items():
             try:
-                out[kind] = fut.result(timeout=NETWORK_GLANCE_TIMEOUT_SEC)
+                out[name] = fut.result(timeout=timeout)
             except Exception as exc:
-                out[kind] = {"ok": False, "error": str(exc)}
+                out[name] = {"ok": False, "error": str(exc)}
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
+    return out
+
+
+def _fetch_glances(kinds: List[str], extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Fetch tiles in parallel. Weather cannot hold up Today / To Do."""
+    local: Dict[str, Any] = {
+        kind: (lambda k=kind: fetch_glance(k)) for kind in kinds if kind not in NETWORK_GLANCES
+    }
+    remote: Dict[str, Any] = {
+        kind: (lambda k=kind: fetch_glance(k)) for kind in kinds if kind in NETWORK_GLANCES
+    }
+    # Anything else Home needs on open rides along with the tiles rather than
+    # waiting for them to finish first.
+    local.update(extra or {})
+    out = _run_together(local, 8.0)
+    out.update(_run_together(remote, NETWORK_GLANCE_TIMEOUT_SEC))
     return out
 
 
@@ -173,6 +179,31 @@ def _ensure_cluny_supervisor() -> None:
     threading.Thread(target=_run, daemon=True, name="cluny-supervisor").start()
 
 
+def _nudge_rate_voice_later() -> None:
+    """Rate-goal voice reads every goal across three windows. Nothing on the
+    board needs it this round-trip, so it runs after Home already has its data
+    and the nudge lands on the next refresh."""
+    global _rate_voice_thread
+
+    def _run() -> None:
+        _safe_call("cluny_voice", "refresh_rate_voice_safe")
+
+    with _rate_voice_lock:
+        # Home refreshes on every data change; one pass at a time is plenty.
+        if _rate_voice_thread is not None and _rate_voice_thread.is_alive():
+            return
+        _rate_voice_thread = threading.Thread(target=_run, daemon=True, name="cluny-rate-voice")
+        _rate_voice_thread.start()
+
+
+def wait_for_boot_background(timeout: float = 5.0) -> None:
+    """Join whatever the last boot kicked off. For shutdown and for tests."""
+    with _rate_voice_lock:
+        thread = _rate_voice_thread
+    if thread is not None:
+        thread.join(timeout=timeout)
+
+
 @eel.expose
 def get_home_boot(page_id: str = "") -> Dict[str, Any]:
     """Layout plus every glance on the active page, in one Eel call."""
@@ -191,13 +222,14 @@ def get_home_boot(page_id: str = "") -> Dict[str, Any]:
         seen.add(kind)
         kinds.append(kind)
     _safe_call("calclock", "rollover_missed_bars")
-    _safe_call("cluny_voice", "refresh_rate_voice_safe")
-    glances = _fetch_glances(kinds)
     first = _first_page(layout)
-    checkin = None
+    extra: Dict[str, Any] = {}
     if first and page.get("id") == first.get("id"):
-        checkin = _safe_call("daily_checklist", "get_home_checkin")
+        extra[CHECKIN_TASK] = lambda: _safe_call("daily_checklist", "get_home_checkin")
+    glances = _fetch_glances(kinds, extra)
+    checkin = glances.pop(CHECKIN_TASK, None)
     _ensure_cluny_supervisor()
+    _nudge_rate_voice_later()
     return {
         "layout": layout,
         "glances": glances,

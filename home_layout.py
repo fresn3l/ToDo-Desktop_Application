@@ -25,11 +25,13 @@ MAX_PAGE_NAME = 40
 MAX_SCAN_ROWS = 32
 
 # Allowed (width, height) in cells. 1-wide tiles are glance chips; 4-wide is the full board.
+# Anything that renders a list defaults three rows tall: at two rows the tile
+# has to spend its height on a headline and buttons and the list collapses.
 WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "todo": {
         "label": "To Do",
         "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "default": (2, 3),
     },
     "today_calendar": {
         "label": "Today",
@@ -44,12 +46,12 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "goals": {
         "label": "Goals",
         "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "default": (2, 3),
     },
     "allwork": {
         "label": "All Work",
         "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "default": (2, 3),
     },
     "analytics": {
         "label": "Analytics",
@@ -79,7 +81,7 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "habits": {
         "label": "Habits",
         "sizes": ((1, 1), (2, 1), (1, 2), (2, 2), (2, 3), (3, 2)),
-        "default": (2, 2),
+        "default": (2, 3),
     },
     "heatmap": {
         "label": "Heatmap",
@@ -119,12 +121,12 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "unplaced": {
         "label": "Unplaced",
         "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "default": (2, 3),
     },
     "dues": {
         "label": "Due",
         "sizes": ((2, 1), (2, 2), (2, 3), (3, 2), (3, 3)),
-        "default": (2, 2),
+        "default": (2, 3),
     },
     "free_today": {
         "label": "Free",
@@ -163,32 +165,33 @@ def _new_id() -> str:
 
 
 def _stock_home_widgets() -> List[Dict[str, Any]]:
+    # Today already shows what is running and what is next, so the board does
+    # not carry a second clock tile saying the same thing one row down.
     return [
-        {"id": _new_id(), "kind": "todo", "x": 0, "y": 0, "w": 2, "h": 2, "region": "above"},
-        {"id": _new_id(), "kind": "today_calendar", "x": 2, "y": 0, "w": 2, "h": 2, "region": "above"},
-        {"id": _new_id(), "kind": "unplaced", "x": 0, "y": 0, "w": 2, "h": 2},
-        {"id": _new_id(), "kind": "now_next", "x": 2, "y": 0, "w": 2, "h": 1},
-        {"id": _new_id(), "kind": "weather", "x": 2, "y": 1, "w": 2, "h": 1},
-        {"id": _new_id(), "kind": "word", "x": 0, "y": 2, "w": 2, "h": 1},
-        {"id": _new_id(), "kind": "day_brief", "x": 0, "y": 3, "w": 2, "h": 2},
-        {"id": _new_id(), "kind": "cluny", "x": 2, "y": 2, "w": 2, "h": 2},
+        {"id": _new_id(), "kind": "todo", "x": 0, "y": 0, "w": 2, "h": 3, "region": "above"},
+        {"id": _new_id(), "kind": "today_calendar", "x": 2, "y": 0, "w": 2, "h": 3, "region": "above"},
+        {"id": _new_id(), "kind": "cluny", "x": 0, "y": 0, "w": 4, "h": 2},
+        {"id": _new_id(), "kind": "weather", "x": 0, "y": 2, "w": 2, "h": 1},
+        {"id": _new_id(), "kind": "word", "x": 2, "y": 2, "w": 2, "h": 1},
+        {"id": _new_id(), "kind": "unplaced", "x": 0, "y": 3, "w": 2, "h": 3},
+        {"id": _new_id(), "kind": "day_brief", "x": 2, "y": 3, "w": 2, "h": 3},
     ]
 
 
 def default_week_page(name: str = "Week") -> Dict[str, Any]:
-    """Second-page template: workout, goals, backlog, habits, heatmap, reading."""
+    """Second-page template: goals, backlog, habits, dues, workout, heatmap."""
     return {
         "id": _new_id(),
         "name": _clip_name(name, "Week"),
         "widgets": [
-            {"id": _new_id(), "kind": "workout", "x": 0, "y": 0, "w": 2, "h": 2},
-            {"id": _new_id(), "kind": "goals", "x": 2, "y": 0, "w": 2, "h": 2},
-            {"id": _new_id(), "kind": "allwork", "x": 0, "y": 2, "w": 2, "h": 2},
-            {"id": _new_id(), "kind": "habits", "x": 2, "y": 2, "w": 2, "h": 2},
-            {"id": _new_id(), "kind": "heatmap", "x": 0, "y": 4, "w": 2, "h": 1},
-            {"id": _new_id(), "kind": "reading", "x": 2, "y": 4, "w": 2, "h": 1},
-            {"id": _new_id(), "kind": "dues", "x": 0, "y": 5, "w": 2, "h": 2},
-            {"id": _new_id(), "kind": "free_today", "x": 2, "y": 5, "w": 2, "h": 1},
+            {"id": _new_id(), "kind": "goals", "x": 0, "y": 0, "w": 2, "h": 3},
+            {"id": _new_id(), "kind": "allwork", "x": 2, "y": 0, "w": 2, "h": 3},
+            {"id": _new_id(), "kind": "habits", "x": 0, "y": 3, "w": 2, "h": 3},
+            {"id": _new_id(), "kind": "dues", "x": 2, "y": 3, "w": 2, "h": 3},
+            {"id": _new_id(), "kind": "workout", "x": 0, "y": 6, "w": 2, "h": 2},
+            {"id": _new_id(), "kind": "heatmap", "x": 2, "y": 6, "w": 2, "h": 2},
+            {"id": _new_id(), "kind": "reading", "x": 0, "y": 8, "w": 2, "h": 1},
+            {"id": _new_id(), "kind": "free_today", "x": 2, "y": 8, "w": 2, "h": 1},
         ],
     }
 
@@ -442,23 +445,23 @@ STOCK_HOME_WITH_CLUNY = STOCK_HOME_KINDS | {"cluny"}
 STOCK_HOME_WITH_DAY = STOCK_HOME_KINDS | {"day_brief"}
 STOCK_HOME_FULL = STOCK_HOME_KINDS | {"cluny", "day_brief"}
 STOCK_HOME_WITH_PLAN = STOCK_HOME_FULL | {"unplaced", "now_next"}
+STOCK_HOME_PLANNED = STOCK_HOME_FULL | {"unplaced"}
 STOCK_HOME_CORE_SLOTS = {
-    "todo": {"x": 0, "y": 0, "w": 2, "h": 2, "region": "above"},
-    "today_calendar": {"x": 2, "y": 0, "w": 2, "h": 2, "region": "above"},
-    "weather": {"x": 0, "y": 0, "w": 2, "h": 1, "region": "below"},
-    "word": {"x": 2, "y": 0, "w": 2, "h": 1, "region": "below"},
-    "day_brief": {"x": 0, "y": 1, "w": 2, "h": 2, "region": "below"},
-    "cluny": {"x": 2, "y": 1, "w": 2, "h": 2, "region": "below"},
+    "todo": {"x": 0, "y": 0, "w": 2, "h": 3, "region": "above"},
+    "today_calendar": {"x": 2, "y": 0, "w": 2, "h": 3, "region": "above"},
+    "cluny": {"x": 0, "y": 0, "w": 4, "h": 2, "region": "below"},
+    "weather": {"x": 0, "y": 2, "w": 2, "h": 1, "region": "below"},
+    "word": {"x": 2, "y": 2, "w": 2, "h": 1, "region": "below"},
+    "day_brief": {"x": 0, "y": 3, "w": 2, "h": 3, "region": "below"},
 }
 STOCK_HOME_SLOTS = {
-    "todo": {"x": 0, "y": 0, "w": 2, "h": 2, "region": "above"},
-    "today_calendar": {"x": 2, "y": 0, "w": 2, "h": 2, "region": "above"},
-    "unplaced": {"x": 0, "y": 0, "w": 2, "h": 2, "region": "below"},
-    "now_next": {"x": 2, "y": 0, "w": 2, "h": 1, "region": "below"},
-    "weather": {"x": 2, "y": 1, "w": 2, "h": 1, "region": "below"},
-    "word": {"x": 0, "y": 2, "w": 2, "h": 1, "region": "below"},
-    "day_brief": {"x": 0, "y": 3, "w": 2, "h": 2, "region": "below"},
-    "cluny": {"x": 2, "y": 2, "w": 2, "h": 2, "region": "below"},
+    "todo": {"x": 0, "y": 0, "w": 2, "h": 3, "region": "above"},
+    "today_calendar": {"x": 2, "y": 0, "w": 2, "h": 3, "region": "above"},
+    "cluny": {"x": 0, "y": 0, "w": 4, "h": 2, "region": "below"},
+    "weather": {"x": 0, "y": 2, "w": 2, "h": 1, "region": "below"},
+    "word": {"x": 2, "y": 2, "w": 2, "h": 1, "region": "below"},
+    "unplaced": {"x": 0, "y": 3, "w": 2, "h": 3, "region": "below"},
+    "day_brief": {"x": 2, "y": 3, "w": 2, "h": 3, "region": "below"},
 }
 WEEK_STOCK_KINDS = frozenset({"workout", "goals", "allwork", "habits", "heatmap", "reading"})
 WEEK_PLAN_KINDS = ("dues", "free_today")
@@ -495,7 +498,12 @@ def seed_week_page(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     if len(packed["pages"]) != 1:
         return packed, False
     kinds = {item["kind"] for item in packed["pages"][0]["widgets"]}
-    if kinds not in (STOCK_HOME_WITH_CLUNY, STOCK_HOME_FULL, STOCK_HOME_WITH_PLAN):
+    if kinds not in (
+        STOCK_HOME_WITH_CLUNY,
+        STOCK_HOME_FULL,
+        STOCK_HOME_PLANNED,
+        STOCK_HOME_WITH_PLAN,
+    ):
         return packed, False
     packed["pages"].append(default_week_page())
     return packed, True
@@ -506,7 +514,7 @@ def restack_stock_home(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     packed = sanitize_layout(layout)
     page = packed["pages"][0]
     kinds = {item["kind"] for item in page["widgets"]}
-    if kinds == STOCK_HOME_WITH_PLAN:
+    if kinds == STOCK_HOME_PLANNED:
         slots = STOCK_HOME_SLOTS
     elif kinds == STOCK_HOME_FULL:
         slots = STOCK_HOME_CORE_SLOTS
@@ -589,38 +597,39 @@ def seed_week_plan_tiles(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
 
 
 def seed_home_plan_tiles(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    """Put Unplaced and Now on a stock first Home page."""
+    """Put Unplaced on a stock first Home page."""
     packed = sanitize_layout(layout)
     page = packed["pages"][0]
     kinds = {item["kind"] for item in page["widgets"]}
-    if "unplaced" in kinds and "now_next" in kinds:
+    if "unplaced" in kinds:
         return packed, False
-    allowed = (
-        STOCK_HOME_FULL,
-        STOCK_HOME_FULL | {"unplaced"},
-        STOCK_HOME_FULL | {"now_next"},
-    )
-    if kinds not in allowed:
+    if kinds != STOCK_HOME_FULL:
         return packed, False
     occupied = region_widgets(page["widgets"], "below", True)
-    added = False
-    for kind in ("unplaced", "now_next"):
-        if any(item["kind"] == kind for item in page["widgets"]):
-            continue
-        slot = STOCK_HOME_SLOTS[kind]
-        w, h = coerce_size(kind, slot["w"], slot["h"])
-        trial = {"id": "_", "x": slot["x"], "y": slot["y"], "w": w, "h": h}
-        if all(not boxes_overlap(trial, other) for other in occupied):
-            spot = (slot["x"], slot["y"])
-        else:
-            spot = first_fit(occupied, w, h)
-        if spot is None:
-            continue
-        widget = {"id": _new_id(), "kind": kind, "x": spot[0], "y": spot[1], "w": w, "h": h}
-        occupied.append(widget)
-        page["widgets"].append(widget)
-        added = True
-    return packed, added
+    slot = STOCK_HOME_SLOTS["unplaced"]
+    w, h = coerce_size("unplaced", slot["w"], slot["h"])
+    trial = {"id": "_", "x": slot["x"], "y": slot["y"], "w": w, "h": h}
+    if all(not boxes_overlap(trial, other) for other in occupied):
+        spot = (slot["x"], slot["y"])
+    else:
+        spot = first_fit(occupied, w, h)
+    if spot is None:
+        return packed, False
+    page["widgets"].append(
+        {"id": _new_id(), "kind": "unplaced", "x": spot[0], "y": spot[1], "w": w, "h": h}
+    )
+    return packed, True
+
+
+def drop_duplicate_clock(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
+    """Retire Now from an uncustomized Home; Today already carries now and next."""
+    packed = sanitize_layout(layout)
+    page = packed["pages"][0]
+    kinds = {item["kind"] for item in page["widgets"]}
+    if kinds != STOCK_HOME_WITH_PLAN:
+        return packed, False
+    page["widgets"] = [item for item in page["widgets"] if item["kind"] != "now_next"]
+    return packed, True
 
 
 def _page(layout: Dict[str, Any], page_id: str) -> Optional[Dict[str, Any]]:
@@ -824,12 +833,22 @@ def get_home_layout() -> Dict[str, Any]:
             return _write(default_layout())
         packed, added = seed_ask_cluny(raw)
         packed, dayed = seed_day_brief(packed)
+        packed, unclocked = drop_duplicate_clock(packed)
         packed, restacked = restack_stock_home(packed)
         packed, weeked = seed_week_page(packed)
         packed, planned = seed_week_plan_tiles(packed)
         packed, home_planned = seed_home_plan_tiles(packed)
         packed, restacked_plan = restack_stock_home(packed)
-        if added or dayed or restacked or weeked or planned or home_planned or restacked_plan:
+        if (
+            added
+            or dayed
+            or unclocked
+            or restacked
+            or weeked
+            or planned
+            or home_planned
+            or restacked_plan
+        ):
             return _write(packed)
         return packed
     except (OSError, json.JSONDecodeError, TypeError, ValueError):
