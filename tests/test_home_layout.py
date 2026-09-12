@@ -458,6 +458,46 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertEqual((todo["w"], todo["h"]), (4, 6))
         self.assertEqual(len(layout["pages"]), 2)
 
+    def test_an_up_to_date_board_is_read_rather_than_migrated_again(self) -> None:
+        """Catching a board up used to happen on every load, which meant eight
+        passes over it each time the Home tab opened. It happens once now, on
+        the load that finds an old file."""
+        home_layout.get_home_layout()
+        path = self.root / "home_layout.json"
+        before = path.read_bytes()
+        writes = []
+        real = home_layout._write
+        home_layout._write = lambda layout: writes.append(layout) or real(layout)
+        try:
+            home_layout.get_home_layout()
+        finally:
+            home_layout._write = real
+        self.assertEqual(writes, [])
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_a_board_saved_before_the_week_page_shipped_still_gains_it(self) -> None:
+        """The catch-up steps moved behind the version gate, so they have to
+        still fire for someone whose board predates them."""
+        path = self.root / "home_layout.json"
+        page = {
+            "id": "p1",
+            "name": "Home",
+            "widgets": [
+                {"id": "a", "kind": "todo", "x": 0, "y": 0, "w": 4, "h": 6, "region": "above"},
+                {"id": "b", "kind": "today_calendar", "x": 4, "y": 0, "w": 4, "h": 6, "region": "above"},
+                {"id": "c", "kind": "cluny", "x": 0, "y": 0, "w": 8, "h": 4},
+                {"id": "d", "kind": "weather", "x": 0, "y": 4, "w": 4, "h": 2},
+                {"id": "e", "kind": "word", "x": 4, "y": 4, "w": 4, "h": 2},
+            ],
+        }
+        path.write_text(json.dumps({"version": 3, "columns": 8, "pages": [page]}), encoding="utf-8")
+        layout = home_layout.get_home_layout()
+        self.assertEqual(layout["version"], home_layout.LAYOUT_VERSION)
+        self.assertEqual([item["name"] for item in layout["pages"]], ["Home", "Week"])
+        kinds = {item["kind"] for item in layout["pages"][0]["widgets"]}
+        self.assertIn("day_brief", kinds)
+        self.assertIn("unplaced", kinds)
+
     def test_a_four_column_board_is_widened_rather_than_thrown_away(self) -> None:
         """Someone who arranged their board by hand keeps that arrangement.
         Each cell split in two, so doubling every box lands on the same
