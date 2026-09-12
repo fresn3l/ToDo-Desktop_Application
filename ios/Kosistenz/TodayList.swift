@@ -36,7 +36,7 @@ enum TodayList {
         var rows: [Entry] = []
         let clockItems = (day?.events ?? []) + (day?.blocks ?? [])
         for item in clockItems.sorted(by: clockOrder) {
-            let clockId = item.itemId ?? item.id
+            let clockId = item.markKey
             let status = (item.status ?? marked[clockId] ?? "").lowercased()
             if let workId = item.work_item_id, !workId.isEmpty {
                 usedWork.insert(workId)
@@ -80,8 +80,7 @@ enum TodayList {
         var items: [CalendarItem] = []
         for day in pack.calendar.days {
             for item in (day.events + day.blocks) {
-                let clockId = item.itemId ?? item.id
-                let status = (item.status ?? marked[clockId] ?? "").lowercased()
+                let status = (item.status ?? marked[item.markKey] ?? "").lowercased()
                 if status == "done" || status == "skipped" { continue }
                 guard let start = parseLocal(item.start_at), start > now else { continue }
                 items.append(item)

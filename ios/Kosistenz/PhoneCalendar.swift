@@ -178,7 +178,8 @@ enum PhoneCalendar {
             kind: "hard",
             status: "locked",
             start_at: stamp.string(from: occStart),
-            end_at: stamp.string(from: occEnd)
+            end_at: stamp.string(from: occEnd),
+            occurrence_date: dayStamp.string(from: day)
         )
     }
 
