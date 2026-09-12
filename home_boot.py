@@ -191,6 +191,7 @@ def get_home_boot(page_id: str = "") -> Dict[str, Any]:
         seen.add(kind)
         kinds.append(kind)
     _safe_call("calclock", "rollover_missed_bars")
+    _safe_call("cluny_voice", "refresh_rate_voice_safe")
     glances = _fetch_glances(kinds)
     first = _first_page(layout)
     checkin = None

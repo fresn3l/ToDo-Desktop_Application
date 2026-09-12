@@ -1719,6 +1719,12 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
     assert row is not None
     packed = _row_to_dict(row)
     _mirror_task(packed)
+    try:
+        import cluny_voice
+
+        cluny_voice.refresh_rate_voice_safe()
+    except Exception:
+        pass
     return packed
 
 

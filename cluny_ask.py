@@ -247,6 +247,34 @@ def suggest_cluny_work(question: str = "") -> Dict[str, Any]:
     return {**get_cluny_inbox(), "added": added}
 
 
+def add_local_proposal(row: Dict[str, Any]) -> bool:
+    """Queue a to-do proposal without calling the brain. Date only, no clock."""
+    title = str(row.get("title") or "").strip()
+    if not title:
+        return False
+    inbox = _load_inbox()
+    uid = proposal_uid(row)
+    if uid in _closed_ids(inbox) or uid in {proposal_uid(item) for item in inbox.get("pending") or []}:
+        return False
+    inbox["pending"].append(
+        {
+            "id": uid,
+            "title": title,
+            "message": str(row.get("message") or "").strip(),
+            "estimate_minutes": row.get("estimate_minutes"),
+            "due": due_date_only(row.get("due")),
+            "keywords": row.get("keywords") or [],
+            "citations": row.get("citations") or [],
+            "kind": str(row.get("kind") or "").strip(),
+            "reason": str(row.get("reason") or "").strip(),
+            "goal_id": str(row.get("goal_id") or "").strip(),
+            "status": "pending",
+        }
+    )
+    _save_inbox(inbox)
+    return True
+
+
 @eel.expose
 def accept_cluny_proposal(proposal_id: str) -> Dict[str, Any]:
     import work

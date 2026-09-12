@@ -244,6 +244,7 @@ def build_app() -> None:
         "cluny_snapshot",
         "cluny_client",
         "cluny_sync",
+        "cluny_voice",
         "cluny_brain",
         "brain",
         "library",
