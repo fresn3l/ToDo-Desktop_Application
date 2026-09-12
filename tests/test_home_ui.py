@@ -525,14 +525,14 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("setPageColorSlot", SETTINGS_JS)
 
     def test_home_widgets_are_dense_and_scroll_the_page(self) -> None:
-        self.assertIn("--home-row: var(--row-h, 120px)", STYLE)
+        self.assertIn("--home-row: var(--row-h, 54px)", STYLE)
         self.assertIn("grid-auto-rows: var(--home-row)", STYLE)
         self.assertIn("min-height: 0", STYLE)
         self.assertIn("overflow-y: auto", STYLE)
         self.assertIn("padding-bottom: 88px", STYLE)
-        self.assertIn('sizes: [[1, 1]', HOME_JS)
-        self.assertIn("default: [2, 2]", HOME_JS)
-        self.assertIn("default: [2, 1]", HOME_JS)
+        self.assertIn('sizes: [[2, 2]', HOME_JS)
+        self.assertIn("default: [4, 6]", HOME_JS)
+        self.assertIn("default: [4, 2]", HOME_JS)
         # The smallest tile is a chip: one figure, one label, no furniture.
         self.assertIn("container: tile / size", STYLE)
         tiny = container_rules("(max-height: 189px) and (max-width: 399px)")
@@ -540,7 +540,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".home-widget-chrome", STYLE)
         self.assertIn("countdown-days", GLANCE_JS)
         tokens = (ROOT / "web" / "tokens.css").read_text(encoding="utf-8")
-        self.assertIn("--row-h: 120px", tokens)
+        self.assertIn("--row-h: 54px", tokens)
+        self.assertIn("--grid-gap: 12px", tokens)
         self.assertIn("--glance-row-min:", tokens)
         self.assertIn("--sheet-max:", tokens)
         self.assertIn("--line:", tokens)
@@ -767,7 +768,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("touch-action: none", item)
 
     def test_glance_tiles_fit_one_row_height(self) -> None:
-        self.assertIn("action: w >= 2 && h >= 2", GLANCE_TILES)
+        self.assertIn("action: w >= 4 && h >= 4", GLANCE_TILES)
         # A tile with one row of room shows a headline and nothing that needs
         # a second line to make sense.
         short = container_rules("(max-height: 189px)")
@@ -776,16 +777,16 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("overflow: hidden", STYLE)
 
     def test_every_glance_spends_one_row_budget(self) -> None:
-        self.assertIn("rows: h >= 3 ? 6 : h >= 2 ? 3 : 0", GLANCE_TILES)
-        self.assertIn("capture: h >= 3", GLANCE_TILES)
+        self.assertIn("rows: h >= 6 ? 6 : h >= 4 ? 3 : 0", GLANCE_TILES)
+        self.assertIn("capture: h >= 6", GLANCE_TILES)
         self.assertIn("function capLines(lines, size)", GLANCE_TILES)
         self.assertIn("function actionRow(actions, size)", GLANCE_TILES)
         # A narrow tile gets the move you would make plus Open, nothing more.
-        self.assertIn("size.w <= 2 && list.length > 2", GLANCE_TILES)
+        self.assertIn("size.w <= 4 && list.length > 2", GLANCE_TILES)
         self.assertIn("size.capture ? todoCaptureHtml() : ''", GLANCE_TILES)
         # Buttons and day chips fit by width, so height must not add them back.
-        self.assertIn("if (size.w >= 3) {", GLANCE_TILES)
-        self.assertIn("size.w >= 3 ? weekdayChips", GLANCE_TILES)
+        self.assertIn("if (size.w >= 6) {", GLANCE_TILES)
+        self.assertIn("size.w >= 6 ? weekdayChips", GLANCE_TILES)
         # Every list renderer reads the shared budget instead of its own number.
         self.assertGreaterEqual(GLANCE_TILES.count("size.rows"), 8)
         # A tile showing a list drops the headline rather than repeat row one.
