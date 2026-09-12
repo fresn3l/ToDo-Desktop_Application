@@ -5,8 +5,6 @@
     --surface: var(--bg-panel);
     --surface-1: var(--bg-elevated);
     --surface-2: var(--bg-panel);
-    --surface-hover: var(--bg-input);
-
     --line: var(--border-subtle);
     --line-strong: var(--border-color);
 
@@ -19,13 +17,9 @@
     --accent-quiet: var(--primary-muted);
     --on-accent: var(--on-primary);
 
-    --r-sm: 8px;
-    --r-md: 14px;
-    --s-1: 4px;
-    --s-2: 8px;
-    --s-3: 12px;
-    --s-4: 16px;
-    --s-5: 24px;
+    /* Spacing and radius live on the --space-* and --radius-* ladders in
+       style.css. A second set of names here meant two answers for the same
+       question, which is how the type sizes drifted apart. */
     --grid-gap: 16px;
     --row-h: 120px;
 
@@ -43,5 +37,4 @@
 
     /* Tabs and Home read from one type scale now, so only rhythm lives here. */
     --tab-gap: 20px;
-    --tab-pad: 20px;
 }

@@ -75,6 +75,24 @@ class FontWeightTests(unittest.TestCase):
             self.assertIn(f"{token}: {value}", STYLE)
 
 
+class OneSystemPerIdeaTests(unittest.TestCase):
+    """Spacing and radius each get one set of names, the way type now does."""
+
+    def test_there_is_no_second_spacing_or_radius_ladder(self) -> None:
+        both = STYLE + TOKENS
+        for dead in ("--s-1", "--s-2", "--s-3", "--s-4", "--s-5", "--r-sm", "--r-md"):
+            self.assertNotIn(f"{dead}:", both, f"{dead} duplicates the real ladder")
+            self.assertNotIn(f"var({dead})", both, f"{dead} still has readers")
+
+    def test_density_reaches_every_rung_of_the_spacing_ladder(self) -> None:
+        """A rung the compact block never remaps stays put while its
+        neighbours tighten, which is what left compact half applied."""
+        compact = STYLE.split("html[data-density='compact'] {")[1].split("}")[0]
+        rungs = set(re.findall(r"(--space-[a-z0-9]+):", STYLE))
+        missing = sorted(r for r in rungs if f"{r}:" not in compact)
+        self.assertEqual(missing, [], f"compact density skips {missing}")
+
+
 class NumeralTests(unittest.TestCase):
     def test_figures_line_up_where_the_app_shows_numbers(self) -> None:
         """Proportional digits shuffle sideways as a clock or a count ticks."""

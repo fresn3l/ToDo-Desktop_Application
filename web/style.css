@@ -91,22 +91,18 @@
     --attention-muted: color-mix(in srgb, var(--attention) 22%, transparent);
     --danger: #d97a7a;
     --warning: var(--attention);
-    --sheen: hsl(0 0% 100% / 0.04);
 
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 14px;
-    --radius-xl: 20px;
     --radius-pill: 999px;
 
+    --space-2xs: 4px;
     --space-xs: 6px;
     --space-sm: 10px;
     --space-md: 16px;
     --space-lg: 24px;
     --space-xl: 32px;
-    --space-section: 28px;
-    --space-card: 20px;
-    --gap-md: 16px;
     --content-max: 1180px;
 
     /* A tab title is the same size as the Home page title, and a section
@@ -170,7 +166,6 @@ html[data-theme='ocean'] {
     --border-color: hsl(210 24% 70% / 0.14);
     --border-subtle: hsl(210 20% 100% / 0.06);
     --home-widget-border-color: #2c3d4e;
-    --header-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.38);
     --on-primary: #f7fafc;
     --primary-ink: hsl(var(--accent-h) 28% 88%);
 }
@@ -190,7 +185,6 @@ html[data-theme='midnight'] {
     --border-color: rgba(255, 255, 255, 0.13);
     --border-subtle: rgba(255, 255, 255, 0.07);
     --home-widget-border-color: rgba(255, 255, 255, 0.07);
-    --header-line: rgba(255, 255, 255, 0.13);
     --on-primary: #1a1508;
     --primary-ink: #1a1508;
     --primary: #e0b355;
@@ -213,7 +207,6 @@ html[data-theme='slate'] {
     --border-color: hsl(215 18% 70% / 0.14);
     --border-subtle: hsl(215 16% 100% / 0.06);
     --home-widget-border-color: #2c3848;
-    --header-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.38);
     --on-primary: #f7fafc;
     --primary-ink: hsl(var(--accent-h) 24% 88%);
 }
@@ -233,7 +226,6 @@ html[data-theme='paper'] {
     --border-color: hsl(36 16% 22% / 0.12);
     --border-subtle: hsl(36 16% 22% / 0.08);
     --home-widget-border-color: #d8d0c2;
-    --header-line: hsl(var(--accent-h) var(--accent-s) 42% / 0.5);
     --shadow-sm: 0 1px 2px hsl(36 18% 18% / 0.06);
     --shadow-md: 0 10px 28px hsl(36 18% 18% / 0.08);
     --shadow-lg: 0 18px 44px hsl(36 18% 18% / 0.1);
@@ -242,7 +234,6 @@ html[data-theme='paper'] {
     --success: #2f7d57;
     --attention: #b5791f;
     --danger: #c24b4b;
-    --sheen: hsl(40 50% 100% / 0.55);
 }
 
 html[data-theme='forest'] {
@@ -260,7 +251,6 @@ html[data-theme='forest'] {
     --border-color: hsl(152 16% 50% / 0.18);
     --border-subtle: hsl(150 14% 100% / 0.06);
     --home-widget-border-color: #2a3c36;
-    --header-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.38);
     --on-primary: #f6fbf8;
     --primary-ink: hsl(var(--accent-h) 22% 88%);
     --success: #6bc49a;
@@ -281,7 +271,6 @@ html[data-theme='dusk'] {
     --border-color: hsl(270 14% 70% / 0.14);
     --border-subtle: hsl(270 12% 100% / 0.06);
     --home-widget-border-color: #3a3548;
-    --header-line: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.4);
     --on-primary: #f7f5fb;
     --primary-ink: hsl(var(--accent-h) 22% 90%);
 }
@@ -353,13 +342,12 @@ html[data-theme='paper'].native-shell .app-sidebar {
 }
 
 html[data-density='compact'] {
+    --space-2xs: 3px;
     --space-xs: 4px;
     --space-sm: 8px;
     --space-md: 12px;
     --space-lg: 16px;
     --space-xl: 22px;
-    --space-section: 18px;
-    --space-card: 14px;
     /* Compact steps the reading sizes down one notch. Captions and micro
        labels hold, because below 12px nothing gains from being smaller. */
     --fs-body: 13px;
@@ -367,21 +355,18 @@ html[data-density='compact'] {
     --fs-heading: 17px;
     --fs-title: 20px;
     --tab-gap: 14px;
-    --tab-pad: 16px;
 }
 
 html[data-radius='sharp'] {
     --radius-sm: 2px;
     --radius-md: 4px;
     --radius-lg: 6px;
-    --radius-xl: 8px;
 }
 
 html[data-radius='round'] {
     --radius-sm: 10px;
     --radius-md: 16px;
     --radius-lg: 22px;
-    --radius-xl: 28px;
 }
 
 html[data-width='narrow'] {
@@ -615,7 +600,7 @@ html[data-sidebar='compact'] .nav-label {
     transform: translateY(-50%);
     display: none;
     padding: 6px 10px;
-    border-radius: var(--r-sm);
+    border-radius: var(--radius-sm);
     background: var(--surface-2);
     border: 1px solid var(--line);
     color: var(--text-1);
@@ -3010,7 +2995,7 @@ html.native-shell .home-title-strip {
     flex-direction: column;
     gap: 8px;
     border: 1px solid var(--line);
-    border-radius: var(--r-md);
+    border-radius: var(--radius-lg);
     background: var(--surface-1);
     padding: 10px 12px;
 }
@@ -3093,7 +3078,7 @@ html.native-shell .home-title-strip {
     min-width: 0;
     min-height: 0;
     border: 1px solid var(--line);
-    border-radius: var(--r-md);
+    border-radius: var(--radius-lg);
     background: var(--surface-1);
     box-shadow: none;
     overflow: hidden;
@@ -3306,7 +3291,7 @@ html.native-shell .home-title-strip {
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
-    gap: var(--s-2);
+    gap: var(--space-xs);
     height: 100%;
     min-height: 0;
     overflow: hidden;
@@ -3442,7 +3427,7 @@ html[data-motion='reduce'] .glance-tile {
     flex: 0 0 auto;
     color: var(--text-2);
     background: transparent;
-    border-radius: var(--r-sm);
+    border-radius: var(--radius-sm);
 }
 
 .glance-glyph svg {
@@ -3556,11 +3541,11 @@ html[data-motion='reduce'] .glance-tile {
 
 .glance-action {
     align-self: flex-start;
-    margin-top: var(--s-2);
+    margin-top: var(--space-xs);
     border: 1px solid transparent;
     background: var(--accent);
     color: var(--on-accent);
-    border-radius: var(--r-sm);
+    border-radius: var(--radius-sm);
     min-height: 2rem;
     padding: 6px 12px;
     font: inherit;
@@ -3590,8 +3575,8 @@ html[data-motion='reduce'] .glance-tile {
 .glance-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s-2);
-    margin-top: var(--s-2);
+    gap: var(--space-xs);
+    margin-top: var(--space-xs);
     flex: 0 0 auto;
 }
 
@@ -3623,13 +3608,13 @@ html[data-motion='reduce'] .glance-tile {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    margin-top: var(--s-2);
+    margin-top: var(--space-xs);
 }
 
 .glance-capture {
     display: flex;
     gap: 6px;
-    margin-top: var(--s-2);
+    margin-top: var(--space-xs);
     flex: 0 0 auto;
 }
 
@@ -3692,7 +3677,7 @@ html[data-motion='reduce'] .glance-tile {
 .glance-counters {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--s-2);
+    gap: var(--space-xs);
 }
 
 .home-widget[data-w="1"] .glance-counters {
@@ -3703,9 +3688,9 @@ html[data-motion='reduce'] .glance-tile {
     display: grid;
     grid-template-columns: 1fr auto auto auto;
     align-items: center;
-    gap: var(--s-1);
+    gap: var(--space-2xs);
     min-width: 0;
-    padding: var(--s-1) 0;
+    padding: var(--space-2xs) 0;
 }
 
 .glance-counter-name {
@@ -3725,11 +3710,11 @@ html[data-motion='reduce'] .glance-tile {
 
 .glance-hourly {
     list-style: none;
-    margin: var(--s-2) 0 0;
+    margin: var(--space-xs) 0 0;
     padding: 0;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--s-2);
+    gap: var(--space-xs);
 }
 
 .glance-hourly li {
@@ -5770,8 +5755,6 @@ html[data-motion='reduce'] *::after {
     margin: 0;
     overflow: hidden;
     border-top: 1px solid color-mix(in srgb, var(--border-subtle) 85%, transparent);
-    --cal-hour-pct: 6.25%;
-    --cal-hour-offset: 0%;
 }
 
 .cal-hour-line {
