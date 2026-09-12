@@ -1641,7 +1641,8 @@ def update_calendar_event(
     rec = event.get("recurrence") if isinstance(event.get("recurrence"), dict) else None
     if weekdays is not None:
         days = _normalize_weekdays(weekdays)
-        rec = {"kind": "weekly", "weekdays": days} if days else None
+        # Keep an end date and any skipped days; only the weekdays are being set.
+        rec = {**(rec or {}), "kind": "weekly", "weekdays": days} if days else None
     elif rec and occurrence_date:
         try:
             old_day = date.fromisoformat(str(occurrence_date)[:10]).weekday()
@@ -1651,8 +1652,11 @@ def update_calendar_event(
         days = _normalize_weekdays((rec or {}).get("weekdays"))
         if old_day is not None and days and old_day != new_day:
             days = sorted({new_day if d == old_day else d for d in days})
-            rec = {"kind": "weekly", "weekdays": days}
-        # Series template keeps its original date; only the clock time moves.
+            rec = {**rec, "kind": "weekly", "weekdays": days}
+    if occurrence_date and rec and rec.get("weekdays"):
+        # A series runs from its first date, so editing one occurrence must not
+        # drag that date forward. It used to, and every earlier occurrence in
+        # the series fell off the calendar. Only the clock time moves.
         template = parse_datetime(event["start_at"])
         start = datetime.combine(template.date(), start.time())
         end = start + duration
