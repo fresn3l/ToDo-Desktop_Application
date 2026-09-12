@@ -18,7 +18,7 @@ from appearance import COLOR_SLOTS, _as_hex
 from paths import data_directory
 
 GRID_COLUMNS = 8
-LAYOUT_VERSION = 3
+LAYOUT_VERSION = 4
 MAX_PAGES = 12
 MAX_WIDGETS_PER_PAGE = 32
 MAX_PAGE_NAME = 40
@@ -334,8 +334,6 @@ def widen_to_eight_columns(raw: Any) -> Dict[str, Any]:
                     item[axis] = int(item[axis]) * 2
                 except (KeyError, TypeError, ValueError):
                     continue
-    raw["columns"] = GRID_COLUMNS
-    raw["version"] = LAYOUT_VERSION
     return raw
 
 
@@ -657,6 +655,45 @@ def drop_duplicate_clock(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     return packed, True
 
 
+def catch_up_stock_board(layout: Dict[str, Any]) -> Dict[str, Any]:
+    """Hand a board nobody rearranged the tiles that shipped after it was saved.
+
+    Each step checks the board against an exact stock arrangement and does
+    nothing unless it matches, so a board someone touched comes through
+    untouched.
+    """
+    packed = sanitize_layout(layout)
+    for step in (
+        seed_ask_cluny,
+        seed_day_brief,
+        drop_duplicate_clock,
+        restack_stock_home,
+        seed_week_page,
+        seed_week_plan_tiles,
+        seed_home_plan_tiles,
+        restack_stock_home,
+    ):
+        packed, _ = step(packed)
+    return packed
+
+
+def migrate(raw: Any) -> Dict[str, Any]:
+    """Bring a saved board up to the current version.
+
+    This runs once, on the load that finds an old file, and the result is
+    written straight back. It used to run on every load instead, which meant
+    eight passes over the board each time the Home tab opened.
+    """
+    stored = int((raw or {}).get("version") or 0)
+    if stored < 2:
+        # Before version 2 the record had a different shape, and there is no
+        # honest way to read it. A clean board beats a mangled one.
+        return default_layout()
+    if stored < 3:
+        raw = widen_to_eight_columns(raw)
+    return catch_up_stock_board(raw)
+
+
 def _page(layout: Dict[str, Any], page_id: str) -> Optional[Dict[str, Any]]:
     for page in layout["pages"]:
         if page["id"] == page_id:
@@ -854,33 +891,9 @@ def get_home_layout() -> Dict[str, Any]:
     try:
         with open(path, "r", encoding="utf-8") as handle:
             raw = json.load(handle)
-        stored = int((raw or {}).get("version") or 0)
-        if stored == 2:
-            # A board someone arranged by hand is worth more than a clean
-            # reset, and the split is exact, so widen it instead.
-            return _write(widen_to_eight_columns(raw))
-        if stored < LAYOUT_VERSION:
-            return _write(default_layout())
-        packed, added = seed_ask_cluny(raw)
-        packed, dayed = seed_day_brief(packed)
-        packed, unclocked = drop_duplicate_clock(packed)
-        packed, restacked = restack_stock_home(packed)
-        packed, weeked = seed_week_page(packed)
-        packed, planned = seed_week_plan_tiles(packed)
-        packed, home_planned = seed_home_plan_tiles(packed)
-        packed, restacked_plan = restack_stock_home(packed)
-        if (
-            added
-            or dayed
-            or unclocked
-            or restacked
-            or weeked
-            or planned
-            or home_planned
-            or restacked_plan
-        ):
-            return _write(packed)
-        return packed
+        if int((raw or {}).get("version") or 0) < LAYOUT_VERSION:
+            return _write(migrate(raw))
+        return sanitize_layout(raw)
     except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return _write(default_layout())
 
