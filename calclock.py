@@ -119,6 +119,7 @@ def _settings_path() -> Path:
 
 
 _schema_lock = threading.Lock()
+_marks_healed = False
 
 
 @contextmanager
@@ -208,6 +209,45 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_focus_items_work ON focus_block_items(work_item_id)"
     )
+    global _marks_healed
+    if not _marks_healed:
+        _drop_series_wide_marks(conn)
+        _marks_healed = True
+
+
+def _drop_series_wide_marks(conn: sqlite3.Connection) -> int:
+    """Clear marks that name a whole series instead of one day of it.
+
+    Older builds stored these, and every occurrence of the series read as
+    attended off a single one. Dropping them puts those days back to open.
+    """
+    rows = conn.execute(
+        """
+        SELECT m.id AS id, e.recurrence_json AS recurrence_json
+        FROM event_marks m
+        JOIN calendar_events e ON e.id = m.id
+        WHERE instr(m.id, '@') = 0
+        """
+    ).fetchall()
+    stale = []
+    for row in rows:
+        try:
+            recurrence = json.loads(row["recurrence_json"] or "null")
+        except (TypeError, ValueError):
+            continue
+        if _repeats_weekly(recurrence):
+            stale.append((row["id"],))
+    if stale:
+        conn.executemany("DELETE FROM event_marks WHERE id = ?", stale)
+    return len(stale)
+
+
+def drop_series_wide_marks() -> int:
+    """Run the series-wide mark cleanup now. The schema step does this once a run."""
+    with _connect() as conn:
+        dropped = _drop_series_wide_marks(conn)
+        conn.commit()
+    return dropped
 
 
 def load_settings() -> Dict[str, Any]:
@@ -1451,6 +1491,27 @@ def event_mark_key(item_id: str, occurrence_date: str = "") -> str:
     return key
 
 
+def _repeats_weekly(recurrence: Any) -> bool:
+    return bool(isinstance(recurrence, dict) and recurrence.get("weekdays"))
+
+
+def _event_repeats(event_id: str) -> bool:
+    """True when the id names a series, so a mark on it alone would hit every occurrence."""
+    key = str(event_id or "").strip()
+    if not key:
+        return False
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT recurrence_json FROM calendar_events WHERE id = ?", (key,)
+        ).fetchone()
+    if row is None:
+        return False
+    try:
+        return _repeats_weekly(json.loads(row["recurrence_json"] or "null"))
+    except (TypeError, ValueError):
+        return False
+
+
 def list_event_marks() -> List[Dict[str, Any]]:
     with _connect() as conn:
         rows = conn.execute(
@@ -1473,8 +1534,13 @@ def _apply_event_marks(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     for item in items:
         packed = dict(item)
-        key = event_mark_key(str(item.get("id") or ""), str(item.get("occurrence_date") or ""))
-        status = marks.get(key) or marks.get(str(item.get("id") or ""))
+        bare = str(item.get("id") or "")
+        key = event_mark_key(bare, str(item.get("occurrence_date") or ""))
+        status = marks.get(key)
+        # A mark with no day on it can only speak for an event that happens once.
+        # On a series it used to cross off every occurrence at once.
+        if not status and not _repeats_weekly(item.get("recurrence")):
+            status = marks.get(bare)
         if status:
             packed["status"] = status
         out.append(packed)
@@ -1489,6 +1555,10 @@ def upsert_event_mark(item_id: str, status: str, updated_at: str = "") -> Option
     if not key or len(key) > 80:
         return None
     if state not in EVENT_MARK_STATUSES:
+        return None
+    # Every writer funnels through here, including the phone and the sync pack.
+    # A key with no day on it would stand for the whole series, so refuse it.
+    if "@" not in key and _event_repeats(key):
         return None
     stamp = str(updated_at or "").strip() or _now().isoformat()
     with _connect() as conn:
@@ -1588,7 +1658,9 @@ def set_bar_outcome(bar_id: str, outcome: str, occurrence_date: str = "") -> Dic
     event_id = key.split("@", 1)[0]
     if not occ and "@" in key:
         occ = key.split("@", 1)[1][:10]
-    _load_event(event_id)
+    event = _load_event(event_id)
+    if not occ and _repeats_weekly(event.get("recurrence")):
+        raise ValueError("Say which day of that repeating event you mean")
     mark = upsert_event_mark(event_mark_key(event_id, occ), status)
     if mark is None:
         raise ValueError("Could not mark that event")
