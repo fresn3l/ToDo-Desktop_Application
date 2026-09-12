@@ -211,12 +211,12 @@ enum PackActions {
     private static func paintClockStatus(_ pack: inout Pack, id: String, status: String) {
         for index in pack.calendar.days.indices {
             for eventIndex in pack.calendar.days[index].events.indices {
-                if pack.calendar.days[index].events[eventIndex].itemId == id {
+                if pack.calendar.days[index].events[eventIndex].markKey == id {
                     pack.calendar.days[index].events[eventIndex].status = status
                 }
             }
             for blockIndex in pack.calendar.days[index].blocks.indices {
-                if pack.calendar.days[index].blocks[blockIndex].itemId == id {
+                if pack.calendar.days[index].blocks[blockIndex].markKey == id {
                     pack.calendar.days[index].blocks[blockIndex].status = status
                 }
             }
