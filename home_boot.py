@@ -81,8 +81,6 @@ def fetch_glance(kind: str) -> Any:
             return work.get_work_board(_today_iso())
         except Exception as exc:
             return {"ok": False, "error": str(exc), "today": [], "counts": {}}
-    if key == "focus":
-        return _safe_call("glance", "get_daily_focus")
     if key == "countdown":
         return _safe_call("glance", "get_countdowns")
     if key == "habits":
@@ -102,22 +100,14 @@ def fetch_glance(kind: str) -> Any:
             return {"ok": False, "error": str(exc)}
     if key == "day_brief":
         return _safe_call("day_brief", "get_day_brief")
-    if key == "heatmap":
-        return _safe_call("heatmap", "get_heatmap", "", "", "", 42)
     if key == "analytics":
         return _safe_call("insights", "get_analytics", 7)
-    if key == "timeline":
-        return _safe_call("timeline", "get_timeline_day", _today_iso())
     if key == "cluny":
         return _cluny_glance()
-    if key == "now_next":
-        return _safe_call("home_glances", "now_next_glance")
     if key == "unplaced":
         return _safe_call("home_glances", "unplaced_glance")
     if key == "dues":
         return _safe_call("home_glances", "dues_this_week")
-    if key == "free_today":
-        return _safe_call("home_glances", "free_today_glance")
     return None
 
 

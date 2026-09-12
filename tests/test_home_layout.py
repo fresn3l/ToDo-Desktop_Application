@@ -70,24 +70,23 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("goals", kinds)
         self.assertIn("allwork", kinds)
         self.assertIn("analytics", kinds)
-        self.assertIn("timeline", kinds)
         self.assertIn("weather", kinds)
-        self.assertIn("focus", kinds)
         self.assertIn("countdown", kinds)
         self.assertIn("habits", kinds)
-        self.assertIn("heatmap", kinds)
         self.assertIn("day_brief", kinds)
         self.assertIn("counters", kinds)
         self.assertIn("reading", kinds)
         self.assertIn("word", kinds)
         self.assertIn("cluny", kinds)
-        self.assertIn("now_next", kinds)
         self.assertIn("unplaced", kinds)
         self.assertIn("dues", kinds)
-        self.assertIn("free_today", kinds)
         self.assertNotIn("checklist", kinds)
         self.assertNotIn("settings", kinds)
         self.assertNotIn("calendar", kinds)
+        # Retired tiles. Each of these still has a tab; none of them said
+        # enough in a tile to earn a place on the board.
+        for gone in ("now_next", "free_today", "heatmap", "focus", "timeline"):
+            self.assertNotIn(gone, kinds)
 
     def test_default_home_is_a_bento_of_day_slices(self) -> None:
         layout = home_layout.default_layout()
@@ -124,7 +123,7 @@ class HomeLayoutTests(unittest.TestCase):
         week_kinds = [item["kind"] for item in layout["pages"][1]["widgets"]]
         self.assertEqual(
             week_kinds,
-            ["goals", "allwork", "habits", "dues", "workout", "heatmap", "reading", "free_today"],
+            ["goals", "allwork", "habits", "dues", "workout", "reading"],
         )
 
     def test_fresh_file_writes_the_default(self) -> None:
@@ -146,7 +145,7 @@ class HomeLayoutTests(unittest.TestCase):
     def test_glance_widgets_can_shrink_to_a_single_chip(self) -> None:
         # A chip is a quarter of the board wide and one old row tall, which on
         # the eight column grid is two cells each way.
-        for kind in ("weather", "word", "focus"):
+        for kind in ("weather", "word", "countdown"):
             self.assertIn((2, 2), home_layout.allowed_sizes(kind), kind)
         self.assertEqual(home_layout.spec_default("weather"), (4, 2))
         self.assertEqual(home_layout.spec_default("word"), (4, 2))
@@ -227,8 +226,8 @@ class HomeLayoutTests(unittest.TestCase):
             home_layout.add_widget(layout, page_id, "workout")
         with self.assertRaises(ValueError):
             home_layout.add_widget(layout, page_id, "calendar")
-        layout = home_layout.add_home_widget(page_id, "focus")
-        self.assertIn("focus", [item["kind"] for item in layout["pages"][0]["widgets"]])
+        layout = home_layout.add_home_widget(page_id, "countdown")
+        self.assertIn("countdown", [item["kind"] for item in layout["pages"][0]["widgets"]])
 
     def test_move_rejects_overlap_resize_cycles(self) -> None:
         layout = home_layout.get_home_layout()
@@ -317,18 +316,16 @@ class HomeLayoutTests(unittest.TestCase):
     def test_new_home_widgets_can_be_added(self) -> None:
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
-        layout = home_layout.add_home_widget(page_id, "focus")
         layout = home_layout.add_home_widget(page_id, "countdown")
         layout = home_layout.add_home_widget(page_id, "habits")
-        layout = home_layout.add_home_widget(page_id, "heatmap")
+        layout = home_layout.add_home_widget(page_id, "analytics")
         layout = home_layout.add_home_widget(page_id, "counters")
         layout = home_layout.add_home_widget(page_id, "reading")
         kinds = [item["kind"] for item in layout["pages"][0]["widgets"]]
         self.assertIn("weather", kinds)
-        self.assertIn("focus", kinds)
         self.assertIn("countdown", kinds)
         self.assertIn("habits", kinds)
-        self.assertIn("heatmap", kinds)
+        self.assertIn("analytics", kinds)
         self.assertIn("day_brief", kinds)
         self.assertIn("counters", kinds)
         self.assertIn("reading", kinds)
@@ -336,8 +333,8 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertIn("cluny", kinds)
         self.assertNotIn("checklist", kinds)
         self.assertEqual(home_layout.coerce_size("countdown", 8, 4), (4, 2))
-        self.assertEqual(home_layout.coerce_size("heatmap", 4, 4), (4, 4))
-        self.assertEqual(home_layout.coerce_size("heatmap", 6, 2), (6, 2))
+        self.assertEqual(home_layout.coerce_size("analytics", 4, 4), (4, 4))
+        self.assertEqual(home_layout.coerce_size("analytics", 6, 6), (6, 6))
         self.assertEqual(home_layout.coerce_size("day_brief", 4, 6), (4, 6))
 
     def test_reset_restores_first_install(self) -> None:
@@ -380,7 +377,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertEqual((weather["x"], weather["y"]), (0, 6))
         extra = home_layout.add_home_page("Studio")
         extra_id = extra["pages"][-1]["id"]
-        extra = home_layout.add_home_widget(extra_id, "focus", "above")
+        extra = home_layout.add_home_widget(extra_id, "countdown", "above")
         focus = extra["pages"][-1]["widgets"][0]
         self.assertNotEqual(focus.get("region"), "above")
         with self.assertRaises(ValueError):
@@ -561,7 +558,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertEqual(packed["pages"][1]["name"], "Week")
         self.assertEqual(
             [item["kind"] for item in packed["pages"][1]["widgets"]],
-            ["goals", "allwork", "habits", "dues", "workout", "heatmap", "reading", "free_today"],
+            ["goals", "allwork", "habits", "dues", "workout", "reading"],
         )
         again, added_again = home_layout.seed_week_page(packed)
         self.assertFalse(added_again)
@@ -613,7 +610,6 @@ class HomeLayoutTests(unittest.TestCase):
         kinds = [item["kind"] for item in packed["pages"][1]["widgets"]]
         self.assertNotIn("unplaced", kinds)
         self.assertIn("dues", kinds)
-        self.assertIn("free_today", kinds)
         self.assertNotIn("now_next", kinds)
         again, added_again = home_layout.seed_week_plan_tiles(packed)
         self.assertFalse(added_again)
@@ -648,34 +644,26 @@ class HomeLayoutTests(unittest.TestCase):
         again, added_again = home_layout.seed_home_plan_tiles(restacked)
         self.assertFalse(added_again)
 
-    def test_existing_home_retires_the_second_clock_tile(self) -> None:
-        raw = home_layout.default_layout()
-        page = raw["pages"][0]
-        page["widgets"].append(
-            {"id": "now", "kind": "now_next", "x": 0, "y": 6, "w": 2, "h": 1}
-        )
-        packed, dropped = home_layout.drop_duplicate_clock(raw)
-        self.assertTrue(dropped)
-        kinds = {item["kind"] for item in packed["pages"][0]["widgets"]}
-        self.assertNotIn("now_next", kinds)
-        self.assertIn("today_calendar", kinds)
-        again, dropped_again = home_layout.drop_duplicate_clock(packed)
-        self.assertFalse(dropped_again)
-
-    def test_a_customized_home_keeps_its_clock_tile(self) -> None:
+    def test_a_board_carrying_a_retired_tile_loses_it_and_keeps_the_rest(self) -> None:
+        """Five tiles left the catalog. A board holding one comes back without
+        it rather than refusing to load."""
         raw = {
+            "version": home_layout.LAYOUT_VERSION,
             "pages": [
                 {
                     "id": "p1",
                     "name": "Home",
                     "widgets": [
-                        {"id": "a", "kind": "now_next", "x": 0, "y": 0, "w": 2, "h": 1},
-                        {"id": "b", "kind": "heatmap", "x": 2, "y": 0, "w": 2, "h": 1},
+                        {"id": "a", "kind": "now_next", "x": 0, "y": 0, "w": 4, "h": 2},
+                        {"id": "b", "kind": "heatmap", "x": 4, "y": 0, "w": 4, "h": 2},
+                        {"id": "c", "kind": "focus", "x": 0, "y": 2, "w": 4, "h": 2},
+                        {"id": "d", "kind": "timeline", "x": 4, "y": 2, "w": 4, "h": 4},
+                        {"id": "e", "kind": "free_today", "x": 0, "y": 6, "w": 4, "h": 2},
+                        {"id": "f", "kind": "habits", "x": 4, "y": 6, "w": 4, "h": 6},
                     ],
                 }
-            ]
+            ],
         }
-        packed, dropped = home_layout.drop_duplicate_clock(raw)
-        self.assertFalse(dropped)
-        kinds = {item["kind"] for item in packed["pages"][0]["widgets"]}
-        self.assertIn("now_next", kinds)
+        packed = home_layout.sanitize_layout(raw)
+        kinds = [item["kind"] for item in packed["pages"][0]["widgets"]]
+        self.assertEqual(kinds, ["habits"])

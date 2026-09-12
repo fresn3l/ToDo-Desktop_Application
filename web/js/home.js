@@ -34,9 +34,7 @@ const FALLBACK_LAYOUT = {
                 { id: 'w-habits', kind: 'habits', x: 0, y: 6, w: 4, h: 6 },
                 { id: 'w-dues', kind: 'dues', x: 4, y: 6, w: 4, h: 6 },
                 { id: 'w-workout', kind: 'workout', x: 0, y: 12, w: 4, h: 4 },
-                { id: 'w-heatmap', kind: 'heatmap', x: 4, y: 12, w: 4, h: 4 },
-                { id: 'w-reading', kind: 'reading', x: 0, y: 16, w: 4, h: 2 },
-                { id: 'w-free', kind: 'free_today', x: 4, y: 16, w: 4, h: 2 },
+                { id: 'w-reading', kind: 'reading', x: 4, y: 12, w: 4, h: 2 },
             ],
         },
     ],
@@ -124,28 +122,23 @@ const KIND_FEATURE = {
     workout: 'workout',
     goals: 'goals',
     analytics: 'analytics',
-    timeline: 'timeline',
     weather: 'weather',
-    focus: 'glance',
     countdown: 'glance',
     habits: 'glance',
-    heatmap: 'heatmap',
     day_brief: 'day_brief',
     counters: 'counters',
     reading: 'reading',
     word: 'word',
     cluny: 'cluny',
-    now_next: 'today',
     unplaced: 'allwork',
     dues: 'todo',
-    free_today: 'today',
 };
 
 async function ensureWork(kind) {
     return loadOnce(`work:${kind}`, async () => {
         const feature = KIND_FEATURE[kind];
         if (feature) await bootFeature(feature);
-        if (kind === 'today_calendar' || kind === 'now_next' || kind === 'free_today') {
+        if (kind === 'today_calendar') {
             const m = await import('./today.js');
             m.setupToday();
             return () => m.onTodayTabShown().then(() => m.refreshToday());
@@ -175,27 +168,16 @@ async function ensureWork(kind) {
             m.setupAnalytics();
             return () => m.onAnalyticsTabShown();
         }
-        if (kind === 'timeline') {
-            const m = await import('./timeline.js');
-            m.setupTimeline();
-            return () => m.onTimelineTabShown();
-        }
         if (kind === 'weather') {
             const m = await import('./weather.js');
             m.setupWeather();
             return () => m.refreshWeather();
         }
-        if (kind === 'focus' || kind === 'countdown' || kind === 'habits') {
+        if (kind === 'countdown' || kind === 'habits') {
             const m = await import('./glance.js');
             m.setupGlance();
-            if (kind === 'focus') return () => m.refreshFocus();
             if (kind === 'countdown') return () => m.refreshCountdown();
             return () => m.refreshHabits();
-        }
-        if (kind === 'heatmap') {
-            const m = await import('./heatmap.js');
-            m.setupHeatmap();
-            return () => m.refreshHeatmap();
         }
         if (kind === 'day_brief') {
             const m = await import('./day_brief.js');

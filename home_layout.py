@@ -58,19 +58,9 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((4, 4), (4, 6), (6, 4), (6, 6)),
         "default": (4, 4),
     },
-    "timeline": {
-        "label": "Timeline",
-        "sizes": ((4, 4), (4, 6), (6, 4), (6, 6)),
-        "default": (4, 4),
-    },
     "weather": {
         "label": "Weather",
         "sizes": ((2, 2), (4, 2), (2, 4), (4, 4), (4, 6), (6, 4)),
-        "default": (4, 2),
-    },
-    "focus": {
-        "label": "Focus",
-        "sizes": ((2, 2), (4, 2), (4, 4), (6, 2), (6, 4)),
         "default": (4, 2),
     },
     "countdown": {
@@ -82,11 +72,6 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "label": "Habits",
         "sizes": ((2, 2), (4, 2), (2, 4), (4, 4), (4, 6), (6, 4)),
         "default": (4, 6),
-    },
-    "heatmap": {
-        "label": "Heatmap",
-        "sizes": ((4, 2), (6, 2), (4, 4), (6, 4), (6, 6)),
-        "default": (6, 2),
     },
     "day_brief": {
         "label": "Day",
@@ -113,11 +98,6 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((4, 4), (4, 6), (6, 4), (6, 6), (8, 4)),
         "default": (8, 4),
     },
-    "now_next": {
-        "label": "Now",
-        "sizes": ((2, 2), (4, 2), (4, 4), (6, 2), (6, 4)),
-        "default": (4, 2),
-    },
     "unplaced": {
         "label": "Unplaced",
         "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
@@ -128,11 +108,6 @@ WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
         "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
         "default": (4, 6),
     },
-    "free_today": {
-        "label": "Free",
-        "sizes": ((2, 2), (4, 2), (4, 4), (6, 2)),
-        "default": (4, 2),
-    },
 }
 
 SOURCE_TAB = {
@@ -142,21 +117,16 @@ SOURCE_TAB = {
     "goals": "goalsTab",
     "allwork": "allWorkTab",
     "analytics": "analyticsTab",
-    "timeline": "timelineTab",
     "weather": "weatherSource",
-    "focus": "focusSource",
     "countdown": "countdownSource",
     "habits": "habitsSource",
-    "heatmap": "heatmapSource",
     "day_brief": "dayBriefSource",
     "counters": "countersSource",
     "reading": "readingSource",
     "word": "wordTab",
     "cluny": "clunySource",
-    "now_next": "todayCalendarSource",
     "unplaced": "allWorkTab",
     "dues": "todoTab",
-    "free_today": "todayCalendarSource",
 }
 
 
@@ -179,7 +149,7 @@ def _stock_home_widgets() -> List[Dict[str, Any]]:
 
 
 def default_week_page(name: str = "Week") -> Dict[str, Any]:
-    """Second-page template: goals, backlog, habits, dues, workout, heatmap."""
+    """Second-page template: goals, backlog, habits, dues, workout, reading."""
     return {
         "id": _new_id(),
         "name": _clip_name(name, "Week"),
@@ -189,9 +159,7 @@ def default_week_page(name: str = "Week") -> Dict[str, Any]:
             {"id": _new_id(), "kind": "habits", "x": 0, "y": 6, "w": 4, "h": 6},
             {"id": _new_id(), "kind": "dues", "x": 4, "y": 6, "w": 4, "h": 6},
             {"id": _new_id(), "kind": "workout", "x": 0, "y": 12, "w": 4, "h": 4},
-            {"id": _new_id(), "kind": "heatmap", "x": 4, "y": 12, "w": 4, "h": 4},
-            {"id": _new_id(), "kind": "reading", "x": 0, "y": 16, "w": 4, "h": 2},
-            {"id": _new_id(), "kind": "free_today", "x": 4, "y": 16, "w": 4, "h": 2},
+            {"id": _new_id(), "kind": "reading", "x": 4, "y": 12, "w": 4, "h": 2},
         ],
     }
 
@@ -467,7 +435,6 @@ STOCK_HOME_KINDS = frozenset({"todo", "today_calendar", "weather", "word"})
 STOCK_HOME_WITH_CLUNY = STOCK_HOME_KINDS | {"cluny"}
 STOCK_HOME_WITH_DAY = STOCK_HOME_KINDS | {"day_brief"}
 STOCK_HOME_FULL = STOCK_HOME_KINDS | {"cluny", "day_brief"}
-STOCK_HOME_WITH_PLAN = STOCK_HOME_FULL | {"unplaced", "now_next"}
 STOCK_HOME_PLANNED = STOCK_HOME_FULL | {"unplaced"}
 STOCK_HOME_CORE_SLOTS = {
     "todo": {"x": 0, "y": 0, "w": 4, "h": 6, "region": "above"},
@@ -486,8 +453,8 @@ STOCK_HOME_SLOTS = {
     "unplaced": {"x": 0, "y": 6, "w": 4, "h": 6, "region": "below"},
     "day_brief": {"x": 4, "y": 6, "w": 4, "h": 6, "region": "below"},
 }
-WEEK_STOCK_KINDS = frozenset({"workout", "goals", "allwork", "habits", "heatmap", "reading"})
-WEEK_PLAN_KINDS = ("dues", "free_today")
+WEEK_STOCK_KINDS = frozenset({"workout", "goals", "allwork", "habits", "reading"})
+WEEK_PLAN_KINDS = ("dues",)
 
 
 def seed_ask_cluny(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
@@ -521,12 +488,7 @@ def seed_week_page(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     if len(packed["pages"]) != 1:
         return packed, False
     kinds = {item["kind"] for item in packed["pages"][0]["widgets"]}
-    if kinds not in (
-        STOCK_HOME_WITH_CLUNY,
-        STOCK_HOME_FULL,
-        STOCK_HOME_PLANNED,
-        STOCK_HOME_WITH_PLAN,
-    ):
+    if kinds not in (STOCK_HOME_WITH_CLUNY, STOCK_HOME_FULL, STOCK_HOME_PLANNED):
         return packed, False
     packed["pages"].append(default_week_page())
     return packed, True
@@ -644,17 +606,6 @@ def seed_home_plan_tiles(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     return packed, True
 
 
-def drop_duplicate_clock(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    """Retire Now from an uncustomized Home; Today already carries now and next."""
-    packed = sanitize_layout(layout)
-    page = packed["pages"][0]
-    kinds = {item["kind"] for item in page["widgets"]}
-    if kinds != STOCK_HOME_WITH_PLAN:
-        return packed, False
-    page["widgets"] = [item for item in page["widgets"] if item["kind"] != "now_next"]
-    return packed, True
-
-
 def catch_up_stock_board(layout: Dict[str, Any]) -> Dict[str, Any]:
     """Hand a board nobody rearranged the tiles that shipped after it was saved.
 
@@ -666,7 +617,6 @@ def catch_up_stock_board(layout: Dict[str, Any]) -> Dict[str, Any]:
     for step in (
         seed_ask_cluny,
         seed_day_brief,
-        drop_duplicate_clock,
         restack_stock_home,
         seed_week_page,
         seed_week_plan_tiles,
