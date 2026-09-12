@@ -757,6 +757,38 @@ class HomeUiTests(unittest.TestCase):
         item = STYLE.split(".cal-unplaced-item {")[1].split("}")[0]
         self.assertIn("touch-action: none", item)
 
+    def test_a_tile_is_a_head_a_middle_that_grows_and_a_foot(self) -> None:
+        """The middle taking the slack is what puts every tile's buttons on the
+        same line as its neighbour's. They used to float wherever the content
+        stopped, so a tile with one line in it put its button halfway up."""
+        self.assertIn('<header class="glance-tile-head">', GLANCE_TILES)
+        self.assertIn('<div class="glance-body">', GLANCE_TILES)
+        body = STYLE.split(".glance-body {", 1)[1].split("}", 1)[0]
+        self.assertIn("flex: 1 1 auto", body)
+        self.assertIn("min-height: 0", body)
+        # The tile's own head, not the .glance-head the weather panel uses.
+        self.assertIn(".glance-tile-head {", STYLE)
+        self.assertNotIn('class="glance-head"', GLANCE_TILES)
+
+    def test_a_tile_heading_does_not_shout(self) -> None:
+        """Uppercase letterspaced labels on every tile made the board shout its
+        own furniture before you could read anything on it."""
+        label = STYLE.split("\n.glance-label {", 1)[1].split("}", 1)[0]
+        self.assertNotIn("text-transform: uppercase", label)
+        self.assertIn("letter-spacing: var(--letter-normal)", label)
+        # The count sits apart from the heading rather than running into it.
+        self.assertIn(".glance-count {", STYLE)
+        self.assertIn('<span class="glance-count">', GLANCE_TILES)
+        self.assertNotIn("countLabel", GLANCE_TILES)
+
+    def test_the_smallest_tile_still_says_something_when_it_is_empty(self) -> None:
+        """A 2x2 tile drops the sentence under its metric. With nothing to
+        count there is no metric, and the tile came out blank."""
+        tiny = container_rules("(max-height: 189px) and (max-width: 399px)")
+        self.assertIn(".glance-tile.is-empty .glance-message", tiny)
+        self.assertIn(".glance-tile.is-error .glance-message", tiny)
+        self.assertIn(".glance-tile.is-loading .glance-message", tiny)
+
     def test_glance_tiles_fit_one_row_height(self) -> None:
         self.assertIn("action: w >= 4 && h >= 4", GLANCE_TILES)
         # A tile with one row of room shows a headline and nothing that needs
@@ -767,7 +799,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("overflow: hidden", STYLE)
 
     def test_every_glance_spends_one_row_budget(self) -> None:
-        self.assertIn("rows: h >= 6 ? 6 : h >= 4 ? 3 : 0", GLANCE_TILES)
+        # The budget comes from the height the tile actually has, because the
+        # same cell count is a different number of rows on a different grid.
+        self.assertIn("function rowBudget(card, h)", GLANCE_TILES)
+        self.assertIn("card?.getBoundingClientRect?.().height", GLANCE_TILES)
+        self.assertIn("const rows = rowBudget(card, h);", GLANCE_TILES)
+        # A tile on a page nobody opened measures nothing and still paints.
+        self.assertIn("if (px <= 0) return h >= 6 ? 6 : h >= 4 ? 3 : 0;", GLANCE_TILES)
         self.assertIn("capture: h >= 6", GLANCE_TILES)
         self.assertIn("function capLines(lines, size)", GLANCE_TILES)
         self.assertIn("function actionRow(actions, size)", GLANCE_TILES)
@@ -784,9 +822,11 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("pool.slice(0, size.rows)", todo)
         self.assertIn("primary: size.tall ? '' :", todo)
         self.assertIn("moreCount(extra)", todo)
-        # Headline already carries the title, so the beat line drops to a time.
-        self.assertIn("function beatBody(beat, size, titleShown = false)", GLANCE_TILES)
-        self.assertIn("size.tall && Boolean(focus)", GLANCE_TILES)
+        # Headline already carries the title, so the beat line drops to a time,
+        # and an empty clock says so once rather than as headline and body both.
+        self.assertIn("function beatBody(beat, size)", GLANCE_TILES)
+        self.assertIn("item === focus ? '' :", GLANCE_TILES)
+        self.assertEqual(GLANCE_TILES.count("copy.clearClock"), 1)
         # Sizes and spacing live in tokens, never hard-coded twice.
         self.assertIn("--glance-row-min:", TOKENS)
         self.assertIn("--glance-action-h:", TOKENS)

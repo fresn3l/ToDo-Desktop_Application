@@ -3359,13 +3359,50 @@ html[data-motion='reduce'] .glance-tile {
     }
 }
 
+/* Heading on the left, count on the right, on one line the content never
+   pushes around. The tile's own head, not the .glance-head the weather panel
+   already uses further down. */
+.glance-tile-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+/* This was uppercase and letterspaced on every tile, which made the board
+   shout its own furniture at you before you could read anything on it. */
 .glance-label {
     margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--fs-body);
+    font-weight: var(--fw-medium);
+    letter-spacing: var(--letter-normal);
+    line-height: var(--lh-snug);
+    color: var(--text-2);
+}
+
+.glance-count {
+    flex: 0 0 auto;
     font-size: var(--fs-caption);
-    font-weight: var(--fw-semibold);
-    letter-spacing: var(--letter-wider);
-    text-transform: uppercase;
+    font-weight: var(--fw-medium);
+    font-variant-numeric: tabular-nums;
     color: var(--text-3);
+}
+
+/* Everything between the heading and the buttons. It takes the slack, which
+   is what puts every tile's buttons on the same line as its neighbour's. */
+.glance-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .glance-primary {
@@ -3403,15 +3440,6 @@ html[data-motion='reduce'] .glance-tile {
 }
 
 .glance-message--quiet {
-    color: var(--text-3);
-}
-
-.glance-kicker {
-    margin: 0;
-    font-size: var(--fs-caption);
-    font-weight: var(--fw-semibold);
-    letter-spacing: var(--letter-wider);
-    text-transform: uppercase;
     color: var(--text-3);
 }
 
@@ -3494,7 +3522,7 @@ html[data-motion='reduce'] .glance-tile {
 .glance-list,
 .glance-forecast {
     list-style: none;
-    margin: 6px 0 0;
+    margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -3642,8 +3670,9 @@ html[data-motion='reduce'] .glance-tile {
 .glance-actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-xs);
-    margin-top: var(--space-xs);
+    margin-top: var(--space-sm);
     flex: 0 0 auto;
 }
 /* A two-high tile gets one row of buttons, never a wrapped block. */
@@ -3677,13 +3706,12 @@ html[data-motion='reduce'] .glance-tile {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    margin-top: var(--space-xs);
 }
 
 .glance-capture {
     display: flex;
     gap: 6px;
-    margin-top: var(--space-xs);
+    margin-top: auto;
     flex: 0 0 auto;
 }
 
@@ -3701,9 +3729,12 @@ html[data-motion='reduce'] .glance-tile {
     font-size: var(--fs-body);
 }
 
+/* An inset ring, because an outline on a full-width field inside a tile
+   gets clipped by the tile's own edge. */
 .glance-capture-input:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 2px var(--accent);
 }
 @container tile (max-height: 189px) {
     .home-widget .glance-tile {
@@ -3744,9 +3775,17 @@ html[data-motion='reduce'] .glance-tile {
         padding: 2px 8px;
     }
 }
+/* The smallest tile keeps its metric and drops the sentence under it. */
 @container tile (max-height: 189px) and (max-width: 399px) {
     .home-widget .glance-message {
         display: none;
+    }
+    /* Unless the sentence is the whole tile. A tile with nothing to count has
+       no metric to fall back on, and dropping its one line left it blank. */
+    .home-widget .glance-tile.is-empty .glance-message,
+    .home-widget .glance-tile.is-error .glance-message,
+    .home-widget .glance-tile.is-loading .glance-message {
+        display: block;
     }
 }
 
