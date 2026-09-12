@@ -66,7 +66,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["daily_checklist", "journal", "brain", "library", "cluny_brain", "cluny_ask", "cluny_snapshot", "cluny_client", "cluny_sync", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts", "goals", "home_layout", "weather", "glance", "heatmap", "day_brief", "reading", "tap_counters", "word_of_the_day", "db"],
+    "includes": ["daily_checklist", "journal", "brain", "library", "cluny_brain", "cluny_ask", "cluny_snapshot", "cluny_client", "cluny_sync", "cluny_voice", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts", "goals", "home_layout", "weather", "glance", "heatmap", "day_brief", "reading", "tap_counters", "word_of_the_day", "db"],
 }
 
 setup(

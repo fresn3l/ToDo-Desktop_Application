@@ -1582,7 +1582,9 @@ def set_bar_outcome(bar_id: str, outcome: str, occurrence_date: str = "") -> Dic
     with _connect() as conn:
         block = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (key,)).fetchone()
     if block is not None:
-        return set_block_status(key, status)
+        result = set_block_status(key, status)
+        _nudge_rate_voice()
+        return result
     event_id = key.split("@", 1)[0]
     if not occ and "@" in key:
         occ = key.split("@", 1)[1][:10]
@@ -1590,7 +1592,17 @@ def set_bar_outcome(bar_id: str, outcome: str, occurrence_date: str = "") -> Dic
     mark = upsert_event_mark(event_mark_key(event_id, occ), status)
     if mark is None:
         raise ValueError("Could not mark that event")
+    _nudge_rate_voice()
     return {"ok": True, "kind": "hard", **mark}
+
+
+def _nudge_rate_voice() -> None:
+    try:
+        import cluny_voice
+
+        cluny_voice.refresh_rate_voice_safe()
+    except Exception:
+        pass
 
 
 def _work_item(item_id: str) -> Dict[str, Any]:

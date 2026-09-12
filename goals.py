@@ -528,7 +528,14 @@ def create_rate_goal(
         )
         row = _fetch_goal(conn, goal_id)
     assert row is not None
-    return _enrich(_row_goal(row), [])
+    packed = _enrich(_row_goal(row), [])
+    try:
+        import cluny_voice
+
+        cluny_voice.refresh_rate_voice_safe()
+    except Exception:
+        pass
+    return packed
 
 
 @eel.expose

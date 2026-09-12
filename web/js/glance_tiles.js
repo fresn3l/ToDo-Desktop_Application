@@ -688,9 +688,12 @@ function clunyHtml(data, size) {
     const asks = size.action
         ? actionBtn('cluny-ask', ask.label, ` data-q="${utils.escapeHtml(ask.q)}"`)
         : '';
-    const pending = n
-        ? `<p class="glance-message">${n === 1 ? '1 suggestion waiting' : `${n} suggestions waiting`}</p>`
-        : `<p class="glance-message">${utils.escapeHtml(ask.label)}</p>`;
+    const voice = (data?.pending || []).find((row) => String(row?.message || '').trim());
+    const pending = voice?.message
+        ? `<p class="glance-message">${utils.escapeHtml(voice.message)}</p>`
+        : n
+            ? `<p class="glance-message">${n === 1 ? '1 suggestion waiting' : `${n} suggestions waiting`}</p>`
+            : `<p class="glance-message">${utils.escapeHtml(ask.label)}</p>`;
     return shellHtml({
         kind,
         size,

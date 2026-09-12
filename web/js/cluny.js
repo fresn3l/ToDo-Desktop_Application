@@ -78,9 +78,11 @@ function paintInbox(inbox) {
             const due = row.due ? `due ${row.due}` : '';
             const kws = (row.keywords || []).filter(Boolean).join(', ');
             const meta = [mins, due, kws].filter(Boolean).join(' · ');
+            const message = String(row.message || '').trim();
             return `<li class="cluny-inbox-row" data-id="${id}">
                 <div>
                     <strong>${utils.escapeHtml(row.title || '')}</strong>
+                    ${message ? `<p class="cluny-voice">${utils.escapeHtml(message)}</p>` : ''}
                     ${meta ? `<p class="checklist-hint small">${utils.escapeHtml(meta)}</p>` : ''}
                     ${citationChips(row.citations)}
                 </div>

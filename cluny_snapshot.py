@@ -322,6 +322,10 @@ def _goal_rows() -> List[Dict[str, Any]]:
                 "spent_minutes": goal.get("spent_minutes"),
                 "target_minutes": goal.get("target_minutes"),
                 "percent": goal.get("percent"),
+                "measure": goal.get("measure") or "",
+                "target_value": goal.get("target_value"),
+                "window_weeks": goal.get("window_weeks"),
+                "current_value": goal.get("current_value"),
             }
         )
     return rows[:40]
@@ -469,14 +473,23 @@ def snapshot_as_text(payload: Optional[Dict[str, Any]] = None) -> str:
         lines.append("Unplaced: " + "; ".join(str(row.get("title") or "") for row in unplaced[:20]))
     goals = data.get("goals") or []
     if goals:
-        lines.append(
-            "Goals: "
-            + "; ".join(
-                f"{row.get('title')} {row.get('spent_minutes') or 0}/{row.get('target_minutes') or 0}m"
-                for row in goals[:20]
-                if row.get("title")
-            )
-        )
+        bits = []
+        for row in goals[:20]:
+            if not row.get("title"):
+                continue
+            if row.get("measure"):
+                current = row.get("current_value")
+                target = row.get("target_value")
+                bits.append(
+                    f"{row.get('title')} {current}/{target} {row.get('measure')} "
+                    f"({row.get('window_weeks') or 4}w)"
+                )
+            else:
+                bits.append(
+                    f"{row.get('title')} {row.get('spent_minutes') or 0}/{row.get('target_minutes') or 0}m"
+                )
+        if bits:
+            lines.append("Goals: " + "; ".join(bits))
     plan = data.get("workout_plan") or {}
     lifts = plan.get("lifts") if isinstance(plan, dict) else {}
     if lifts:
