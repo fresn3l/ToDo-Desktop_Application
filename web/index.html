@@ -62,20 +62,16 @@
         </aside>
 
         <div class="app-main">
-            <header class="app-topbar">
-                <div>
-                    <p class="eyebrow">Kosistenz</p>
-                    <h1 id="pageCrumb">Home</h1>
-                </div>
-                <div id="todayStatus" class="today-status" aria-live="polite"></div>
-            </header>
-
             <main class="app-content">
                 <section id="homeTab" class="tab-content active" aria-label="Home">
                     <div id="homeShell" class="home-shell">
-                        <header class="home-header">
-                            <h1 id="homePageTitle" class="home-page-title">Home</h1>
-                            <button type="button" id="homeEditBtn" class="btn-ghost home-edit-btn">Edit</button>
+                        <header class="page-head page-head--home">
+                            <div class="page-head-titles">
+                                <h1 id="homePageTitle" class="page-title">Home</h1>
+                            </div>
+                            <div class="page-head-actions">
+                                <button type="button" id="homeEditBtn" class="btn-ghost">Edit</button>
+                            </div>
                         </header>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
                             <p class="home-edit-copy">Drag a tile by its title bar to move it, or by a corner to resize it. On the first page a tile can go above or below Check-in.</p>
@@ -127,9 +123,11 @@
                 <section id="calendarTab" class="tab-content" aria-label="Calendar">
                     <div class="cal-layout">
                         <div class="cal-main">
-                            <div class="cal-toolbar">
-                                <h2 id="calWeekLabel">This week</h2>
-                                <div class="cal-toolbar-actions">
+                            <header class="page-head">
+                                <div class="page-head-titles">
+                                    <h1 id="calWeekLabel" class="page-title">This week</h1>
+                                </div>
+                                <div class="page-head-actions">
                                     <div class="segmented" id="calViewGroup" role="group" aria-label="Calendar view">
                                         <button type="button" data-cal-view="week" class="is-selected">Week</button>
                                         <button type="button" data-cal-view="month">Month</button>
@@ -148,7 +146,7 @@
                                     </div>
                                     <button type="button" id="calFillWeek" class="btn-primary" title="Places open estimates around busy time this week.">Fill week</button>
                                 </div>
-                            </div>
+                            </header>
                             <div class="cal-week-shell is-week">
                                 <aside id="calTodayRail" class="cal-today-rail" aria-label="Today"></aside>
                                 <div id="calGrid" class="cal-grid"></div>
@@ -251,6 +249,12 @@
                 </section>
 
                 <section id="journalTab" class="tab-content" aria-label="Journal">
+                    <header class="page-head">
+                        <div class="page-head-titles">
+                            <h1 class="page-title">Journal</h1>
+                            <p class="page-sub">Write against the clock. Entries stay on this Mac.</p>
+                        </div>
+                    </header>
                     <div class="journal-layout">
                         <div class="journal-compose journal-paper">
                             <div class="journal-entry-section">
@@ -454,18 +458,20 @@
                 </section>
 
                 <section id="analyticsTab" class="tab-content widget-source" aria-label="Analytics">
-                    <div class="panel review-section">
-                        <div class="panel-header">
-                            <div>
-                                <h2>Analytics</h2>
-                                <p class="panel-sub">Hours you planned, how often you showed up, and to-dos you finished.</p>
-                            </div>
+                    <header class="page-head">
+                        <div class="page-head-titles">
+                            <h1 class="page-title">Analytics</h1>
+                            <p class="page-sub">Hours you planned, how often you showed up, and to-dos you finished.</p>
+                        </div>
+                        <div class="page-head-actions">
                             <div class="segmented" id="analyticsRange" role="group" aria-label="Analytics range">
                                 <button type="button" data-value="28" class="is-selected">4 weeks</button>
                                 <button type="button" data-value="84">12 weeks</button>
                                 <button type="button" data-value="365">Year</button>
                             </div>
                         </div>
+                    </header>
+                    <div class="panel review-section">
                         <div id="analyticsWeekStrip" class="week-strip-host"></div>
                         <div id="consistencyCharts" class="review-content consistency-charts"></div>
                         <div id="rateGoalsBoard" class="review-content rate-goals-board"></div>
@@ -756,19 +762,17 @@
 
                 <section id="brainTab" class="tab-content" aria-label="Brain">
                     <div class="brain-shell brain-shell--chat">
-                        <header class="brain-chat-head">
-                            <div>
-                                <p class="today-kicker">Cluny</p>
-                                <h2>Brain</h2>
-                                <p id="brainStatusLine" class="panel-sub">Ask the local brain. Kosistenz keeps the list and the clock.</p>
+                        <header class="page-head">
+                            <div class="page-head-titles">
+                                <h1 class="page-title">Brain</h1>
+                                <p id="brainStatusLine" class="page-sub">Ask the local brain. Kosistenz keeps the list and the clock.</p>
                             </div>
-                            <div class="brain-chat-head-actions">
+                            <div class="page-head-actions">
                                 <div id="brainHealthPill" class="brain-health-pill">…</div>
                                 <label class="checklist-field-label" for="brainCollectionFilter">Scope</label>
                                 <select id="brainCollectionFilter" class="checklist-text-input">
                                     <option value="">All collections</option>
                                 </select>
-                                <button type="button" id="brainOpenLibraryBtn" class="btn-ghost">Manage library →</button>
                                 <button type="button" id="brainOpenBrainEditorBtn" class="btn-ghost">Edit instructions</button>
                                 <button type="button" id="brainOpenSettingsBtn" class="btn-ghost">Brain settings</button>
                             </div>
@@ -812,13 +816,12 @@
 
                 <section id="libraryTab" class="tab-content" aria-label="Library">
                     <div class="library-shell">
-                        <header class="library-head">
-                            <div>
-                                <p class="today-kicker">Cluny</p>
-                                <h2>Library</h2>
-                                <p id="libraryStorageLine" class="panel-sub">Indexed PDFs and notes. Not your to-do list or week clock.</p>
+                        <header class="page-head">
+                            <div class="page-head-titles">
+                                <h1 class="page-title">Library</h1>
+                                <p id="libraryStorageLine" class="page-sub">Indexed PDFs and notes. Not your to-do list or week clock.</p>
                             </div>
-                            <div class="library-head-actions">
+                            <div class="page-head-actions">
                                 <button type="button" id="libraryOpenDataDirBtn" class="btn-ghost">Open data folder</button>
                                 <button type="button" id="libraryUploadBtn" class="btn-primary">Upload documents</button>
                                 <button type="button" id="libraryRefreshBtn" class="btn-ghost">Refresh</button>
@@ -881,6 +884,12 @@
                 </section>
 
                 <section id="settingsTab" class="tab-content" aria-label="Settings">
+                    <header class="page-head">
+                        <div class="page-head-titles">
+                            <h1 class="page-title">Settings</h1>
+                            <p class="page-sub">Appearance, the week clock, Cluny, and the iPhone pack.</p>
+                        </div>
+                    </header>
                     <div class="settings-board" id="settingsBoard">
                         <div class="settings-col" data-settings-col="appearance">
                         <div class="panel">
