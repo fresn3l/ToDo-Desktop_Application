@@ -875,6 +875,12 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("focusHitAt", CAL_JS)
         self.assertIn("attach_event_to_focus", CAL_JS)
         self.assertIn("attach_focus_item", CAL_JS)
+        # JSON in data-focus-items used to die at the first quote because
+        # innerHTML does not encode ". The week payload is the source of truth.
+        self.assertIn("escapeAttr", CAL_JS)
+        self.assertIn(".replace(/\"/g, '&quot;')", CAL_JS)
+        parse = CAL_JS.split("function parseFocusItems")[1].split("\n}")[0]
+        self.assertIn("lastWeek", parse)
 
     def test_window_drag_stays_on_the_home_header(self) -> None:
         # A drag region on every page-head made Settings color wells miss clicks

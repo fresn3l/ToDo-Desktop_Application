@@ -351,7 +351,7 @@ function renderBlock(item, settings) {
     const overflowHtml = overflow
         ? `<span class="cal-block-overflow">+${Number(item.overflow_minutes)}m</span>`
         : '';
-    const focusItems = kind === 'focus' ? utils.escapeHtml(JSON.stringify(item.items || [])) : '';
+    const focusItems = kind === 'focus' ? escapeAttr(JSON.stringify(item.items || [])) : '';
     return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${done ? ' is-done' : ''}${missed ? ' is-missed' : ''}${overflow ? ' is-overflow' : ''}${selected}${short}${tiny}"
         style="top:${topPct}%;height:${height}%"
         data-id="${utils.escapeHtml(item.id || '')}"
@@ -708,7 +708,21 @@ function startNewFocus() {
     document.getElementById('calEventTitle')?.focus();
 }
 
+function escapeAttr(text) {
+    // innerHTML does not encode quotes, so JSON in a data- attribute used to
+    // end at the first " and the editor opened empty after a reload.
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+}
+
 function parseFocusItems(btn) {
+    const id = btn.getAttribute('data-id') || '';
+    for (const day of lastWeek?.days || []) {
+        const match = (day.blocks || []).find((row) => row.id === id);
+        if (match && Array.isArray(match.items)) return match.items;
+    }
     const raw = btn.getAttribute('data-focus-items') || '[]';
     try {
         const rows = JSON.parse(raw);
