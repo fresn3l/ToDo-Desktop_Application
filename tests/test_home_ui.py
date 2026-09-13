@@ -995,7 +995,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("persistTimer", appearance)
         self.assertNotIn("const saved = await eel.save_appearance_settings", appearance)
         self.assertIn("scheduleHomeRefresh", HOME_RUNTIME)
-        self.assertIn("void scheduleHomeRefresh()", HOME_RUNTIME)
+        self.assertIn("void scheduleHomeRefresh(event.detail?.scope || 'work')", HOME_RUNTIME)
         self.assertIn("sourceIsOpen", UTILS)
         self.assertIn("widget-source--active", UTILS)
         self.assertNotIn("get_pending_recovery", (ROOT / "web" / "js" / "daily_checklist.js").read_text(encoding="utf-8"))
