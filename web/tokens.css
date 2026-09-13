@@ -5,8 +5,6 @@
     --surface: var(--bg-panel);
     --surface-1: var(--bg-elevated);
     --surface-2: var(--bg-panel);
-    --surface-hover: var(--bg-input);
-
     --line: var(--border-subtle);
     --line-strong: var(--border-color);
 
@@ -19,24 +17,14 @@
     --accent-quiet: var(--primary-muted);
     --on-accent: var(--on-primary);
 
-    --t-label: 12px;
-    --t-body: 14px;
-    --t-lead: 16px;
-    --t-metric: 28px;
-    --t-hero: 40px;
-
-    --r-sm: 8px;
-    --r-md: 14px;
-    --s-1: 4px;
-    --s-2: 8px;
-    --s-3: 12px;
-    --s-4: 16px;
-    --s-5: 24px;
+    /* Spacing and radius live on the --space-* and --radius-* ladders in
+       style.css. A second set of names here meant two answers for the same
+       question, which is how the type sizes drifted apart. */
     --grid-gap: 16px;
     --row-h: 120px;
 
-    /* One budget for every tile: list type, row floor, button height. */
-    --glance-list-size: 14px;
+    /* One budget for every tile: row floor and button height. List type comes
+       from the shared scale like everything else. */
     --glance-row-min: 3.4rem;
     --glance-action-h: 2.1rem;
     --tile-pad: 14px 16px 13px;
@@ -47,12 +35,6 @@
     --sheet-pad: 20px 24px 28px;
     --sheet-head-pad: 18px 24px 14px;
 
-    /* Main tabs use the same ladder as Home: one page title, one section
-       heading, one quiet label. Tabs used to pick their own sizes per panel. */
-    --tab-title: 20px;
-    --tab-heading: 18px;
-    --tab-subheading: 14px;
-    --tab-label: 12px;
+    /* Tabs and Home read from one type scale now, so only rhythm lives here. */
     --tab-gap: 20px;
-    --tab-pad: 20px;
 }
