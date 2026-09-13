@@ -5,7 +5,7 @@
 
 import { onHomeTabShown, clearHomePageColors, closeHomeWork } from './home.js';
 import { notifyNativeTab } from './appearance.js';
-import { bootFeature, loadOnce } from './lazy.js';
+import { bootFeature, loadOnce, logEelError } from './lazy.js';
 
 const ID_MAP = {
     home: 'homeTab',
@@ -176,7 +176,7 @@ export async function switchTab(name, opts = {}) {
             else if (key === 'settings') mod?.onSettingsTabShown?.();
         }
     } catch (err) {
-        console.error(err);
+        logEelError(err);
     }
 
     document.dispatchEvent(new CustomEvent('kosistenz:tab-shown', { detail: { tab: key } }));

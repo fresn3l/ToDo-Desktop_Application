@@ -578,6 +578,16 @@ class HomeUiTests(unittest.TestCase):
         # their own width, so widening those broke Calendar's awake fields.
         self.assertIn(".page-head-actions select", STYLE)
         self.assertNotIn(".page-head-actions input", STYLE)
+        self.assertIn("logEelError", brain)
+        self.assertIn("logEelError", (ROOT / "web" / "js" / "lazy.js").read_text(encoding="utf-8"))
+        self.assertIn("/Cluny is off/i", (ROOT / "web" / "js" / "lazy.js").read_text(encoding="utf-8"))
+
+    def test_settings_stacks_before_the_cluny_column_clips(self) -> None:
+        wide = STYLE.split("@media (max-width: 1080px) {")[1].split("@media")[0]
+        self.assertIn(".settings-board {", wide)
+        self.assertIn("flex-direction: column", wide)
+        narrow = STYLE.split("@media (max-width: 760px) {")[1].split("@media")[0]
+        self.assertNotIn(".settings-board {", narrow)
 
     def test_today_pills_are_gone_with_the_topbar(self) -> None:
         # They lived in the topbar, so the Mac app never showed them, and the

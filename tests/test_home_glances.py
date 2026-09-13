@@ -110,6 +110,17 @@ class HomeGlanceTests(unittest.TestCase):
         self.assertIsNone(beat["now"])
         self.assertEqual(beat["next"]["id"], "next")
 
+    def test_now_next_glance_does_not_write_the_clock(self) -> None:
+        import calclock
+
+        with (
+            mock.patch.object(calclock, "get_day_agenda", side_effect=AssertionError("agenda")),
+            mock.patch.object(calclock, "rollover_missed_bars", side_effect=AssertionError("rollover")),
+            mock.patch.object(calclock, "maybe_purge_stale_imports", side_effect=AssertionError("purge")),
+        ):
+            packed = home_glances.now_next_glance()
+        self.assertIn(packed.get("phase"), ("now", "next", "clear"))
+
     def test_dues_this_week_are_deadlines_not_busy(self) -> None:
         from datetime import date, timedelta
 

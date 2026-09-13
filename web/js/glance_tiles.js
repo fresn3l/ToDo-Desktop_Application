@@ -6,13 +6,13 @@
 import * as utils from './utils.js';
 import { splitKey, widgetLabel } from './home_layout.js';
 import { copy, moreCount, minutesLabel } from './glance_copy.js';
-import { callEel } from './lazy.js';
+import { callEel, logEelError } from './lazy.js';
 
 async function eelCall(name, ...args) {
     try {
         return await callEel(name, ...args);
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         return { ok: false, error: err?.message || String(err) };
     }
 }

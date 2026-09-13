@@ -1605,9 +1605,9 @@ def rollover_missed_bars(
     global _last_rollover_day
     day = today or _cal_today()
     iso = day.isoformat()
-    complete = events is None
-    if not force and complete and _last_rollover_day == iso:
+    if not force and _last_rollover_day == iso:
         return {"ok": True, "blocks": 0, "events": 0, "cached": True}
+    complete = events is None
     cutoff = (day - timedelta(days=1)).isoformat()
     lookback = day - timedelta(days=120)
     with _connect() as conn:
@@ -2391,16 +2391,22 @@ def get_year(year: int = 0) -> Dict[str, Any]:
     }
 
 
+def day_clock_items(day: date) -> List[Dict[str, Any]]:
+    """Timed items for one day. Reads only — no purge, no rollover."""
+    hard = expand_hard_events(day, day)
+    items = list(_apply_event_marks(hard)) + list(list_blocks(day, day))
+    items.sort(key=lambda row: str(row.get("start_at") or ""))
+    return items
+
+
 @eel.expose
 def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
     maybe_purge_stale_imports()
     iso = work._parse_date(local_date) or _cal_today().isoformat()
     day = date.fromisoformat(iso)
     settings = load_settings()
-    hard = expand_hard_events(day, day)
-    rollover_missed_bars(events=hard)
-    items = list(_apply_event_marks(hard)) + list(list_blocks(day, day))
-    items.sort(key=lambda row: str(row.get("start_at") or ""))
+    rollover_missed_bars()
+    items = day_clock_items(day)
     overdue = []
     if iso == _cal_today().isoformat():
         overdue = [

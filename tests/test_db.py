@@ -73,6 +73,29 @@ class SqliteConnectTests(unittest.TestCase):
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM t").fetchone()[0], 1)
         self.assertIn(_open_fd_count(path), (-1, 0))
 
+    def test_parallel_first_connects_do_not_lock(self) -> None:
+        import threading
+
+        path = self.dir / "race.sqlite"
+        errors: list[BaseException] = []
+
+        def worker() -> None:
+            try:
+                with db.sqlite_connect(path) as conn:
+                    conn.execute("CREATE TABLE IF NOT EXISTS t (id INTEGER)")
+                    conn.execute("INSERT INTO t VALUES (1)")
+            except Exception as exc:  # noqa: BLE001 — collect every lock
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual([str(err) for err in errors], [])
+        with db.sqlite_connect(path) as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM t").fetchone()[0], 8)
+
     def test_helper_closes_after_error(self) -> None:
         path = self.dir / "fail.sqlite"
         with self.assertRaises(RuntimeError):

@@ -1742,6 +1742,11 @@ input[type='radio'] {
     flex-grow: 1.25;
 }
 
+.settings-col .panel-sub,
+.settings-col .checklist-hint {
+    overflow-wrap: anywhere;
+}
+
 .settings-resize {
     flex: 0 0 8px;
     cursor: col-resize;
@@ -5316,6 +5321,23 @@ html[data-focus='on'] .page-head {
     .journal-entries-container {
         max-height: 360px;
     }
+
+    /* Four 200px columns plus the sidebar do not fit a 1024px window. The
+       stack lived at 760px, so Cluny's install copy ran off the page. */
+    .settings-board {
+        flex-direction: column;
+        overflow: auto;
+    }
+
+    .settings-col {
+        min-width: 0;
+        overflow: visible;
+        flex: 1 1 auto;
+    }
+
+    .settings-resize {
+        display: none;
+    }
 }
 
 @media (max-width: 760px) {
@@ -5348,21 +5370,6 @@ html[data-focus='on'] .page-head {
 
     .home-nav-pages {
         flex-direction: row;
-    }
-
-    .settings-board {
-        flex-direction: column;
-        overflow: auto;
-    }
-
-    .settings-col {
-        min-width: 0;
-        overflow: visible;
-        flex: 1 1 auto;
-    }
-
-    .settings-resize {
-        display: none;
     }
 
     .sidebar-collapse {

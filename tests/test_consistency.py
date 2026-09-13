@@ -60,6 +60,17 @@ class ConsistencyTests(unittest.TestCase):
         second = calclock.rollover_missed_bars(date(2026, 9, 11), force=True)
         self.assertEqual(second["blocks"], 0)
 
+    def test_rollover_is_cached_even_when_events_are_passed(self) -> None:
+        # get_day_agenda used to pass today's events, which skipped the cache
+        # and wrote the same UPDATE while Home's other glances were reading.
+        self._block("Spanish", date(2026, 9, 10), status="locked")
+        first = calclock.rollover_missed_bars(date(2026, 9, 11))
+        self.assertFalse(first.get("cached"))
+        self.assertEqual(first["blocks"], 1)
+        again = calclock.rollover_missed_bars(date(2026, 9, 11), events=[])
+        self.assertTrue(again.get("cached"))
+        self.assertEqual(again["blocks"], 0)
+
     def test_set_bar_outcome_for_event_and_block(self) -> None:
         event = self._event("Review", date(2026, 9, 10))
         block = self._block("Write", date(2026, 9, 10))

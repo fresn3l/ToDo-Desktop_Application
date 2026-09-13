@@ -3,6 +3,7 @@
  */
 
 import * as utils from './utils.js';
+import { logEelError } from './lazy.js';
 
 let brainReady = false;
 let streamingAnswerEl = null;
@@ -105,7 +106,7 @@ async function refreshBrainCollections() {
         const filters = await eel.brain_library_filters()();
         fillSelect('brainCollectionFilter', filters?.collections || [], collection);
     } catch (err) {
-        console.error(err);
+        logEelError(err);
     }
 }
 
@@ -119,13 +120,13 @@ export async function refreshBrain() {
         applyHealth(health);
         applyStats(health);
         if (health?.brain_ready && hasEel('brain_sync_analytics')) {
-            eel.brain_sync_analytics()().catch((err) => console.error(err));
+            eel.brain_sync_analytics()().catch((err) => logEelError(err));
         }
         if (health?.brain_ready && hasEel('brain_stats')) {
             try {
                 applyStats(await eel.brain_stats()());
             } catch (err) {
-                console.error(err);
+                logEelError(err);
             }
         }
         await refreshBrainCollections();
@@ -137,11 +138,11 @@ export async function refreshBrain() {
                     mode.value = cfg.agent_mode === 'planner' ? 'propose' : cfg.agent_mode;
                 }
             } catch (err) {
-                console.error(err);
+                logEelError(err);
             }
         }
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         applyHealth({ brain_ready: false });
     }
 }
@@ -180,7 +181,7 @@ async function sendChat(event) {
             streamingAnswerEl.parentElement.appendChild(chips);
         }
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         if (streamingAnswerEl) {
             streamingAnswerEl.textContent = err?.message || 'Cluny did not answer.';
         }
@@ -237,7 +238,7 @@ async function runPropose() {
             })
             .join('');
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         utils.showErrorFeedback(err?.message || 'Propose failed.');
     } finally {
         if (btn) btn.disabled = false;
@@ -252,7 +253,7 @@ async function acceptProposal(id) {
         utils.showSuccessFeedback('Added to All Work.');
         await runPropose();
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         utils.showErrorFeedback(err?.message || 'Could not accept.');
     }
 }
@@ -282,7 +283,7 @@ async function openBrainEditor() {
         document.getElementById('brainRagSystem').value = cfg?.prompts?.rag_system || cfg?.defaults?.rag_system || '';
         openBrainModal('brainEditorDialog');
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         utils.showErrorFeedback(err?.message || 'Could not load brain config.');
     }
 }
@@ -298,7 +299,7 @@ async function saveBrainEditor(event) {
         utils.showSuccessFeedback('Brain instructions saved.');
         closeBrainModal('brainEditorDialog');
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         utils.showErrorFeedback(err?.message || 'Save failed.');
     }
 }
@@ -317,7 +318,7 @@ async function openBrainSettings() {
         document.getElementById('brainAskCollection').value = cfg?.ask_collection || '';
         openBrainModal('brainSettingsDialog');
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         utils.showErrorFeedback(err?.message || 'Could not load settings.');
     }
 }
@@ -340,7 +341,7 @@ async function saveBrainSettings(event) {
         closeBrainModal('brainSettingsDialog');
         await refreshBrain();
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         utils.showErrorFeedback(err?.message || 'Save failed.');
     }
 }

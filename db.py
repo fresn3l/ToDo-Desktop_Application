@@ -15,16 +15,27 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 import sqlite3
+import threading
+
+# journal_mode=WAL needs an exclusive lock. Home boot opens eight connections
+# at once, and eight of those pragmas on a fresh file lose to each other with
+# "database is locked". After the first success the file is already WAL.
+_wal_ready: set[str] = set()
+_wal_lock = threading.Lock()
 
 
 @contextmanager
 def sqlite_connect(path: Path | str, *, timeout: float = 5.0) -> Iterator[sqlite3.Connection]:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    key = str(path)
     conn = sqlite3.connect(str(path), timeout=timeout)
     try:
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL").fetchone()
+        with _wal_lock:
+            if key not in _wal_ready:
+                conn.execute("PRAGMA journal_mode=WAL").fetchone()
+                _wal_ready.add(key)
         conn.execute("PRAGMA busy_timeout=5000")
         conn.execute("PRAGMA foreign_keys=ON")
         yield conn

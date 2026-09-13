@@ -3,6 +3,7 @@
  */
 
 import * as utils from './utils.js';
+import { logEelError } from './lazy.js';
 
 let activeCollection = '';
 let activeSource = '';
@@ -184,7 +185,7 @@ async function refreshLibrary() {
             showDetailEmpty();
         }
     } catch (err) {
-        console.error(err);
+        logEelError(err);
         applyStats({ offline: true, offline_copy: 'Cluny is off. Journal, to-dos, and the clock still work.' });
         utils.showErrorFeedback(err?.message || 'Cluny is off. Journal, to-dos, and the clock still work.');
     }

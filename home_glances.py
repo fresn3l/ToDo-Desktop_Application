@@ -146,7 +146,10 @@ def now_next_glance() -> Dict[str, Any]:
 
     iso = date.today().isoformat()
     settings = calclock.load_settings()
-    agenda = calclock.get_day_agenda(iso).get("items") or []
+    # Home boot already rolls over once. This path used to call get_day_agenda,
+    # which purged imports and wrote missed-bar marks while other glances
+    # were reading the same file — "database is locked" on a busy Home open.
+    agenda = calclock.day_clock_items(date.fromisoformat(iso))
     beat = clock_beat(agenda, day_end=str(settings.get("day_end") or "21:30"))
     beat["local_date"] = iso
     return beat

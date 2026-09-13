@@ -23,6 +23,15 @@ export function eelErrorMessage(err) {
     return '';
 }
 
+export function logEelError(err) {
+    const detail = eelErrorMessage(err);
+    if (!detail) return;
+    // Off is the idle state until Cluny is installed. The raw Eel object
+    // printed "[object Object]" and a Python traceback.
+    if (/Cluny is off/i.test(detail)) return;
+    console.error(detail);
+}
+
 export async function callEel(name, ...args) {
     try {
         if (hasEel(name)) {
