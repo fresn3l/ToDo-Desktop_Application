@@ -259,3 +259,137 @@ print("ok")
 """ % (str(ROOT),)
         out = subprocess.check_output([sys.executable, "-c", code], cwd=str(ROOT), text=True)
         self.assertIn("ok", out)
+
+    def test_peek_home_boot_returns_last_payload(self) -> None:
+        import home_boot
+        import work
+
+        work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+            boot = home_boot.get_home_boot()
+        peek = home_boot.peek_home_boot()
+        self.assertTrue(peek["ok"])
+        self.assertTrue(peek["stale"])
+        self.assertEqual(peek["page_id"], boot["page_id"])
+        self.assertIn("work:slice=today", peek["glances"])
+        titles = [row.get("title") for row in peek["glances"]["work:slice=today"].get("today") or []]
+        self.assertIn("Write the paper", titles)
+
+    def test_peek_wrong_page_omits_stale_glances(self) -> None:
+        import home_boot
+        import work
+
+        work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+            home_boot.get_home_boot()
+        peek = home_boot.peek_home_boot("other-page")
+        self.assertTrue(peek["ok"])
+        self.assertEqual(peek["glances"], {})
+        self.assertIsNone(peek["checkin"])
+        self.assertIsNotNone(peek.get("layout"))
+
+    def test_wave1_excludes_weather_word_and_unplaced(self) -> None:
+        import home_boot
+
+        with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+            boot = home_boot.get_home_boot(wave="1")
+        self.assertEqual(boot["wave"], "1")
+        self.assertIn("work:slice=today", boot["glances"])
+        self.assertIn("today_calendar", boot["glances"])
+        self.assertIn("cluny", boot["glances"])
+        self.assertNotIn("weather", boot["glances"])
+        self.assertNotIn("word", boot["glances"])
+        self.assertNotIn("work:slice=unplaced", boot["glances"])
+        self.assertIsNotNone(boot.get("checkin"))
+
+    def test_wave2_is_the_rest(self) -> None:
+        import home_boot
+
+        with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+            boot = home_boot.get_home_boot(wave="2")
+        self.assertEqual(boot["wave"], "2")
+        self.assertIn("weather", boot["glances"])
+        self.assertIn("word", boot["glances"])
+        self.assertIn("work:slice=unplaced", boot["glances"])
+        self.assertIn("day_brief", boot["glances"])
+        self.assertNotIn("today_calendar", boot["glances"])
+        self.assertNotIn("work:slice=today", boot["glances"])
+        self.assertNotIn("cluny", boot["glances"])
+        self.assertIsNone(boot.get("checkin"))
+
+    def test_get_home_boot_without_wave_is_still_one_payload(self) -> None:
+        import home_boot
+        import work
+
+        work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+            boot = home_boot.get_home_boot()
+        self.assertEqual(boot.get("wave"), "all")
+        self.assertIn("today_calendar", boot["glances"])
+        self.assertIn("work:slice=today", boot["glances"])
+        self.assertIn("weather", boot["glances"])
+        self.assertIn("word", boot["glances"])
+        self.assertIn("work:slice=unplaced", boot["glances"])
+        self.assertIsNotNone(boot.get("checkin"))
+
+    def test_rollover_is_not_on_the_request(self) -> None:
+        import home_boot
+
+        started = []
+        real_thread = home_boot.threading.Thread
+
+        def tracking_thread(*args, **kwargs):
+            name = kwargs.get("name")
+            if name == "cal-rollover":
+                thread = mock.Mock()
+                thread.start = mock.Mock()
+                thread.is_alive = mock.Mock(return_value=False)
+                thread.join = mock.Mock()
+                started.append(thread)
+                return thread
+            return real_thread(*args, **kwargs)
+
+        with (
+            mock.patch.object(home_boot.threading, "Thread", side_effect=tracking_thread),
+            mock.patch.object(home_boot, "_ensure_cluny_supervisor"),
+            mock.patch.object(home_boot, "_safe_call", wraps=home_boot._safe_call) as safe,
+        ):
+            home_boot.get_home_boot()
+        self.assertTrue(started)
+        started[0].start.assert_called_once()
+        names = [row.args[1] for row in safe.call_args_list if len(row.args) > 1]
+        self.assertNotIn("rollover_missed_bars", names)
+
+    def test_work_pack_fetches_board_once_and_slices_differ(self) -> None:
+        import home_boot
+        import work
+
+        work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        work.create_work_item("Parked later")
+        with (
+            mock.patch.object(home_boot, "_ensure_cluny_supervisor"),
+            mock.patch.object(work, "get_work_board", wraps=work.get_work_board) as board,
+        ):
+            boot = home_boot.get_home_boot()
+        self.assertEqual(board.call_count, 1)
+        today = boot["glances"]["work:slice=today"]
+        unplaced = boot["glances"]["work:slice=unplaced"]
+        self.assertIn("Write the paper", [row.get("title") for row in today.get("today") or []])
+        self.assertNotEqual(today, unplaced)
+        self.assertIn("items", unplaced)
+        self.assertNotIn("upcoming", today)
+        self.assertNotIn("backlog", today)
+        row = (today.get("today") or [{}])[0]
+        self.assertEqual(set(row), {"id", "title", "status"})
+
+    def test_get_home_glances_only_asked_keys(self) -> None:
+        import home_boot
+        import work
+
+        work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        packed = home_boot.get_home_glances(["work:slice=today", "today_calendar"])
+        self.assertTrue(packed["ok"])
+        self.assertIn("work:slice=today", packed["glances"])
+        self.assertIn("today_calendar", packed["glances"])
+        self.assertNotIn("weather", packed["glances"])
+        self.assertNotIn("word", packed["glances"])

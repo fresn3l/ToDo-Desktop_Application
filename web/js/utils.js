@@ -51,8 +51,10 @@ export function sourceIsOpen(id) {
     );
 }
 
-export function notifyDataChanged() {
-    document.dispatchEvent(new CustomEvent('kosistenz:data-changed'));
+export function notifyDataChanged(scope) {
+    document.dispatchEvent(new CustomEvent('kosistenz:data-changed', {
+        detail: { scope: scope || 'work' },
+    }));
     try {
         window.webkit?.messageHandlers?.kosistenz?.postMessage({ type: 'status' });
     } catch (_) {

@@ -40,7 +40,7 @@ async function pullPhoneOnOpen() {
     try {
         const result = await eel.maybe_pull_icloud_on_open()();
         if (result && !result.skipped) {
-            utils.notifyDataChanged();
+            utils.notifyDataChanged('all');
         }
     } catch (_) {
         /* pack missing or Cluny-unrelated — Today still works */

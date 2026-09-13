@@ -86,16 +86,41 @@ const BOOT_FRESH_MS = 15000;
 let lastBootAt = 0;
 let bootStale = true;
 
-async function fetchHomeBoot(pageId) {
+async function peekHomeBoot(pageId) {
     try {
-        const boot = await callEel('get_home_boot', pageId || '');
-        lastBootAt = Date.now();
-        bootStale = false;
+        return await callEel('peek_home_boot', pageId || '');
+    } catch (err) {
+        console.warn(err);
+    }
+    return null;
+}
+
+async function fetchHomeBoot(pageId, wave = 'all') {
+    try {
+        const boot = await callEel('get_home_boot', pageId || '', wave);
+        if (wave !== '2') {
+            lastBootAt = Date.now();
+            bootStale = false;
+        }
         return boot;
     } catch (err) {
         console.warn(err);
     }
-    return { layout: layout || structuredClone(FALLBACK_LAYOUT), glances: {}, checkin: null };
+    return { layout: layout || structuredClone(FALLBACK_LAYOUT), glances: {}, checkin: null, wave };
+}
+
+function keyMatchesScope(key, scope) {
+    const { kind } = splitKey(key);
+    if (scope === 'work' || scope === 'calendar') {
+        return kind === 'work' || kind === 'today_calendar' || kind === 'day_brief';
+    }
+    if (scope === 'checkin') return false;
+    return kind === scope;
+}
+
+function keysForScope(keys, scope) {
+    if (!scope || scope === 'all') return keys;
+    return keys.filter((key) => keyMatchesScope(key, scope));
 }
 
 function bootIsFresh() {
@@ -685,33 +710,69 @@ async function renderHome(pageId, opts = {}) {
     }
     paintCatalog();
     syncHomeDayPart();
-    const boot = await fetchHomeBoot(pageId);
-    if (boot.layout?.pages?.length) layout = boot.layout;
-    paintPages();
-    const next = activePage();
-    if (next?.id && next.id !== paintedPageId) {
-        paintGrid();
-        paintedPageId = next.id;
+    const peek = await peekHomeBoot(pageId);
+    if (peek?.ok) await applyBootPaint(peek);
+    const boot = await fetchHomeBoot(pageId, '1');
+    await applyBootPaint(boot);
+    void fetchHomeWave2(pageId);
+}
+
+async function applyBootPaint(boot) {
+    if (boot?.layout?.pages?.length) {
+        layout = boot.layout;
+        paintPages();
+        const next = activePage();
+        if (next?.id && next.id !== paintedPageId) {
+            paintGrid();
+            paintedPageId = next.id;
+        }
     }
-    await refreshKeys(pageKeys(next), boot.glances);
-    void syncCheckin(boot.checkin);
+    const glances = boot?.glances || {};
+    await refreshKeys(Object.keys(glances), glances);
+    if (boot?.checkin) void syncCheckin(boot.checkin);
+}
+
+async function fetchHomeWave2(pageId) {
+    const boot = await fetchHomeBoot(pageId, '2');
+    const glances = boot.glances || {};
+    if (Object.keys(glances).length) {
+        await refreshKeys(Object.keys(glances), glances);
+    }
 }
 
 let homeRefreshTimer = 0;
 
-async function refreshHomeData() {
-    const boot = await fetchHomeBoot();
-    if (boot.layout?.pages?.length) layout = boot.layout;
-    const page = activePage();
-    await refreshKeys(pageKeys(page), boot.glances);
-    void syncCheckin(boot.checkin);
+async function refreshHomeData(scope = 'all') {
+    const wanted = scope || 'all';
+    if (wanted !== 'all') {
+        if (wanted === 'checkin') {
+            lastBootAt = Date.now();
+            bootStale = false;
+            void syncCheckin();
+            return;
+        }
+        const keys = keysForScope(pageKeys(activePage()), wanted);
+        if (!keys.length) return;
+        try {
+            const packed = await callEel('get_home_glances', keys);
+            lastBootAt = Date.now();
+            bootStale = false;
+            await refreshKeys(keys, packed.glances || {});
+        } catch (err) {
+            console.warn(err);
+        }
+        return;
+    }
+    const boot = await fetchHomeBoot('', '1');
+    await applyBootPaint(boot);
+    void fetchHomeWave2();
 }
 
-function scheduleHomeRefresh() {
+function scheduleHomeRefresh(scope) {
     window.clearTimeout(homeRefreshTimer);
     homeRefreshTimer = window.setTimeout(() => {
         homeRefreshTimer = 0;
-        void refreshHomeData();
+        void refreshHomeData(scope);
     }, 160);
 }
 
@@ -1044,10 +1105,10 @@ export function setupHome() {
             syncPageColors();
         }
     });
-    document.addEventListener('kosistenz:data-changed', () => {
+    document.addEventListener('kosistenz:data-changed', (event) => {
         bootStale = true;
         if (document.getElementById('homeTab')?.classList.contains('active')) {
-            void scheduleHomeRefresh();
+            void scheduleHomeRefresh(event.detail?.scope || 'work');
         }
     });
     document.addEventListener('kosistenz:open-home-work', (event) => {

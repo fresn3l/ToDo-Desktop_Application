@@ -949,7 +949,7 @@ async function completeFlow() {
         const answers = { ...state.answers };
         await callEel('submit_daily_checklist_response', id, version, answers);
         utils.showSuccessFeedback('Saved to your local database.');
-        utils.notifyDataChanged();
+        utils.notifyDataChanged('checkin');
         await loadRecentSubmissions();
     } catch (e) {
         console.error(e);

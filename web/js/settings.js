@@ -532,7 +532,7 @@ export function setupSettings() {
             const statusEl = document.getElementById('icloudSyncStatus');
             if (statusEl) statusEl.textContent = `Pulled · work ${bits.work || 0} · workouts ${bits.workouts || 0} · journal ${bits.journal || 0}`;
             utils.showSuccessFeedback('Pulled phone changes into this Mac.');
-            utils.notifyDataChanged();
+            utils.notifyDataChanged('all');
             void loadIcloudSync();
         } catch (err) {
             utils.showErrorFeedback('Could not pull the iCloud pack.');

@@ -665,6 +665,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("today_layout.js", (ROOT / "web" / "js" / "home.js").read_text(encoding="utf-8"))
         self.assertIn("get_home_boot", HOME_RUNTIME)
         self.assertIn("callEel('get_home_boot'", HOME_RUNTIME)
+        self.assertIn("peek_home_boot", HOME_RUNTIME)
+        self.assertIn("get_home_glances", HOME_RUNTIME)
+        self.assertIn("fetchHomeBoot(pageId, '1')", HOME_RUNTIME)
         self.assertIn("prefetched.ok !== false", HOME_RUNTIME)
         self.assertNotIn("loadLayout().then(() => renderHome())", HOME_RUNTIME)
         self.assertIn("weather-place-form.is-collapsed", STYLE)
@@ -828,6 +831,11 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("function bootIsFresh()", HOME_RUNTIME)
         self.assertIn("if (!bootIsFresh()) void refreshHomeData()", HOME_RUNTIME)
         self.assertIn("bootStale = true", HOME_RUNTIME)
+        self.assertIn("event.detail?.scope", HOME_RUNTIME)
+        self.assertIn("keysForScope", HOME_RUNTIME)
+        self.assertIn("notifyDataChanged(scope", UTILS)
+        self.assertIn("glanceActionScope", GLANCE_TILES)
+        self.assertIn("if (dataByKey) return", GLANCE_TILES)
 
     def test_main_tabs_share_one_heading_ladder(self) -> None:
         # The click sheet and the calendar read the shared scale rather than
