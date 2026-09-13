@@ -10,7 +10,6 @@ export const copy = {
     add: 'Add',
     start: 'Start',
     finish: 'Finish',
-    kept: 'Kept',
     tick: 'Tick',
     whatsOn: 'What’s on today?',
     freeTime: 'Free time',
@@ -20,12 +19,10 @@ export const copy = {
     allFinished: 'All finished.',
     noHabits: 'No habits yet.',
     noCounters: 'No counters yet.',
-    noFocus: 'No focus yet.',
     noDates: 'No dates yet.',
     noBook: 'No book yet.',
     noGoals: 'No goals yet.',
     backlogClear: 'Nothing unscheduled.',
-    noActivity: 'No activity yet.',
     noStreak: 'No streak yet.',
     nothingLogged: 'Nothing logged.',
     noForecast: 'No forecast yet.',
@@ -45,13 +42,13 @@ export const copy = {
     now: 'Now',
     next: 'Next',
     gap: 'Gap',
+    leftToday: 'left today',
     clearClock: 'Clear clock.',
     nothingDue: 'Nothing due this week.',
     allPlaced: 'Nothing to place.',
     addLine: 'Add a line',
     zeroMinutes: '0 min this week',
     usedTonight: 'Used tonight.',
-    heldToday: 'Held for today.',
     loading: 'Loading…',
 };
 
@@ -66,11 +63,6 @@ export function moreCount(n) {
     const count = Number(n) || 0;
     if (count <= 0) return '';
     return `+${count} more`;
-}
-
-export function countLabel(base, n) {
-    if (n == null || n === '') return base;
-    return `${base} · ${n}`;
 }
 
 export function minutesLabel(n) {

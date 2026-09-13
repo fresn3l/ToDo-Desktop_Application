@@ -41,8 +41,6 @@ function canonicalTab(name) {
 function setDocumentTitle(name) {
     const key = canonicalTab(name);
     document.title = `${LABELS[key] || 'Kosistenz'} · Kosistenz`;
-    const crumb = document.getElementById('pageCrumb');
-    if (crumb) crumb.textContent = LABELS[key] || '';
     notifyNativeTab(key, LABELS[key] || 'Kosistenz');
 }
 

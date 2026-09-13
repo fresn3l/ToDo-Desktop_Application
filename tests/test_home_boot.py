@@ -73,14 +73,44 @@ print("ok")
             boot = home_boot.get_home_boot()
         self.assertIn("layout", boot)
         self.assertIn("glances", boot)
-        self.assertIn("todo", boot["glances"])
+        # Tiles come back keyed by widget key, so two Work slices on one page
+        # each get their own answer instead of sharing one.
+        self.assertIn("work:slice=today", boot["glances"])
         self.assertIn("today_calendar", boot["glances"])
-        todo = boot["glances"]["todo"]
+        todo = boot["glances"]["work:slice=today"]
         titles = [row.get("title") for row in (todo.get("today") or [])]
         self.assertIn("Write the paper", titles)
         self.assertIsNotNone(boot.get("checkin"))
         # The check-in runs beside the tiles but is not one of them.
         self.assertNotIn(home_boot.CHECKIN_TASK, boot["glances"])
+
+    def test_each_work_slice_fetches_its_own_list(self) -> None:
+        """Four slices of one tile, four different questions. Sharing one
+        answer between them would show the backlog under a Due heading."""
+        import home_boot
+
+        calls = []
+
+        def record(module, func, *args):
+            calls.append(func)
+            return {"ok": True}
+
+        with mock.patch.object(home_boot, "_safe_call", side_effect=record):
+            with mock.patch.object(home_boot.work, "list_backlog", return_value=[]) as backlog:
+                home_boot.fetch_glance("work:slice=backlog")
+            home_boot.fetch_glance("work:slice=unplaced")
+            home_boot.fetch_glance("work:slice=due")
+        self.assertEqual(backlog.call_count, 1)
+        self.assertEqual(calls, ["unplaced_glance", "dues_this_week"])
+
+    def test_a_work_tile_with_no_slice_shows_today(self) -> None:
+        import home_boot
+        import work
+
+        work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        board = home_boot.fetch_glance("work")
+        titles = [row.get("title") for row in (board.get("today") or [])]
+        self.assertIn("Write the paper", titles)
 
     def test_week_clock_items_are_slim(self) -> None:
         import calclock

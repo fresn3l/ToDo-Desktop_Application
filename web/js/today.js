@@ -1,6 +1,5 @@
 /**
  * Today home — open to-dos, expected workout, short journal.
- * Also paints the compact status pills used in the web topbar.
  */
 
 import * as utils from './utils.js';
@@ -77,73 +76,6 @@ function paintPulse(data) {
     if (data.journal_count) bits.push(`${data.journal_count} journal`);
     else if (data.journal_streak) bits.push(`${data.journal_streak}-day streak`);
     el.textContent = bits.join('  ·  ') || 'A quiet day so far';
-}
-
-function renderPills(el, data) {
-    const journalCount = data.journal_count || 0;
-    const journalLabel = journalCount
-        ? `${journalCount} journal${journalCount === 1 ? '' : 's'}`
-        : 'No journal yet';
-
-    const workout = data.workout || {};
-    const workoutDone = !!workout.done;
-    const expected = (data.expected && data.expected.labels) || [];
-    let workoutLabel = expected.length ? expected.join(' · ') : 'Workout';
-    if (workoutDone) {
-        const sessionCount = workout.session_count || 0;
-        workoutLabel = sessionCount === 1 ? 'Workout done' : `${sessionCount} workouts`;
-        if (workout.miles) workoutLabel += ` · ${workout.miles} mi`;
-    }
-    const workoutClasses = [
-        'today-pill',
-        workoutDone ? 'is-done' : 'is-todo',
-        workoutDone ? '' : 'is-suggested',
-    ]
-        .filter(Boolean)
-        .join(' ');
-
-    const work = data.work || {};
-    const workOpen = work.open || 0;
-    const workTotal = work.total || 0;
-    const workLabel = workTotal
-        ? (workOpen ? `${workOpen} to do` : 'To do done')
-        : 'No to do';
-    const workClasses = [
-        'today-pill',
-        workTotal && !workOpen ? 'is-done' : '',
-        workOpen ? 'is-todo' : 'is-muted',
-    ]
-        .filter(Boolean)
-        .join(' ');
-
-    el.innerHTML = `
-        <span class="today-label">Today</span>
-        <button type="button" class="${workoutClasses}" data-action="today" title="Open Today">
-            ${utils.escapeHtml(workoutLabel)}
-        </button>
-        <button type="button" class="${workClasses}" data-action="today" title="Open Today">
-            ${utils.escapeHtml(workLabel)}
-        </button>
-        <button type="button" class="today-pill today-journal ${journalCount ? 'is-done' : 'is-muted'}"
-            data-action="${journalCount ? 'timeline' : 'journal'}"
-            title="${journalCount ? 'Open today on Timeline' : 'Write a journal entry'}">
-            ${utils.escapeHtml(journalLabel)}
-        </button>
-    `;
-
-    el.querySelectorAll('[data-action]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const action = btn.getAttribute('data-action');
-            const date = data.local_date;
-            if (action === 'today') {
-                document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'today' } }));
-            } else if (action === 'timeline' && date) {
-                document.dispatchEvent(new CustomEvent('kosistenz:open-day', { detail: { date } }));
-            } else if (action === 'journal') {
-                document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'journal' } }));
-            }
-        });
-    });
 }
 
 function heroCard(item) {
@@ -392,23 +324,13 @@ export async function refreshTodayHome() {
 }
 
 export async function refreshToday() {
-    const el = document.getElementById('todayStatus');
-    if (el) {
-        try {
-            const data = await callEel('get_today_status');
-            renderPills(el, data);
-        } catch (e) {
-            console.error(e);
-            el.innerHTML = '<span class="today-label">Today</span><span class="today-fallback">Status unavailable</span>';
-        }
-    }
     if (utils.sourceIsOpen('todayCalendarSource')) {
         await refreshTodayHome();
     }
 }
 
 export function setupToday() {
-    // setupToday returns after the status pills when the old Today composer is gone
+    // Without the old Today composer there is nothing to wire but the refresh.
     if (!document.getElementById('todayAddBtn')) {
         void refreshToday();
         document.addEventListener('kosistenz:data-changed', () => {

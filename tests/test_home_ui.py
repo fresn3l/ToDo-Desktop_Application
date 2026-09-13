@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -112,7 +113,7 @@ class HomeUiTests(unittest.TestCase):
             "homeGridAbove",
             "homeCheckinBand",
             "homeCheckinBody",
-            "homePages",
+            "homeEditBar",
             "homeAddPageBtn",
             "homeRenamePageBtn",
             "homeCatalog",
@@ -145,33 +146,30 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("key === 'analytics'", TABS)
 
     def test_js_catalog_matches_folded_tabs(self) -> None:
-        for kind in (
-            "todo",
-            "today_calendar",
-            "workout",
-            "goals",
-            "allwork",
-            "analytics",
-            "timeline",
-            "weather",
-            "focus",
-            "countdown",
-            "habits",
-            "heatmap",
-            "day_brief",
-            "counters",
-            "reading",
-            "word",
-            "cluny",
-            "now_next",
-            "unplaced",
-            "dues",
-            "free_today",
-        ):
-            self.assertIn(f"{kind}:", HOME_JS)
-        self.assertNotIn("journal:", HOME_JS)
-        self.assertNotIn("checklist:", HOME_JS)
-        self.assertNotIn("settings:", HOME_JS)
+        body = HOME_JS.split("export const WIDGET_CATALOG = {", 1)[1].split("\n};", 1)[0]
+        kinds = set(re.findall(r"^ {4}(\w+): \{", body, re.M))
+        # Journal, Checklist and Settings are tabs, not tiles. To Do, All Work,
+        # Unplaced and Due are one Work tile with a setting.
+        self.assertEqual(
+            kinds,
+            {
+                "work",
+                "today_calendar",
+                "workout",
+                "goals",
+                "analytics",
+                "weather",
+                "countdown",
+                "habits",
+                "day_brief",
+                "counters",
+                "reading",
+                "word",
+                "cluny",
+            },
+        )
+        for slice_name in ("'today'", "'backlog'", "'unplaced'", "'due'"):
+            self.assertIn(f"value: {slice_name}", HOME_JS)
 
     def test_calendar_month_year_markup(self) -> None:
         for needle in ("calViewGroup", "calMonthGrid", "calYearGrid", "calFillWeek", "calPrevWeek"):
@@ -220,7 +218,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("homeWorkBackdrop", HOME_RUNTIME)
         begin = HOME_RUNTIME.split("const beginDrag")[1].split("const beginResize")[0]
         self.assertIn("if (!editing) return", begin)
-        self.assertIn("openHomeWork(card.getAttribute('data-kind')", HOME_RUNTIME)
+        self.assertIn("openHomeWork(card.getAttribute('data-key')", HOME_RUNTIME)
         self.assertIn("Escape", HOME_RUNTIME)
         self.assertIn("w-weather", HOME_RUNTIME)
         self.assertIn("w-word", HOME_RUNTIME)
@@ -234,16 +232,14 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("function weatherHtml", GLANCE_TILES)
         self.assertIn("function wordHtml", GLANCE_TILES)
         self.assertIn("function todayHtml", GLANCE_TILES)
-        self.assertIn("function todoHtml", GLANCE_TILES)
+        self.assertIn("function workTodayHtml", GLANCE_TILES)
         self.assertIn("function countdownHtml", GLANCE_TILES)
         self.assertIn("function readingHtml", GLANCE_TILES)
         self.assertIn("function workoutHtml", GLANCE_TILES)
         self.assertIn("function goalsHtml", GLANCE_TILES)
-        self.assertIn("function allworkHtml", GLANCE_TILES)
-        self.assertIn("function heatmapHtml", GLANCE_TILES)
+        self.assertIn("function workBacklogHtml", GLANCE_TILES)
         self.assertIn("function dayBriefHtml", GLANCE_TILES)
         self.assertIn("function analyticsHtml", GLANCE_TILES)
-        self.assertIn("function timelineHtml", GLANCE_TILES)
         self.assertIn("function posterHtml", GLANCE_TILES)
         self.assertIn("function shellHtml", GLANCE_TILES)
         self.assertIn("glance_copy.js", GLANCE_TILES)
@@ -252,15 +248,11 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("get_now_next_glance", GLANCE_TILES)
         self.assertIn("get_weather_forecast", GLANCE_TILES)
         self.assertIn("get_word_of_the_day", GLANCE_TILES)
-        self.assertIn("get_heatmap", GLANCE_TILES)
         self.assertIn("get_analytics", GLANCE_TILES)
-        self.assertIn("get_timeline_day", GLANCE_TILES)
         self.assertIn("get_cluny_inbox", GLANCE_TILES)
         self.assertIn("function clunyHtml", GLANCE_TILES)
-        self.assertIn("function nowNextHtml", GLANCE_TILES)
-        self.assertIn("function unplacedHtml", GLANCE_TILES)
-        self.assertIn("function duesHtml", GLANCE_TILES)
-        self.assertIn("function freeTodayHtml", GLANCE_TILES)
+        self.assertIn("function workUnplacedHtml", GLANCE_TILES)
+        self.assertIn("function workDueHtml", GLANCE_TILES)
         self.assertIn("todo-plus15", GLANCE_TILES)
         self.assertIn("work-today", GLANCE_TILES)
         self.assertIn("block-skip", GLANCE_TILES)
@@ -279,11 +271,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".home-work-body > .widget-source", STYLE)
         self.assertIn("data-glance-act", GLANCE_TILES)
         self.assertIn("runGlanceAction", GLANCE_TILES)
-        self.assertIn("keep_daily_focus", GLANCE_TILES)
         self.assertIn("todo-finish", GLANCE_TILES)
         self.assertIn("habit-tick", GLANCE_TILES)
         self.assertIn("counter-tap", GLANCE_TILES)
-        self.assertIn("focus-keep", GLANCE_TILES)
         self.assertIn("dayPart", GLANCE_TILES)
         self.assertIn("syncHomeDayPart", HOME_RUNTIME)
         self.assertIn(".glance-action", STYLE)
@@ -297,7 +287,6 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("unscheduled", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
 
     def test_live_home_opens_work_edit_home_moves(self) -> None:
-        self.assertIn("home-live-copy", INDEX)
         self.assertIn("home-widget-handle", HOME_RUNTIME)
         self.assertIn("closest('.home-widget-chrome')", HOME_RUNTIME)
         self.assertIn("closest('.home-widget-body')", HOME_RUNTIME)
@@ -319,14 +308,14 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("callEel('resize_home_widget', page.id, id, w | 0, h | 0)", HOME_RUNTIME)
         self.assertIn("beginResize", HOME_RUNTIME)
         self.assertIn("cursor: nwse-resize", STYLE)
-        self.assertIn("Drag a corner or edge", INDEX)
+        self.assertIn("by a corner to resize it", INDEX)
 
     def test_home_widget_refresh_continues_after_one_failure(self) -> None:
         quiet = HOME_RUNTIME.split("async function runQuietly")[1].split("async function refreshWork")[0]
         self.assertIn("console.error(err)", quiet)
-        work = HOME_RUNTIME.split("async function refreshWork")[1].split("async function refreshKinds")[0]
+        work = HOME_RUNTIME.split("async function refreshWork")[1].split("async function refreshKeys")[0]
         self.assertIn("await runQuietly(refresh)", work)
-        refresh = HOME_RUNTIME.split("async function refreshKinds")[1].split("function paintPages")[0]
+        refresh = HOME_RUNTIME.split("async function refreshKeys")[1].split("function pageKeys")[0]
         self.assertIn("await runQuietly(() => refreshGlances", refresh)
         self.assertIn("ensureWork", HOME_RUNTIME)
 
@@ -498,12 +487,116 @@ class HomeUiTests(unittest.TestCase):
 
     def test_home_shows_page_title_and_sidebar_pages(self) -> None:
         self.assertIn('id="homePageTitle"', INDEX)
-        self.assertIn("home-title-strip", INDEX)
+        self.assertIn("page-head--home", INDEX)
         self.assertIn('id="homeNavPages"', INDEX)
         self.assertIn("data-home-page", HOME_RUNTIME)
         self.assertIn("paintSidebar", HOME_RUNTIME)
         self.assertIn("homePageId", TABS)
         self.assertIn("clearHomePageColors", TABS)
+
+    def test_home_chrome_is_one_line(self) -> None:
+        self.assertNotIn("home-title-strip", INDEX)
+        self.assertNotIn("home-toolbar", INDEX)
+        self.assertNotIn('id="homePages"', INDEX)
+        self.assertNotIn("home-live-copy", INDEX)
+        self.assertNotIn("paintChips", HOME_RUNTIME)
+        self.assertIn('class="page-head page-head--home"', INDEX)
+        self.assertIn(">Edit</button>", INDEX)
+        self.assertNotIn(">Edit Home</button>", INDEX)
+        # New page belongs with Rename and Delete, behind Edit.
+        actions = INDEX.split('class="home-edit-actions"')[1].split("</div>")[0]
+        for needle in ("homeAddPageBtn", "homeRenamePageBtn", "homeDeletePageBtn", "homeDoneEditBtn"):
+            self.assertIn(needle, actions)
+
+    def test_edit_mode_does_not_sit_on_the_tile_heading(self) -> None:
+        self.assertIn(".home-shell.is-editing .glance-tile-head", STYLE)
+        self.assertIn("visibility: hidden", STYLE)
+        edit = HOME_RUNTIME.split("function setEditing")[1].split("\n}")[0]
+        self.assertIn("editing ? 'Done' : 'Edit'", edit)
+        self.assertIn("aria-expanded", edit)
+        # Remove borrows btn-ghost, so it needs its own scale or it towers
+        # over an 11px handle.
+        btn = STYLE.split("\n.home-widget-btn {")[-1].split("}")[0]
+        self.assertIn("font-size: var(--fs-micro)", btn)
+        self.assertIn("min-height: 0", btn)
+
+    def test_every_tab_names_itself_with_the_shared_head(self) -> None:
+        # The topbar carried the page name and was display:none in the native
+        # shell, so Journal and Settings shipped with no title at all.
+        self.assertNotIn("app-topbar", INDEX)
+        self.assertNotIn("app-topbar", STYLE)
+        self.assertNotIn("pageCrumb", INDEX)
+        self.assertNotIn("pageCrumb", TABS)
+        self.assertNotIn("pageCrumb", HOME_RUNTIME)
+
+        heads = re.findall(r'<section id="(\w+)Tab" class="tab-content', INDEX)
+        self.assertEqual(
+            heads,
+            ["home", "calendar", "journal", "analytics", "brain", "library", "settings"],
+        )
+        for tab in heads:
+            body = INDEX.split(f'<section id="{tab}Tab" class="tab-content')[1].split("</section>")[0]
+            self.assertIn('class="page-head', body, tab)
+            self.assertIn('class="page-title"', body, tab)
+
+        # Brain and Library printed their name twice: once in the crumb, once
+        # in the tab. Their two header rules were byte-identical.
+        self.assertNotIn("brain-chat-head", INDEX)
+        self.assertNotIn("brain-chat-head", STYLE)
+        self.assertNotIn("library-head", INDEX)
+        self.assertNotIn("library-head", STYLE)
+        self.assertNotIn("cal-toolbar", INDEX)
+        self.assertNotIn("cal-toolbar", STYLE)
+
+    def test_tabs_that_fill_the_window_share_one_rule(self) -> None:
+        fill = STYLE.split("html[data-page='journal'] .tab-content.active,")[1].split("}")[0]
+        for tab in ("calendar", "analytics", "brain", "library", "settings"):
+            self.assertIn(f"html[data-page='{tab}'] .tab-content.active", fill)
+        self.assertIn("flex-direction: column", fill)
+        # Brain and Library filled the window by subtracting a topbar height.
+        self.assertNotIn("calc(100vh - 120px)", STYLE)
+
+    def test_brain_and_library_say_cluny_is_off_once(self) -> None:
+        brain = (ROOT / "web" / "js" / "brain.js").read_text(encoding="utf-8")
+        library = (ROOT / "web" / "js" / "library.js").read_text(encoding="utf-8")
+        # Both put the offline sentence in the subtitle and again in the
+        # notice right below it. The subtitle now keeps its own job.
+        self.assertIn(
+            "if (line) line.textContent = 'Ask the local brain."
+            " Kosistenz keeps the list and the clock.';",
+            brain,
+        )
+        self.assertNotIn("offline_copy", library.split("if (line) {")[1].split("\n    }")[0])
+        self.assertIn("#brainOffline p", brain)
+        self.assertIn("offline.querySelector('p')", library)
+        # One notice per Cluny surface: the Ask source, Brain, and Library.
+        self.assertEqual(INDEX.count("Cluny is off. Journal, to-dos, and the clock still work."), 3)
+        # Brain's header linked to a tab the sidebar already carries.
+        self.assertNotIn("brainOpenLibraryBtn", INDEX)
+        self.assertNotIn("brainOpenLibraryBtn", brain)
+        # A full-width select stacked that header three rows deep. Inputs set
+        # their own width, so widening those broke Calendar's awake fields.
+        self.assertIn(".page-head-actions select", STYLE)
+        self.assertNotIn(".page-head-actions input", STYLE)
+
+    def test_today_pills_are_gone_with_the_topbar(self) -> None:
+        # They lived in the topbar, so the Mac app never showed them, and the
+        # Home board already has a tile for each one.
+        self.assertNotIn("renderPills", TODAY_JS)
+        self.assertNotIn("today-pill", TODAY_JS)
+        self.assertNotIn("today-pill", STYLE)
+        self.assertNotIn("todayStatus", INDEX)
+        self.assertNotIn("todayStatus", TODAY_JS)
+        # .eyebrow outlives the topbar; Calendar, Today and To Do still use it.
+        self.assertIn("\n.eyebrow {", STYLE)
+        self.assertIn('class="eyebrow"', CAL_JS)
+
+    def test_checkin_band_has_no_kicker(self) -> None:
+        self.assertNotIn("homeCheckinKicker", INDEX)
+        self.assertNotIn("homeCheckinKicker", HOME_RUNTIME)
+        self.assertNotIn("home-checkin-kicker", STYLE)
+        self.assertIn("Evening check-in", HOME_RUNTIME)
+        self.assertNotIn("Everything stays on this Mac.", INDEX)
 
     def test_per_page_colors_and_settings_board(self) -> None:
         self.assertIn('id="colorScopeGroup"', INDEX)
@@ -607,7 +700,6 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("eelErrorMessage", checklist)
         self.assertNotIn("[object Object]", checklist)
         self.assertNotIn("String(e)", checklist)
-        self.assertIn(".home-pages {\n    display: none;", STYLE)
         self.assertIn("dropRegion", HOME_RUNTIME)
         self.assertIn("homeCheckinBand", HOME_RUNTIME)
         self.assertIn("open-evening-checkin", HOME_RUNTIME)
@@ -712,7 +804,7 @@ class HomeUiTests(unittest.TestCase):
         boot_py = (ROOT / "home_boot.py").read_text(encoding="utf-8")
         # The check-in rides in the glance pool instead of waiting behind it.
         self.assertIn("CHECKIN_TASK", boot_py)
-        self.assertIn("glances = _fetch_glances(kinds, extra)", boot_py)
+        self.assertIn("glances = _fetch_glances(keys, extra)", boot_py)
         self.assertIn("checkin = glances.pop(CHECKIN_TASK, None)", boot_py)
         # Rate-goal voice reads every goal over three windows; off the trip.
         self.assertIn("_nudge_rate_voice_later()", boot_py)
@@ -721,7 +813,7 @@ class HomeUiTests(unittest.TestCase):
         # Opening a widget loads the sheet, not the tile behind it again.
         opener = HOME_RUNTIME.split("export async function openHomeWork")[1].split("async function runQuietly")[0]
         self.assertIn("void refreshWork()", opener)
-        self.assertNotIn("refreshKinds([kind])", opener)
+        self.assertNotIn("refreshKeys([key])", opener)
         # Coming back to a board that is still current skips another boot.
         self.assertIn("function bootIsFresh()", HOME_RUNTIME)
         self.assertIn("if (!bootIsFresh()) void refreshHomeData()", HOME_RUNTIME)
@@ -736,10 +828,18 @@ class HomeUiTests(unittest.TestCase):
         compact = STYLE.split("html[data-density='compact'] {")[1].split("}")[0]
         for token in ("--fs-body:", "--fs-lead:", "--fs-heading:", "--fs-title:"):
             self.assertIn(token, compact)
-        # A wrapped toolbar needs a second-row gap, not just a column gap.
-        toolbar = STYLE.split(".cal-toolbar {")[1].split("}")[0]
-        self.assertIn("row-gap: var(--space-sm)", toolbar)
-        self.assertIn("padding: 0 0 var(--tab-gap)", toolbar)
+        # A wrapped header needs a second-row gap, not just a column gap.
+        head = STYLE.split("\n.page-head {")[1].split("}")[0]
+        self.assertIn("row-gap: var(--space-sm)", head)
+        # With no floor on the title the actions never wrap, they just run off
+        # the side; Calendar lost "Fill week" that way at 1024px.
+        titles = STYLE.split(".page-head-titles {")[1].split("}")[0]
+        self.assertIn("min-width: 12rem", titles)
+        actions = STYLE.split("\n.page-head-actions {")[1].split("}")[0]
+        self.assertIn("max-width: 100%", actions)
+        # The page layout owns the space below the header. Setting it here too
+        # double-counted it inside every shell that already has a flex gap.
+        self.assertNotIn("margin-bottom", head)
         # Three sentences of standing instructions was noise.
         self.assertNotIn("Drag Unplaced onto the day to place work.", INDEX)
         self.assertIn("Alt marks attended", INDEX)
@@ -767,6 +867,38 @@ class HomeUiTests(unittest.TestCase):
         item = STYLE.split(".cal-unplaced-item {")[1].split("}")[0]
         self.assertIn("touch-action: none", item)
 
+    def test_a_tile_is_a_head_a_middle_that_grows_and_a_foot(self) -> None:
+        """The middle taking the slack is what puts every tile's buttons on the
+        same line as its neighbour's. They used to float wherever the content
+        stopped, so a tile with one line in it put its button halfway up."""
+        self.assertIn('<header class="glance-tile-head">', GLANCE_TILES)
+        self.assertIn('<div class="glance-body">', GLANCE_TILES)
+        body = STYLE.split(".glance-body {", 1)[1].split("}", 1)[0]
+        self.assertIn("flex: 1 1 auto", body)
+        self.assertIn("min-height: 0", body)
+        # The tile's own head, not the .glance-head the weather panel uses.
+        self.assertIn(".glance-tile-head {", STYLE)
+        self.assertNotIn('class="glance-head"', GLANCE_TILES)
+
+    def test_a_tile_heading_does_not_shout(self) -> None:
+        """Uppercase letterspaced labels on every tile made the board shout its
+        own furniture before you could read anything on it."""
+        label = STYLE.split("\n.glance-label {", 1)[1].split("}", 1)[0]
+        self.assertNotIn("text-transform: uppercase", label)
+        self.assertIn("letter-spacing: var(--letter-normal)", label)
+        # The count sits apart from the heading rather than running into it.
+        self.assertIn(".glance-count {", STYLE)
+        self.assertIn('<span class="glance-count">', GLANCE_TILES)
+        self.assertNotIn("countLabel", GLANCE_TILES)
+
+    def test_the_smallest_tile_still_says_something_when_it_is_empty(self) -> None:
+        """A 2x2 tile drops the sentence under its metric. With nothing to
+        count there is no metric, and the tile came out blank."""
+        tiny = container_rules("(max-height: 189px) and (max-width: 399px)")
+        self.assertIn(".glance-tile.is-empty .glance-message", tiny)
+        self.assertIn(".glance-tile.is-error .glance-message", tiny)
+        self.assertIn(".glance-tile.is-loading .glance-message", tiny)
+
     def test_glance_tiles_fit_one_row_height(self) -> None:
         self.assertIn("action: w >= 4 && h >= 4", GLANCE_TILES)
         # A tile with one row of room shows a headline and nothing that needs
@@ -777,7 +909,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("overflow: hidden", STYLE)
 
     def test_every_glance_spends_one_row_budget(self) -> None:
-        self.assertIn("rows: h >= 6 ? 6 : h >= 4 ? 3 : 0", GLANCE_TILES)
+        # The budget comes from the height the tile actually has, because the
+        # same cell count is a different number of rows on a different grid.
+        self.assertIn("function rowBudget(card, h)", GLANCE_TILES)
+        self.assertIn("card?.getBoundingClientRect?.().height", GLANCE_TILES)
+        self.assertIn("const rows = rowBudget(card, h);", GLANCE_TILES)
+        # A tile on a page nobody opened measures nothing and still paints.
+        self.assertIn("if (px <= 0) return h >= 6 ? 6 : h >= 4 ? 3 : 0;", GLANCE_TILES)
         self.assertIn("capture: h >= 6", GLANCE_TILES)
         self.assertIn("function capLines(lines, size)", GLANCE_TILES)
         self.assertIn("function actionRow(actions, size)", GLANCE_TILES)
@@ -790,13 +928,15 @@ class HomeUiTests(unittest.TestCase):
         # Every list renderer reads the shared budget instead of its own number.
         self.assertGreaterEqual(GLANCE_TILES.count("size.rows"), 8)
         # A tile showing a list drops the headline rather than repeat row one.
-        todo = GLANCE_TILES.split("function todoHtml")[1].split("function habitsHtml")[0]
+        todo = GLANCE_TILES.split("function workTodayHtml")[1].split("function habitsHtml")[0]
         self.assertIn("pool.slice(0, size.rows)", todo)
         self.assertIn("primary: size.tall ? '' :", todo)
         self.assertIn("moreCount(extra)", todo)
-        # Headline already carries the title, so the beat line drops to a time.
-        self.assertIn("function beatBody(beat, size, titleShown = false)", GLANCE_TILES)
-        self.assertIn("size.tall && Boolean(focus)", GLANCE_TILES)
+        # Headline already carries the title, so the beat line drops to a time,
+        # and an empty clock says so once rather than as headline and body both.
+        self.assertIn("function beatBody(beat, size)", GLANCE_TILES)
+        self.assertIn("item === focus ? '' :", GLANCE_TILES)
+        self.assertEqual(GLANCE_TILES.count("copy.clearClock"), 1)
         # Sizes and spacing live in tokens, never hard-coded twice.
         self.assertIn("--glance-row-min:", TOKENS)
         self.assertIn("--glance-action-h:", TOKENS)
@@ -812,7 +952,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("sourceIsOpen('goalsTab')", GOALS_JS)
         self.assertIn("widget-source--active", UTILS)
         self.assertIn("data?.ok === false", GLANCE_TILES)
-        self.assertIn("openWorkAction('goals')", GLANCE_TILES)
+        self.assertIn("action: openWorkAction(key),", GLANCE_TILES)
         self.assertIn(".home-work-body .goals-layout", STYLE)
         self.assertIn("repeat(2, minmax(0, 1fr))", STYLE)
         self.assertNotIn("repeat(4, minmax(14rem, 1fr))", STYLE)
@@ -846,4 +986,3 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("callEel('get_recent_entries'", journal)
         self.assertIn("void mod?.loadPastEntries?.()", TABS)
         self.assertNotIn("await mod?.loadPastEntries?.()", TABS)
-        self.assertIn("get_heatmap', '', '', '', 42", GLANCE_TILES)

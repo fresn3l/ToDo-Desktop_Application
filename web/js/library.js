@@ -47,11 +47,15 @@ function applyStats(stats) {
     if (doc) doc.textContent = stats?.doc_count ?? '—';
     if (chunks) chunks.textContent = stats?.chunk_count ?? '—';
     if (dir) dir.textContent = stats?.data_dir || '—';
-    if (offline) offline.classList.toggle('is-hidden', !stats?.offline);
+    if (offline) {
+        offline.classList.toggle('is-hidden', !stats?.offline);
+        const note = offline.querySelector('p');
+        if (note && stats?.offline_copy) note.textContent = stats.offline_copy;
+    }
+    // The offline notice below says Cluny is off; the subtitle says what the
+    // page holds. They used to say the same sentence, one above the other.
     if (line) {
-        if (stats?.offline) {
-            line.textContent = stats.offline_copy || 'Cluny is off. Journal, to-dos, and the clock still work.';
-        } else if (stats?.data_dir) {
+        if (stats?.data_dir) {
             line.textContent = `Indexed storage at ${stats.data_dir}. Not your to-do list or week clock.`;
         } else {
             line.textContent = 'Indexed PDFs and notes. Not your to-do list or week clock.';

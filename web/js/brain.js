@@ -69,12 +69,12 @@ function applyHealth(probe) {
         pill.textContent = brainReady ? 'Online' : 'Offline';
         pill.dataset.state = brainReady ? 'ok' : 'down';
     }
+    // The pill says Online or Offline and the notice below says what still
+    // works. The subtitle used to repeat that notice word for word.
     const line = document.getElementById('brainStatusLine');
-    if (line) {
-        line.textContent = brainReady
-            ? 'Ask the local brain. Kosistenz keeps the list and the clock.'
-            : (probe?.offline_copy || 'Cluny is off. Journal, to-dos, and the clock still work.');
-    }
+    if (line) line.textContent = 'Ask the local brain. Kosistenz keeps the list and the clock.';
+    const notice = document.querySelector('#brainOffline p');
+    if (notice && probe?.offline_copy) notice.textContent = probe.offline_copy;
 }
 
 function applyStats(stats) {
@@ -369,9 +369,6 @@ export function setupBrain() {
     });
     document.getElementById('brainStartServeBtn')?.addEventListener('click', () => {
         void refreshBrain();
-    });
-    document.getElementById('brainOpenLibraryBtn')?.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('kosistenz:open-tab', { detail: { tab: 'library' } }));
     });
     document.getElementById('brainOpenBrainEditorBtn')?.addEventListener('click', () => {
         void openBrainEditor();
