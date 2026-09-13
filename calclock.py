@@ -2167,8 +2167,9 @@ def _today_from_days(days: List[Dict[str, Any]], settings: Dict[str, Any]) -> Di
         return _today_column()
     items = list(match.get("events") or []) + list(match.get("blocks") or [])
     items.sort(key=lambda row: str(row.get("start_at") or ""))
+    hold = _focus_hold_by_item()
     overdue = [
-        _slim_due(item, is_overdue=True)
+        _slim_due(item, is_overdue=True, hold=hold)
         for item in work.list_overdue_work()
         if not _is_hidden_source(item.get("source_calendar"))
     ]
@@ -2184,9 +2185,40 @@ def _today_from_days(days: List[Dict[str, Any]], settings: Dict[str, Any]) -> Di
     }
 
 
-def _slim_due(item: Dict[str, Any], *, is_overdue: bool = False) -> Dict[str, Any]:
+def _focus_hold_by_item() -> Dict[str, Dict[str, str]]:
+    """First focus block that holds each to-do."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT focus_block_items.work_item_id AS work_item_id,
+                   schedule_blocks.id AS block_id,
+                   schedule_blocks.title AS title
+            FROM focus_block_items
+            JOIN schedule_blocks ON schedule_blocks.id = focus_block_items.block_id
+            ORDER BY focus_block_items.sort_order ASC
+            """
+        ).fetchall()
+    out: Dict[str, Dict[str, str]] = {}
+    for row in rows:
+        wid = str(row["work_item_id"] or "").strip()
+        if not wid or wid in out:
+            continue
+        out[wid] = {
+            "id": str(row["block_id"] or ""),
+            "title": str(row["title"] or "Focus"),
+        }
+    return out
+
+
+def _slim_due(
+    item: Dict[str, Any],
+    *,
+    is_overdue: bool = False,
+    hold: Optional[Dict[str, Dict[str, str]]] = None,
+) -> Dict[str, Any]:
     title = item.get("title") or ""
     course = course_code_from_title(title)
+    held = (hold or {}).get(str(item.get("id") or "")) or {}
     return {
         "id": item.get("id"),
         "title": title,
@@ -2197,6 +2229,8 @@ def _slim_due(item: Dict[str, Any], *, is_overdue: bool = False) -> Dict[str, An
         "course": course,
         "hue": course_hue(course),
         "is_overdue": bool(is_overdue or item.get("is_overdue")),
+        "focus_id": held.get("id") or "",
+        "focus_title": held.get("title") or "",
     }
 
 
@@ -2208,8 +2242,9 @@ def _today_column() -> Dict[str, Any]:
     blocks = list_blocks(today, today)
     items = list(hard) + list(blocks)
     items.sort(key=lambda row: str(row.get("start_at") or ""))
+    hold = _focus_hold_by_item()
     overdue = [
-        _slim_due(item, is_overdue=True)
+        _slim_due(item, is_overdue=True, hold=hold)
         for item in work.list_overdue_work()
         if not _is_hidden_source(item.get("source_calendar"))
     ]
@@ -2241,6 +2276,7 @@ def _dues_by_day(start: date, end: date) -> Dict[str, List[Dict[str, Any]]]:
             """,
             (start.isoformat(), end.isoformat()),
         ).fetchall()
+    hold = _focus_hold_by_item()
     for row in rows:
         item = work._row_to_dict(row, now)
         src = str(item.get("source_calendar") or "")
@@ -2249,7 +2285,7 @@ def _dues_by_day(start: date, end: date) -> Dict[str, List[Dict[str, Any]]]:
         day = str(item.get("due_at") or "")[:10]
         if len(day) != 10:
             continue
-        grouped.setdefault(day, []).append(_slim_due(item))
+        grouped.setdefault(day, []).append(_slim_due(item, hold=hold))
     return grouped
 
 
@@ -2409,8 +2445,9 @@ def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
     items = day_clock_items(day)
     overdue = []
     if iso == _cal_today().isoformat():
+        hold = _focus_hold_by_item()
         overdue = [
-            _slim_due(item, is_overdue=True)
+            _slim_due(item, is_overdue=True, hold=hold)
             for item in work.list_overdue_work()
             if not _is_hidden_source(item.get("source_calendar"))
         ]
@@ -2734,6 +2771,20 @@ def attach_event_to_focus(
         source_calendar=src_cal,
     )
     return attach_focus_item(block_id, item["id"])
+
+
+@eel.expose
+def move_work_bar_to_focus(block_id: str, focus_id: str) -> Dict[str, Any]:
+    """Attach the to-do on a work bar and take that bar off the clock."""
+    block = _load_block(block_id)
+    if str(block.get("kind") or "") != "work":
+        raise ValueError("That bar is not work")
+    item_id = str(block.get("work_item_id") or "").strip()
+    if not item_id:
+        raise ValueError("That bar has no to-do")
+    packed = attach_focus_item(focus_id, item_id)
+    delete_schedule_block(block_id, force=True)
+    return packed
 
 
 @eel.expose

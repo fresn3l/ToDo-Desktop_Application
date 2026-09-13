@@ -881,6 +881,16 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn(".replace(/\"/g, '&quot;')", CAL_JS)
         parse = CAL_JS.split("function parseFocusItems")[1].split("\n}")[0]
         self.assertIn("lastWeek", parse)
+        self.assertIn("cal-block-held", CAL_JS)
+        self.assertIn("In ${utils.escapeHtml(due.focus_title)}", CAL_JS)
+        self.assertIn("onSpanPointerDown", CAL_JS)
+        self.assertIn("create_focus_block", CAL_JS)
+        self.assertIn("move_work_bar_to_focus", CAL_JS)
+        self.assertIn("onFocusItemPointerDown", CAL_JS)
+        self.assertIn("Add to ${utils.escapeHtml(row.title || 'Focus')}", CAL_JS)
+        self.assertIn('id="calDrawKind"', INDEX)
+        self.assertIn("Empty-grid click is not capture.", CAL_JS)
+        self.assertIn("Drag empty time to draw.", INDEX)
 
     def test_window_drag_stays_on_the_home_header(self) -> None:
         # A drag region on every page-head made Settings color wells miss clicks

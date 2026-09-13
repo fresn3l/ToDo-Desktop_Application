@@ -165,6 +165,44 @@ class FocusBlockTests(unittest.TestCase):
         self.assertEqual([row["id"] for row in packed["items"]], [item["id"]])
         self.assertEqual(work.get_work_items_by_ids([item["id"]])[0]["scheduled_date"], "2026-09-07")
 
+    def test_due_chip_names_the_focus_that_holds_it(self) -> None:
+        item = work.create_work_item(
+            "Essay 2",
+            due_at="2026-09-07T23:59:00",
+            estimate_minutes=60,
+        )
+        calclock.create_focus_block(
+            "Homework",
+            "2026-09-07T13:00:00",
+            "2026-09-07T15:00:00",
+            [item["id"]],
+        )
+        week = calclock.get_week("2026-09-07")
+        monday = next(day for day in week["days"] if day["date"] == "2026-09-07")
+        due = next(row for row in monday["dues"] if row["id"] == item["id"])
+        self.assertEqual(due["focus_title"], "Homework")
+        self.assertTrue(due["focus_id"])
+        unplaced = {row["id"] for row in week["unplaced"]}
+        self.assertNotIn(item["id"], unplaced)
+
+    def test_move_work_bar_to_focus_parks_the_clock_bar(self) -> None:
+        item = work.create_work_item("Read brief", scheduled_date="2026-09-07", estimate_minutes=30)
+        bar = calclock.schedule_work_at(item["id"], "2026-09-07T09:00:00", "2026-09-07T09:30:00")["block"]
+        focus = calclock.create_focus_block(
+            "Homework",
+            "2026-09-07T13:00:00",
+            "2026-09-07T15:00:00",
+            [],
+        )
+        packed = calclock.move_work_bar_to_focus(bar["id"], focus["id"])
+        self.assertEqual([row["id"] for row in packed["items"]], [item["id"]])
+        week = calclock.get_week("2026-09-07")
+        monday = next(day for day in week["days"] if day["date"] == "2026-09-07")
+        work_bars = [row for row in monday["blocks"] if row.get("kind") == "work"]
+        self.assertEqual(work_bars, [])
+        focuses = [row for row in monday["blocks"] if row.get("kind") == "focus"]
+        self.assertEqual([item["id"] for item in focuses[0]["items"]], [item["id"]])
+
     def test_attach_event_to_focus_rejects_a_work_bar(self) -> None:
         item = work.create_work_item("Read brief", scheduled_date="2026-09-07", estimate_minutes=30)
         block = calclock.schedule_work_at(item["id"], "2026-09-07T09:00:00", "2026-09-07T09:30:00")["block"]

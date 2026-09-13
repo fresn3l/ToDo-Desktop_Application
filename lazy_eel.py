@@ -186,6 +186,7 @@ EXPOSE_FALLBACK: Dict[str, Tuple[str, ...]] = {
         "set_focus_items",
         "attach_focus_item",
         "attach_event_to_focus",
+        "move_work_bar_to_focus",
         "detach_focus_item",
         "add_todo_to_focus",
     ),
