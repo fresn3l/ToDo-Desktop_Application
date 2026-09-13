@@ -861,15 +861,10 @@ function openEditorFromBlock(btn) {
     const startIso = btn.getAttribute('data-start-at') || '';
     if (startEl) startEl.value = toLocalInput(startIso);
     if (endEl) endEl.value = toLocalInput(btn.getAttribute('data-end-at'));
+    // Only a series lights its days. A one-off used to arrive with its own
+    // weekday already lit, so saving it quietly turned it into a weekly event.
     const rawDays = (btn.getAttribute('data-weekdays') || '').split(',').map((d) => d.trim()).filter(Boolean);
-    if (rawDays.length) {
-        setWeekdaySelection(rawDays);
-    } else if (kind === 'hard' && startIso) {
-        const d = new Date(startIso);
-        setWeekdaySelection(Number.isNaN(d.getTime()) ? [] : [String((d.getDay() + 6) % 7)]);
-    } else {
-        setWeekdaySelection([]);
-    }
+    setWeekdaySelection(rawDays);
     setStatusSelection(editor.status === 'done' || editor.status === 'missed' || editor.status === 'skipped' ? 'locked' : editor.status);
     setOutcomeSelection(editor.status);
     paintEditor();

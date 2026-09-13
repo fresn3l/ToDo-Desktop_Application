@@ -300,11 +300,21 @@ struct CalendarItem: Codable, Identifiable {
     var end_at: String?
     var work_item_id: String?
     var updated_at: String?
+    var occurrence_date: String?
     var id: String { itemId ?? "\(title ?? "event")-\(start_at ?? "")-\(end_at ?? "")" }
+
+    /// What a check-off is filed under. Every occurrence of a repeating event
+    /// shares one event id, so the day has to be part of the key or one tap
+    /// reads as the whole series attended. Matches event_mark_key on the Mac.
+    var markKey: String {
+        let base = itemId ?? id
+        guard let day = occurrence_date, day.count >= 10, !base.contains("@") else { return base }
+        return "\(base)@\(day.prefix(10))"
+    }
 
     enum CodingKeys: String, CodingKey {
         case itemId = "id"
-        case title, kind, status, start_at, end_at, work_item_id, updated_at
+        case title, kind, status, start_at, end_at, work_item_id, updated_at, occurrence_date
     }
 }
 

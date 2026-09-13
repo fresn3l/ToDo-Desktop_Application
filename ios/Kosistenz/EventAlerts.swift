@@ -20,7 +20,7 @@ enum EventAlerts {
                 guard let start = TodayList.parseLocal(item.start_at) else { continue }
                 let title = (item.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !title.isEmpty else { continue }
-                let clockId = item.itemId ?? item.id
+                let clockId = item.markKey
                 for minutes in offsets {
                     let fire = start.addingTimeInterval(TimeInterval(-minutes * 60))
                     guard fire > now else { continue }

@@ -512,6 +512,10 @@ def _dump_calendar() -> Dict[str, Any]:
             packed["work_item_id"] = item.get("work_item_id")
         if item.get("updated_at"):
             packed["updated_at"] = item.get("updated_at")
+        # Occurrences of a repeating event all share the event id, so the day is
+        # the only thing telling them apart once they are off this machine.
+        if item.get("occurrence_date"):
+            packed["occurrence_date"] = item.get("occurrence_date")
         return packed
 
     def slim_due(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -547,12 +551,17 @@ def _dump_calendar() -> Dict[str, Any]:
         for item in (day.get("events") or []) + (day.get("blocks") or []):
             state = str(item.get("status") or "").strip().lower()
             item_id = str(item.get("id") or "").strip()
-            if item_id and state in ("done", "skipped"):
-                marks[item_id] = {
-                    "id": item_id,
-                    "status": state,
-                    "updated_at": item.get("updated_at") or "",
-                }
+            if not item_id or state not in ("done", "skipped"):
+                continue
+            # The status on this row belongs to one day of the event, so the
+            # mark has to say which day. Keyed by event id alone it would come
+            # back as every occurrence attended.
+            key = calclock.event_mark_key(item_id, str(item.get("occurrence_date") or ""))
+            marks[key] = {
+                "id": key,
+                "status": state,
+                "updated_at": item.get("updated_at") or "",
+            }
     for row in calclock.list_event_marks():
         item_id = str(row.get("id") or "").strip()
         if not item_id:
