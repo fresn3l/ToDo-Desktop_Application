@@ -1039,6 +1039,26 @@ function trackDragAtWindow() {
     window.addEventListener('mouseup', onDragUp);
 }
 
+function clearDropTargets() {
+    document.querySelectorAll('.cal-day-body.is-drop, .cal-block.is-focus.is-drop').forEach((el) => {
+        el.classList.remove('is-drop');
+    });
+}
+
+function focusHitAt(x, y) {
+    const node = document.elementFromPoint(x, y);
+    const focus = node?.closest('.cal-block.is-focus');
+    if (!focus || focus === dragState?.el) return null;
+    return focus;
+}
+
+function focusDropPreview(focus) {
+    return {
+        focusId: focus.getAttribute('data-id') || '',
+        focusTitle: focus.getAttribute('data-title') || 'Focus',
+    };
+}
+
 function onBlockPointerDown(e) {
     if (e.button !== 0) return;
     const btn = e.currentTarget;
@@ -1066,8 +1086,20 @@ function onBlockPointerMove(e) {
     dragState.moved = true;
     dragState.el.dataset.didDrag = '1';
     dragState.el.classList.add('is-dragging');
+    clearDropTargets();
+    if (dragState.kind === 'hard') {
+        const focus = focusHitAt(e.clientX, e.clientY);
+        if (focus) {
+            focus.classList.add('is-drop');
+            dragState.preview = focusDropPreview(focus);
+            return;
+        }
+    }
     const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day-body');
-    if (!hit) return;
+    if (!hit) {
+        if (dragState.preview?.focusId) dragState.preview = null;
+        return;
+    }
     const day = hit.closest('.cal-day')?.getAttribute('data-date') || hit.getAttribute('data-date');
     if (!day) return;
     const rect = hit.getBoundingClientRect();
@@ -1090,9 +1122,22 @@ async function onBlockPointerUp(e) {
     const state = dragState;
     dragState = null;
     state.el.classList.remove('is-dragging');
+    clearDropTargets();
     try { state.el.releasePointerCapture(state.pointerId); } catch (_) { /* ignore */ }
     if (!state.moved || !state.preview) {
         if (state.moved) await loadCalendar();
+        return;
+    }
+    if (state.kind === 'hard' && state.preview.focusId) {
+        try {
+            await callEel('attach_event_to_focus', state.preview.focusId, state.id, state.occurrenceDate || '');
+            utils.notifyDataChanged();
+            await loadCalendar();
+            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Focus'}.`);
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not add that to the block.');
+            await loadCalendar();
+        }
         return;
     }
     const { startMin } = clockWindow(lastSettings);
@@ -1214,8 +1259,14 @@ function onDuePointerMove(e) {
     }
     dragState.ghost.style.left = `${e.clientX + 8}px`;
     dragState.ghost.style.top = `${e.clientY + 8}px`;
+    clearDropTargets();
+    const focus = focusHitAt(e.clientX, e.clientY);
+    if (focus) {
+        focus.classList.add('is-drop');
+        dragState.preview = focusDropPreview(focus);
+        return;
+    }
     const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day-body');
-    document.querySelectorAll('.cal-day-body.is-drop').forEach((el) => el.classList.remove('is-drop'));
     if (!hit) {
         dragState.preview = null;
         return;
@@ -1236,14 +1287,26 @@ async function onDuePointerUp(e) {
     const state = dragState;
     dragState = null;
     state.ghost?.remove();
-    document.querySelectorAll('.cal-day-body.is-drop').forEach((el) => el.classList.remove('is-drop'));
+    clearDropTargets();
     try { state.el.releasePointerCapture(state.pointerId); } catch (_) { /* ignore */ }
     if (!state.moved || !state.preview || !state.id) {
         // A drag that lands nowhere used to end in silence, which read as broken.
         if (state.moved && !state.preview) {
             utils.showErrorFeedback(calView === 'week'
-                ? 'Drop it on a day column to put it on the clock.'
+                ? 'Drop it on a day column or on a focus block.'
                 : 'Switch to Week view to place this on the clock.');
+        }
+        return;
+    }
+    if (state.preview.focusId) {
+        try {
+            await callEel('attach_focus_item', state.preview.focusId, state.id);
+            utils.notifyDataChanged();
+            await loadCalendar();
+            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Focus'}.`);
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not add that to the block.');
+            await loadCalendar();
         }
         return;
     }

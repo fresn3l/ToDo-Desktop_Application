@@ -107,6 +107,71 @@ class FocusBlockTests(unittest.TestCase):
         unplaced = {row["id"] for row in calclock.unplaced_work()}
         self.assertIn(item["id"], unplaced)
 
+    def test_attach_event_to_focus_makes_a_todo_and_leaves_the_event(self) -> None:
+        event = calclock.create_calendar_event(
+            "Team sync",
+            "2026-09-07T10:00:00",
+            "2026-09-07T10:50:00",
+        )
+        focus = calclock.create_focus_block(
+            "Homework",
+            "2026-09-07T13:00:00",
+            "2026-09-07T15:00:00",
+            [],
+        )
+        packed = calclock.attach_event_to_focus(focus["id"], event["id"], "2026-09-07")
+        self.assertEqual(len(packed["items"]), 1)
+        self.assertEqual(packed["items"][0]["title"], "Team sync")
+        self.assertEqual(packed["items"][0]["estimate_minutes"], 50)
+        still = calclock._load_event(event["id"])
+        self.assertEqual(still["start_at"], event["start_at"])
+        self.assertEqual(still["end_at"], event["end_at"])
+        again = calclock.attach_event_to_focus(focus["id"], event["id"], "2026-09-07")
+        self.assertEqual([row["id"] for row in again["items"]], [packed["items"][0]["id"]])
+
+    def test_attach_event_to_focus_reuses_imported_work(self) -> None:
+        item = work.create_work_item(
+            "Essay 2",
+            due_at="2026-09-11T23:59:00",
+            estimate_minutes=60,
+            source_uid="essay-2",
+            source_calendar="class",
+        )
+        stored = calclock.replace_imported_hard_events(
+            "class",
+            [
+                {
+                    "title": "Essay 2",
+                    "uid": "essay-2",
+                    "start_at": datetime(2026, 9, 7, 9, 30, 0),
+                    "end_at": datetime(2026, 9, 7, 10, 20, 0),
+                }
+            ],
+        )
+        self.assertEqual(stored, 1)
+        events = [
+            row
+            for row in calclock.expand_hard_events(date(2026, 9, 7), date(2026, 9, 7))
+            if row.get("source_uid") == "essay-2"
+        ]
+        self.assertEqual(len(events), 1)
+        focus = calclock.create_focus_block(
+            "Homework",
+            "2026-09-07T13:00:00",
+            "2026-09-07T15:00:00",
+            [],
+        )
+        packed = calclock.attach_event_to_focus(focus["id"], events[0]["id"], "2026-09-07")
+        self.assertEqual([row["id"] for row in packed["items"]], [item["id"]])
+        self.assertEqual(work.get_work_items_by_ids([item["id"]])[0]["scheduled_date"], "2026-09-07")
+
+    def test_attach_event_to_focus_rejects_a_work_bar(self) -> None:
+        item = work.create_work_item("Read brief", scheduled_date="2026-09-07", estimate_minutes=30)
+        block = calclock.schedule_work_at(item["id"], "2026-09-07T09:00:00", "2026-09-07T09:30:00")["block"]
+        event = calclock.create_calendar_event("Standup", "2026-09-07T11:00:00", "2026-09-07T11:20:00")
+        with self.assertRaises(ValueError):
+            calclock.attach_event_to_focus(block["id"], event["id"], "2026-09-07")
+
 
 if __name__ == "__main__":
     unittest.main()

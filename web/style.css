@@ -674,8 +674,11 @@ html[data-sidebar='compact'] .sidebar-footer {
     /* The action cluster wraps on a narrow window; give the second row air. */
     row-gap: var(--space-sm);
     min-height: 32px;
-    /* Home was the only draggable header because it was the only tab without
-       a topbar. Now no tab has one, so every header drags the window. */
+}
+
+/* Only Home drags the window. A drag region on Settings (and the other tabs)
+   made WKWebView swallow clicks on the theme swatches and color wells. */
+.page-head--home {
     -webkit-app-region: drag;
 }
 
@@ -728,6 +731,7 @@ html[data-sidebar='compact'] .sidebar-footer {
     min-height: 0;
     overflow: auto;
     padding: 22px 28px 40px;
+    -webkit-app-region: no-drag;
 }
 
 .tab-content {
@@ -1725,6 +1729,7 @@ input[type='radio'] {
     gap: 0;
     overflow: hidden;
     width: 100%;
+    -webkit-app-region: no-drag;
 }
 
 .settings-col {
@@ -1846,6 +1851,7 @@ input[type='radio'] {
     font: inherit;
     font-size: var(--fs-caption);
     font-weight: var(--fw-semibold);
+    -webkit-app-region: no-drag;
 }
 
 .theme-swatch.is-selected,
@@ -1900,6 +1906,7 @@ input[type='radio'] {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: transparent;
+    -webkit-app-region: no-drag;
 }
 
 .color-slot-list {
@@ -5931,6 +5938,11 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
 
 .cal-day-body.is-drop {
     box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.cal-block.is-focus.is-drop {
+    box-shadow: inset 0 0 0 2px var(--primary);
+    z-index: 3;
 }
 
 .cal-day-body {

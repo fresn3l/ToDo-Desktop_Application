@@ -871,6 +871,26 @@ class HomeUiTests(unittest.TestCase):
         # A drop that lands nowhere says so instead of failing in silence.
         self.assertIn("Switch to Week view to place this on the clock.", CAL_JS)
         self.assertIn("Switch to Week to drag these onto the clock.", CAL_JS)
+        self.assertIn("Drop it on a day column or on a focus block.", CAL_JS)
+        self.assertIn("focusHitAt", CAL_JS)
+        self.assertIn("attach_event_to_focus", CAL_JS)
+        self.assertIn("attach_focus_item", CAL_JS)
+
+    def test_window_drag_stays_on_the_home_header(self) -> None:
+        # A drag region on every page-head made Settings color wells miss clicks
+        # inside the native WKWebView host.
+        head = STYLE.split("\n.page-head {")[1].split("}")[0]
+        self.assertNotIn("-webkit-app-region: drag", head)
+        home = STYLE.split(".page-head--home {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: drag", home)
+        content = STYLE.split("\n.app-content {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: no-drag", content)
+        board = STYLE.split("\n.settings-board {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: no-drag", board)
+        swatch = STYLE.split(".theme-swatch,\n.accent-swatch {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: no-drag", swatch)
+        well = STYLE.split("\n.color-input {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: no-drag", well)
         # The browser must not claim the gesture before the handler sees it.
         chip = STYLE.split(".cal-due-chip {")[1].split("}")[0]
         self.assertIn("touch-action: none", chip)

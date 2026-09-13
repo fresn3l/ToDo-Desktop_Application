@@ -2693,6 +2693,49 @@ def attach_focus_item(block_id: str, item_id: str) -> Dict[str, Any]:
     return set_focus_items(block_id, current)
 
 
+def _event_span_on_day(event: Dict[str, Any], occurrence_date: str = "") -> Tuple[datetime, datetime]:
+    start = parse_datetime(event.get("start_at"))
+    end = parse_datetime(event.get("end_at"))
+    occ = str(occurrence_date or "").strip()[:10]
+    if occ:
+        day = date.fromisoformat(occ)
+        start = start.replace(year=day.year, month=day.month, day=day.day)
+        end = end.replace(year=day.year, month=day.month, day=day.day)
+        if end <= start:
+            end = start + timedelta(minutes=50)
+    return start, end
+
+
+@eel.expose
+def attach_event_to_focus(
+    block_id: str,
+    event_id: str,
+    occurrence_date: str = "",
+) -> Dict[str, Any]:
+    """Find or make a to-do for this event and attach it. The event stays put."""
+    block = _load_block(block_id)
+    if str(block.get("kind") or "") != "focus":
+        raise ValueError("That bar is not a focus block")
+    event = _load_event(event_id)
+    src_cal = str(event.get("source_calendar") or "").strip() or "event"
+    src_uid = str(event.get("source_uid") or "").strip() or str(event.get("id") or "").strip()
+    if not src_uid:
+        raise ValueError("That event has no id")
+    start, end = _event_span_on_day(event, occurrence_date)
+    minutes = max(15, int((end - start).total_seconds() // 60))
+    day = str(block.get("local_date") or "")[:10] or None
+    item = work.create_work_item(
+        str(event.get("title") or "Event"),
+        scheduled_date=day,
+        source="imported" if event.get("source_calendar") else "manual",
+        due_at=start.isoformat(timespec="seconds"),
+        estimate_minutes=minutes,
+        source_uid=src_uid,
+        source_calendar=src_cal,
+    )
+    return attach_focus_item(block_id, item["id"])
+
+
 @eel.expose
 def detach_focus_item(block_id: str, item_id: str) -> Dict[str, Any]:
     current = [
