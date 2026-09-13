@@ -24,6 +24,27 @@ NATIVE_MAC = (ROOT / "native_mac.py").read_text(encoding="utf-8")
 PASTE_JS = (ROOT / "web" / "js" / "paste_insert.js").read_text(encoding="utf-8")
 
 
+def container_rules(condition: str) -> str:
+    """Every rule the tile applies when its box matches `condition`.
+
+    Tiles are styled by the room they have rather than the cells they span,
+    so the tests ask the same question the stylesheet does.
+    """
+    out = []
+    for chunk in STYLE.split("@container tile ")[1:]:
+        head, _, rest = chunk.partition("{")
+        if condition not in head:
+            continue
+        depth, end = 1, 0
+        for i, ch in enumerate(rest):
+            depth += (ch == "{") - (ch == "}")
+            if depth == 0:
+                end = i
+                break
+        out.append(rest[:end])
+    return "\n".join(out)
+
+
 class HomeUiTests(unittest.TestCase):
     def test_the_widget_border_settings_reach_the_board(self) -> None:
         """Appearance writes a width and a colour for the widget border. The
@@ -504,19 +525,23 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("setPageColorSlot", SETTINGS_JS)
 
     def test_home_widgets_are_dense_and_scroll_the_page(self) -> None:
-        self.assertIn("--home-row: var(--row-h, 120px)", STYLE)
+        self.assertIn("--home-row: var(--row-h, 54px)", STYLE)
         self.assertIn("grid-auto-rows: var(--home-row)", STYLE)
         self.assertIn("min-height: 0", STYLE)
         self.assertIn("overflow-y: auto", STYLE)
         self.assertIn("padding-bottom: 88px", STYLE)
-        self.assertIn('sizes: [[1, 1]', HOME_JS)
-        self.assertIn("default: [2, 2]", HOME_JS)
-        self.assertIn("default: [2, 1]", HOME_JS)
-        self.assertIn('[data-w="1"][data-h="1"]', STYLE)
+        self.assertIn('sizes: [[2, 2]', HOME_JS)
+        self.assertIn("default: [4, 6]", HOME_JS)
+        self.assertIn("default: [4, 2]", HOME_JS)
+        # The smallest tile is a chip: one figure, one label, no furniture.
+        self.assertIn("container: tile / size", STYLE)
+        tiny = container_rules("(max-height: 189px) and (max-width: 399px)")
+        self.assertIn(".home-widget-body", tiny)
         self.assertIn(".home-widget-chrome", STYLE)
         self.assertIn("countdown-days", GLANCE_JS)
         tokens = (ROOT / "web" / "tokens.css").read_text(encoding="utf-8")
-        self.assertIn("--row-h: 120px", tokens)
+        self.assertIn("--row-h: 54px", tokens)
+        self.assertIn("--grid-gap: 12px", tokens)
         self.assertIn("--glance-row-min:", tokens)
         self.assertIn("--sheet-max:", tokens)
         self.assertIn("--line:", tokens)
@@ -743,24 +768,25 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("touch-action: none", item)
 
     def test_glance_tiles_fit_one_row_height(self) -> None:
-        self.assertIn("action: w >= 2 && h >= 2", GLANCE_TILES)
-        self.assertIn('.home-widget[data-h="1"] .glance-list', STYLE)
-        self.assertIn('.home-widget[data-h="1"] .glance-capture', STYLE)
-        self.assertIn('.home-widget[data-h="1"] .glance-actions', STYLE)
-        self.assertIn('.home-widget[data-h="1"] .glance-hourly', STYLE)
+        self.assertIn("action: w >= 4 && h >= 4", GLANCE_TILES)
+        # A tile with one row of room shows a headline and nothing that needs
+        # a second line to make sense.
+        short = container_rules("(max-height: 189px)")
+        for dropped in (".glance-list", ".glance-capture", ".glance-actions", ".glance-hourly"):
+            self.assertIn(dropped, short, f"a short tile should drop {dropped}")
         self.assertIn("overflow: hidden", STYLE)
 
     def test_every_glance_spends_one_row_budget(self) -> None:
-        self.assertIn("rows: h >= 3 ? 6 : h >= 2 ? 3 : 0", GLANCE_TILES)
-        self.assertIn("capture: h >= 3", GLANCE_TILES)
+        self.assertIn("rows: h >= 6 ? 6 : h >= 4 ? 3 : 0", GLANCE_TILES)
+        self.assertIn("capture: h >= 6", GLANCE_TILES)
         self.assertIn("function capLines(lines, size)", GLANCE_TILES)
         self.assertIn("function actionRow(actions, size)", GLANCE_TILES)
         # A narrow tile gets the move you would make plus Open, nothing more.
-        self.assertIn("size.w <= 2 && list.length > 2", GLANCE_TILES)
+        self.assertIn("size.w <= 4 && list.length > 2", GLANCE_TILES)
         self.assertIn("size.capture ? todoCaptureHtml() : ''", GLANCE_TILES)
         # Buttons and day chips fit by width, so height must not add them back.
-        self.assertIn("if (size.w >= 3) {", GLANCE_TILES)
-        self.assertIn("size.w >= 3 ? weekdayChips", GLANCE_TILES)
+        self.assertIn("if (size.w >= 6) {", GLANCE_TILES)
+        self.assertIn("size.w >= 6 ? weekdayChips", GLANCE_TILES)
         # Every list renderer reads the shared budget instead of its own number.
         self.assertGreaterEqual(GLANCE_TILES.count("size.rows"), 8)
         # A tile showing a list drops the headline rather than repeat row one.

@@ -28,17 +28,17 @@ function sizeOf(card) {
     const w = Math.max(1, Number(card?.dataset.w) || 1);
     const h = Math.max(1, Number(card?.dataset.h) || 1);
     // One budget for every tile. Rows follow height; buttons follow width.
-    // A 2×1 row is label + metric. Capture belongs on a three-high tile.
+    // A 4×2 row is label + metric. Capture belongs on a six-high tile.
     return {
         w,
         h,
         cells: w * h,
-        wide: w >= 2,
-        tall: h >= 2,
-        board: w >= 3 || h >= 3,
-        action: w >= 2 && h >= 2,
-        rows: h >= 3 ? 6 : h >= 2 ? 3 : 0,
-        capture: h >= 3,
+        wide: w >= 4,
+        tall: h >= 4,
+        board: w >= 6 || h >= 6,
+        action: w >= 4 && h >= 4,
+        rows: h >= 6 ? 6 : h >= 4 ? 3 : 0,
+        capture: h >= 6,
     };
 }
 
@@ -68,7 +68,7 @@ function actionRow(actions, size) {
     if (!list.length) return '';
     // Two buttons is all a narrow tile can hold on one line: the move you
     // would make, and Open. The rest of the tools live in the sheet.
-    if (size && size.w <= 2 && list.length > 2) {
+    if (size && size.w <= 4 && list.length > 2) {
         const open = list.find((row) => row.act === 'open-work');
         const first = list.find((row) => row !== open);
         list = [first, open].filter(Boolean);
@@ -346,7 +346,7 @@ function todoHtml(data, size) {
         actions.push({ act: 'todo-finish', label: copy.done, attrs: ` data-id="${utils.escapeHtml(target.id)}"` });
         // Buttons fit by width, not by area: a two-wide tile holds Done and
         // Open on one line and nothing more, however tall it gets.
-        if (size.w >= 3) {
+        if (size.w >= 6) {
             actions.push({
                 act: 'todo-plus15',
                 label: copy.plus15,
@@ -418,7 +418,7 @@ function countersHtml(data, size) {
     }
     // The grid is two columns when the tile is wide, so trim to a whole number
     // of rows rather than leaving a half-empty one at the bottom.
-    const cols = size.w >= 2 ? 2 : 1;
+    const cols = size.w >= 4 ? 2 : 1;
     const cap = Math.max(cols, Math.floor(size.rows / cols) * cols);
     const chips = rows.slice(0, cap).map((item) => `
         <div class="glance-counter">
@@ -787,7 +787,7 @@ function unplacedHtml(data, size) {
         primary: size.tall ? '' : clip(first?.title || '', 32),
         // Seven day chips only fit on one line on a wide tile; wrapped they
         // would eat the rows the list needs.
-        body: `${list}${size.w >= 3 ? weekdayChips(data?.weekdays, first?.id) : ''}`,
+        body: `${list}${size.w >= 6 ? weekdayChips(data?.weekdays, first?.id) : ''}`,
     });
 }
 

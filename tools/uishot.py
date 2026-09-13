@@ -8,7 +8,9 @@ then capture.
 
     python3 tools/uishot.py out.png --tab calendar --width 1440 --height 1000
 
-Expects the UI server already running (see tools/uiserve.sh).
+Expects the UI server already running:
+
+    KOSISTENZ_DATA_DIR=/tmp/kdata python3 main.py --bridge 8099 web
 """
 
 from __future__ import annotations
