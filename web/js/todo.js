@@ -315,7 +315,9 @@ function parkedRow(item) {
         ? `Due ${utils.escapeHtml(String(item.due_at).slice(0, 16).replace('T', ' '))}`
         : item.due
             ? `Due ${utils.escapeHtml(item.due)}`
-            : 'Not dated yet';
+            : item.scheduled_date
+                ? utils.escapeHtml(item.scheduled_date)
+                : 'Not dated yet';
     const mins = item.remaining_minutes || item.estimate_minutes;
     return `
         <article class="work-item" data-id="${utils.escapeHtml(item.id)}">
