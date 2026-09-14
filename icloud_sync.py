@@ -562,6 +562,17 @@ def _dump_calendar() -> Dict[str, Any]:
                 "status": state,
                 "updated_at": item.get("updated_at") or "",
             }
+    for row in calclock.closed_bar_marks():
+        item_id = str(row.get("id") or "").strip()
+        if not item_id:
+            continue
+        current = marks.get(item_id) or {}
+        if str(row.get("updated_at") or "") >= str(current.get("updated_at") or ""):
+            marks[item_id] = {
+                "id": item_id,
+                "status": row.get("status") or "",
+                "updated_at": row.get("updated_at") or "",
+            }
     for row in calclock.list_event_marks():
         item_id = str(row.get("id") or "").strip()
         if not item_id:

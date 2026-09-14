@@ -1566,6 +1566,26 @@ def list_event_marks() -> List[Dict[str, Any]]:
     ]
 
 
+def closed_bar_marks() -> List[Dict[str, Any]]:
+    """Done/skipped clock bars, including ones outside the current week."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, status, updated_at
+            FROM schedule_blocks
+            WHERE status IN ('done', 'skipped')
+            """
+        ).fetchall()
+    return [
+        {
+            "id": str(row["id"]),
+            "status": str(row["status"]),
+            "updated_at": str(row["updated_at"] or ""),
+        }
+        for row in rows
+    ]
+
+
 def event_mark_map() -> Dict[str, str]:
     return {str(row["id"]): str(row["status"] or "") for row in list_event_marks()}
 
