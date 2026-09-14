@@ -203,7 +203,7 @@ async function dismissProposal(id) {
     if (!hasEel('dismiss_cluny_proposal')) return;
     try {
         paintInbox(await eel.dismiss_cluny_proposal(id)());
-        utils.notifyDataChanged();
+        utils.notifyDataChanged('cluny');
     } catch (err) {
         console.error(err);
         utils.showErrorFeedback(err?.message || 'Could not dismiss that suggestion.');

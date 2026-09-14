@@ -877,6 +877,9 @@ export async function refreshGlances(keys, dataByKey) {
             paintGlanceFromData(key, body, card, dataByKey[key]);
             return;
         }
+        // A partial boot (stale cache, wave 1) should leave the other tiles
+        // alone instead of fetching weather while Today is still arriving.
+        if (dataByKey) return;
         await paintGlance(key, body, card);
     }));
 }
@@ -933,11 +936,19 @@ export async function runGlanceAction(btn) {
         } else {
             return;
         }
-        utils.notifyDataChanged();
+        utils.notifyDataChanged(glanceActionScope(act));
     } catch (err) {
         console.error(err);
         utils.showErrorFeedback(err?.message || 'Could not update that.');
     }
+}
+
+function glanceActionScope(act) {
+    if (act === 'habit-tick') return 'habits';
+    if (act === 'counter-tap') return 'counters';
+    if (act === 'workout-log') return 'workout';
+    if (act === 'block-skip') return 'calendar';
+    return 'work';
 }
 
 export async function runGlanceCapture(form) {
