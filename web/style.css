@@ -674,8 +674,11 @@ html[data-sidebar='compact'] .sidebar-footer {
     /* The action cluster wraps on a narrow window; give the second row air. */
     row-gap: var(--space-sm);
     min-height: 32px;
-    /* Home was the only draggable header because it was the only tab without
-       a topbar. Now no tab has one, so every header drags the window. */
+}
+
+/* Only Home drags the window. A drag region on Settings (and the other tabs)
+   made WKWebView swallow clicks on the theme swatches and color wells. */
+.page-head--home {
     -webkit-app-region: drag;
 }
 
@@ -728,6 +731,7 @@ html[data-sidebar='compact'] .sidebar-footer {
     min-height: 0;
     overflow: auto;
     padding: 22px 28px 40px;
+    -webkit-app-region: no-drag;
 }
 
 .tab-content {
@@ -1725,6 +1729,7 @@ input[type='radio'] {
     gap: 0;
     overflow: hidden;
     width: 100%;
+    -webkit-app-region: no-drag;
 }
 
 .settings-col {
@@ -1846,6 +1851,7 @@ input[type='radio'] {
     font: inherit;
     font-size: var(--fs-caption);
     font-weight: var(--fw-semibold);
+    -webkit-app-region: no-drag;
 }
 
 .theme-swatch.is-selected,
@@ -1900,6 +1906,7 @@ input[type='radio'] {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: transparent;
+    -webkit-app-region: no-drag;
 }
 
 .color-slot-list {
@@ -5723,8 +5730,24 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     color: var(--text-primary);
 }
 
+.cal-due-chip-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
 .cal-due-chip-title {
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cal-due-held {
+    font-size: var(--fs-nano);
+    font-weight: var(--fw-semibold);
+    color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -5933,6 +5956,11 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     box-shadow: inset 0 0 0 1px var(--primary);
 }
 
+.cal-block.is-focus.is-drop {
+    box-shadow: inset 0 0 0 2px var(--primary);
+    z-index: 3;
+}
+
 .cal-day-body {
     position: relative;
     height: 100%;
@@ -6019,6 +6047,21 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     font-weight: var(--fw-semibold);
 }
 
+.cal-block-held {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: var(--fs-nano);
+    font-weight: var(--fw-medium);
+    opacity: 0.88;
+}
+
+.cal-block.is-short .cal-block-held,
+.cal-block.is-tiny .cal-block-held {
+    display: none;
+}
+
 .cal-block.is-selected {
     box-shadow: inset 0 0 0 1px var(--text-primary);
 }
@@ -6088,6 +6131,9 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     padding: 6px 8px;
     border-radius: 8px;
     background: color-mix(in srgb, var(--cal-focus, #c8892c) 12%, var(--bg-elevated));
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
 }
 
 .cal-block.is-locked {
@@ -6284,10 +6330,39 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     color: var(--text-muted);
 }
 
+.cal-clock-tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin: 8px 0 0;
+}
+
+.cal-clock-tools .cal-clock-hint {
+    margin: 0;
+    flex: 1 1 16rem;
+}
+
 .cal-clock-hint {
     margin: 8px 0 0;
     font-size: var(--fs-caption);
     color: var(--text-muted);
+}
+
+.cal-span-ghost {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 4;
+    background: color-mix(in srgb, var(--cal-focus, #c8892c) 28%, var(--bg-elevated));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cal-focus, #c8892c) 50%, transparent);
+}
+
+.cal-span-ghost.is-event {
+    background: color-mix(in srgb, var(--cal-event, var(--text-primary)) 22%, var(--bg-elevated));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 28%, transparent);
 }
 
 .cal-aside .work-day-chip {

@@ -15,6 +15,9 @@ let dragState = null;
 let lastWeek = null;
 let dueMenuChip = null;
 let pendingFocusItems = [];
+let drawKind = 'focus';
+let pendingSelectId = '';
+let ignoreNextGridClick = false;
 
 function mondayISO(d = new Date()) {
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -46,6 +49,7 @@ function setCalView(next) {
     document.getElementById('calYearGrid')?.classList.toggle('is-hidden', calView !== 'year');
     // Month and year views hide the week-clock hint.
     document.getElementById('calClockHint')?.classList.toggle('is-hidden', calView !== 'week');
+    document.querySelector('.cal-clock-tools')?.classList.toggle('is-hidden', calView !== 'week');
     // Month and year views show the event / placed / due legend.
     document.getElementById('calMonthLegend')?.classList.toggle('is-hidden', calView === 'week');
     // There is no clock to drop onto outside Week, so stop inviting the drag.
@@ -301,14 +305,20 @@ function renderDueChip(due) {
     const badge = parts.course
         ? `<span class="cal-course-badge">${utils.escapeHtml(parts.course)}</span>`
         : '';
-    return `<button type="button" class="cal-due-chip${done ? ' is-done' : ''}${overdue ? ' is-overdue' : ''}"
+    const held = due.focus_title
+        ? `<span class="cal-due-held">In ${utils.escapeHtml(due.focus_title)}</span>`
+        : '';
+    const tip = due.focus_title ? `${parts.title} · In ${due.focus_title}` : parts.title;
+    return `<button type="button" class="cal-due-chip${done ? ' is-done' : ''}${overdue ? ' is-overdue' : ''}${due.focus_title ? ' is-held' : ''}"
         style="${hueStyle}"
         data-id="${utils.escapeHtml(due.id || '')}"
         data-title="${utils.escapeHtml(parts.title)}"
         data-status="${utils.escapeHtml(due.status || 'open')}"
         data-due-at="${utils.escapeHtml(due.due_at || '')}"
         data-minutes="${Number(due.estimate_minutes || 60) || 60}"
-        title="${utils.escapeHtml(parts.title)}">${badge}<span class="cal-due-chip-title">${utils.escapeHtml(parts.short)}</span></button>`;
+        data-focus-id="${utils.escapeHtml(due.focus_id || '')}"
+        data-focus-title="${utils.escapeHtml(due.focus_title || '')}"
+        title="${utils.escapeHtml(tip)}">${badge}<span class="cal-due-chip-copy"><span class="cal-due-chip-title">${utils.escapeHtml(parts.short)}</span>${held}</span></button>`;
 }
 
 function renderDueStrip(dues, date) {
@@ -351,7 +361,16 @@ function renderBlock(item, settings) {
     const overflowHtml = overflow
         ? `<span class="cal-block-overflow">+${Number(item.overflow_minutes)}m</span>`
         : '';
-    const focusItems = kind === 'focus' ? utils.escapeHtml(JSON.stringify(item.items || [])) : '';
+    const heldRows = kind === 'focus' ? (item.items || []) : [];
+    const heldNames = heldRows
+        .map((row) => shortTitle(row.title || '', ''))
+        .filter(Boolean)
+        .slice(0, 2);
+    const heldMore = heldRows.length > 2 ? ` +${heldRows.length - 2}` : '';
+    const heldHtml = heldNames.length
+        ? `<span class="cal-block-held">${utils.escapeHtml(heldNames.join(' · '))}${heldMore}</span>`
+        : '';
+    const focusItems = kind === 'focus' ? escapeAttr(JSON.stringify(item.items || [])) : '';
     return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${done ? ' is-done' : ''}${missed ? ' is-missed' : ''}${overflow ? ' is-overflow' : ''}${selected}${short}${tiny}"
         style="top:${topPct}%;height:${height}%"
         data-id="${utils.escapeHtml(item.id || '')}"
@@ -366,7 +385,7 @@ function renderBlock(item, settings) {
         data-focus-items="${focusItems}"
         data-planned-minutes="${utils.escapeHtml(String(item.planned_minutes || ''))}"
         data-overflow-minutes="${utils.escapeHtml(String(item.overflow_minutes || ''))}"
-        title="${utils.escapeHtml(blockLabel(item))}"><span class="cal-block-time">${utils.escapeHtml(timeLabel)}</span><span class="cal-block-title">${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</span>${overflowHtml}</button>`;
+        title="${utils.escapeHtml(blockLabel(item))}"><span class="cal-block-time">${utils.escapeHtml(timeLabel)}</span><span class="cal-block-title">${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</span>${heldHtml}${overflowHtml}</button>`;
 }
 
 function renderGrid(week) {
@@ -708,7 +727,21 @@ function startNewFocus() {
     document.getElementById('calEventTitle')?.focus();
 }
 
+function escapeAttr(text) {
+    // innerHTML does not encode quotes, so JSON in a data- attribute used to
+    // end at the first " and the editor opened empty after a reload.
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+}
+
 function parseFocusItems(btn) {
+    const id = btn.getAttribute('data-id') || '';
+    for (const day of lastWeek?.days || []) {
+        const match = (day.blocks || []).find((row) => row.id === id);
+        if (match && Array.isArray(match.items)) return match.items;
+    }
     const raw = btn.getAttribute('data-focus-items') || '[]';
     try {
         const rows = JSON.parse(raw);
@@ -744,7 +777,7 @@ function paintFocusAttach() {
     if (host) {
         host.innerHTML = pendingFocusItems.length
             ? pendingFocusItems.map((row) => `
-                <div class="cal-focus-item" data-id="${utils.escapeHtml(row.id || '')}">
+                <div class="cal-focus-item" data-id="${utils.escapeHtml(row.id || '')}" data-title="${utils.escapeHtml(row.title || 'To-do')}" data-minutes="${Number(row.estimate_minutes || 60) || 60}" data-focus-id="${utils.escapeHtml(editor.id || '')}">
                     <span>${utils.escapeHtml(row.title || 'To-do')}${row.estimate_minutes ? ` · ${row.estimate_minutes}m` : ''}</span>
                     <button type="button" class="btn-ghost" data-act="detach-focus">Remove</button>
                 </div>`).join('')
@@ -753,6 +786,9 @@ function paintFocusAttach() {
             btn.addEventListener('click', () => {
                 void detachFocusRow(btn.closest('[data-id]')?.getAttribute('data-id'));
             });
+        });
+        host.querySelectorAll('.cal-focus-item').forEach((row) => {
+            row.addEventListener('pointerdown', onFocusItemPointerDown);
         });
     }
     if (pick) {
@@ -927,9 +963,14 @@ function bindGrid() {
         });
     });
     document.querySelectorAll('.cal-day-body').forEach((body) => {
+        body.addEventListener('pointerdown', onSpanPointerDown);
         body.addEventListener('click', (e) => {
             if (e.target.closest('.cal-block')) return;
             e.stopPropagation();
+            if (ignoreNextGridClick) {
+                ignoreNextGridClick = false;
+                return;
+            }
             if (editor.mode === 'new' || editor.mode === 'unplaced') {
                 applyGridTime(e, body);
                 return;
@@ -1021,13 +1062,15 @@ function samePointer(e) {
 
 function onDragMove(e) {
     if (!dragState || !samePointer(e)) return;
-    if (dragState.kind === 'due') onDuePointerMove(e);
+    if (dragState.kind === 'due' || dragState.kind === 'focus-item') onDuePointerMove(e);
+    else if (dragState.kind === 'span') onSpanPointerMove(e);
     else onBlockPointerMove(e);
 }
 
 function onDragUp(e) {
     if (!dragState || !samePointer(e)) return;
-    if (dragState.kind === 'due') void onDuePointerUp(e);
+    if (dragState.kind === 'due' || dragState.kind === 'focus-item') void onDuePointerUp(e);
+    else if (dragState.kind === 'span') void onSpanPointerUp(e);
     else void onBlockPointerUp(e);
 }
 
@@ -1037,6 +1080,163 @@ function trackDragAtWindow() {
     window.addEventListener('pointercancel', onDragUp);
     window.addEventListener('mousemove', onDragMove);
     window.addEventListener('mouseup', onDragUp);
+}
+
+function clearDropTargets() {
+    document.querySelectorAll('.cal-day-body.is-drop, .cal-block.is-focus.is-drop').forEach((el) => {
+        el.classList.remove('is-drop');
+    });
+}
+
+function focusHitAt(x, y) {
+    const node = document.elementFromPoint(x, y);
+    const focus = node?.closest('.cal-block.is-focus');
+    if (!focus || focus === dragState?.el) return null;
+    return focus;
+}
+
+function focusDropPreview(focus) {
+    return {
+        focusId: focus.getAttribute('data-id') || '',
+        focusTitle: focus.getAttribute('data-title') || 'Focus',
+    };
+}
+
+function focusesOnDate(iso) {
+    const day = (lastWeek?.days || []).find((row) => row.date === iso);
+    return (day?.blocks || []).filter((row) => row.kind === 'focus' && row.id);
+}
+
+function setDrawKind(kind) {
+    drawKind = kind === 'event' ? 'event' : 'focus';
+    document.querySelectorAll('#calDrawKind [data-draw-kind]').forEach((btn) => {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-draw-kind') === drawKind);
+    });
+}
+
+function chosenDrawKind(e) {
+    const alt = !!(e && (e.altKey || e.metaKey));
+    if (alt) return drawKind === 'event' ? 'focus' : 'event';
+    return drawKind;
+}
+
+function minutesOnBody(body, clientY) {
+    const rect = body.getBoundingClientRect();
+    const { startMin, span } = clockWindow(lastSettings);
+    const height = rect.height || 1;
+    let mins = Math.round((((clientY - rect.top) / height) * span) / 15) * 15;
+    mins = Math.max(0, Math.min(span, mins));
+    const day = body.closest('.cal-day')?.getAttribute('data-date') || body.getAttribute('data-date') || '';
+    return { body, day, startMin, span, mins, rect };
+}
+
+function paintSpanGhost(preview, kind) {
+    if (!preview?.body) return;
+    let ghost = preview.body.querySelector('.cal-span-ghost');
+    if (!ghost) {
+        ghost = document.createElement('div');
+        ghost.className = 'cal-span-ghost';
+        preview.body.appendChild(ghost);
+    }
+    ghost.classList.toggle('is-event', kind === 'event');
+    const topPct = (preview.minutesFromStart / preview.span) * 100;
+    const heightPct = (preview.duration / preview.span) * 100;
+    ghost.style.top = `${topPct}%`;
+    ghost.style.height = `${heightPct}%`;
+}
+
+function clearSpanGhost() {
+    document.querySelectorAll('.cal-span-ghost').forEach((el) => el.remove());
+}
+
+async function selectCreatedBlock(id) {
+    pendingSelectId = '';
+    const btn = document.querySelector(`.cal-block[data-id="${CSS.escape(id)}"]`);
+    if (!btn) return;
+    openEditorFromBlock(btn);
+    const titleEl = document.getElementById('calEventTitle');
+    titleEl?.focus();
+    titleEl?.select();
+}
+
+function onSpanPointerDown(e) {
+    if (e.button !== 0) return;
+    if (e.target.closest('.cal-block')) return;
+    if (calView !== 'week') return;
+    const body = e.currentTarget;
+    dragState = {
+        kind: 'span',
+        el: body,
+        pointerId: e.pointerId,
+        originX: e.clientX,
+        originY: e.clientY,
+        moved: false,
+        preview: null,
+        drawKind: chosenDrawKind(e),
+    };
+    try { body.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+}
+
+function onSpanPointerMove(e) {
+    if (!dragState || dragState.kind !== 'span' || !samePointer(e)) return;
+    const dx = e.clientX - dragState.originX;
+    const dy = e.clientY - dragState.originY;
+    if (!dragState.moved && (dx * dx + dy * dy) < 36) return;
+    dragState.moved = true;
+    ignoreNextGridClick = true;
+    const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day-body') || dragState.el;
+    const at = minutesOnBody(hit, e.clientY);
+    const origin = minutesOnBody(dragState.el, dragState.originY);
+    if (!at.day) {
+        dragState.preview = null;
+        clearSpanGhost();
+        return;
+    }
+    const startMins = Math.min(origin.mins, at.mins);
+    const endMins = Math.max(origin.mins, at.mins);
+    const duration = Math.max(15, endMins - startMins);
+    const capped = Math.min(duration, at.span - startMins);
+    dragState.preview = {
+        date: at.day,
+        minutesFromStart: Math.max(0, Math.min(at.span - 15, startMins)),
+        duration: Math.max(15, capped),
+        startMin: at.startMin,
+        span: at.span,
+        body: at.body,
+    };
+    paintSpanGhost(dragState.preview, dragState.drawKind);
+}
+
+async function onSpanPointerUp(e) {
+    if (!dragState || dragState.kind !== 'span' || !samePointer(e)) return;
+    const state = dragState;
+    dragState = null;
+    clearSpanGhost();
+    try { state.el.releasePointerCapture(state.pointerId); } catch (_) { /* ignore */ }
+    if (!state.moved || !state.preview?.date) return;
+    const [y, m, d] = state.preview.date.split('-').map(Number);
+    const start = new Date(y, m - 1, d, 0, 0, 0);
+    start.setMinutes(state.preview.startMin + state.preview.minutesFromStart);
+    const end = new Date(start.getTime() + state.preview.duration * 60000);
+    const startIso = toApiIso(start);
+    const endIso = toApiIso(end);
+    try {
+        if (state.drawKind === 'event') {
+            const created = await callEel('create_calendar_event', 'Event', startIso, endIso, []);
+            pendingSelectId = created?.id || '';
+            utils.showSuccessFeedback('Event on the clock. Name it.');
+        } else {
+            const created = await callEel('create_focus_block', 'Focus', startIso, endIso, []);
+            pendingSelectId = created?.id || '';
+            utils.showSuccessFeedback('Focus on the clock. Name it.');
+        }
+        utils.notifyDataChanged();
+        await loadCalendar();
+        if (pendingSelectId) await selectCreatedBlock(pendingSelectId);
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not draw that span.');
+        await loadCalendar();
+    }
 }
 
 function onBlockPointerDown(e) {
@@ -1066,8 +1266,20 @@ function onBlockPointerMove(e) {
     dragState.moved = true;
     dragState.el.dataset.didDrag = '1';
     dragState.el.classList.add('is-dragging');
+    clearDropTargets();
+    if (dragState.kind === 'hard' || dragState.kind === 'work') {
+        const focus = focusHitAt(e.clientX, e.clientY);
+        if (focus) {
+            focus.classList.add('is-drop');
+            dragState.preview = focusDropPreview(focus);
+            return;
+        }
+    }
     const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day-body');
-    if (!hit) return;
+    if (!hit) {
+        if (dragState.preview?.focusId) dragState.preview = null;
+        return;
+    }
     const day = hit.closest('.cal-day')?.getAttribute('data-date') || hit.getAttribute('data-date');
     if (!day) return;
     const rect = hit.getBoundingClientRect();
@@ -1090,9 +1302,34 @@ async function onBlockPointerUp(e) {
     const state = dragState;
     dragState = null;
     state.el.classList.remove('is-dragging');
+    clearDropTargets();
     try { state.el.releasePointerCapture(state.pointerId); } catch (_) { /* ignore */ }
     if (!state.moved || !state.preview) {
         if (state.moved) await loadCalendar();
+        return;
+    }
+    if (state.kind === 'hard' && state.preview.focusId) {
+        try {
+            await callEel('attach_event_to_focus', state.preview.focusId, state.id, state.occurrenceDate || '');
+            utils.notifyDataChanged();
+            await loadCalendar();
+            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Focus'}.`);
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not add that to the block.');
+            await loadCalendar();
+        }
+        return;
+    }
+    if (state.kind === 'work' && state.preview.focusId) {
+        try {
+            await callEel('move_work_bar_to_focus', state.id, state.preview.focusId);
+            utils.notifyDataChanged();
+            await loadCalendar();
+            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Focus'}.`);
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not add that to the block.');
+            await loadCalendar();
+        }
         return;
     }
     const { startMin } = clockWindow(lastSettings);
@@ -1169,6 +1406,16 @@ function showDueMenu(chip) {
     const done = chip.getAttribute('data-status') === 'done';
     menu.querySelector('[data-act="done"]')?.classList.toggle('is-hidden', done);
     menu.querySelector('[data-act="reopen"]')?.classList.toggle('is-hidden', !done);
+    const date = chip.closest('[data-date]')?.getAttribute('data-date')
+        || String(chip.getAttribute('data-due-at') || '').slice(0, 10);
+    const heldId = chip.getAttribute('data-focus-id') || '';
+    const host = document.getElementById('calDueFocusActs');
+    if (host) {
+        const focuses = focusesOnDate(date).filter((row) => row.id !== heldId);
+        host.innerHTML = focuses
+            .map((row) => `<button type="button" data-act="add-to-focus" data-focus-id="${utils.escapeHtml(row.id)}" data-focus-title="${utils.escapeHtml(row.title || 'Focus')}">Add to ${utils.escapeHtml(row.title || 'Focus')}</button>`)
+            .join('');
+    }
     menu.hidden = false;
     menu.classList.remove('is-hidden');
     const rect = chip.getBoundingClientRect();
@@ -1198,8 +1445,30 @@ function onDuePointerDown(e) {
     try { btn.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
 }
 
+function onFocusItemPointerDown(e) {
+    if (e.button !== 0) return;
+    if (e.target.closest('[data-act="detach-focus"]')) return;
+    const row = e.currentTarget;
+    hideDueMenu();
+    dragState = {
+        kind: 'focus-item',
+        el: row,
+        pointerId: e.pointerId,
+        originX: e.clientX,
+        originY: e.clientY,
+        moved: false,
+        preview: null,
+        id: row.getAttribute('data-id'),
+        title: row.getAttribute('data-title') || '',
+        duration: Math.max(15, Number(row.getAttribute('data-minutes') || 60) || 60),
+        fromFocusId: row.getAttribute('data-focus-id') || editor.id || '',
+        ghost: null,
+    };
+    try { row.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+}
+
 function onDuePointerMove(e) {
-    if (!dragState || dragState.kind !== 'due' || !samePointer(e)) return;
+    if (!dragState || (dragState.kind !== 'due' && dragState.kind !== 'focus-item') || !samePointer(e)) return;
     const dx = e.clientX - dragState.originX;
     const dy = e.clientY - dragState.originY;
     if (!dragState.moved && (dx * dx + dy * dy) < 36) return;
@@ -1214,8 +1483,14 @@ function onDuePointerMove(e) {
     }
     dragState.ghost.style.left = `${e.clientX + 8}px`;
     dragState.ghost.style.top = `${e.clientY + 8}px`;
+    clearDropTargets();
+    const focus = focusHitAt(e.clientX, e.clientY);
+    if (focus) {
+        focus.classList.add('is-drop');
+        dragState.preview = focusDropPreview(focus);
+        return;
+    }
     const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day-body');
-    document.querySelectorAll('.cal-day-body.is-drop').forEach((el) => el.classList.remove('is-drop'));
     if (!hit) {
         dragState.preview = null;
         return;
@@ -1232,18 +1507,50 @@ function onDuePointerMove(e) {
 }
 
 async function onDuePointerUp(e) {
-    if (!dragState || dragState.kind !== 'due' || !samePointer(e)) return;
+    if (!dragState || (dragState.kind !== 'due' && dragState.kind !== 'focus-item') || !samePointer(e)) return;
     const state = dragState;
     dragState = null;
     state.ghost?.remove();
-    document.querySelectorAll('.cal-day-body.is-drop').forEach((el) => el.classList.remove('is-drop'));
+    clearDropTargets();
     try { state.el.releasePointerCapture(state.pointerId); } catch (_) { /* ignore */ }
     if (!state.moved || !state.preview || !state.id) {
         // A drag that lands nowhere used to end in silence, which read as broken.
         if (state.moved && !state.preview) {
             utils.showErrorFeedback(calView === 'week'
-                ? 'Drop it on a day column to put it on the clock.'
+                ? 'Drop it on a day column or on a focus block.'
                 : 'Switch to Week view to place this on the clock.');
+        }
+        return;
+    }
+    if (state.preview.focusId) {
+        try {
+            if (state.kind === 'focus-item' && state.fromFocusId && state.fromFocusId !== state.preview.focusId) {
+                await callEel('detach_focus_item', state.fromFocusId, state.id);
+            }
+            await callEel('attach_focus_item', state.preview.focusId, state.id);
+            utils.notifyDataChanged();
+            await loadCalendar();
+            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Focus'}.`);
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not add that to the block.');
+            await loadCalendar();
+        }
+        return;
+    }
+    if (state.kind === 'focus-item') {
+        try {
+            if (state.fromFocusId) await callEel('detach_focus_item', state.fromFocusId, state.id);
+            const [y, m, d] = state.preview.date.split('-').map(Number);
+            const start = new Date(y, m - 1, d, 0, 0, 0);
+            start.setMinutes(state.preview.startMin + state.preview.minutesFromStart);
+            const end = new Date(start.getTime() + state.preview.duration * 60000);
+            await callEel('schedule_work_at', state.id, toApiIso(start), toApiIso(end));
+            utils.notifyDataChanged();
+            await loadCalendar();
+            utils.showSuccessFeedback('Placed on the clock.');
+        } catch (err) {
+            utils.showErrorFeedback(err?.message || 'Could not place that.');
+            await loadCalendar();
         }
         return;
     }
@@ -1262,7 +1569,7 @@ async function onDuePointerUp(e) {
     }
 }
 
-async function runDueMenu(act) {
+async function runDueMenu(act, btn) {
     const chip = dueMenuChip;
     hideDueMenu();
     if (!chip) return;
@@ -1280,6 +1587,12 @@ async function runDueMenu(act) {
         } else if (act === 'place-after') {
             await callEel('place_work_after_lecture', id, date);
             utils.showSuccessFeedback('Placed after the first event.');
+        } else if (act === 'add-to-focus') {
+            const focusId = btn?.getAttribute('data-focus-id') || '';
+            const focusTitle = btn?.getAttribute('data-focus-title') || 'Focus';
+            if (!focusId) return;
+            await callEel('attach_focus_item', focusId, id);
+            utils.showSuccessFeedback(`In ${focusTitle}.`);
         } else if (act === 'todo') {
             document.dispatchEvent(new CustomEvent('kosistenz:open-todo', { detail: { date, itemId: id } }));
             return;
@@ -1548,8 +1861,13 @@ export function setupCalendar() {
     trackDragAtWindow();
     paintEditor();
     document.getElementById('calDueMenu')?.addEventListener('click', (e) => {
-        const act = e.target.closest('[data-act]')?.getAttribute('data-act');
-        if (act) void runDueMenu(act);
+        const btn = e.target.closest('[data-act]');
+        const act = btn?.getAttribute('data-act');
+        if (act) void runDueMenu(act, btn);
+    });
+    document.getElementById('calDrawKind')?.addEventListener('click', (e) => {
+        const kind = e.target.closest('[data-draw-kind]')?.getAttribute('data-draw-kind');
+        if (kind) setDrawKind(kind);
     });
     document.addEventListener('pointerdown', (e) => {
         if (e.target.closest('#calDueMenu') || e.target.closest('.cal-due-chip')) return;

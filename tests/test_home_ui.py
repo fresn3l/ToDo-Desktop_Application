@@ -871,6 +871,42 @@ class HomeUiTests(unittest.TestCase):
         # A drop that lands nowhere says so instead of failing in silence.
         self.assertIn("Switch to Week view to place this on the clock.", CAL_JS)
         self.assertIn("Switch to Week to drag these onto the clock.", CAL_JS)
+        self.assertIn("Drop it on a day column or on a focus block.", CAL_JS)
+        self.assertIn("focusHitAt", CAL_JS)
+        self.assertIn("attach_event_to_focus", CAL_JS)
+        self.assertIn("attach_focus_item", CAL_JS)
+        # JSON in data-focus-items used to die at the first quote because
+        # innerHTML does not encode ". The week payload is the source of truth.
+        self.assertIn("escapeAttr", CAL_JS)
+        self.assertIn(".replace(/\"/g, '&quot;')", CAL_JS)
+        parse = CAL_JS.split("function parseFocusItems")[1].split("\n}")[0]
+        self.assertIn("lastWeek", parse)
+        self.assertIn("cal-block-held", CAL_JS)
+        self.assertIn("In ${utils.escapeHtml(due.focus_title)}", CAL_JS)
+        self.assertIn("onSpanPointerDown", CAL_JS)
+        self.assertIn("create_focus_block", CAL_JS)
+        self.assertIn("move_work_bar_to_focus", CAL_JS)
+        self.assertIn("onFocusItemPointerDown", CAL_JS)
+        self.assertIn("Add to ${utils.escapeHtml(row.title || 'Focus')}", CAL_JS)
+        self.assertIn('id="calDrawKind"', INDEX)
+        self.assertIn("Empty-grid click is not capture.", CAL_JS)
+        self.assertIn("Drag empty time to draw.", INDEX)
+
+    def test_window_drag_stays_on_the_home_header(self) -> None:
+        # A drag region on every page-head made Settings color wells miss clicks
+        # inside the native WKWebView host.
+        head = STYLE.split("\n.page-head {")[1].split("}")[0]
+        self.assertNotIn("-webkit-app-region: drag", head)
+        home = STYLE.split(".page-head--home {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: drag", home)
+        content = STYLE.split("\n.app-content {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: no-drag", content)
+        board = STYLE.split("\n.settings-board {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: no-drag", board)
+        swatch = STYLE.split(".theme-swatch,\n.accent-swatch {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: no-drag", swatch)
+        well = STYLE.split("\n.color-input {")[1].split("}")[0]
+        self.assertIn("-webkit-app-region: no-drag", well)
         # The browser must not claim the gesture before the handler sees it.
         chip = STYLE.split(".cal-due-chip {")[1].split("}")[0]
         self.assertIn("touch-action: none", chip)
