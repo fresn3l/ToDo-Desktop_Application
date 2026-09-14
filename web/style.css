@@ -6136,6 +6136,18 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     user-select: none;
 }
 
+.cal-focus-item.is-done span:first-child {
+    opacity: 0.6;
+    text-decoration: line-through;
+}
+
+.cal-focus-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
 .cal-block.is-locked {
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 35%, transparent);
 }

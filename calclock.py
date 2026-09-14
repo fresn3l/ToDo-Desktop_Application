@@ -196,23 +196,66 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
         )
         """
     )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS focus_block_items (
-            block_id TEXT NOT NULL,
-            work_item_id TEXT NOT NULL,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (block_id, work_item_id)
-        )
-        """
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_focus_items_work ON focus_block_items(work_item_id)"
-    )
+    _ensure_focus_items_schema(conn)
     global _marks_healed
     if not _marks_healed:
         _drop_series_wide_marks(conn)
         _marks_healed = True
+
+
+def _ensure_focus_items_schema(conn: sqlite3.Connection) -> None:
+    """Focus rows are work or habit. Older builds only stored work_item_id."""
+    exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'focus_block_items'"
+    ).fetchone()
+    if not exists:
+        conn.execute(
+            """
+            CREATE TABLE focus_block_items (
+                block_id TEXT NOT NULL,
+                item_kind TEXT NOT NULL DEFAULT 'work',
+                item_id TEXT NOT NULL,
+                title TEXT,
+                minutes INTEGER,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (block_id, item_kind, item_id)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_focus_items_item ON focus_block_items(item_kind, item_id)"
+        )
+        return
+    cols = {str(row[1]) for row in conn.execute("PRAGMA table_info(focus_block_items)").fetchall()}
+    if "item_kind" in cols and "item_id" in cols:
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_focus_items_item ON focus_block_items(item_kind, item_id)"
+        )
+        return
+    conn.execute(
+        """
+        CREATE TABLE focus_block_items_new (
+            block_id TEXT NOT NULL,
+            item_kind TEXT NOT NULL DEFAULT 'work',
+            item_id TEXT NOT NULL,
+            title TEXT,
+            minutes INTEGER,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (block_id, item_kind, item_id)
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO focus_block_items_new (block_id, item_kind, item_id, sort_order)
+        SELECT block_id, 'work', work_item_id, sort_order FROM focus_block_items
+        """
+    )
+    conn.execute("DROP TABLE focus_block_items")
+    conn.execute("ALTER TABLE focus_block_items_new RENAME TO focus_block_items")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_focus_items_item ON focus_block_items(item_kind, item_id)"
+    )
 
 
 def _drop_series_wide_marks(conn: sqlite3.Connection) -> int:
@@ -1882,6 +1925,73 @@ def _occurrence_on(event: Dict[str, Any], day: date) -> Optional[Dict[str, Any]]
     }
 
 
+def _habits_by_id() -> Dict[str, Dict[str, Any]]:
+    try:
+        import glance
+
+        packed = glance.load_habits()
+    except Exception:
+        return {}
+    out: Dict[str, Dict[str, Any]] = {}
+    for row in packed.get("habits") or []:
+        hid = str(row.get("id") or "").strip()
+        if hid:
+            out[hid] = row
+    return out
+
+
+def _focus_minutes_for_title(title: str, stored: Any = None) -> int:
+    if stored is not None and str(stored).strip() != "":
+        try:
+            return max(0, int(stored))
+        except (TypeError, ValueError):
+            pass
+    return int(work.parse_minutes_from_title(title) or 0)
+
+
+def _pack_focus_row(
+    *,
+    kind: str,
+    item_id: str,
+    stored_title: str = "",
+    stored_minutes: Any = None,
+    work_items: Optional[Dict[str, Dict[str, Any]]] = None,
+    habits: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    key = str(item_id or "").strip()
+    row_kind = "habit" if str(kind or "").strip().lower() == "habit" else "work"
+    if row_kind == "habit":
+        live = (habits or {}).get(key) or {}
+        title = str(live.get("title") or stored_title or "")
+        minutes = _focus_minutes_for_title(title, stored_minutes)
+        done = bool(live.get("done"))
+        return {
+            "kind": "habit",
+            "id": key,
+            "title": title,
+            "minutes": minutes,
+            "estimate_minutes": minutes,
+            "done": done,
+            "status": "done" if done else "open",
+        }
+    item = (work_items or {}).get(key) or {}
+    title = str(item.get("title") or stored_title or "")
+    minutes = int(item.get("estimate_minutes") or 0)
+    if minutes <= 0:
+        minutes = _focus_minutes_for_title(title, stored_minutes)
+    status = str(item.get("status") or "open")
+    done = status == "done"
+    return {
+        "kind": "work",
+        "id": key,
+        "title": title,
+        "minutes": minutes,
+        "estimate_minutes": minutes,
+        "done": done,
+        "status": status,
+    }
+
+
 def _focus_item_rows(block_ids: List[str]) -> Dict[str, List[Dict[str, Any]]]:
     keys = [str(item or "").strip() for item in block_ids if str(item or "").strip()]
     if not keys:
@@ -1890,40 +2000,43 @@ def _focus_item_rows(block_ids: List[str]) -> Dict[str, List[Dict[str, Any]]]:
     with _connect() as conn:
         rows = conn.execute(
             f"""
-            SELECT block_id, work_item_id, sort_order
+            SELECT block_id, item_kind, item_id, title, minutes, sort_order
             FROM focus_block_items
             WHERE block_id IN ({placeholders})
             ORDER BY sort_order ASC
             """,
             keys,
         ).fetchall()
-    by_block: Dict[str, List[str]] = {}
-    item_ids: List[str] = []
+    work_ids: List[str] = []
+    habit_needed = False
+    grouped: Dict[str, List[sqlite3.Row]] = {}
     for row in rows:
-        bid = str(row["block_id"])
-        wid = str(row["work_item_id"])
-        by_block.setdefault(bid, []).append(wid)
-        item_ids.append(wid)
-    items = {str(item["id"]): item for item in work.get_work_items_by_ids(item_ids)} if item_ids else {}
+        grouped.setdefault(str(row["block_id"]), []).append(row)
+        kind = str(row["item_kind"] or "work")
+        if kind == "habit":
+            habit_needed = True
+        else:
+            work_ids.append(str(row["item_id"]))
+    items = {str(item["id"]): item for item in work.get_work_items_by_ids(work_ids)} if work_ids else {}
+    habits = _habits_by_id() if habit_needed else {}
     out: Dict[str, List[Dict[str, Any]]] = {}
-    for bid, wids in by_block.items():
-        packed = []
-        for wid in wids:
-            item = items.get(wid) or {}
-            packed.append(
-                {
-                    "id": wid,
-                    "title": item.get("title") or "",
-                    "estimate_minutes": int(item.get("estimate_minutes") or 0),
-                    "status": item.get("status") or "open",
-                }
+    for bid, packed_rows in grouped.items():
+        out[bid] = [
+            _pack_focus_row(
+                kind=str(row["item_kind"] or "work"),
+                item_id=str(row["item_id"]),
+                stored_title=str(row["title"] or ""),
+                stored_minutes=row["minutes"],
+                work_items=items,
+                habits=habits,
             )
-        out[bid] = packed
+            for row in packed_rows
+        ]
     return out
 
 
 def _focus_stats(block: Dict[str, Any], items: List[Dict[str, Any]]) -> Dict[str, Any]:
-    planned = sum(max(0, int(row.get("estimate_minutes") or 0)) for row in items)
+    planned = sum(max(0, int(row.get("minutes") or row.get("estimate_minutes") or 0)) for row in items)
     span = int(block.get("minutes") or 0)
     packed = dict(block)
     packed["items"] = items
@@ -2017,8 +2130,10 @@ def remaining_minutes(item: Dict[str, Any], placed: Optional[int] = None) -> int
 
 def attached_work_ids() -> set:
     with _connect() as conn:
-        rows = conn.execute("SELECT work_item_id FROM focus_block_items").fetchall()
-    return {str(row["work_item_id"]) for row in rows if row["work_item_id"]}
+        rows = conn.execute(
+            "SELECT item_id FROM focus_block_items WHERE item_kind = 'work'"
+        ).fetchall()
+    return {str(row["item_id"]) for row in rows if row["item_id"]}
 
 
 def unplaced_work() -> List[Dict[str, Any]]:
@@ -2190,11 +2305,12 @@ def _focus_hold_by_item() -> Dict[str, Dict[str, str]]:
     with _connect() as conn:
         rows = conn.execute(
             """
-            SELECT focus_block_items.work_item_id AS work_item_id,
+            SELECT focus_block_items.item_id AS work_item_id,
                    schedule_blocks.id AS block_id,
                    schedule_blocks.title AS title
             FROM focus_block_items
             JOIN schedule_blocks ON schedule_blocks.id = focus_block_items.block_id
+            WHERE focus_block_items.item_kind = 'work'
             ORDER BY focus_block_items.sort_order ASC
             """
         ).fetchall()
@@ -2507,6 +2623,70 @@ def load_block(block_id: str) -> Optional[Dict[str, Any]]:
     return _row_block(row) if row else None
 
 
+def close_open_bars_for_work(item_id: str) -> int:
+    """Mark that work item's open clock bars done. Event marks stay put."""
+    key = str(item_id or "").strip()
+    if not key:
+        return 0
+    now = _now().isoformat()
+    with _connect() as conn:
+        cur = conn.execute(
+            """
+            UPDATE schedule_blocks
+            SET status = 'done', updated_at = ?
+            WHERE work_item_id = ?
+              AND kind != 'focus'
+              AND status IN ('proposed', 'locked')
+            """,
+            (now, key),
+        )
+        conn.commit()
+        return int(cur.rowcount or 0)
+
+
+def detach_work_from_all_focuses(item_id: str) -> int:
+    key = str(item_id or "").strip()
+    if not key:
+        return 0
+    with _connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM focus_block_items WHERE item_kind = 'work' AND item_id = ?",
+            (key,),
+        )
+        conn.commit()
+        return int(cur.rowcount or 0)
+
+
+def clear_placement_for_work(item_id: str) -> None:
+    """Park: no bar, not held in a focus. Date is cleared by assign_work_item."""
+    delete_blocks_for_work_items([item_id])
+    detach_work_from_all_focuses(item_id)
+
+
+def _complete_work_if_spent(work_item_id: str) -> None:
+    key = str(work_item_id or "").strip()
+    if not key:
+        return
+    try:
+        item = _work_item(key)
+    except ValueError:
+        return
+    if item.get("status") == "done":
+        return
+    if int(item.get("estimate_minutes") or 0) <= 0:
+        return
+    if remaining_minutes(item) > 0:
+        return
+    work.finish_work_item(key)
+
+
+def _sync_widget_snapshot() -> None:
+    try:
+        work._write_widget_snapshot()
+    except Exception:
+        pass
+
+
 @eel.expose
 def set_block_status(block_id: str, status: str) -> Dict[str, Any]:
     key = str(status or "").strip().lower()
@@ -2524,7 +2704,14 @@ def set_block_status(block_id: str, status: str) -> Dict[str, Any]:
         conn.commit()
         row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (block_id,)).fetchone()
     assert row is not None
-    return _row_block(row)
+    packed = _row_block(row)
+    if key == "done" and packed.get("work_item_id") and packed.get("kind") != "focus":
+        _complete_work_if_spent(str(packed["work_item_id"]))
+        again = load_block(block_id)
+        if again:
+            packed = again
+    _sync_widget_snapshot()
+    return packed
 
 
 @eel.expose
@@ -2587,20 +2774,18 @@ def update_schedule_block(
 
 @eel.expose
 def park_schedule_block(block_id: str) -> Dict[str, Any]:
-    """Save for later: take it off the clock into All Work."""
+    """Park: no date, no bar. Leftover minutes stay on the work item."""
     block = _load_block(block_id)
     work_item_id = block.get("work_item_id")
-    with _connect() as conn:
-        conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
-        if work_item_id:
-            conn.execute("DELETE FROM schedule_blocks WHERE work_item_id = ?", (work_item_id,))
-        else:
-            conn.execute("DELETE FROM schedule_blocks WHERE id = ?", (block_id,))
-        conn.commit()
-    parked = None
     if work_item_id:
         parked = work.assign_work_item(work_item_id, "")
-    return {"ok": True, "id": block_id, "parked": parked}
+        return {"ok": True, "id": block_id, "parked": parked}
+    with _connect() as conn:
+        conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
+        conn.execute("DELETE FROM schedule_blocks WHERE id = ?", (block_id,))
+        conn.commit()
+    _sync_widget_snapshot()
+    return {"ok": True, "id": block_id, "parked": None}
 
 
 @eel.expose
@@ -2647,6 +2832,59 @@ def place_work_after_lecture(item_id: str, local_date: str = "") -> Dict[str, An
     return schedule_work_at(item_id, start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds"))
 
 
+def _raw_focus_rows(block_id: str) -> List[Dict[str, Any]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT item_kind, item_id, title, minutes, sort_order
+            FROM focus_block_items
+            WHERE block_id = ?
+            ORDER BY sort_order ASC
+            """,
+            (block_id,),
+        ).fetchall()
+    packed = []
+    for row in rows:
+        minutes = row["minutes"]
+        packed.append(
+            {
+                "kind": "habit" if str(row["item_kind"] or "") == "habit" else "work",
+                "id": str(row["item_id"] or ""),
+                "title": str(row["title"] or ""),
+                "minutes": None if minutes is None else int(minutes),
+                "sort_order": int(row["sort_order"] or 0),
+            }
+        )
+    return packed
+
+
+def _write_focus_rows(block_id: str, rows: List[Dict[str, Any]]) -> None:
+    with _connect() as conn:
+        conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
+        for index, row in enumerate(rows):
+            kind = "habit" if str(row.get("kind") or "") == "habit" else "work"
+            item_id = str(row.get("id") or "").strip()
+            if not item_id:
+                continue
+            minutes = row.get("minutes")
+            conn.execute(
+                """
+                INSERT INTO focus_block_items
+                    (block_id, item_kind, item_id, title, minutes, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    block_id,
+                    kind,
+                    item_id,
+                    (str(row.get("title") or "").strip() or None),
+                    None if minutes is None or minutes == "" else int(minutes),
+                    index * 10,
+                ),
+            )
+        conn.commit()
+
+
 def _set_focus_items(block_id: str, item_ids: Any) -> List[Dict[str, Any]]:
     block = _load_block(block_id)
     if str(block.get("kind") or "") != "focus":
@@ -2667,18 +2905,10 @@ def _set_focus_items(block_id: str, item_ids: Any) -> List[Dict[str, Any]]:
             if row is None:
                 continue
             valid.append(work._row_to_dict(row, now)["id"])
+    habits = [row for row in _raw_focus_rows(block_id) if row["kind"] == "habit"]
+    work_rows = [{"kind": "work", "id": item_id, "title": "", "minutes": None} for item_id in valid]
+    _write_focus_rows(block_id, work_rows + habits)
     day = str(block.get("local_date") or "")[:10]
-    with _connect() as conn:
-        conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
-        for index, item_id in enumerate(valid):
-            conn.execute(
-                """
-                INSERT INTO focus_block_items (block_id, work_item_id, sort_order)
-                VALUES (?, ?, ?)
-                """,
-                (block_id, item_id, index * 10),
-            )
-        conn.commit()
     if day:
         for item_id in valid:
             try:
@@ -2696,7 +2926,7 @@ def create_focus_block(
     end_at: str,
     item_ids: Any = None,
 ) -> Dict[str, Any]:
-    """Named span on the clock. To-dos can overflow the span."""
+    """Named span on the clock. Work and habits can overflow the span."""
     clean = (title or "").strip()
     if not clean:
         raise ValueError("Name the focus block")
@@ -2722,12 +2952,44 @@ def set_focus_items(block_id: str, item_ids: Any = None) -> Dict[str, Any]:
     return packed
 
 
+def _append_focus_row(block_id: str, kind: str, item_id: str, title: str = "", minutes: Any = None) -> Dict[str, Any]:
+    block = _load_block(block_id)
+    if str(block.get("kind") or "") != "focus":
+        raise ValueError("That bar is not a focus block")
+    row_kind = "habit" if str(kind or "").strip().lower() == "habit" else "work"
+    key = str(item_id or "").strip()
+    if not key:
+        raise ValueError("Pick something to attach")
+    current = _raw_focus_rows(block_id)
+    if any(row["kind"] == row_kind and row["id"] == key for row in current):
+        return _enrich_focus_blocks([_load_block(block_id)])[0]
+    current.append({"kind": row_kind, "id": key, "title": title, "minutes": minutes})
+    _write_focus_rows(block_id, current)
+    if row_kind == "work":
+        day = str(block.get("local_date") or "")[:10]
+        if day:
+            try:
+                work.assign_work_item(key, day)
+            except Exception:
+                pass
+    return _enrich_focus_blocks([_load_block(block_id)])[0]
+
+
 @eel.expose
-def attach_focus_item(block_id: str, item_id: str) -> Dict[str, Any]:
-    current = [row["id"] for row in (_enrich_focus_blocks([_load_block(block_id)])[0].get("items") or [])]
-    if item_id and item_id not in current:
-        current.append(item_id)
-    return set_focus_items(block_id, current)
+def attach_focus_item(block_id: str, item_id: str, kind: str = "work") -> Dict[str, Any]:
+    row_kind = "habit" if str(kind or "").strip().lower() == "habit" else "work"
+    key = str(item_id or "").strip()
+    if row_kind == "habit":
+        habits = _habits_by_id()
+        live = habits.get(key)
+        if not live:
+            raise ValueError("Habit not found")
+        title = str(live.get("title") or "")
+        minutes = work.parse_minutes_from_title(title)
+        return _append_focus_row(block_id, "habit", key, title=title, minutes=minutes)
+    if not work.get_work_items_by_ids([key]):
+        raise ValueError("Work item not found")
+    return _append_focus_row(block_id, "work", key)
 
 
 def _event_span_on_day(event: Dict[str, Any], occurrence_date: str = "") -> Tuple[datetime, datetime]:
@@ -2788,13 +3050,20 @@ def move_work_bar_to_focus(block_id: str, focus_id: str) -> Dict[str, Any]:
 
 
 @eel.expose
-def detach_focus_item(block_id: str, item_id: str) -> Dict[str, Any]:
+def detach_focus_item(block_id: str, item_id: str, kind: str = "") -> Dict[str, Any]:
+    key = str(item_id or "").strip()
+    want_kind = str(kind or "").strip().lower()
     current = [
-        row["id"]
-        for row in (_enrich_focus_blocks([_load_block(block_id)])[0].get("items") or [])
-        if row.get("id") != item_id
+        row
+        for row in _raw_focus_rows(block_id)
+        if not (
+            row["id"] == key
+            and (not want_kind or row["kind"] == want_kind)
+        )
     ]
-    return set_focus_items(block_id, current)
+    _write_focus_rows(block_id, current)
+    packed = _enrich_focus_blocks([_load_block(block_id)])[0]
+    return packed
 
 
 @eel.expose
@@ -2813,3 +3082,26 @@ def add_todo_to_focus(
         source="manual",
     )
     return attach_focus_item(block_id, item["id"])
+
+
+@eel.expose
+def toggle_focus_row(block_id: str, item_id: str, kind: str = "work") -> Dict[str, Any]:
+    """Tick a habit or Done a work row on a focus bar."""
+    _load_block(block_id)
+    row_kind = "habit" if str(kind or "").strip().lower() == "habit" else "work"
+    key = str(item_id or "").strip()
+    if not key:
+        raise ValueError("Pick a row first")
+    if row_kind == "habit":
+        import glance
+
+        glance.toggle_home_habit(key)
+    else:
+        items = work.get_work_items_by_ids([key])
+        if not items:
+            raise ValueError("Work item not found")
+        if items[0].get("status") == "done":
+            work.reopen_work_item(key)
+        else:
+            work.finish_work_item(key)
+    return _enrich_focus_blocks([_load_block(block_id)])[0]

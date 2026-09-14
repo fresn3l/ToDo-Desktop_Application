@@ -1,5 +1,5 @@
 /**
- * Kosistenz app entry point — Home first, other screens on demand.
+ * Kosistenz app entry point — Calendar first, Home on demand.
  */
 
 import * as utils from './js/utils.js';
@@ -26,7 +26,7 @@ async function init() {
             switchTab(e.detail.tab).catch((err) => console.error(err));
         }
     });
-    await switchTab('home');
+    await switchTab('calendar');
     void pullPhoneOnOpen();
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {

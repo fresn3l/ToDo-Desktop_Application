@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
-    <title>Home · Kosistenz</title>
+    <title>Calendar · Kosistenz</title>
     <link rel="stylesheet" href="tokens.css">
     <link rel="stylesheet" href="style.css">
     <script src="js/boot-appearance.js"></script>
@@ -21,8 +21,12 @@
             </div>
 
             <nav class="app-nav" aria-label="Sections">
+                <button type="button" class="nav-item active" data-tab="calendar" aria-current="page">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
+                    <span class="nav-label">Calendar</span>
+                </button>
                 <div id="homeNavPages" class="home-nav-pages">
-                    <button type="button" class="nav-item active" data-tab="home" aria-current="page">
+                    <button type="button" class="nav-item" data-tab="home">
                         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>
                         <span class="nav-label">Home</span>
                     </button>
@@ -30,10 +34,6 @@
                 <button type="button" class="nav-item" data-tab="journal">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v12a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 18V6A1.5 1.5 0 0 1 7 4.5Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
                     <span class="nav-label">Journal</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="calendar">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
-                    <span class="nav-label">Calendar</span>
                 </button>
                 <button type="button" class="nav-item" data-tab="analytics">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 19V9"/><path d="M10 19V5"/><path d="M15 19v-7"/><path d="M20 19V8"/></svg>
@@ -195,27 +195,27 @@
                                     <button type="button" class="work-day-chip" data-outcome="missed">Did not complete</button>
                                 </div>
                                 <div id="calFocusAttach" class="cal-focus-attach is-hidden">
-                                    <p class="cal-focus-hint">To-dos in this span. Overflow is fine — they stay in the block.</p>
+                                    <p class="cal-focus-hint">Work and habits in this span. Overflow is fine — they stay in the block.</p>
                                     <p id="calFocusOverflow" class="cal-focus-overflow"></p>
                                     <div id="calFocusItems" class="cal-focus-items"></div>
                                     <div class="work-add-row">
-                                        <input type="text" id="calFocusNewTitle" class="checklist-text-input" placeholder="Add a to-do" autocomplete="off">
+                                        <input type="text" id="calFocusNewTitle" class="checklist-text-input" placeholder="Add work" autocomplete="off">
                                         <input type="number" id="calFocusNewMins" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Estimate in minutes">
                                         <button type="button" id="calFocusAddItem" class="btn-ghost">Add</button>
                                     </div>
                                     <label class="checklist-field-label" for="calFocusPick">Attach existing</label>
                                     <select id="calFocusPick" class="checklist-text-input">
-                                        <option value="">Unplaced to-do…</option>
+                                        <option value="">Work or habit…</option>
                                     </select>
                                 </div>
                                 </div>
                                 <div class="reminder-actions cal-editor-actions">
                                     <button type="button" id="calSaveItem" class="btn-primary is-hidden">Save</button>
-                                    <button type="button" id="calParkItem" class="btn-ghost is-hidden">Save for later</button>
+                                    <button type="button" id="calParkItem" class="btn-ghost is-hidden">Park</button>
                                     <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
                                     <button type="button" id="calAskCluny" class="btn-ghost is-hidden">Ask about this</button>
                                     <button type="button" id="calNewFocus" class="btn-ghost">Add focus</button>
-                                    <button type="button" id="calNewLecture" class="btn-primary">Add event</button>
+                                    <button type="button" id="calNewEvent" class="btn-primary">Add event</button>
                                 </div>
                             </div>
                             <div class="cal-aside-block" id="calUnplacedBlock">

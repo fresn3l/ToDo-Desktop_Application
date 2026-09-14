@@ -1232,6 +1232,13 @@ def assign_work_item(item_id: str, scheduled_date: Optional[str] = None) -> Dict
                 (target, now, _next_sort(conn, target), item_id),
             )
         row = _fetch(conn, item_id)
+    if target is None:
+        try:
+            import calclock
+
+            calclock.clear_placement_for_work(item_id)
+        except Exception:
+            pass
     _write_widget_snapshot()
     assert row is not None
     return _row_to_dict(row)
@@ -1715,6 +1722,12 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
                     (attached, item_id),
                 )
                 row = _fetch(conn, item_id)
+    try:
+        import calclock
+
+        calclock.close_open_bars_for_work(item_id)
+    except Exception:
+        pass
     _write_widget_snapshot()
     assert row is not None
     packed = _row_to_dict(row)

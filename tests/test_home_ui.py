@@ -68,6 +68,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn('data-tab="today"', INDEX)
         self.assertNotIn('data-tab="workout"', INDEX)
         self.assertNotIn('data-tab="todo"', INDEX)
+        nav = INDEX.split('aria-label="Sections"', 1)[1].split("</nav>", 1)[0]
+        self.assertLess(nav.find('data-tab="calendar"'), nav.find('data-tab="home"'))
+        self.assertLess(nav.find('data-tab="home"'), nav.find('data-tab="journal"'))
 
     def test_old_pages_are_widget_sources(self) -> None:
         for source_id in (
@@ -137,9 +140,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("canonicalTab", TABS)
         self.assertIn("today: 'homeTab'", TABS)
         self.assertIn("journal: 'journalTab'", TABS)
-        self.assertIn("1: 'home'", TABS)
-        self.assertIn("2: 'journal'", TABS)
-        self.assertIn("3: 'calendar'", TABS)
+        self.assertIn("1: 'calendar'", TABS)
+        self.assertIn("2: 'home'", TABS)
+        self.assertIn("3: 'journal'", TABS)
         self.assertIn("analytics: 'analyticsTab'", TABS)
         self.assertIn("analytics: 'Analytics'", TABS)
         self.assertNotIn("name === 'analytics'", TABS)
@@ -416,7 +419,11 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("hourRange", CAL_JS)
         self.assertIn('id="calSaveItem"', INDEX)
         self.assertIn('id="calParkItem"', INDEX)
-        self.assertIn("Save for later", INDEX)
+        self.assertIn(">Park<", INDEX)
+        self.assertNotIn("Save for later", INDEX)
+        self.assertNotIn("Leave in All Work", CAL_JS)
+        self.assertIn('id="calNewEvent"', INDEX)
+        self.assertNotIn('id="calNewLecture"', INDEX)
         self.assertIn("update_calendar_event", CAL_JS)
         self.assertIn("park_schedule_block", CAL_JS)
         self.assertIn("schedule_work_at", CAL_JS)
@@ -676,6 +683,7 @@ class HomeUiTests(unittest.TestCase):
     def test_app_opens_home_without_startup_delays(self) -> None:
         app = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
         bridge = (ROOT / "bridge.py").read_text(encoding="utf-8")
+        self.assertIn("await switchTab('calendar')", app)
         self.assertNotIn("setTimeout(resolve, 100)", app)
         self.assertNotIn("setTimeout(() => init().catch(handleInitError), 50)", app)
         self.assertNotIn("from './js/calendar.js'", app)
@@ -883,6 +891,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("focusHitAt", CAL_JS)
         self.assertIn("attach_event_to_focus", CAL_JS)
         self.assertIn("attach_focus_item", CAL_JS)
+        self.assertIn("toggle_focus_row", CAL_JS)
+        self.assertIn("scope !== 'work' && scope !== 'calendar' && scope !== 'all'", CAL_JS)
         # JSON in data-focus-items used to die at the first quote because
         # innerHTML does not encode ". The week payload is the source of truth.
         self.assertIn("escapeAttr", CAL_JS)
