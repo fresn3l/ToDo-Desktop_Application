@@ -60,7 +60,6 @@ print("ok")
             home_boot.get_home_boot()
         names = [row.args[1] for row in called.call_args_list if row.args]
         self.assertNotIn("get_cluny_health", names)
-        self.assertIn("get_cluny_inbox", names)
         self.assertNotIn("get_today_home", names)
         self.assertIn("now_next_glance", names)
 
@@ -217,7 +216,10 @@ print("ok")
         import time
 
         import home_boot
+        import home_layout
 
+        layout = home_layout.get_home_layout()
+        home_layout.add_home_widget(layout["pages"][0]["id"], "weather")
         real = home_boot.fetch_glance
         release = threading.Event()
 
@@ -296,7 +298,7 @@ print("ok")
         self.assertEqual(boot["wave"], "1")
         self.assertIn("work:slice=today", boot["glances"])
         self.assertIn("today_calendar", boot["glances"])
-        self.assertIn("cluny", boot["glances"])
+        self.assertNotIn("cluny", boot["glances"])
         self.assertNotIn("weather", boot["glances"])
         self.assertNotIn("word", boot["glances"])
         self.assertNotIn("work:slice=unplaced", boot["glances"])
@@ -308,10 +310,7 @@ print("ok")
         with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
             boot = home_boot.get_home_boot(wave="2")
         self.assertEqual(boot["wave"], "2")
-        self.assertIn("weather", boot["glances"])
-        self.assertIn("word", boot["glances"])
         self.assertIn("work:slice=unplaced", boot["glances"])
-        self.assertIn("day_brief", boot["glances"])
         self.assertNotIn("today_calendar", boot["glances"])
         self.assertNotIn("work:slice=today", boot["glances"])
         self.assertNotIn("cluny", boot["glances"])
@@ -327,9 +326,9 @@ print("ok")
         self.assertEqual(boot.get("wave"), "all")
         self.assertIn("today_calendar", boot["glances"])
         self.assertIn("work:slice=today", boot["glances"])
-        self.assertIn("weather", boot["glances"])
-        self.assertIn("word", boot["glances"])
         self.assertIn("work:slice=unplaced", boot["glances"])
+        self.assertNotIn("weather", boot["glances"])
+        self.assertNotIn("word", boot["glances"])
         self.assertIsNotNone(boot.get("checkin"))
 
     def test_rollover_is_not_on_the_request(self) -> None:
@@ -380,7 +379,25 @@ print("ok")
         self.assertNotIn("upcoming", today)
         self.assertNotIn("backlog", today)
         row = (today.get("today") or [{}])[0]
-        self.assertEqual(set(row), {"id", "title", "status"})
+        self.assertEqual(set(row) & {"id", "title", "status"}, {"id", "title", "status"})
+        self.assertNotIn("upcoming", row)
+
+    def test_today_glance_carries_clock_time(self) -> None:
+        import home_boot
+        import calclock
+        import work
+
+        today = work._today().isoformat()
+        item = work.create_work_item("Board memo", scheduled_date=today, estimate_minutes=60)
+        calclock.schedule_work_at(item["id"], f"{today}T10:00:00", f"{today}T11:00:00")
+        board = home_boot.fetch_glance("work:slice=today")
+        row = next(entry for entry in board["today"] if entry["id"] == item["id"])
+        self.assertTrue(str(row.get("start_at") or "").startswith(f"{today}T10:00"))
+        dated = work.create_work_item("Unplaced brief", scheduled_date=today, estimate_minutes=45)
+        leftover = home_boot.fetch_glance("work:slice=today")
+        open_row = next(entry for entry in leftover["today"] if entry["id"] == dated["id"])
+        self.assertNotIn("start_at", open_row)
+        self.assertEqual(open_row.get("remaining_minutes"), 45)
 
     def test_get_home_glances_only_asked_keys(self) -> None:
         import home_boot

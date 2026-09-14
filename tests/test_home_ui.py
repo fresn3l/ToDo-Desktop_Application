@@ -206,6 +206,22 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("html[data-page='calendar'] .app-content", STYLE)
         self.assertIn(".cal-month-cell.is-today", STYLE)
         self.assertIn(".cal-month-cell.is-out", STYLE)
+        self.assertIn('id="calTodayRail"', INDEX)
+        self.assertIn("Today's work", CAL_JS)
+        self.assertIn("Drag from Today or Unplaced onto the clock", CAL_JS)
+        self.assertIn("function paintNowLine", CAL_JS)
+        self.assertIn(".cal-day.is-today .cal-day-body", CAL_JS)
+        self.assertIn(".cal-now-line", STYLE)
+        cell = CAL_JS.split("function renderMonthCell")[1].split("function renderMonthGrid")[0]
+        self.assertIn("cal-month-dots", cell)
+        self.assertNotIn("blockLabel", cell)
+        self.assertNotIn("item.title", cell)
+        self.assertIn("id: 'w-todo'", HOME_RUNTIME)
+        self.assertIn("id: 'w-today'", HOME_RUNTIME)
+        self.assertIn("id: 'w-unplaced'", HOME_RUNTIME)
+        self.assertNotIn("id: 'w-cluny'", HOME_RUNTIME)
+        self.assertNotIn("id: 'local-week'", HOME_RUNTIME)
+        self.assertIn("formatClockHHMM", GLANCE_TILES)
 
     def test_work_layer_markup_and_dismiss_controls(self) -> None:
         for needle in ("homeWorkLayer", "homeWorkBackdrop", "homeWorkPanel", "homeWorkTitle", "homeWorkClose", "homeWorkBody"):
@@ -223,8 +239,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("if (!editing) return", begin)
         self.assertIn("openHomeWork(card.getAttribute('data-key')", HOME_RUNTIME)
         self.assertIn("Escape", HOME_RUNTIME)
-        self.assertIn("w-weather", HOME_RUNTIME)
-        self.assertIn("w-word", HOME_RUNTIME)
+        self.assertIn("weather: 'weather'", HOME_RUNTIME)
+        self.assertIn("word: 'word'", HOME_RUNTIME)
         self.assertIn("inert", HOME_RUNTIME)
 
     def test_glances_mount_instead_of_full_pages(self) -> None:
@@ -775,9 +791,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("promptCluny", cluny)
         self.assertIn("promptCluny", HOME_RUNTIME)
         self.assertIn("cluny-ask", GLANCE_TILES)
-        self.assertIn("w-cluny", HOME_RUNTIME)
-        self.assertIn("local-week", HOME_RUNTIME)
-        self.assertIn("name: 'Week'", HOME_RUNTIME)
+        self.assertIn("ensureHomeWidget('cluny')", HOME_RUNTIME)
+        self.assertIn("id: 'local-home'", HOME_RUNTIME)
+        self.assertIn("name: 'Home'", HOME_RUNTIME)
         self.assertIn("eveningAsk", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
         self.assertIn("What still matters tonight?", GLANCE_TILES)
         self.assertIn("Asking Cluny…", cluny)

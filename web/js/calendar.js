@@ -20,6 +20,7 @@ let habitFetchGen = 0;
 let drawKind = 'focus';
 let pendingSelectId = '';
 let ignoreNextGridClick = false;
+let nowLineTimer = 0;
 
 function mondayISO(d = new Date()) {
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -317,7 +318,7 @@ function renderDueChip(due) {
         data-title="${utils.escapeHtml(parts.title)}"
         data-status="${utils.escapeHtml(due.status || 'open')}"
         data-due-at="${utils.escapeHtml(due.due_at || '')}"
-        data-minutes="${Number(due.estimate_minutes || 60) || 60}"
+        data-minutes="${Number(due.remaining_minutes || due.estimate_minutes || 60) || 60}"
         data-focus-id="${utils.escapeHtml(due.focus_id || '')}"
         data-focus-title="${utils.escapeHtml(due.focus_title || '')}"
         title="${utils.escapeHtml(tip)}">${badge}<span class="cal-due-chip-copy"><span class="cal-due-chip-title">${utils.escapeHtml(parts.short)}</span>${held}</span></button>`;
@@ -430,6 +431,7 @@ function renderGrid(week) {
         })
         .join('');
     root.innerHTML = `${hourCol}<div class="cal-week-board"><div class="cal-days">${days}</div></div>`;
+    paintNowLine();
 }
 
 function agendaKind(item) {
@@ -455,11 +457,15 @@ function renderTodayRail(today) {
     }
     root.setAttribute('data-date', today.date || '');
     const overdue = today.overdue || [];
+    const work = today.work || [];
     const dues = today.dues || [];
     const items = today.items || [];
     const overdueHtml = overdue.length
         ? `<h4>Overdue</h4><div class="cal-due-list">${overdue.map((due) => renderDueChip(due)).join('')}</div>`
         : '';
+    const workHtml = work.length
+        ? `<h4>Today's work</h4><div class="cal-due-list">${work.map((row) => renderDueChip(row)).join('')}</div>`
+        : '<h4>Today\'s work</h4><p class="cal-due-empty">Nothing dated today. Drag Unplaced onto the week.</p>';
     const duesHtml = dues.length
         ? `<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`
         : '<h4>Due today</h4><p class="cal-due-empty">No dues</p>';
@@ -469,7 +475,7 @@ function renderTodayRail(today) {
             const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
             return `<li class="is-${kind}${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
         }).join('')}</ul>`
-        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag a due onto the week clock to time-block it.</p>';
+        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag from Today or Unplaced onto the week clock.</p>';
     root.innerHTML = `
         <header>
             <p class="eyebrow">Today</p>
@@ -477,6 +483,7 @@ function renderTodayRail(today) {
             <p class="cal-today-awake">${utils.escapeHtml(formatHHMM(today.day_start))}–${utils.escapeHtml(formatHHMM(today.day_end))}</p>
         </header>
         ${overdueHtml}
+        ${workHtml}
         ${duesHtml}
         ${clockHtml}
     `;
@@ -655,7 +662,7 @@ function paintEditor() {
     }
     if (hint) {
         hint.textContent = isIdle
-            ? 'Drag Unplaced onto the clock, or Add event for a meeting. Add focus for a named span that holds work and habits.'
+            ? 'Drag from Today or Unplaced onto the clock, or Add event for a meeting. Add focus for a named span that holds work and habits.'
             : isNew
                 ? 'Busy time — a meeting, hold, or recurring block. Work stays in Unplaced until you drag or Fill week.'
                 : isNewFocus
@@ -1116,6 +1123,26 @@ function applyGridTime(e, body) {
     const endEl = document.getElementById('calEventEnd');
     if (startEl) startEl.value = toLocalInput(start);
     if (endEl) endEl.value = toLocalInput(end);
+}
+
+function paintNowLine() {
+    document.querySelectorAll('.cal-now-line').forEach((el) => el.remove());
+    if (calView !== 'week') return;
+    const body = document.querySelector('.cal-day.is-today .cal-day-body');
+    if (!body) return;
+    const { startMin, endMin, span } = clockWindow(lastSettings);
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    if (mins < startMin || mins > endMin) return;
+    const line = document.createElement('div');
+    line.className = 'cal-now-line';
+    line.style.top = `${((mins - startMin) / span) * 100}%`;
+    body.appendChild(line);
+}
+
+function startNowLineClock() {
+    if (nowLineTimer) return;
+    nowLineTimer = window.setInterval(paintNowLine, 60000);
 }
 
 function bindDueChips(root) {
@@ -1944,6 +1971,7 @@ function importIcs() {
 export function setupCalendar() {
     setCalView(calView);
     trackDragAtWindow();
+    startNowLineClock();
     paintEditor();
     document.getElementById('calDueMenu')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-act]');

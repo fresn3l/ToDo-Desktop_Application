@@ -96,18 +96,37 @@ def _is_wave1_key(key: str) -> bool:
 
 
 def _slim_today_board(board: Dict[str, Any]) -> Dict[str, Any]:
-    """The Today tile only paints titles, status, and counts."""
+    """The Today tile paints titles, status, clock time, leftover minutes."""
+    raw_rows = [row for row in (board.get("today") or []) if isinstance(row, dict)]
+    starts: Dict[str, str] = {}
+    leftovers: Dict[str, int] = {}
+    ids = [str(row.get("id") or "") for row in raw_rows if row.get("id")]
+    if ids:
+        try:
+            import calclock
+
+            starts = calclock.first_open_bar_starts(ids)
+            leftovers = calclock.leftover_minutes_for(raw_rows)
+        except Exception:
+            starts = {}
+            leftovers = {}
     today_items: List[Dict[str, Any]] = []
-    for row in board.get("today") or []:
-        if not isinstance(row, dict):
-            continue
-        today_items.append(
-            {
-                "id": row.get("id"),
-                "title": row.get("title") or "",
-                "status": row.get("status") or "",
-            }
-        )
+    for row in raw_rows:
+        packed: Dict[str, Any] = {
+            "id": row.get("id"),
+            "title": row.get("title") or "",
+            "status": row.get("status") or "",
+        }
+        start = starts.get(str(row.get("id") or ""))
+        if start:
+            packed["start_at"] = start
+        leftover = leftovers.get(str(row.get("id") or ""), 0)
+        if leftover:
+            packed["remaining_minutes"] = leftover
+        estimate = row.get("estimate_minutes")
+        if estimate:
+            packed["estimate_minutes"] = int(estimate)
+        today_items.append(packed)
     return {
         "local_date": board.get("local_date"),
         "today": today_items,

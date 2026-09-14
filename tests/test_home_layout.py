@@ -104,47 +104,34 @@ class HomeLayoutTests(unittest.TestCase):
 
     def test_default_home_is_a_bento_of_day_slices(self) -> None:
         layout = home_layout.default_layout()
-        self.assertEqual(len(layout["pages"]), 2)
+        self.assertEqual(len(layout["pages"]), 1)
         self.assertEqual(layout["pages"][0]["name"], "Home")
-        self.assertEqual(layout["pages"][1]["name"], "Week")
         kinds = keys_on(layout["pages"][0])
-        # Today already carries now and next, so there is no second clock tile.
         self.assertEqual(
             kinds,
             [
                 "work:slice=today",
                 "today_calendar",
-                "cluny",
-                "weather",
-                "word",
                 "work:slice=unplaced",
-                "day_brief",
             ],
         )
         todo = layout["pages"][0]["widgets"][0]
         today = layout["pages"][0]["widgets"][1]
-        cluny = layout["pages"][0]["widgets"][2]
-        weather = layout["pages"][0]["widgets"][3]
-        word = layout["pages"][0]["widgets"][4]
-        unplaced = layout["pages"][0]["widgets"][5]
-        day = layout["pages"][0]["widgets"][6]
+        unplaced = layout["pages"][0]["widgets"][2]
         self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 4, 6))
         self.assertEqual(todo.get("region"), "above")
         self.assertEqual((today["x"], today["y"], today["w"], today["h"]), (4, 0, 4, 6))
         self.assertEqual(today.get("region"), "above")
-        self.assertEqual((cluny["x"], cluny["y"], cluny["w"], cluny["h"]), (0, 0, 8, 4))
-        self.assertNotEqual(cluny.get("region"), "above")
-        self.assertEqual((weather["x"], weather["y"], weather["w"], weather["h"]), (0, 4, 4, 2))
-        self.assertEqual((word["x"], word["y"], word["w"], word["h"]), (4, 4, 4, 2))
-        self.assertEqual((unplaced["x"], unplaced["y"], unplaced["w"], unplaced["h"]), (0, 6, 4, 6))
-        self.assertEqual((day["x"], day["y"], day["w"], day["h"]), (4, 6, 4, 6))
+        self.assertEqual((unplaced["x"], unplaced["y"], unplaced["w"], unplaced["h"]), (0, 0, 8, 6))
+        self.assertNotEqual(unplaced.get("region"), "above")
         self.assertFalse(home_layout.boxes_overlap(todo, today))
-        self.assertFalse(home_layout.boxes_overlap(cluny, weather))
-        self.assertFalse(home_layout.boxes_overlap(weather, word))
-        self.assertFalse(home_layout.boxes_overlap(unplaced, day))
-        week_kinds = keys_on(layout["pages"][1])
+        catalog = {row["kind"] for row in home_layout.catalog()}
+        for leftover in ("cluny", "weather", "word", "day_brief"):
+            self.assertIn(leftover, catalog)
+        week = home_layout.default_week_page()
+        self.assertEqual(week["name"], "Week")
         self.assertEqual(
-            week_kinds,
+            keys_on(week),
             [
                 "goals",
                 "work:slice=backlog",
@@ -163,13 +150,10 @@ class HomeLayoutTests(unittest.TestCase):
             [
                 "work:slice=today",
                 "today_calendar",
-                "cluny",
-                "weather",
-                "word",
                 "work:slice=unplaced",
-                "day_brief",
             ],
         )
+        self.assertEqual(len(layout["pages"]), 1)
 
     def test_each_kind_has_a_few_allowed_sizes(self) -> None:
         for kind, spec in home_layout.WIDGET_CATALOG.items():
@@ -236,19 +220,20 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.get_home_layout()
         home_id = layout["pages"][0]["id"]
         layout = home_layout.add_home_page("Lift")
-        self.assertEqual(len(layout["pages"]), 3)
-        self.assertEqual(layout["pages"][2]["name"], "Lift")
-        self.assertEqual(layout["pages"][2]["widgets"], [])
-        self.assertEqual(layout["active_page_id"], layout["pages"][2]["id"])
-        lift_id = layout["pages"][2]["id"]
-        layout = home_layout.rename_home_page(lift_id, "  Strength week  ")
-        self.assertEqual(layout["pages"][2]["name"], "Strength week")
-        layout = home_layout.delete_home_page(lift_id)
         self.assertEqual(len(layout["pages"]), 2)
+        self.assertEqual(layout["pages"][1]["name"], "Lift")
+        self.assertEqual(layout["pages"][1]["widgets"], [])
+        self.assertEqual(layout["active_page_id"], layout["pages"][1]["id"])
+        lift_id = layout["pages"][1]["id"]
+        layout = home_layout.rename_home_page(lift_id, "  Strength week  ")
+        self.assertEqual(layout["pages"][1]["name"], "Strength week")
+        layout = home_layout.delete_home_page(lift_id)
+        self.assertEqual(len(layout["pages"]), 1)
         self.assertEqual(layout["active_page_id"], home_id)
 
     def test_cannot_delete_the_last_page(self) -> None:
         layout = home_layout.get_home_layout()
+        layout = home_layout.add_home_page("Extra")
         layout = home_layout.delete_page(layout, layout["pages"][1]["id"])
         with self.assertRaises(ValueError):
             home_layout.delete_page(layout, layout["pages"][0]["id"])
@@ -280,6 +265,7 @@ class HomeLayoutTests(unittest.TestCase):
 
     def test_a_slice_nobody_offers_falls_back_to_the_default(self) -> None:
         layout = home_layout.get_home_layout()
+        layout = home_layout.add_home_page("Extra")
         page_id = layout["pages"][1]["id"]
         layout = home_layout.add_home_widget(page_id, "work", "below", {"slice": "yesterday"})
         self.assertIn("work:slice=today", keys_on(layout["pages"][1]))
@@ -333,7 +319,7 @@ class HomeLayoutTests(unittest.TestCase):
 
     def test_resize_snaps_to_nearest_allowed_size(self) -> None:
         self.assertEqual(home_layout.nearest_size("work", 4, 4), (4, 4))
-        self.assertEqual(home_layout.nearest_size("work", 8, 6), (6, 6))
+        self.assertEqual(home_layout.nearest_size("work", 8, 6), (8, 6))
         self.assertEqual(home_layout.nearest_size("analytics", 10, 10), (6, 6))
         self.assertEqual(home_layout.nearest_size("weather", 2, 2), (2, 2))
         layout = home_layout.get_home_layout()
@@ -343,14 +329,10 @@ class HomeLayoutTests(unittest.TestCase):
             home_layout.resize_widget(layout, page_id, todo["id"], 8, 4)
         today = by_key(layout["pages"][0])["today_calendar"]
         layout = home_layout.remove_home_widget(page_id, today["id"])
-        weather = by_key(layout["pages"][0])["weather"]
-        layout = home_layout.remove_home_widget(page_id, weather["id"])
-        word = by_key(layout["pages"][0])["word"]
-        layout = home_layout.remove_home_widget(page_id, word["id"])
         todo = by_key(layout["pages"][0])["work:slice=today"]
         layout = home_layout.resize_home_widget(page_id, todo["id"], 8, 6)
         todo = by_key(layout["pages"][0])["work:slice=today"]
-        self.assertEqual((todo["w"], todo["h"], todo["x"], todo["y"]), (6, 6, 0, 0))
+        self.assertEqual((todo["w"], todo["h"], todo["x"], todo["y"]), (8, 6, 0, 0))
 
     def test_remove_widget(self) -> None:
         layout = home_layout.get_home_layout()
@@ -362,11 +344,7 @@ class HomeLayoutTests(unittest.TestCase):
             kinds,
             [
                 "work:slice=today",
-                "cluny",
-                "weather",
-                "word",
                 "work:slice=unplaced",
-                "day_brief",
             ],
         )
 
@@ -417,11 +395,8 @@ class HomeLayoutTests(unittest.TestCase):
     def test_new_home_widgets_can_be_added(self) -> None:
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
-        layout = home_layout.add_home_widget(page_id, "countdown")
-        layout = home_layout.add_home_widget(page_id, "habits")
-        layout = home_layout.add_home_widget(page_id, "analytics")
-        layout = home_layout.add_home_widget(page_id, "counters")
-        layout = home_layout.add_home_widget(page_id, "reading")
+        for kind in ("countdown", "habits", "analytics", "counters", "reading", "weather", "word", "cluny", "day_brief"):
+            layout = home_layout.add_home_widget(page_id, kind)
         kinds = keys_on(layout["pages"][0])
         self.assertIn("weather", kinds)
         self.assertIn("countdown", kinds)
@@ -442,20 +417,20 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.get_home_layout()
         home_layout.add_home_page("Extra")
         layout = home_layout.reset_home_layout()
-        self.assertEqual(len(layout["pages"]), 2)
+        self.assertEqual(len(layout["pages"]), 1)
         self.assertEqual(
             keys_on(layout["pages"][0]),
             [
                 "work:slice=today",
                 "today_calendar",
-                "cluny",
-                "weather",
-                "word",
                 "work:slice=unplaced",
-                "day_brief",
             ],
         )
-        self.assertEqual(layout["pages"][1]["name"], "Week")
+        catalog = {row["kind"] for row in home_layout.catalog()}
+        self.assertIn("cluny", catalog)
+        self.assertIn("weather", catalog)
+        self.assertIn("word", catalog)
+        self.assertIn("day_brief", catalog)
 
     def test_sanitize_drops_journal_and_checklist_widgets(self) -> None:
         packed = home_layout.sanitize_layout(
@@ -479,6 +454,7 @@ class HomeLayoutTests(unittest.TestCase):
     def test_first_page_keeps_above_and_below_regions(self) -> None:
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
+        layout = home_layout.add_home_widget(page_id, "weather")
         weather = by_key(layout["pages"][0])["weather"]
         layout = home_layout.move_home_widget(page_id, weather["id"], 0, 6, "above")
         weather = by_key(layout["pages"][0])["weather"]
@@ -559,18 +535,14 @@ class HomeLayoutTests(unittest.TestCase):
             [
                 "work:slice=today",
                 "today_calendar",
-                "cluny",
-                "weather",
-                "word",
                 "work:slice=unplaced",
-                "day_brief",
             ],
         )
-        word = by_key(layout["pages"][0])["word"]
-        self.assertEqual((word["w"], word["h"]), (4, 2))
+        unplaced = by_key(layout["pages"][0])["work:slice=unplaced"]
+        self.assertEqual((unplaced["w"], unplaced["h"]), (8, 6))
         todo = by_key(layout["pages"][0])["work:slice=today"]
         self.assertEqual((todo["w"], todo["h"]), (4, 6))
-        self.assertEqual(len(layout["pages"]), 2)
+        self.assertEqual(len(layout["pages"]), 1)
 
     def test_an_up_to_date_board_is_read_rather_than_migrated_again(self) -> None:
         """Catching a board up used to happen on every load, which meant eight
@@ -683,6 +655,17 @@ class HomeLayoutTests(unittest.TestCase):
         )
         again, added_again = home_layout.seed_week_page(packed)
         self.assertFalse(added_again)
+
+    def test_glance_home_is_not_restacked_or_given_a_week_page(self) -> None:
+        layout = home_layout.default_layout()
+        restacked, changed = home_layout.restack_stock_home(layout)
+        self.assertFalse(changed)
+        seeded, added = home_layout.seed_week_page(restacked)
+        self.assertFalse(added)
+        self.assertEqual(len(seeded["pages"]), 1)
+        cluny, cluny_added = home_layout.seed_ask_cluny(seeded)
+        self.assertFalse(cluny_added)
+        self.assertNotIn("cluny", keys_on(cluny["pages"][0]))
 
     def test_stock_home_gains_the_day_tile(self) -> None:
         raw = {

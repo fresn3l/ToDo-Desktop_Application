@@ -780,6 +780,29 @@ END:VCALENDAR
         self.assertIn("today", week)
         self.assertTrue(any(feed.get("id") == "class" for feed in week["feeds"]))
 
+    def test_today_rail_lists_dated_work_not_only_dues(self) -> None:
+        real = date
+
+        class FrozenDate(real):
+            @classmethod
+            def today(cls):
+                return real(2026, 9, 8)
+
+        work.create_work_item("Board memo", scheduled_date="2026-09-08", estimate_minutes=60)
+        work.create_work_item(
+            "Quiz",
+            scheduled_date="2026-09-08",
+            due_at="2026-09-08T23:59:00",
+            estimate_minutes=30,
+        )
+        with mock.patch("calclock.date", FrozenDate), mock.patch.object(work, "_today", return_value=real(2026, 9, 8)):
+            column = calclock._today_column()
+        titles = [row["title"] for row in column.get("work") or []]
+        self.assertIn("Board memo", titles)
+        self.assertNotIn("Quiz", titles)
+        due_titles = [row["title"] for row in column.get("dues") or []]
+        self.assertIn("Quiz", due_titles)
+
     def test_weekly_icloud_lecture_lands_on_the_clock(self) -> None:
         ics = """BEGIN:VCALENDAR
 X-WR-CALNAME:Classes

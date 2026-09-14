@@ -2102,6 +2102,34 @@ def blocks_for_item(item_id: str) -> List[Dict[str, Any]]:
     return [_row_block(row) for row in rows]
 
 
+def first_open_bar_starts(item_ids: List[str]) -> Dict[str, str]:
+    """Earliest open clock bar for each work item."""
+    wanted = [str(item_id or "").strip() for item_id in item_ids if str(item_id or "").strip()]
+    if not wanted:
+        return {}
+    placeholders = ",".join("?" * len(wanted))
+    with _connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT work_item_id, start_at, status
+            FROM schedule_blocks
+            WHERE work_item_id IN ({placeholders})
+            ORDER BY start_at ASC
+            """,
+            wanted,
+        ).fetchall()
+    out: Dict[str, str] = {}
+    for row in rows:
+        wid = str(row["work_item_id"] or "").strip()
+        if not wid or wid in out:
+            continue
+        if row["status"] in ("skipped", "missed"):
+            continue
+        start = row["start_at"]
+        out[wid] = start if isinstance(start, str) else str(start or "")
+    return out
+
+
 def _span_minutes(start_at: str, end_at: str) -> int:
     start = parse_datetime(start_at)
     end = parse_datetime(end_at)
@@ -2146,6 +2174,17 @@ def remaining_minutes(item: Dict[str, Any], placed: Optional[int] = None) -> int
         return 0
     used = placed if placed is not None else placed_minutes(item["id"])
     return max(0, estimate - used)
+
+
+def leftover_minutes_for(items: List[Dict[str, Any]]) -> Dict[str, int]:
+    placed = _placed_minutes_map()
+    out: Dict[str, int] = {}
+    for item in items:
+        wid = str((item or {}).get("id") or "").strip()
+        if not wid:
+            continue
+        out[wid] = remaining_minutes(item, placed.get(wid, 0))
+    return out
 
 
 def attached_work_ids() -> set:
@@ -2294,6 +2333,42 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
     }
 
 
+def _today_work_rows(
+    iso: str,
+    *,
+    dues: List[Dict[str, Any]],
+    overdue: List[Dict[str, Any]],
+    hold: Optional[Dict[str, Dict[str, str]]],
+) -> List[Dict[str, Any]]:
+    """Open work dated today, minus dues already on the rail."""
+    skip = {
+        str(row.get("id") or "")
+        for row in list(dues or []) + list(overdue or [])
+        if row.get("id")
+    }
+    items: List[Dict[str, Any]] = []
+    for item in work._list_work_for_dates([iso]).get(iso, []):
+        if item.get("status") == "done":
+            continue
+        if _is_hidden_source(item.get("source_calendar")):
+            continue
+        wid = str(item.get("id") or "")
+        if not wid or wid in skip:
+            continue
+        items.append(item)
+    if not items:
+        return []
+    starts = first_open_bar_starts([str(item["id"]) for item in items])
+    leftovers = leftover_minutes_for(items)
+    out: List[Dict[str, Any]] = []
+    for item in items:
+        packed = _slim_due(item, hold=hold)
+        packed["remaining_minutes"] = leftovers.get(item["id"], 0)
+        packed["start_at"] = starts.get(item["id"]) or ""
+        out.append(packed)
+    return out
+
+
 def _today_from_days(days: List[Dict[str, Any]], settings: Dict[str, Any]) -> Dict[str, Any]:
     today = _cal_today()
     iso = today.isoformat()
@@ -2308,6 +2383,7 @@ def _today_from_days(days: List[Dict[str, Any]], settings: Dict[str, Any]) -> Di
         for item in work.list_overdue_work()
         if not _is_hidden_source(item.get("source_calendar"))
     ]
+    dues = list(match.get("dues") or [])
     return {
         "date": iso,
         "weekday": today.strftime("%a"),
@@ -2315,7 +2391,8 @@ def _today_from_days(days: List[Dict[str, Any]], settings: Dict[str, Any]) -> Di
         "day_start": settings.get("day_start") or DAY_START,
         "day_end": settings.get("day_end") or DAY_END,
         "overdue": overdue,
-        "dues": list(match.get("dues") or []),
+        "dues": dues,
+        "work": _today_work_rows(iso, dues=dues, overdue=overdue, hold=hold),
         "items": items,
     }
 
@@ -2384,6 +2461,7 @@ def _today_column() -> Dict[str, Any]:
         for item in work.list_overdue_work()
         if not _is_hidden_source(item.get("source_calendar"))
     ]
+    dues = _dues_by_day(today, today).get(iso, [])
     return {
         "date": iso,
         "weekday": today.strftime("%a"),
@@ -2391,7 +2469,8 @@ def _today_column() -> Dict[str, Any]:
         "day_start": settings.get("day_start") or DAY_START,
         "day_end": settings.get("day_end") or DAY_END,
         "overdue": overdue,
-        "dues": _dues_by_day(today, today).get(iso, []),
+        "dues": dues,
+        "work": _today_work_rows(iso, dues=dues, overdue=overdue, hold=hold),
         "items": items,
     }
 
