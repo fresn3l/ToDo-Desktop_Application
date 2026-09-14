@@ -223,19 +223,6 @@
                                 <p class="cal-unplaced-hint">Drag onto the clock. Fill week packs the rest.</p>
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
-                            <details class="cal-aside-block cal-feeds-panel">
-                                <summary>Calendars</summary>
-                                <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
-                                <input type="text" id="calIcsUrl" class="checklist-text-input" placeholder="Paste https:// or webcal:// calendar link" autocomplete="off" spellcheck="false" inputmode="url">
-                                <p class="checklist-hint small">Timed events on the clock. All-day and 11:59 stay due chips. Past and undated imports are dropped.</p>
-                                <div id="calFeedToggles" class="cal-feed-toggles"></div>
-                                <div class="reminder-actions">
-                                    <button type="button" id="calPasteIcs" class="btn-ghost">Paste</button>
-                                    <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
-                                    <button type="button" id="calImportApple" class="btn-ghost">Import Apple calendars</button>
-                                </div>
-                                <p id="calImportStatus" class="cal-import-status"></p>
-                            </details>
                         </aside>
                     </div>
                 </section>
@@ -368,13 +355,19 @@
                     </div>
                 </section>
 
-                <section id="todoTab" class="widget-source" aria-label="To Do">
+                <section id="todoTab" class="widget-source" aria-label="Work" data-work-filter="today">
                     <div class="work-layout">
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
-                                    <h2>To Do</h2>
+                                    <h2>Work</h2>
                                     <p class="panel-sub" id="todoSummary"></p>
+                                </div>
+                                <div class="segmented" id="todoFilter" role="tablist" aria-label="Work filter">
+                                    <button type="button" data-filter="today" class="is-selected" aria-selected="true">Today</button>
+                                    <button type="button" data-filter="all" aria-selected="false">All</button>
+                                    <button type="button" data-filter="unplaced" aria-selected="false">Unplaced</button>
+                                    <button type="button" data-filter="due" aria-selected="false">Due</button>
                                 </div>
                             </div>
                             <div class="work-add-row">
@@ -442,27 +435,6 @@
                     <div id="goalsBoard" class="goals-layout"></div>
                 </section>
 
-                <section id="allWorkTab" class="widget-source" aria-label="All Work">
-                    <div class="panel">
-                        <div class="panel-header">
-                            <div>
-                                <h2>All Work</h2>
-                                <p class="panel-sub" id="allWorkSummary">Tasks without a day. Assign them to today or tomorrow, or leave them here.</p>
-                            </div>
-                        </div>
-                        <div class="work-add-row">
-                            <input type="text" id="allWorkNewTitle" class="checklist-text-input" placeholder="A task without a date yet" autocomplete="off">
-                            <input type="number" id="allWorkNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Estimate in minutes">
-                            <input type="date" id="allWorkNewDue" class="checklist-text-input work-due-input" title="Due date">
-                            <select id="allWorkNewGoal" class="checklist-text-input" title="Attach to a goal">
-                                <option value="">Goal (optional)</option>
-                            </select>
-                            <button type="button" id="allWorkAddBtn" class="btn-primary">Park in All Work</button>
-                        </div>
-                        <div id="allWorkList" class="work-list"></div>
-                    </div>
-                </section>
-
                 <section id="analyticsTab" class="tab-content widget-source" aria-label="Analytics">
                     <header class="page-head">
                         <div class="page-head-titles">
@@ -517,15 +489,6 @@
                     </div>
                 </section>
 
-                <section id="focusSource" class="widget-source" aria-label="Focus">
-                    <div class="glance-widget focus-widget">
-                        <h2>Focus</h2>
-                        <label class="visually-hidden" for="focusInput">Today’s focus</label>
-                        <textarea id="focusInput" class="focus-input" rows="4" placeholder="The one thing that matters today."></textarea>
-                        <p class="journal-kbd-hint">⌘Enter save</p>
-                    </div>
-                </section>
-
                 <section id="countdownSource" class="widget-source" aria-label="Countdown">
                     <div class="glance-widget countdown-widget">
                         <header class="glance-head">
@@ -555,31 +518,6 @@
                             <input type="text" id="habitTitle" class="checklist-text-input" placeholder="Water, stretch, …" autocomplete="off">
                             <button type="submit" class="btn-primary">Add</button>
                         </form>
-                    </div>
-                </section>
-
-                <section id="heatmapSource" class="widget-source" aria-label="Heatmap">
-                    <div class="compact-widget heatmap-widget">
-                        <div class="panel-header compact-widget-head">
-                            <div>
-                                <h2>Heatmap</h2>
-                                <p class="panel-sub" id="heatmapSummary">Year of activity</p>
-                            </div>
-                            <div class="heatmap-controls">
-                                <label class="visually-hidden" for="heatmapSourceSelect">Source</label>
-                                <select id="heatmapSourceSelect" class="checklist-select" aria-label="Heatmap source"></select>
-                                <select id="heatmapSeriesSelect" class="checklist-select is-hidden" aria-label="Repeating to do"></select>
-                            </div>
-                        </div>
-                        <div id="heatmapJournalFilters" class="heatmap-filters is-hidden" role="group" aria-label="Journal filter">
-                            <button type="button" class="btn-ghost is-selected" data-filter="all">All</button>
-                            <button type="button" class="btn-ghost" data-filter="journal">Journal</button>
-                            <button type="button" class="btn-ghost" data-filter="morning_brief">Morning</button>
-                            <button type="button" class="btn-ghost" data-filter="evening_review">Evening</button>
-                            <button type="button" class="btn-ghost" data-filter="reading">Reading</button>
-                        </div>
-                        <div id="heatmapGrid" class="heatmap-grid" role="img" aria-label="Activity heatmap"></div>
-                        <p id="heatmapHint" class="checklist-hint small"></p>
                     </div>
                 </section>
 
@@ -645,24 +583,6 @@
                             <textarea id="readingNote" class="checklist-textarea" rows="3" placeholder="A note from today’s reading…"></textarea>
                             <button type="submit" class="btn-primary">Save reading journal</button>
                         </form>
-                    </div>
-                </section>
-
-                <section id="timelineTab" class="widget-source" aria-label="Timeline">
-                    <div class="panel timeline-section-wrap">
-                        <div class="panel-header">
-                            <div>
-                                <h2>Timeline</h2>
-                                <p class="panel-sub">Workouts, journal, and to dos for a single day.</p>
-                            </div>
-                        </div>
-                        <div id="timelineWeekStrip" class="week-strip-host"></div>
-                        <div class="timeline-controls">
-                            <label class="checklist-field-label" for="timelineDate">Date</label>
-                            <input type="date" id="timelineDate" class="checklist-text-input timeline-date-input">
-                            <button type="button" id="timelineToday" class="btn-secondary">Today</button>
-                        </div>
-                        <div id="timelineContent" class="timeline-content"></div>
                     </div>
                 </section>
 
@@ -1106,9 +1026,18 @@
                             <div class="panel-header">
                                 <div>
                                     <h2>Calendars</h2>
-                                    <p class="panel-sub">Due-date feeds only. Unsubscribe removes open imported to-dos and keeps completed ones.</p>
+                                    <p class="panel-sub">Subscribe here. Unsubscribe removes open imported to-dos and keeps completed ones.</p>
                                 </div>
                             </div>
+                            <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
+                            <input type="text" id="calIcsUrl" class="checklist-text-input" placeholder="Paste https:// or webcal:// calendar link" autocomplete="off" spellcheck="false" inputmode="url">
+                            <p class="checklist-hint small">Timed events on the clock. All-day and 11:59 stay due chips. Past and undated imports are dropped.</p>
+                            <div class="reminder-actions">
+                                <button type="button" id="calPasteIcs" class="btn-ghost">Paste</button>
+                                <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
+                                <button type="button" id="calImportApple" class="btn-ghost">Import Apple calendars</button>
+                            </div>
+                            <p id="calImportStatus" class="cal-import-status"></p>
                             <div id="calendarFeedsList" class="calendar-feeds-list"></div>
                             <p id="calendarFeedsEmpty" class="checklist-hint small">No subscribed calendars.</p>
                             <p id="calendarFeedsStatus" class="checklist-hint small"></p>

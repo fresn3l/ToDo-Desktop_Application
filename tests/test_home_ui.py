@@ -78,14 +78,10 @@ class HomeUiTests(unittest.TestCase):
             "todayCalendarSource",
             "workoutTab",
             "goalsTab",
-            "allWorkTab",
             "analyticsTab",
-            "timelineTab",
             "weatherSource",
-            "focusSource",
             "countdownSource",
             "habitsSource",
-            "heatmapSource",
             "dayBriefSource",
             "countersSource",
             "readingSource",
@@ -95,6 +91,8 @@ class HomeUiTests(unittest.TestCase):
         ):
             self.assertIn(f'id="{source_id}"', INDEX)
             self.assertIn("widget-source", INDEX)
+        for gone in ("allWorkTab", "timelineTab", "focusSource", "heatmapSource"):
+            self.assertNotIn(f'id="{gone}"', INDEX)
         self.assertIn('id="wordCard"', INDEX)
         self.assertIn('id="checklistWizard"', INDEX)
         self.assertIn('id="journalTab"', INDEX)
@@ -455,7 +453,6 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("showDayDues", CAL_JS)
         self.assertIn("hideDayDues", CAL_JS)
         self.assertIn("cal-block-time", CAL_JS)
-        self.assertIn("replace(/^webcal:/i, 'https:')", CAL_JS)
         self.assertNotIn("dues.slice(0, 8)", CAL_JS)
         self.assertIn("grid-template-rows: subgrid", STYLE)
         self.assertIn("grid-row: 1 / span 3", STYLE)
@@ -471,8 +468,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn('id="calDeleteUndated"', INDEX)
         self.assertIn('id="calTodayRail"', INDEX)
         self.assertIn('id="calDayDues"', INDEX)
-        self.assertIn("cal-feeds-panel", INDEX)
-        self.assertIn('id="calFeedToggles"', INDEX)
+        self.assertNotIn("cal-feeds-panel", INDEX)
+        self.assertNotIn('id="calFeedToggles"', INDEX)
+        self.assertIn('id="todoFilter"', INDEX)
+        self.assertIn('data-filter="unplaced"', INDEX)
+        self.assertIn('id="calFillWeek"', INDEX)
+        self.assertIn("pasteIcsButton", SETTINGS_JS)
+        self.assertIn("set_calendar_feed_enabled", SETTINGS_JS)
         self.assertIn('id="calDueMenu"', INDEX)
         self.assertIn("renderDueChip", CAL_JS)
         self.assertIn("place_work_after_lecture", CAL_JS)
@@ -496,11 +498,15 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("Office hours", INDEX)
         self.assertIn("Place after first event", INDEX)
         self.assertIn("selectedEventDays", CAL_JS)
-        self.assertIn("set_calendar_feed_enabled", CAL_JS)
+        self.assertIn("set_calendar_feed_enabled", SETTINGS_JS)
         self.assertIn("--due-h", CAL_JS)
         self.assertIn("kosistenz:open-todo", CAL_JS)
         self.assertIn("Open in To Do", INDEX)
         self.assertIn("data-feed-enabled", SETTINGS_JS)
+        self.assertNotIn("all_work.js", HOME_RUNTIME)
+        self.assertIn("sliceFilter", HOME_RUNTIME)
+        self.assertNotIn("paintFocus", GLANCE_JS)
+        self.assertIn("import_health_export", SETTINGS_JS)
 
     def test_calendar_tab_uses_full_width_and_taller_cells(self) -> None:
         self.assertIn("html[data-page='calendar'] .tab-content.active", STYLE)

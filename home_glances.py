@@ -102,7 +102,7 @@ def week_days(today: Optional[date] = None) -> List[Dict[str, str]]:
     ]
 
 
-def dues_this_week(today: Optional[date] = None) -> Dict[str, Any]:
+def dues_this_week(today: Optional[date] = None, limit: int = 12) -> Dict[str, Any]:
     import calclock
 
     day = today or date.today()
@@ -122,18 +122,23 @@ def dues_this_week(today: Optional[date] = None) -> Dict[str, Any]:
                     "status": item.get("status") or "open",
                 }
             )
+    shown = rows if int(limit) <= 0 else rows[: int(limit)]
     return {
         "week_start": monday.isoformat(),
         "week_end": sunday.isoformat(),
-        "items": rows[:12],
+        "items": shown,
         "count": len(rows),
     }
 
 
-def unplaced_glance() -> Dict[str, Any]:
+def unplaced_glance(limit: int = -1) -> Dict[str, Any]:
     import calclock
 
     shown, total = calclock._unplaced_ui()
+    if int(limit) == 0:
+        rows = calclock.unplaced_work()
+        shown = [calclock._slim_unplaced(row) for row in rows]
+        total = len(shown)
     return {
         "items": shown,
         "count": total,
@@ -161,13 +166,13 @@ def get_now_next_glance() -> Dict[str, Any]:
 
 
 @eel.expose
-def get_unplaced_glance() -> Dict[str, Any]:
-    return unplaced_glance()
+def get_unplaced_glance(limit: int = -1) -> Dict[str, Any]:
+    return unplaced_glance(limit)
 
 
 @eel.expose
-def get_dues_week_glance() -> Dict[str, Any]:
-    return dues_this_week()
+def get_dues_week_glance(limit: int = 12) -> Dict[str, Any]:
+    return dues_this_week(limit=limit)
 
 
 @eel.expose

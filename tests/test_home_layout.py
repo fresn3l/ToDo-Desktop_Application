@@ -301,8 +301,8 @@ class HomeLayoutTests(unittest.TestCase):
 
     def test_a_work_slice_opens_the_list_it_was_cut_from(self) -> None:
         self.assertEqual(home_layout.widget_source("work", {"slice": "today"}), "todoTab")
-        self.assertEqual(home_layout.widget_source("work", {"slice": "backlog"}), "allWorkTab")
-        self.assertEqual(home_layout.widget_source("work", {"slice": "unplaced"}), "allWorkTab")
+        self.assertEqual(home_layout.widget_source("work", {"slice": "backlog"}), "todoTab")
+        self.assertEqual(home_layout.widget_source("work", {"slice": "unplaced"}), "todoTab")
         self.assertEqual(home_layout.widget_source("work", {"slice": "due"}), "todoTab")
         self.assertEqual(home_layout.widget_source("weather"), "weatherSource")
 

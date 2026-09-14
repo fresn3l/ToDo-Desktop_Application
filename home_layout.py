@@ -29,8 +29,8 @@ MAX_SCAN_ROWS = 64
 # renderers alive for one question asked four ways.
 WORK_SLICES = (
     {"value": "today", "label": "Today", "source": "todoTab"},
-    {"value": "backlog", "label": "All work", "source": "allWorkTab"},
-    {"value": "unplaced", "label": "Unplaced", "source": "allWorkTab"},
+    {"value": "backlog", "label": "All work", "source": "todoTab"},
+    {"value": "unplaced", "label": "Unplaced", "source": "todoTab"},
     {"value": "due", "label": "Due this week", "source": "todoTab"},
 )
 

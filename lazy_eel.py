@@ -55,7 +55,6 @@ LAZY_MODULES: Tuple[str, ...] = (
     "health_import",
     "export_data",
     "glance",
-    "heatmap",
     "reading",
     "tap_counters",
     "goals",
@@ -88,7 +87,6 @@ FEATURE_MODULES: Dict[str, Tuple[str, ...]] = {
     "timeline": ("timeline",),
     "weather": ("weather",),
     "glance": ("glance",),
-    "heatmap": ("heatmap",),
     "day_brief": ("day_brief",),
     "counters": ("tap_counters",),
     "reading": ("reading",),
@@ -223,7 +221,6 @@ EXPOSE_FALLBACK: Dict[str, Tuple[str, ...]] = {
         "remove_home_habit",
         "toggle_home_habit",
     ),
-    "heatmap": ("get_heatmap_settings", "save_heatmap_settings", "get_heatmap"),
     "reading": ("get_reading", "set_reading_book", "add_reading_pages", "save_reading_journal"),
     "tap_counters": (
         "get_tap_counters",

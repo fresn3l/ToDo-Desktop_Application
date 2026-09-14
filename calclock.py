@@ -2279,13 +2279,11 @@ def _slim_feed(feed: Dict[str, Any]) -> Dict[str, Any]:
 
 @eel.expose
 def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, Any]:
-    maybe_purge_stale_imports()
     settings = load_settings()
     start = date.fromisoformat(week_start) if week_start else monday_of(_cal_today())
     start = monday_of(start)
     end = start + timedelta(days=6)
     hard = expand_hard_events(start, end)
-    rollover_missed_bars(events=hard)
     hard = _apply_event_marks(hard)
     blocks = list_blocks(start, end)
     dues = _dues_by_day(start, end)
@@ -2589,7 +2587,6 @@ def _clamp_year_month(year: Any, month: Any) -> Tuple[int, int]:
 
 @eel.expose
 def get_month(year: int = 0, month: int = 0) -> Dict[str, Any]:
-    maybe_purge_stale_imports()
     y, m = _clamp_year_month(year, month)
     first = date(y, m, 1)
     grid_start = monday_of(first)
@@ -2611,7 +2608,6 @@ def get_month(year: int = 0, month: int = 0) -> Dict[str, Any]:
 
 @eel.expose
 def get_year(year: int = 0) -> Dict[str, Any]:
-    maybe_purge_stale_imports()
     y, _ = _clamp_year_month(year, 1)
     start = date(y, 1, 1)
     grid_start = monday_of(start)
@@ -2652,11 +2648,9 @@ def day_clock_items(day: date) -> List[Dict[str, Any]]:
 
 @eel.expose
 def get_day_agenda(local_date: str = "") -> Dict[str, Any]:
-    maybe_purge_stale_imports()
     iso = work._parse_date(local_date) or _cal_today().isoformat()
     day = date.fromisoformat(iso)
     settings = load_settings()
-    rollover_missed_bars()
     items = day_clock_items(day)
     overdue = []
     if iso == _cal_today().isoformat():

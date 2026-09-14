@@ -541,6 +541,7 @@ export function setupSettings() {
 
     paintSettings(getAppearance());
     bindCalendarFeeds();
+    bindHealthImport();
     setupSettingsResize();
     scheduleSettingsExtras();
 }
@@ -673,6 +674,146 @@ async function loadCalendarFeeds() {
 }
 
 function bindCalendarFeeds() {
+    const field = document.getElementById('calIcsUrl');
+    const statusOf = () => document.getElementById('calImportStatus');
+
+    async function importPasted(raw) {
+        const status = statusOf();
+        if (status) status.textContent = 'Importing…';
+        try {
+            const result = await eel.import_pasted_calendar(raw)();
+            const duesNew = result.created || 0;
+            const duesUp = result.updated || 0;
+            const clock = result.events_created || 0;
+            if (status) {
+                status.textContent = `Imported ${duesNew} due date${duesNew === 1 ? '' : 's'} (${duesUp} updated), ${clock} on the clock.`;
+            }
+            if (clock || duesNew || duesUp) {
+                utils.showSuccessFeedback(
+                    clock
+                        ? 'Timed events are on the week clock. Due dates stay as chips.'
+                        : 'Due dates are on that day’s To Do and as chips on the week.',
+                );
+            } else {
+                utils.showSuccessFeedback('Imported the feed. No new events in range.');
+            }
+            utils.notifyDataChanged();
+            await loadCalendarFeeds();
+            return true;
+        } catch (err) {
+            if (status) status.textContent = '';
+            utils.showErrorFeedback(err?.message || 'Could not import that calendar.');
+            return false;
+        }
+    }
+
+    async function applyPasted(raw) {
+        const text = String(raw || '');
+        const isIcs = /BEGIN:VCALENDAR/i.test(text);
+        const cleaned = (typeof window.kosistenzSanitizePastedUrl === 'function')
+            ? window.kosistenzSanitizePastedUrl(text)
+            : text.trim();
+        if (!isIcs && cleaned) {
+            if (field) {
+                field.value = cleaned;
+                field.dispatchEvent(new Event('input', { bubbles: true }));
+                field.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            return importPasted(cleaned);
+        }
+        if (isIcs) {
+            if (field) field.value = '';
+            return importPasted(text);
+        }
+        return false;
+    }
+
+    function importIcs() {
+        const raw = field?.value || '';
+        if (/BEGIN:VCALENDAR/i.test(raw)) {
+            void importPasted(raw);
+            return;
+        }
+        const url = (typeof window.kosistenzSanitizePastedUrl === 'function')
+            ? window.kosistenzSanitizePastedUrl(raw)
+            : raw.trim();
+        if (url && field) field.value = url;
+        if (!url) {
+            utils.showErrorFeedback('Paste a calendar URL, or use Paste.');
+            return;
+        }
+        void importPasted(url);
+    }
+
+    function requestNativeIcsPaste() {
+        try {
+            if (!window.webkit?.messageHandlers?.kosistenz) return false;
+            window.webkit.messageHandlers.kosistenz.postMessage({ type: 'icsPaste' });
+            return true;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    async function pasteIcsButton() {
+        if (requestNativeIcsPaste()) return;
+        if (navigator.clipboard?.readText) {
+            try {
+                const raw = await navigator.clipboard.readText();
+                if (raw) {
+                    await applyPasted(raw);
+                    return;
+                }
+            } catch (_) { /* fall through */ }
+        }
+        utils.showErrorFeedback('Paste the URL into the ICS box, or use Cmd+V in the installed app.');
+    }
+
+    function importApple() {
+        const status = statusOf();
+        try {
+            window.webkit?.messageHandlers?.kosistenz?.postMessage({ type: 'calendarImport' });
+            if (status) status.textContent = 'Asking macOS for Calendar access…';
+        } catch (_) {
+            utils.showErrorFeedback('Apple Calendar import only works in the installed Kosistenz app.');
+        }
+    }
+
+    document.getElementById('calImportIcs')?.addEventListener('click', () => {
+        void importIcs();
+    });
+    document.getElementById('calPasteIcs')?.addEventListener('click', () => {
+        void pasteIcsButton();
+    });
+    document.getElementById('calImportApple')?.addEventListener('click', importApple);
+    field?.addEventListener('paste', (e) => {
+        const dt = e.clipboardData;
+        if (!dt) return;
+        const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
+        if (!raw) return;
+        e.preventDefault();
+        void applyPasted(raw);
+    });
+    document.addEventListener('kosistenz:calendar-imported', () => {
+        void loadCalendarFeeds();
+    });
+}
+
+function bindHealthImport() {
+    const btn = document.getElementById('importHealthBtn');
+    if (!btn || btn.dataset.ready === '1') return;
+    btn.dataset.ready = '1';
+    btn.addEventListener('click', async () => {
+        const path = document.getElementById('healthExportPath')?.value.trim();
+        const status = document.getElementById('healthImportStatus');
+        try {
+            const result = await eel.import_health_export(path)();
+            if (status) status.textContent = `Imported ${result.days_imported} day(s).`;
+            utils.showSuccessFeedback('Health data imported.');
+        } catch (e) {
+            utils.showErrorFeedback(typeof e === 'string' ? e : e?.message || 'Import failed.');
+        }
+    });
 }
 
 async function loadAdvancedPaths() {

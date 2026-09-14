@@ -131,7 +131,6 @@ async function loadMonth() {
         renderMonthGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
-        paintFeedToggles(payload.feeds || []);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calMonthGrid');
@@ -146,7 +145,6 @@ async function loadYear() {
         renderYearGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
-        paintFeedToggles(payload.feeds || []);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calYearGrid');
@@ -489,51 +487,6 @@ function renderTodayRail(today) {
     `;
 }
 
-function paintFeedToggles(feeds) {
-    const root = document.getElementById('calFeedToggles');
-    if (!root) return;
-    const rows = (feeds || []).filter((feed) => feed.id);
-    if (!rows.length) {
-        root.innerHTML = '';
-        return;
-    }
-    root.innerHTML = `<h4>Show calendars</h4>` + rows.map((feed) => {
-        const on = feed.enabled !== false;
-        const host = (() => {
-            try {
-                const href = String(feed.url || '').replace(/^webcal:/i, 'https:');
-                return href ? new URL(href).hostname.replace(/^www\./, '') : '';
-            } catch (_) {
-                return '';
-            }
-        })();
-        const label = host || feed.title || feed.id;
-        return `<label class="cal-feed-toggle">
-            <input type="checkbox" data-feed-id="${utils.escapeHtml(feed.id || '')}" ${on ? 'checked' : ''}>
-            <span title="${utils.escapeHtml(feed.title || feed.id || '')}">${utils.escapeHtml(label)}</span>
-        </label>`;
-    }).join('');
-    root.querySelectorAll('input[data-feed-id]').forEach((input) => {
-        input.addEventListener('change', async () => {
-            try {
-                await callEel('set_calendar_feed_enabled', input.getAttribute('data-feed-id'), input.checked);
-                utils.notifyDataChanged();
-                await loadCalendar();
-            } catch (err) {
-                utils.showErrorFeedback('Could not update that calendar.');
-            }
-        });
-    });
-}
-
-async function refreshFeedToggles() {
-    try {
-        paintFeedToggles((await callEel('list_calendar_feeds')).feeds || []);
-    } catch (_) {
-        /* eel not ready */
-    }
-}
-
 function renderUnplaced(items, total) {
     const root = document.getElementById('calUnplaced');
     const block = document.getElementById('calUnplacedBlock');
@@ -581,10 +534,7 @@ async function loadWeek() {
         renderGrid(week);
         renderTodayRail(week.today);
         hideDayDues();
-        paintFeedToggles(week.feeds || week.settings?.feeds || []);
         renderUnplaced(week.unplaced || [], week.unplaced_total);
-        const url = document.getElementById('calIcsUrl');
-        if (url && week.settings?.ics_url && !url.value) url.value = week.settings.ics_url;
         bindGrid();
     } catch (e) {
         console.error(e);
@@ -1861,10 +1811,8 @@ async function applyPastedCalendar(raw) {
             field.value = cleaned;
             field.dispatchEvent(new Event('input', { bubbles: true }));
             field.dispatchEvent(new Event('change', { bubbles: true }));
-            try { field.focus(); } catch (err) { /* ignore */ }
         }
-        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load events and due dates.');
-        return true;
+        return importPasted(cleaned);
     }
     if (isIcs) {
         if (field) field.value = '';
@@ -2085,12 +2033,6 @@ export function setupCalendar() {
         const next = chip.classList.contains('is-selected') ? '' : chip.getAttribute('data-outcome');
         setOutcomeSelection(next === 'attended' ? 'done' : next === 'missed' ? 'missed' : '');
     });
-    document.getElementById('calImportIcs')?.addEventListener('click', () => {
-        void importIcs();
-    });
-    document.getElementById('calPasteIcs')?.addEventListener('click', () => {
-        void pasteIcsButton();
-    });
     ['calDayStart', 'calDayEnd'].forEach((id) => {
         const field = document.getElementById(id);
         field?.addEventListener('change', () => { void saveAwake(); });
@@ -2100,14 +2042,6 @@ export function setupCalendar() {
                 void saveAwake();
             }
         });
-    });
-    document.getElementById('calIcsUrl')?.addEventListener('paste', (e) => {
-        const dt = e.clipboardData;
-        if (!dt) return;
-        const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
-        if (!raw) return;
-        e.preventDefault();
-        void applyPastedCalendar(raw);
     });
     document.addEventListener('paste', (e) => {
         const tab = document.getElementById('calendarTab');
@@ -2121,7 +2055,6 @@ export function setupCalendar() {
         e.preventDefault();
         void applyPastedCalendar(raw);
     });
-    document.getElementById('calImportApple')?.addEventListener('click', importApple);
     document.getElementById('calEventWeekdays')?.addEventListener('click', (e) => {
         const chip = e.target.closest('.work-day-chip');
         if (!chip) return;

@@ -792,8 +792,7 @@ function posterHtml(key, _data, size) {
     return emptyShell(key, size, copy.couldNotLoad);
 }
 
-// Four cuts of one list. Today and Due come off the dated board; All work and
-// Unplaced come off the backlog.
+// Four cuts of one list. Opening any Work tile lands on the same sheet.
 const WORK_SLICE_CALL = {
     today: () => eelCall('get_work_board', utils.localISODate()),
     backlog: () => eelCall('list_backlog'),

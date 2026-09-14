@@ -147,6 +147,23 @@ class WordOfTheDayTests(unittest.TestCase):
         titles = {row["title"] for row in work.list_work_for_date(tomorrow)}
         self.assertEqual(titles, {"Pay electricity bill", "Call dentist"})
 
+    def test_submit_does_not_block_on_cluny(self) -> None:
+        started = []
+        real_thread = daily_checklist.threading.Thread
+
+        def tracking_thread(*args, **kwargs):
+            if kwargs.get("name") == "checkin-cluny":
+                started.append(True)
+                thread = mock.Mock()
+                thread.start = mock.Mock()
+                thread.is_alive = mock.Mock(return_value=False)
+                return thread
+            return real_thread(*args, **kwargs)
+
+        with mock.patch.object(daily_checklist.threading, "Thread", side_effect=tracking_thread):
+            daily_checklist.submit_daily_checklist_response("morning", 1, {"intentions": "go"})
+        self.assertTrue(started)
+
 
 if __name__ == "__main__":
     unittest.main()

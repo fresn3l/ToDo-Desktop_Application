@@ -288,6 +288,7 @@ def _rollover_later() -> None:
 
     def _run() -> None:
         _safe_call("calclock", "rollover_missed_bars")
+        _safe_call("calclock", "maybe_purge_stale_imports")
 
     with _rollover_lock:
         if _rollover_thread is not None and _rollover_thread.is_alive():

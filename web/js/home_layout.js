@@ -9,8 +9,8 @@ export const GRID_COLUMNS = 8;
 // its own, which put four near-identical entries in the picker.
 export const WORK_SLICES = [
     { value: 'today', label: "Today's work", source: 'todoTab' },
-    { value: 'backlog', label: 'All work', source: 'allWorkTab' },
-    { value: 'unplaced', label: 'Unplaced', source: 'allWorkTab' },
+    { value: 'backlog', label: 'All work', source: 'todoTab' },
+    { value: 'unplaced', label: 'Unplaced', source: 'todoTab' },
     { value: 'due', label: 'Due this week', source: 'todoTab' },
 ];
 

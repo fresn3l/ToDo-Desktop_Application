@@ -136,6 +136,8 @@ class HomeGlanceTests(unittest.TestCase):
         titles = [row["title"] for row in packed["items"]]
         self.assertIn("Essay 2", titles)
         self.assertEqual(packed["items"][0]["due"], friday.isoformat())
+        full = home_glances.dues_this_week(today, limit=0)
+        self.assertGreaterEqual(full["count"], len(full["items"]))
 
     def test_do_today_sets_the_day_not_a_clock(self) -> None:
         item = work.create_work_item("Parked spanish", scheduled_date=None, estimate_minutes=45)

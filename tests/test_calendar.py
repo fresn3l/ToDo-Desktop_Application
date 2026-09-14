@@ -330,6 +330,20 @@ END:VCALENDAR
         junk = calclock.get_year("later")
         self.assertEqual(junk["year"], date.today().year)
 
+    def test_get_week_does_not_purge_or_rollover(self) -> None:
+        with (
+            mock.patch.object(calclock, "maybe_purge_stale_imports", side_effect=AssertionError("purge")),
+            mock.patch.object(calclock, "rollover_missed_bars", side_effect=AssertionError("rollover")),
+        ):
+            week = calclock.get_week("2026-09-07")
+            month = calclock.get_month(2026, 9)
+            year = calclock.get_year(2026)
+            agenda = calclock.get_day_agenda("2026-09-08")
+        self.assertEqual(week["week_start"], "2026-09-07")
+        self.assertEqual(month["year"], 2026)
+        self.assertEqual(year["year"], 2026)
+        self.assertEqual(agenda["local_date"], "2026-09-08")
+
     def test_normalize_ics_url_accepts_webcal_wrappers_and_uri_lists(self) -> None:
         self.assertEqual(
             calclock.normalize_ics_url("<webcal://cal.example.edu/x.ics>"),

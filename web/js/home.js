@@ -140,17 +140,14 @@ const KIND_FEATURE = {
     cluny: 'cluny',
 };
 
-// Today and Due are cuts of the dated list; All work and Unplaced are cuts of
-// the backlog. Which module a Work tile opens follows the slice, not the kind.
-const WORK_SLICE_FEATURE = {
-    today: 'todo',
-    due: 'todo',
-    backlog: 'allwork',
-    unplaced: 'allwork',
-};
+function sliceFilter(slice) {
+    if (slice === 'backlog') return 'all';
+    if (slice === 'all' || slice === 'unplaced' || slice === 'due') return slice;
+    return 'today';
+}
 
 function featureFor(kind, settings) {
-    if (kind === 'work') return WORK_SLICE_FEATURE[settings?.slice] || 'todo';
+    if (kind === 'work') return 'todo';
     return KIND_FEATURE[kind] || '';
 }
 
@@ -160,14 +157,12 @@ async function ensureWork(key) {
         const feature = featureFor(kind, settings);
         if (feature) await bootFeature(feature);
         if (kind === 'work') {
-            if (feature === 'todo') {
-                const m = await import('./todo.js');
-                m.setupTodo();
-                return () => m.onTodoTabShown();
-            }
-            const m = await import('./all_work.js');
-            m.setupAllWork();
-            return () => m.onAllWorkTabShown();
+            const m = await loadOnce('home:todo-mod', async () => {
+                const mod = await import('./todo.js');
+                mod.setupTodo();
+                return mod;
+            });
+            return () => m.onTodoTabShown({ filter: sliceFilter(settings?.slice) });
         }
         if (kind === 'today_calendar') {
             const m = await import('./today.js');
@@ -325,7 +320,7 @@ function mountWorkSource(key) {
     const body = document.getElementById('homeWorkBody');
     const title = document.getElementById('homeWorkTitle');
     const kicker = document.getElementById('homeWorkKicker');
-    if (title) title.textContent = label;
+    if (title) title.textContent = kind === 'work' ? 'Work' : label;
     if (kicker) kicker.textContent = 'Home';
     if (!spec || !body) return false;
     const source = document.getElementById(widgetSource(kind, settings));

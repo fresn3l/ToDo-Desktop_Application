@@ -2351,6 +2351,11 @@ input[type='range'] {
     margin: 0 0 var(--space-md);
 }
 
+#todoFilter {
+    flex: 0 1 auto;
+    max-width: 100%;
+}
+
 .todo-when-label {
     margin: 8px 0 4px;
     font-size: var(--fs-caption);

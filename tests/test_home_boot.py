@@ -359,6 +359,35 @@ print("ok")
         names = [row.args[1] for row in safe.call_args_list if len(row.args) > 1]
         self.assertNotIn("rollover_missed_bars", names)
 
+    def test_background_rollover_also_purges(self) -> None:
+        import home_boot
+
+        captured = []
+        real_thread = home_boot.threading.Thread
+
+        def tracking_thread(*args, **kwargs):
+            name = kwargs.get("name")
+            if name == "cal-rollover":
+                captured.append(kwargs.get("target") or (args[0] if args else None))
+                thread = mock.Mock()
+                thread.start = mock.Mock()
+                thread.is_alive = mock.Mock(return_value=False)
+                thread.join = mock.Mock()
+                return thread
+            return real_thread(*args, **kwargs)
+
+        with (
+            mock.patch.object(home_boot.threading, "Thread", side_effect=tracking_thread),
+            mock.patch.object(home_boot, "_ensure_cluny_supervisor"),
+        ):
+            home_boot.get_home_boot()
+        self.assertTrue(captured)
+        with mock.patch.object(home_boot, "_safe_call") as safe:
+            captured[0]()
+        names = [row.args[1] for row in safe.call_args_list if len(row.args) > 1]
+        self.assertIn("rollover_missed_bars", names)
+        self.assertIn("maybe_purge_stale_imports", names)
+
     def test_work_pack_fetches_board_once_and_slices_differ(self) -> None:
         import home_boot
         import work
