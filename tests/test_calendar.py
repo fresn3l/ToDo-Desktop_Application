@@ -888,6 +888,8 @@ END:VCALENDAR
         titles = [row["title"] for row in column.get("work") or []]
         self.assertIn("Board memo", titles)
         self.assertNotIn("Quiz", titles)
+        memo = next(row for row in column["work"] if row["title"] == "Board memo")
+        self.assertEqual(memo.get("scheduled_date"), "2026-09-08")
         due_titles = [row["title"] for row in column.get("dues") or []]
         self.assertIn("Quiz", due_titles)
 

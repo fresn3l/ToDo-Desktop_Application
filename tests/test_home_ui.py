@@ -211,6 +211,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("Add for today", CAL_JS)
         self.assertIn("Due soon", CAL_JS)
         self.assertIn("No day", CAL_JS)
+        self.assertIn("Moved to Today.", CAL_JS)
+        self.assertNotIn("Not dated", CAL_JS)
+        self.assertNotIn("today's to-do", CAL_JS)
         self.assertIn("Drag from Today or Work onto the clock", CAL_JS)
         self.assertIn("function paintNowLine", CAL_JS)
         self.assertIn(".cal-day.is-today .cal-day-body", CAL_JS)
@@ -845,7 +848,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("runGlanceCapture", GLANCE_TILES)
         self.assertNotIn("w-unplaced", HOME_RUNTIME)
         self.assertIn("Save repeating to-do", (ROOT / "web" / "js" / "todo.js").read_text(encoding="utf-8"))
-        self.assertIn("⌘</kbd><kbd>1</kbd> Home", INDEX)
+        self.assertIn("⌘</kbd><kbd>1</kbd> Calendar", INDEX)
 
     def test_calendar_blocks_scale_with_duration(self) -> None:
         self.assertNotIn("Math.max(20, (end - start)", CAL_JS)

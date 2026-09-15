@@ -51,7 +51,7 @@ Grounded in `ios/Kosistenz/` and `icloud_sync.py` as of this plan.
 | Area | Today | Gap |
 |------|--------|-----|
 | Pack format | Mac writes `work.json`, `workouts.json`, `journal.json`, `appearance.json` to iCloud Drive / Kosistenz (`com~apple~CloudDocs`) | Phone reads a **different** folder: the app’s ubiquity container `Documents/Kosistenz`. They will not see each other’s files until this is fixed. |
-| To-dos | Toggle + add for today | Fine for daily use. No All Work inbox. |
+| Today | Toggle + add for today | Fine for daily use. Work is its own tab. |
 | Workout | Five equal chips; run is stored with `miles: 0`; Other is stored as `"Other"` | Mac **rejects** a run without miles and Other without a name (`workouts.add_workout_session`). Phone logging is not a real log. Template is already in the pack; the phone never reads it, so nothing is highlighted as expected. |
 | Journal | `TextField` + Save, append-only by id | Not a writing surface. No “already wrote today” state. |
 | Sync UX | Pull-to-refresh, `Data(contentsOf:)` | No `NSFileCoordinator`, no last-sync time, no “waiting for iCloud.” Mac only **writes** on change (`export_if_enabled`); it never **pulls** unless you click Settings → Phone. |
@@ -172,11 +172,11 @@ Small / medium, read-only from the same bookmarked folder:
 
 Only after must-item 0 and 4. A widget that is a day stale is worse than none.
 
-### Park a thought in All Work
+### Park a thought in Work
 
 One field: title → append an open item in `work.json` with no
-`scheduled_date` (or whatever the Mac uses for unscheduled All Work). Inbox
-capture, not a full All Work client.
+`scheduled_date` (the same Work list as the Mac). Optional Today if you
+want it dated. Inbox capture, not a third inbox.
 
 ---
 
@@ -198,7 +198,7 @@ capture, not a full All Work client.
 5. **Journal UI**
 6. **Mac auto-pull** + last-sync status
 7. **Widget** if 1 and 6 are solid
-8. **All Work capture** if anything is left
+8. **Work capture** if anything is left
 
 Do not start the widget before the folder and coordination exist.
 

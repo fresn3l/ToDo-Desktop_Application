@@ -2588,6 +2588,7 @@ def _slim_due(
         "title": title,
         "status": item.get("status") or "open",
         "due_at": item.get("due_at"),
+        "scheduled_date": item.get("scheduled_date"),
         "estimate_minutes": int(item.get("estimate_minutes") or DEFAULT_ESTIMATE),
         "source_calendar": item.get("source_calendar") or "",
         "course": course,

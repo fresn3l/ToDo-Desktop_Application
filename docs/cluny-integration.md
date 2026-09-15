@@ -77,7 +77,7 @@ Shipped, local-first, SQLite + files under Application Support (`ToDo/` legacy f
 |---------|-----------------|------|
 | Journal | JSON files under `Journal/` | Written here; optionally **pushed** to Cluny |
 | Daily checklist | `daily_checklist.sqlite` | Written here; optionally **pushed** to Cluny |
-| To Do / All Work | `work_items.sqlite` | Dated work, backlog, timers, repeats, `due_at`, estimates, goal links |
+| Today / Work | `work_items.sqlite` | Dated Today, off-clock Work, timers, repeats, `due_at`, estimates, goal links |
 | Goals | same DB (`goals` table) | 1 week / 6 months / year / 5 years; weekly spawn |
 | Calendar | `calendar.sqlite` + `calendar_feeds.json` | Hard events, deadline ingest, **blocks** (proposed/locked/done/skipped) |
 | Workouts | `workouts.sqlite` + week template JSON | Sessions, weight, expected kinds |
@@ -92,7 +92,7 @@ Shipped independently:
 
 - Library + Chroma + FTS, RAG, eval, backup/export.
 - CLI, PySide6 GUI, menu-bar widget, `cluny serve`.
-- **Also** `tasks.sqlite` and `calendar.sqlite` inside Cluny. Kosistenz does **not** treat those as live, does **not** push `/tasks/sync`, and does **not** read Cluny’s calendar. Proposals accepted here become Kosistenz All Work items with a due **date**, never an HH:MM.
+- **Also** `tasks.sqlite` and `calendar.sqlite` inside Cluny. Kosistenz does **not** treat those as live, does **not** push `/tasks/sync`, and does **not** read Cluny’s calendar. Proposals accepted here become Kosistenz Work items with a due **date**, never an HH:MM.
 
 Sprint 11 currently assumes Cluny is the durable store for todos and calendar, and Kosistenz is a thin UI. **That assumption is inverted.** Kosistenz already has those stores and the iPhone pack. Cluny’s copies are a **second brain’s scratchpad**, not the week you carry.
 
@@ -134,7 +134,7 @@ Who is allowed to **commit** a change to real life (the thing you will do, the t
 These are product law. A Cluny or Kosistenz change that violates them is a bug, even if the API is convenient.
 
 1. **One calendar you carry.** Kosistenz. Cluny does not present a competing week, does not import ICS as the live calendar, and does not CalDAV/Google two-way as the planner.
-2. **One to-do list you carry.** Kosistenz To Do + All Work. Cluny `tasks.sqlite` is not the list you check off on the phone or on Today.
+2. **One list you carry.** Kosistenz Today + Work. Cluny `tasks.sqlite` is not the list you check off on the phone or on Today.
 3. **The LLM never picks clock times.** No “put Spanish at 14:20.” No Fill week inside Cluny. No writing `blocks` start/end.
 4. **You pick the do-on day; the packer picks the gap.** Cluny may suggest *that* something belongs this week. It may not assign Monday 9:30.
 5. **Class subscription events are deadlines, not meetings.** Lectures are hard events you add in Kosistenz. Cluny must not treat 11:59 dues as busy.
@@ -152,7 +152,7 @@ These are product law. A Cluny or Kosistenz change that violates them is a bug, 
 
 ### Product surface
 
-The native Mac app you open every day: Today, Journal, To Do, All Work, Calendar (week clock), Goals, Workout, Analytics, Settings, menu bar, Notification Center widget, Services / URL schemes. The iPhone companion (Today-shaped: to-dos, workout, journal).
+The native Mac app you open every day: Calendar (week clock + Today + Work), Home glance board, Journal, Goals, Workout, Analytics, Settings, menu bar, Notification Center widget, Services / URL schemes. The iPhone companion (Today, Calendar, Work, Journal).
 
 ### Planning model (already shipped — Cluny must learn this vocabulary)
 
@@ -168,7 +168,7 @@ Work items are **inbox + date**, not a second calendar:
 
 - Title often carries duration (`45 mins calculus`, `3h spanish`).
 - Optional `due_at`, `estimate_minutes`, `goal_id`.
-- `scheduled_date` = the day you chose. All Work = no day yet.
+- `scheduled_date` = the day you chose (Today if that day is today). Work with no day yet sits off the clock.
 - Finish minutes: **timer if you ran it**; else **calendar block minutes**. No third guess.
 
 Goals are **labels with optional end dates and optional hour targets**, not auto-resetting seasons. 1-week goals auto-create a to-do (Sunday → upcoming week; mid-week add → today). Progress for a week goal counts **this week only**.
@@ -205,7 +205,7 @@ A **proposal inbox** (name TBD: Cluny inbox / Suggested work):
 - Optional citation (which PDF/note Cluny used)
 - Provenance (`source = cluny_proposal`, stable Cluny proposal id)
 
-On accept: Kosistenz `create_work_item` (usually All Work or a day you pick). Then the existing weekday chip + packer path. Cluny is told the canonical `kosistenz:{work_item_id}` so it can stop re-proposing the same syllabus row.
+On accept: Kosistenz `create_work_item` (usually Work, or Today if you pick the day). Then the existing weekday chip + packer path. Cluny is told the canonical `kosistenz:{work_item_id}` so it can stop re-proposing the same syllabus row.
 
 Kosistenz does **not** accept from Cluny: start/end times, recurrence of lectures, workout session logs, goal create/delete, Apple event creates, iCloud pack writes.
 
@@ -233,7 +233,7 @@ Cluny’s existing `tasks.sqlite` must be **demoted** in the integration story:
 
 | Allowed | Not allowed |
 |---------|-------------|
-| Internal Cluny-ops (“re-embed this PDF”, eval chores) | The list that Today, To Do, and iPhone show |
+| Internal Cluny-ops (“re-embed this PDF”, eval chores) | The list that Today, Work, and iPhone show |
 | **Proposal records** waiting for Kosistenz accept | Completing a Kosistenz to-do only in Cluny |
 | Draft from syllabus PDF: title + estimate + due | Recurring lecture series as Cluny events |
 
@@ -376,7 +376,7 @@ Phases are ownership-shaped, not week estimates. Each phase must preserve the ha
 
 ### Phase 3 — Proposal inbox
 
-**Goal:** syllabus / brain → Kosistenz All Work, still no times.
+**Goal:** syllabus / brain → Kosistenz Work, still no times.
 
 - Cluny emits proposals (title, estimate, due, keyword, citations).
 - Kosistenz shows an inbox; accept → work item; reject / snooze.
@@ -384,7 +384,7 @@ Phases are ownership-shaped, not week estimates. Each phase must preserve the ha
 - After accept, packer + weekday chips work as they do today.
 - Weekly goals remain Kosistenz’s job; Cluny must not also spawn “3h spanish.”
 
-**Done when:** a PDF becomes a to-do you accepted, it shows on To Do and (after you pick a day) on the clock, and on the iPhone pack — with no Cluny-only twin.
+**Done when:** a PDF becomes Work you accepted, it shows on Work or Today and (after you pick a day) on the clock, and on the iPhone pack — with no Cluny-only twin.
 
 ### Phase 4 — Ask Cluny inside Kosistenz
 
@@ -442,7 +442,7 @@ Examples Cluny *may not* do:
 
 1. Not add Ollama/Chroma/embeddings inside the Kosistenz process. `macos/install_brain.sh` installs Ollama + Cluny as a **separate** on-device stack.
 2. Keep `cluny_sync` ingest (journals, check-ins, life digest). Do **not** resume `/tasks/sync` as a live list.
-3. Snapshot + proposal inbox are shipped: accept creates All Work, never a clock block.
+3. Snapshot + proposal inbox are shipped: accept creates Work, never a clock block.
 4. Ask / Brain / Library degrade if port 8787 is down; the rest of the app stays up.
 5. Keep weekly goals, packer, deadline ingest, iCloud pack entirely local to Kosistenz.
 

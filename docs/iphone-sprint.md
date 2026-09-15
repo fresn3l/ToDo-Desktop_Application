@@ -25,14 +25,14 @@ Pack files:
 | File | Contents |
 | --- | --- |
 | `manifest.json` | Schema version, last writer, timestamps |
-| `work.json` | To Do items, repeating series, exceptions |
+| `work.json` | Today and Work items, repeating series, exceptions |
 | `workouts.json` | Sessions, day notes / weight, week template |
 | `journal.json` | Journal entries |
 | `appearance.json` | Theme and Today layout |
 
 Merge rule: **newer `updated_at` wins** for a given id, unless the stamp is more than a day in the future. Workout sessions are append-only by id. Journal entries are append-only by id. Import only writes under the journal folder; the Mac Settings RPC cannot point the pack at an arbitrary path.
 
-The Mac writes the pack after a Today / To Do / Workout / Journal change (when auto-sync is on). Settings also has **Push to iCloud** and **Pull from iPhone**.
+The Mac writes the pack after a Today / Work / Workout / Journal change (when auto-sync is on). Settings also has **Push to iCloud** and **Pull from iPhone**.
 
 ## What this sprint ships
 

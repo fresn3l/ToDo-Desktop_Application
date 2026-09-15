@@ -57,7 +57,7 @@ That is not a calendar.
 | Record | Role |
 |--------|------|
 | **Event** | Hard block: start, end, title, recurrence, `busy`. Source `kosistenz` or import. |
-| **Work item** | Inbox: title, `estimate_minutes`, optional `due_at`, status. All Work = no block yet. |
+| **Work item** | Inbox: title, `estimate_minutes`, optional `due_at`, status. Work = off the clock. Today = dated, still a list until you drag it onto the clock. |
 | **Block** | Placement: start, end, points at a work item / workout / leftover, status `proposed` / `locked` / `done` / `skipped`. |
 | **Imported event** | Stable Apple/ICS `uid`. Class calendar → upsert work item by uid, do not duplicate every sync. |
 
@@ -77,7 +77,7 @@ until blocks exist to show.
 
 ### Must
 
-1. **Week + day on a clock** (Mac). Replace “To Do = a list for a date”
+1. **Week + day on a clock** (Mac). Replace “Work = a list for a date”
    as the planning surface. Today becomes *today’s timeline* plus the
    journal/workout cards you already have.
 2. **Ingest the due-date calendar** via EventKit (you already subscribe).
@@ -88,7 +88,7 @@ until blocks exist to show.
    marked busy.
 4. **To-do fields:** estimate (minutes) + optional due. Imported dues
    start with a default estimate you can edit (e.g. 60 min) so the packer
-   has something to place. Blank estimate stays in All Work, unplaced.
+   has something to place. Blank estimate stays in Work, off the clock.
 5. **Dumb packer:** earliest due first; chunk estimates into 50–90 min;
    honor hard events and a simple sleep/awake window (e.g. 08:00–22:00);
    gym template as soft if there is room; never move locked blocks.

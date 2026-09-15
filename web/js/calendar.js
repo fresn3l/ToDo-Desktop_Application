@@ -509,9 +509,12 @@ const WORK_GROUPS = [
 ];
 
 function workListMeta(item) {
-    const dated = item.scheduled_date
-        ? String(item.scheduled_date)
-        : (item.due_at ? String(item.due_at).replace('T', ' ').slice(0, 16) : 'Not dated');
+    const scheduled = String(item.scheduled_date || '').slice(0, 10);
+    const today = utils.localISODate();
+    const dated = scheduled === today
+        ? 'Today'
+        : (scheduled
+            || (item.due_at ? String(item.due_at).replace('T', ' ').slice(0, 16) : 'No day'));
     const mins = Number(item.remaining_minutes || item.estimate_minutes || 0);
     return mins ? `${dated} · ${mins} min left` : dated;
 }
@@ -641,7 +644,7 @@ async function moveWorkToToday(itemId) {
     try {
         await callEel('assign_work_item', itemId, utils.localISODate());
         if (editor.mode === 'unplaced' && editor.id === itemId) resetEditor();
-        utils.showSuccessFeedback('Moved to today’s to-do.');
+        utils.showSuccessFeedback('Moved to Today.');
         utils.notifyDataChanged();
         await loadCalendar();
     } catch (e) {
