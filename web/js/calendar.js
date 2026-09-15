@@ -59,7 +59,7 @@ function setCalView(next) {
     const unplacedHint = document.querySelector('.cal-unplaced-hint');
     if (unplacedHint) {
         unplacedHint.textContent = calView === 'week'
-            ? 'Drag onto the clock. Fill week packs the rest.'
+            ? 'Drag onto the clock, or move into Today. Fill week packs leftover minutes.'
             : 'Switch to Week to drag these onto the clock.';
     }
     document.querySelectorAll('#calViewGroup [data-cal-view]').forEach((btn) => {
@@ -463,7 +463,7 @@ function renderTodayRail(today) {
         : '';
     const workHtml = work.length
         ? `<h4>Today's work</h4><div class="cal-due-list">${work.map((row) => renderDueChip(row)).join('')}</div>`
-        : '<h4>Today\'s work</h4><p class="cal-due-empty">Nothing dated today. Drag Unplaced onto the week.</p>';
+        : '<h4>Today\'s work</h4><p class="cal-due-empty">Nothing dated today. Drag from Work onto the week.</p>';
     const duesHtml = dues.length
         ? `<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`
         : '<h4>Due today</h4><p class="cal-due-empty">No dues</p>';
@@ -473,7 +473,7 @@ function renderTodayRail(today) {
             const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
             return `<li class="is-${kind}${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
         }).join('')}</ul>`
-        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag from Today or Unplaced onto the week clock.</p>';
+        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag from Today or Work onto the week clock.</p>';
     root.innerHTML = `
         <header>
             <p class="eyebrow">Today</p>
@@ -487,30 +487,40 @@ function renderTodayRail(today) {
     `;
 }
 
+function workListMeta(item) {
+    const dated = item.scheduled_date
+        ? String(item.scheduled_date)
+        : (item.due_at ? String(item.due_at).replace('T', ' ').slice(0, 16) : 'Not dated');
+    const mins = Number(item.remaining_minutes || item.estimate_minutes || 0);
+    return mins ? `${dated} · ${mins} min left` : dated;
+}
+
 function renderUnplaced(items, total) {
     const root = document.getElementById('calUnplaced');
     const block = document.getElementById('calUnplacedBlock');
     if (!root) return;
     if (block) block.hidden = false;
     if (!items?.length) {
-        root.innerHTML = '<p class="empty-state empty-state--line">Nothing to place.</p>';
+        root.innerHTML = '<p class="empty-state empty-state--line">Nothing off the clock.</p>';
         return;
     }
     const extra = Number(total || 0) > items.length
-        ? `<p class="checklist-hint small">${Number(total) - items.length} more unplaced. Fill week still uses the rest.</p>`
+        ? `<p class="checklist-hint small">${Number(total) - items.length} more in Work. Fill week still packs leftover minutes.</p>`
         : '';
     root.innerHTML = items
         .map((item) => {
-            const due = item.due_at ? String(item.due_at).replace('T', ' ').slice(0, 16) : 'No due';
             const mins = item.remaining_minutes || item.estimate_minutes || 0;
             const selected = editor.mode === 'unplaced' && editor.id === item.id ? ' is-selected' : '';
-            return `<button type="button" class="cal-unplaced-item${selected}" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-minutes="${mins}">
-                <h4>${utils.escapeHtml(item.title)}</h4>
-                <p>${utils.escapeHtml(due)} · ${mins} min left</p>
-            </button>`;
+            return `<div class="cal-unplaced-item${selected}" data-id="${utils.escapeHtml(item.id || '')}">
+                <button type="button" class="cal-unplaced-drag" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-minutes="${mins}">
+                    <h4>${utils.escapeHtml(item.title)}</h4>
+                    <p>${utils.escapeHtml(workListMeta(item))}</p>
+                </button>
+                <button type="button" class="btn-ghost cal-unplaced-today" data-act="today" data-id="${utils.escapeHtml(item.id || '')}">Today</button>
+            </div>`;
         })
         .join('') + extra;
-    root.querySelectorAll('.cal-unplaced-item').forEach((btn) => {
+    root.querySelectorAll('.cal-unplaced-drag').forEach((btn) => {
         btn.addEventListener('pointerdown', onDuePointerDown);
         btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -521,6 +531,27 @@ function renderUnplaced(items, total) {
             openUnplaced(btn);
         });
     });
+    root.querySelectorAll('.cal-unplaced-today').forEach((btn) => {
+        btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void moveWorkToToday(btn.getAttribute('data-id') || '');
+        });
+    });
+}
+
+async function moveWorkToToday(itemId) {
+    if (!itemId) return;
+    try {
+        await callEel('assign_work_item', itemId, utils.localISODate());
+        if (editor.mode === 'unplaced' && editor.id === itemId) resetEditor();
+        utils.showSuccessFeedback('Moved to today’s to-do.');
+        utils.notifyDataChanged();
+        await loadCalendar();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not move that into Today.');
+    }
 }
 
 async function loadWeek() {
@@ -612,9 +643,9 @@ function paintEditor() {
     }
     if (hint) {
         hint.textContent = isIdle
-            ? 'Drag from Today or Unplaced onto the clock, or Add event for a meeting. Add focus for a named span that holds work and habits.'
+            ? 'Drag from Today or Work onto the clock, or Add event for a meeting. Add focus for a named span that holds work and habits.'
             : isNew
-                ? 'Busy time — a meeting, hold, or recurring block. Work stays in Unplaced until you drag or Fill week.'
+                ? 'Busy time — a meeting, hold, or recurring block. Work stays off the clock until you drag or Fill week.'
                 : isNewFocus
                     ? 'A named hold. Fill week will not pack over it. Work and habits can run longer than the span.'
                     : isUnplaced
@@ -978,7 +1009,7 @@ function openUnplaced(btn) {
     document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
         el.classList.remove('is-selected');
     });
-    btn.classList.add('is-selected');
+    (btn.closest('.cal-unplaced-item') || btn).classList.add('is-selected');
 }
 
 function isoFromEditor() {

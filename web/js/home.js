@@ -18,7 +18,6 @@ const FALLBACK_LAYOUT = {
             widgets: [
                 { id: 'w-todo', kind: 'work', settings: { slice: 'today' }, x: 0, y: 0, w: 4, h: 6, region: 'above' },
                 { id: 'w-today', kind: 'today_calendar', x: 4, y: 0, w: 4, h: 6, region: 'above' },
-                { id: 'w-unplaced', kind: 'work', settings: { slice: 'unplaced' }, x: 0, y: 0, w: 8, h: 6 },
             ],
         },
     ],
@@ -141,8 +140,6 @@ const KIND_FEATURE = {
 };
 
 function sliceFilter(slice) {
-    if (slice === 'backlog') return 'all';
-    if (slice === 'all' || slice === 'unplaced' || slice === 'due') return slice;
     return 'today';
 }
 

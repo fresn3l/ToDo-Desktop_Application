@@ -5,13 +5,9 @@
 
 export const GRID_COLUMNS = 8;
 
-// One tile, four slices of the same list. Each slice used to be a widget of
-// its own, which put four near-identical entries in the picker.
+// Today's to-do is the Home Work tile. Off-clock work lives on the calendar.
 export const WORK_SLICES = [
     { value: 'today', label: "Today's work", source: 'todoTab' },
-    { value: 'backlog', label: 'All work', source: 'todoTab' },
-    { value: 'unplaced', label: 'Unplaced', source: 'todoTab' },
-    { value: 'due', label: 'Due this week', source: 'todoTab' },
 ];
 
 export const WIDGET_CATALOG = {
@@ -34,8 +30,7 @@ export function catalogList() {
     return Object.entries(WIDGET_CATALOG).map(([kind, spec]) => ({ kind, ...spec }));
 }
 
-// The picker lists a tile once per thing it can show, so Work arrives as its
-// four slices rather than as one entry you then have to configure.
+// The picker lists a tile once per thing it can show.
 export function catalogEntries() {
     const out = [];
     for (const spec of catalogList()) {

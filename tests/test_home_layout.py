@@ -93,13 +93,13 @@ class HomeLayoutTests(unittest.TestCase):
         # enough in a tile to earn a place on the board.
         for gone in ("now_next", "free_today", "heatmap", "focus", "timeline"):
             self.assertNotIn(gone, kinds)
-        # To Do, All Work, Unplaced and Due are one Work tile with a setting.
+        # To Do, All Work, Unplaced and Due fold into one Work tile: Today.
         for folded in ("todo", "allwork", "unplaced", "dues"):
             self.assertNotIn(folded, kinds)
         work = next(row for row in home_layout.catalog() if row["kind"] == "work")
         self.assertEqual(
             [option["value"] for option in work["settings"]["slice"]["options"]],
-            ["today", "backlog", "unplaced", "due"],
+            ["today"],
         )
 
     def test_default_home_is_a_bento_of_day_slices(self) -> None:
@@ -112,18 +112,14 @@ class HomeLayoutTests(unittest.TestCase):
             [
                 "work:slice=today",
                 "today_calendar",
-                "work:slice=unplaced",
             ],
         )
         todo = layout["pages"][0]["widgets"][0]
         today = layout["pages"][0]["widgets"][1]
-        unplaced = layout["pages"][0]["widgets"][2]
         self.assertEqual((todo["x"], todo["y"], todo["w"], todo["h"]), (0, 0, 4, 6))
         self.assertEqual(todo.get("region"), "above")
         self.assertEqual((today["x"], today["y"], today["w"], today["h"]), (4, 0, 4, 6))
         self.assertEqual(today.get("region"), "above")
-        self.assertEqual((unplaced["x"], unplaced["y"], unplaced["w"], unplaced["h"]), (0, 0, 8, 6))
-        self.assertNotEqual(unplaced.get("region"), "above")
         self.assertFalse(home_layout.boxes_overlap(todo, today))
         catalog = {row["kind"] for row in home_layout.catalog()}
         for leftover in ("cluny", "weather", "word", "day_brief"):
@@ -134,9 +130,7 @@ class HomeLayoutTests(unittest.TestCase):
             keys_on(week),
             [
                 "goals",
-                "work:slice=backlog",
                 "habits",
-                "work:slice=due",
                 "workout",
                 "reading",
             ],
@@ -150,7 +144,6 @@ class HomeLayoutTests(unittest.TestCase):
             [
                 "work:slice=today",
                 "today_calendar",
-                "work:slice=unplaced",
             ],
         )
         self.assertEqual(len(layout["pages"]), 1)
@@ -251,17 +244,14 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.add_home_widget(page_id, "countdown")
         self.assertIn("countdown", keys_on(layout["pages"][0]))
 
-    def test_two_work_slices_share_a_page_but_one_slice_cannot_repeat(self) -> None:
-        """A tile is the same tile only when it shows the same thing, so Work
-        can sit on a page twice as long as the two slices differ."""
+    def test_two_work_tiles_cannot_repeat_on_one_page(self) -> None:
+        """Work is one list now, so a second Work tile is the same tile."""
         layout = home_layout.get_home_layout()
         page_id = layout["pages"][0]["id"]
-        layout = home_layout.add_home_widget(page_id, "work", "below", {"slice": "backlog"})
-        keys = keys_on(layout["pages"][0])
-        self.assertIn("work:slice=today", keys)
-        self.assertIn("work:slice=backlog", keys)
         with self.assertRaises(ValueError):
             home_layout.add_widget(layout, page_id, "work", "below", {"slice": "backlog"})
+        with self.assertRaises(ValueError):
+            home_layout.add_widget(layout, page_id, "work", "below", {"slice": "today"})
 
     def test_a_slice_nobody_offers_falls_back_to_the_default(self) -> None:
         layout = home_layout.get_home_layout()
@@ -270,9 +260,9 @@ class HomeLayoutTests(unittest.TestCase):
         layout = home_layout.add_home_widget(page_id, "work", "below", {"slice": "yesterday"})
         self.assertIn("work:slice=today", keys_on(layout["pages"][1]))
 
-    def test_a_board_from_before_the_fold_comes_back_as_work_slices(self) -> None:
+    def test_a_board_from_before_the_fold_comes_back_as_today(self) -> None:
         """To Do, All Work, Unplaced and Due were four widgets. A board saved
-        while they still were reads back as four slices of one."""
+        while they still were reads back as one Today tile, not four copies."""
         raw = {
             "version": home_layout.LAYOUT_VERSION,
             "pages": [
@@ -293,17 +283,12 @@ class HomeLayoutTests(unittest.TestCase):
             keys_on(packed["pages"][0]),
             [
                 "work:slice=today",
-                "work:slice=backlog",
-                "work:slice=unplaced",
-                "work:slice=due",
             ],
         )
 
     def test_a_work_slice_opens_the_list_it_was_cut_from(self) -> None:
         self.assertEqual(home_layout.widget_source("work", {"slice": "today"}), "todoTab")
         self.assertEqual(home_layout.widget_source("work", {"slice": "backlog"}), "todoTab")
-        self.assertEqual(home_layout.widget_source("work", {"slice": "unplaced"}), "todoTab")
-        self.assertEqual(home_layout.widget_source("work", {"slice": "due"}), "todoTab")
         self.assertEqual(home_layout.widget_source("weather"), "weatherSource")
 
     def test_move_rejects_overlap_resize_cycles(self) -> None:
@@ -344,7 +329,6 @@ class HomeLayoutTests(unittest.TestCase):
             kinds,
             [
                 "work:slice=today",
-                "work:slice=unplaced",
             ],
         )
 
@@ -423,7 +407,6 @@ class HomeLayoutTests(unittest.TestCase):
             [
                 "work:slice=today",
                 "today_calendar",
-                "work:slice=unplaced",
             ],
         )
         catalog = {row["kind"] for row in home_layout.catalog()}
@@ -535,11 +518,8 @@ class HomeLayoutTests(unittest.TestCase):
             [
                 "work:slice=today",
                 "today_calendar",
-                "work:slice=unplaced",
             ],
         )
-        unplaced = by_key(layout["pages"][0])["work:slice=unplaced"]
-        self.assertEqual((unplaced["w"], unplaced["h"]), (8, 6))
         todo = by_key(layout["pages"][0])["work:slice=today"]
         self.assertEqual((todo["w"], todo["h"]), (4, 6))
         self.assertEqual(len(layout["pages"]), 1)
@@ -582,7 +562,7 @@ class HomeLayoutTests(unittest.TestCase):
         self.assertEqual([item["name"] for item in layout["pages"]], ["Home", "Week"])
         kinds = set(keys_on(layout["pages"][0]))
         self.assertIn("day_brief", kinds)
-        self.assertIn("work:slice=unplaced", kinds)
+        self.assertNotIn("work:slice=unplaced", kinds)
 
     def test_a_four_column_board_is_widened_rather_than_thrown_away(self) -> None:
         """Someone who arranged their board by hand keeps that arrangement.
@@ -646,9 +626,7 @@ class HomeLayoutTests(unittest.TestCase):
             keys_on(packed["pages"][1]),
             [
                 "goals",
-                "work:slice=backlog",
                 "habits",
-                "work:slice=due",
                 "workout",
                 "reading",
             ],
@@ -690,7 +668,7 @@ class HomeLayoutTests(unittest.TestCase):
         again, added_again = home_layout.seed_day_brief(packed)
         self.assertFalse(added_again)
 
-    def test_old_week_page_gains_plan_tiles(self) -> None:
+    def test_old_week_page_does_not_gain_retired_work_slices(self) -> None:
         raw = {
             "pages": [
                 {
@@ -703,21 +681,14 @@ class HomeLayoutTests(unittest.TestCase):
                 home_layout.default_week_page(),
             ]
         }
-        # Strip the new tiles so we look like a pre-plan Week board.
-        raw["pages"][1]["widgets"] = [
-            item
-            for item in raw["pages"][1]["widgets"]
-            if home_layout.widget_key(item["kind"], item.get("settings")) in home_layout.WEEK_STOCK_KINDS
-        ]
         packed, added = home_layout.seed_week_plan_tiles(raw)
-        self.assertTrue(added)
+        self.assertFalse(added)
         kinds = keys_on(packed["pages"][1])
         self.assertNotIn("work:slice=unplaced", kinds)
-        self.assertIn("work:slice=due", kinds)
-        again, added_again = home_layout.seed_week_plan_tiles(packed)
-        self.assertFalse(added_again)
+        self.assertNotIn("work:slice=due", kinds)
+        self.assertNotIn("work:slice=backlog", kinds)
 
-    def test_stock_home_gains_unplaced(self) -> None:
+    def test_stock_home_does_not_gain_unplaced(self) -> None:
         raw = {
             "pages": [
                 {
@@ -735,14 +706,14 @@ class HomeLayoutTests(unittest.TestCase):
             ]
         }
         packed, added = home_layout.seed_home_plan_tiles(raw)
-        self.assertTrue(added)
+        self.assertFalse(added)
         kinds = set(keys_on(packed["pages"][0]))
-        self.assertIn("work:slice=unplaced", kinds)
+        self.assertNotIn("work:slice=unplaced", kinds)
         restacked, changed = home_layout.restack_stock_home(packed)
         self.assertTrue(changed)
         tiles = by_key(restacked["pages"][0])
-        self.assertEqual((tiles["work:slice=unplaced"]["x"], tiles["work:slice=unplaced"]["y"]), (0, 6))
-        self.assertEqual((tiles["work:slice=unplaced"]["w"], tiles["work:slice=unplaced"]["h"]), (4, 6))
+        self.assertIn("work:slice=today", tiles)
+        self.assertNotIn("work:slice=unplaced", tiles)
         again, added_again = home_layout.seed_home_plan_tiles(restacked)
         self.assertFalse(added_again)
 

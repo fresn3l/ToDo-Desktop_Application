@@ -310,7 +310,7 @@ print("ok")
         with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
             boot = home_boot.get_home_boot(wave="2")
         self.assertEqual(boot["wave"], "2")
-        self.assertIn("work:slice=unplaced", boot["glances"])
+        self.assertNotIn("work:slice=unplaced", boot["glances"])
         self.assertNotIn("today_calendar", boot["glances"])
         self.assertNotIn("work:slice=today", boot["glances"])
         self.assertNotIn("cluny", boot["glances"])
@@ -326,7 +326,7 @@ print("ok")
         self.assertEqual(boot.get("wave"), "all")
         self.assertIn("today_calendar", boot["glances"])
         self.assertIn("work:slice=today", boot["glances"])
-        self.assertIn("work:slice=unplaced", boot["glances"])
+        self.assertNotIn("work:slice=unplaced", boot["glances"])
         self.assertNotIn("weather", boot["glances"])
         self.assertNotIn("word", boot["glances"])
         self.assertIsNotNone(boot.get("checkin"))
@@ -388,7 +388,7 @@ print("ok")
         self.assertIn("rollover_missed_bars", names)
         self.assertIn("maybe_purge_stale_imports", names)
 
-    def test_work_pack_fetches_board_once_and_slices_differ(self) -> None:
+    def test_work_pack_fetches_board_once(self) -> None:
         import home_boot
         import work
 
@@ -401,10 +401,8 @@ print("ok")
             boot = home_boot.get_home_boot()
         self.assertEqual(board.call_count, 1)
         today = boot["glances"]["work:slice=today"]
-        unplaced = boot["glances"]["work:slice=unplaced"]
         self.assertIn("Write the paper", [row.get("title") for row in today.get("today") or []])
-        self.assertNotEqual(today, unplaced)
-        self.assertIn("items", unplaced)
+        self.assertNotIn("work:slice=unplaced", boot["glances"])
         self.assertNotIn("upcoming", today)
         self.assertNotIn("backlog", today)
         row = (today.get("today") or [{}])[0]

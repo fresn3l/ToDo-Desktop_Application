@@ -1,5 +1,5 @@
 /**
- * Work sheet — Today, All, Unplaced, and Due as filters on one list.
+ * Today’s to-do sheet. Off-clock work lives on the calendar Work list.
  */
 
 import * as utils from './utils.js';
@@ -12,7 +12,6 @@ let scopeResolver = null;
 let selectedDoDate = null;
 let whenDays = [];
 let destKind = 'today';
-let listFilter = 'today';
 
 function stopTick() {
     if (tickTimer) {
@@ -34,12 +33,6 @@ function startTick() {
             el.textContent = formatDuration(seconds);
         });
     }, 1000);
-}
-
-function normalizeFilter(raw) {
-    if (raw === 'backlog' || raw === 'allwork') return 'all';
-    if (raw === 'all' || raw === 'unplaced' || raw === 'due') return raw;
-    return 'today';
 }
 
 function askScope(copy) {
@@ -108,9 +101,7 @@ const WEEKDAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 
 function addButtonLabel() {
     if (document.getElementById('todoRepeatToggle')?.checked) return 'Save repeating to-do';
-    if (listFilter === 'unplaced') return 'Add unplaced';
-    if (listFilter === 'due') return 'Add due';
-    if (destKind === 'allwork' || listFilter === 'all') return 'Add to All Work';
+    if (destKind === 'allwork') return 'Add to Work';
     const iso = selectedWhenDate();
     const day = whenDays.find((row) => row.place_date === iso);
     if (day?.is_today) return 'Add';
@@ -127,18 +118,8 @@ function updateWhenHint() {
     const hint = document.querySelector('.todo-when-hint');
     if (!hint) return;
     const clock = 'Dated is not on the clock. With minutes, Fill week or drag places it.';
-    if (listFilter === 'unplaced') {
-        hint.textContent = `Parked with minutes, not on the clock. ${clock}`;
-        updateAddButton();
-        return;
-    }
-    if (listFilter === 'due') {
-        hint.textContent = 'Due date is the deadline. Dated is not on the clock.';
-        updateAddButton();
-        return;
-    }
-    if (destKind === 'allwork' || listFilter === 'all') {
-        hint.textContent = `Saved in All Work — not on the clock. ${clock}`;
+    if (destKind === 'allwork') {
+        hint.textContent = `Saved in Work — not on the clock. ${clock}`;
         updateAddButton();
         return;
     }
@@ -164,22 +145,9 @@ function paintDest() {
 
 function paintFilter() {
     const tab = document.getElementById('todoTab');
-    if (tab) tab.setAttribute('data-work-filter', listFilter);
-    document.querySelectorAll('#todoFilter [data-filter]').forEach((btn) => {
-        const on = btn.getAttribute('data-filter') === listFilter;
-        btn.classList.toggle('is-selected', on);
-        btn.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
+    if (tab) tab.setAttribute('data-work-filter', 'today');
     const input = document.getElementById('todoNewTitle');
-    if (input) {
-        input.placeholder = listFilter === 'all'
-            ? 'A task without a date yet'
-            : listFilter === 'due'
-                ? 'What’s due'
-                : '45 mins board memo';
-    }
-    if (listFilter === 'all' || listFilter === 'unplaced') destKind = 'allwork';
-    else destKind = 'today';
+    if (input) input.placeholder = '45 mins board memo';
     paintDest();
     updateWhenHint();
 }
@@ -243,19 +211,6 @@ function syncRepeatPanel() {
     });
 }
 
-function hideAsides() {
-    const overdueEl = document.getElementById('todoOverdue');
-    const tomorrowEl = document.getElementById('todoTomorrow');
-    if (overdueEl) {
-        overdueEl.classList.add('is-hidden');
-        overdueEl.innerHTML = '';
-    }
-    if (tomorrowEl) {
-        tomorrowEl.classList.add('is-hidden');
-        tomorrowEl.innerHTML = '';
-    }
-}
-
 function itemRow(item, { showDate = false } = {}) {
     const running = item.status === 'active';
     const done = item.status === 'done';
@@ -302,73 +257,12 @@ function itemRow(item, { showDate = false } = {}) {
                 ${repeatActions}
                 <details class="work-more">
                     <summary>More</summary>
-                    <button type="button" class="btn-ghost" data-act="park">All Work</button>
+                    <button type="button" class="btn-ghost" data-act="park">Work</button>
                     <button type="button" class="btn-ghost" data-act="delete">Delete</button>
                 </details>
             </div>
         </article>
     `;
-}
-
-function parkedRow(item) {
-    const due = item.due_at
-        ? `Due ${utils.escapeHtml(String(item.due_at).slice(0, 16).replace('T', ' '))}`
-        : item.due
-            ? `Due ${utils.escapeHtml(item.due)}`
-            : item.scheduled_date
-                ? utils.escapeHtml(item.scheduled_date)
-                : 'Not dated yet';
-    const mins = item.remaining_minutes || item.estimate_minutes;
-    return `
-        <article class="work-item" data-id="${utils.escapeHtml(item.id)}">
-            <div class="work-item-main">
-                <h3>${utils.escapeHtml(item.title)}</h3>
-                <p class="work-meta">${due}${mins ? ` · ${mins} min` : ''}</p>
-            </div>
-            <div class="work-item-actions">
-                <button type="button" class="btn-primary" data-act="today">Today</button>
-                <button type="button" class="btn-secondary" data-act="tomorrow">Tomorrow</button>
-                <button type="button" class="btn-ghost" data-act="delete">Delete</button>
-            </div>
-        </article>`;
-}
-
-function bindParkedList(root, onChange) {
-    root.querySelectorAll('.work-item').forEach((row) => {
-        const id = row.getAttribute('data-id');
-        row.querySelectorAll('[data-act]').forEach((btn) => {
-            btn.addEventListener('click', async () => {
-                const act = btn.getAttribute('data-act');
-                try {
-                    if (act === 'today') {
-                        const date = utils.localISODate();
-                        await eel.assign_work_item(id, date)();
-                        let message = 'Moved to today’s To Do.';
-                        if (typeof eel.place_work_item === 'function') {
-                            const placed = await eel.place_work_item(id, date)();
-                            if (placed?.placed) message = placed.message || message;
-                        }
-                        utils.showSuccessFeedback(message);
-                    } else if (act === 'tomorrow') {
-                        const date = tomorrowISO();
-                        await eel.assign_work_item(id, date)();
-                        let message = 'Queued for tomorrow.';
-                        if (typeof eel.place_work_item === 'function') {
-                            const placed = await eel.place_work_item(id, date)();
-                            if (placed?.placed) message = placed.message || message;
-                        }
-                        utils.showSuccessFeedback(message);
-                    } else if (act === 'delete') {
-                        await eel.delete_work_item(id)();
-                    }
-                    utils.notifyDataChanged();
-                    await onChange();
-                } catch (e) {
-                    utils.showErrorFeedback('Could not update that item.');
-                }
-            });
-        });
-    });
 }
 
 function bindList(root, onChange) {
@@ -412,95 +306,6 @@ function bindList(root, onChange) {
             });
         });
     });
-}
-
-async function refreshAll() {
-    const list = document.getElementById('todoList');
-    const summary = document.getElementById('todoSummary');
-    if (!list) return;
-    hideAsides();
-    stopTick();
-    try {
-        const items = await eel.list_backlog()();
-        if (summary) {
-            summary.textContent = items.length
-                ? `${items.length} waiting to be dated`
-                : 'Empty — add work for later';
-        }
-        if (!items.length) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    <h3>Nothing parked in All Work</h3>
-                    <p>Capture tasks here. Tonight, assign some to tomorrow or leave them for later.</p>
-                </div>`;
-            return;
-        }
-        list.innerHTML = items.map((item) => parkedRow(item)).join('');
-        bindParkedList(list, refreshTodo);
-    } catch (e) {
-        console.error(e);
-        list.innerHTML = '<p class="checklist-error">Could not load All Work.</p>';
-    }
-}
-
-async function refreshUnplaced() {
-    const list = document.getElementById('todoList');
-    const summary = document.getElementById('todoSummary');
-    if (!list) return;
-    hideAsides();
-    stopTick();
-    try {
-        const packed = await eel.get_unplaced_glance(0)();
-        const items = packed?.items || [];
-        const count = packed?.count ?? items.length;
-        if (summary) {
-            summary.textContent = count
-                ? `${count} with minutes left off the clock`
-                : 'Nothing unplaced';
-        }
-        if (!items.length) {
-            list.innerHTML = `
-                <div class="empty-state empty-state--line">
-                    <p>Nothing to place. Add minutes, then Fill week or drag onto the clock.</p>
-                </div>`;
-            return;
-        }
-        list.innerHTML = items.map((item) => parkedRow(item)).join('');
-        bindParkedList(list, refreshTodo);
-    } catch (e) {
-        console.error(e);
-        list.innerHTML = '<p class="checklist-error">Could not load unplaced work.</p>';
-    }
-}
-
-async function refreshDue() {
-    const list = document.getElementById('todoList');
-    const summary = document.getElementById('todoSummary');
-    if (!list) return;
-    hideAsides();
-    stopTick();
-    try {
-        const packed = await eel.get_dues_week_glance(0)();
-        const items = packed?.items || [];
-        const count = packed?.count ?? items.length;
-        if (summary) {
-            summary.textContent = count
-                ? `${count} due this week`
-                : 'Nothing due this week';
-        }
-        if (!items.length) {
-            list.innerHTML = `
-                <div class="empty-state empty-state--line">
-                    <p>No due dates this week.</p>
-                </div>`;
-            return;
-        }
-        list.innerHTML = items.map((item) => itemRow(item, { showDate: true })).join('');
-        bindList(list, refreshTodo);
-    } catch (e) {
-        console.error(e);
-        list.innerHTML = '<p class="checklist-error">Could not load due work.</p>';
-    }
 }
 
 async function refreshToday(opts = {}) {
@@ -605,11 +410,7 @@ async function refreshToday(opts = {}) {
 export async function refreshTodo(opts = {}) {
     const list = document.getElementById('todoList');
     if (!list) return;
-    if (opts.filter) listFilter = normalizeFilter(opts.filter);
     paintFilter();
-    if (listFilter === 'all') return refreshAll();
-    if (listFilter === 'unplaced') return refreshUnplaced();
-    if (listFilter === 'due') return refreshDue();
     return refreshToday(opts);
 }
 
@@ -620,26 +421,16 @@ async function addWorkTask() {
         utils.showErrorFeedback('Name the task first.');
         return;
     }
-    const repeat = listFilter === 'today' ? currentRepeat() : null;
+    const repeat = destKind === 'today' ? currentRepeat() : null;
     const due = document.getElementById('todoNewDue')?.value || '';
     const estimate = document.getElementById('todoNewEstimate')?.value || '';
     const goal = document.getElementById('todoNewGoal')?.value || '';
-    if (listFilter === 'today' && repeatKind === 'custom' && repeat && !(repeat.weekdays || []).length) {
+    if (destKind === 'today' && repeatKind === 'custom' && repeat && !(repeat.weekdays || []).length) {
         utils.showErrorFeedback('Pick at least one weekday.');
         return;
     }
-    if (listFilter === 'unplaced' && !estimate && !/\d+\s*(min|mins|minutes)\b/i.test(title)) {
-        utils.showErrorFeedback('Unplaced needs minutes in the title or the Min field.');
-        return;
-    }
-    if (listFilter === 'due' && !due) {
-        utils.showErrorFeedback('Pick a due date.');
-        return;
-    }
     try {
-        let onDate = selectedWhenDate();
-        if (listFilter === 'all' || listFilter === 'unplaced') onDate = 'allwork';
-        else if (listFilter === 'due') onDate = due || utils.localISODate();
+        const onDate = selectedWhenDate();
         const result = await eel.add_todo_to_calendar(title, onDate, due, estimate, repeat, goal)();
         if (input) input.value = '';
         const est = document.getElementById('todoNewEstimate');
@@ -679,13 +470,6 @@ export function setupTodo() {
             e.preventDefault();
             void addWorkTask();
         }
-    });
-    document.getElementById('todoFilter')?.addEventListener('click', (e) => {
-        const btn = e.target.closest('#todoFilter [data-filter]');
-        if (!btn) return;
-        listFilter = normalizeFilter(btn.getAttribute('data-filter'));
-        paintFilter();
-        void refreshTodo();
     });
     document.getElementById('todoRepeatToggle')?.addEventListener('change', () => {
         syncRepeatPanel();
@@ -755,7 +539,6 @@ export function setupTodo() {
 }
 
 export async function onTodoTabShown(opts = {}) {
-    if (opts.filter) listFilter = normalizeFilter(opts.filter);
     paintFilter();
     await loadWhenChips();
     await loadGoalOptions('todoNewGoal');
@@ -763,7 +546,6 @@ export async function onTodoTabShown(opts = {}) {
 }
 
 async function openTodoForItem(date, itemId) {
-    listFilter = 'today';
     destKind = 'today';
     if (date) selectedDoDate = date;
     await loadWhenChips();

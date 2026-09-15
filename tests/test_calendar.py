@@ -565,6 +565,31 @@ END:VCALENDAR
         match = next(row for row in rows if row["id"] == item["id"])
         self.assertEqual(match["remaining_minutes"], 40)
 
+    def test_off_calendar_work_is_not_today_and_needs_no_estimate(self) -> None:
+        today = work._today().isoformat()
+        parked = work.create_work_item("Parked thought")
+        dated = work.create_work_item("Board memo", scheduled_date=today, estimate_minutes=45)
+        later = work.create_work_item(
+            "Thursday draft",
+            scheduled_date="2026-09-03",
+            estimate_minutes=30,
+        )
+        off_ids = {row["id"] for row in calclock.off_calendar_work()}
+        self.assertIn(parked["id"], off_ids)
+        self.assertIn(later["id"], off_ids)
+        self.assertNotIn(dated["id"], off_ids)
+        leftover = {row["id"] for row in calclock.unplaced_work()}
+        self.assertIn(dated["id"], leftover)
+        self.assertNotIn(parked["id"], leftover)
+        week = calclock.get_week("2026-08-31")
+        shown = {row["id"] for row in week["unplaced"]}
+        self.assertIn(parked["id"], shown)
+        self.assertIn(later["id"], shown)
+        self.assertNotIn(dated["id"], shown)
+        work.assign_work_item(parked["id"], today)
+        moved = {row["id"] for row in calclock.off_calendar_work()}
+        self.assertNotIn(parked["id"], moved)
+
     def test_calendar_payload_caps_unplaced_and_skips_per_todo_block_queries(self) -> None:
         extra = 25
         count = calclock.UNPLACED_UI_LIMIT + extra
