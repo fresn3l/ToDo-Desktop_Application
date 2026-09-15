@@ -244,7 +244,7 @@ def place_work_item(item_id: str, on_date: str = "") -> Dict[str, Any]:
         clock = f" at {first_start.strftime('%H:%M')}" if first_start else ""
         message = f"Placed {leftover} min {day.strftime('%a')}{clock}."
     else:
-        message = f"No free gap on {day.strftime('%a')} — it's on To Do but not on the clock."
+        message = f"No free gap on {day.strftime('%a')} — it's dated but not on the clock."
     with work._connect() as conn:
         fetched = work._fetch(conn, item_id)
         latest = work._row_to_dict(fetched) if fetched else item
@@ -269,7 +269,7 @@ def add_todo_to_calendar(
 ) -> Dict[str, Any]:
     """Capture a to-do. Dated is not on the clock — Fill week or drag places it."""
     raw = str(on_date or "").strip().lower()
-    park = raw in {"allwork", "all-work", "park"}
+    park = raw in {"allwork", "all-work", "park", "work"}
     target = None if park else (work._parse_date(on_date) or work._today().isoformat())
     item = work.create_work_item(
         title,
@@ -289,7 +289,7 @@ def add_todo_to_calendar(
         else " Dated is not on the clock."
     )
     if park:
-        message = "Saved in All Work." + (
+        message = "Saved in Work." + (
             " Add minutes, then Fill week or drag to place." if mins else ""
         )
     else:
@@ -327,12 +327,15 @@ def fill_week(week_start: str = "") -> Dict[str, Any]:
         until = datetime.combine(end, datetime.min.time()).replace(hour=23, minute=59)
         from_dt = window_begin
         scheduled = item.get("scheduled_date")
+        today = work._today()
         if scheduled:
             try:
                 pinned = date.fromisoformat(str(scheduled)[:10])
             except ValueError:
                 pinned = None
             if pinned is not None:
+                if pinned == today:
+                    continue
                 if pinned < start or pinned > end:
                     continue
                 from_dt = max(window_begin, datetime.combine(pinned, datetime.min.time()))

@@ -83,7 +83,7 @@ function rateForm() {
             <button type="button" class="btn-primary" data-act="add-rate">Add</button>
             <div class="goal-add-more">
                 <select class="checklist-text-input" data-field="measure" aria-label="Measure">
-                    <option value="attendance">Attendance %</option>
+                    <option value="attendance">Completed %</option>
                     <option value="hours">Hours</option>
                     <option value="todo_completion">To-do completion %</option>
                 </select>

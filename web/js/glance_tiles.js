@@ -114,8 +114,8 @@ function openWorkAction(key, label = copy.open) {
  * with one line in it used to leave its button floating halfway up.
  *
  * The count is its own element rather than part of the heading string, so a
- * tile reads "Today's work 7" with the number set apart instead of
- * "Today's work · 7" run together.
+ * tile reads "Today 7" with the number set apart instead of
+ * "Today · 7" run together.
  */
 function shellHtml({ key, size, state = 'ready', label, count = '', primary = '', body = '', action = null, actions = null, hero = false }) {
     const stateCls = state !== 'ready' ? ` is-${state}` : '';

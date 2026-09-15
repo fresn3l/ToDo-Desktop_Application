@@ -107,7 +107,7 @@
                             <header class="home-work-head">
                                 <div class="home-work-titles">
                                     <p id="homeWorkKicker" class="home-work-kicker">Home</p>
-                                    <h2 id="homeWorkTitle">To Do</h2>
+                                    <h2 id="homeWorkTitle">Today</h2>
                                 </div>
                                 <button type="button" id="homeWorkClose" class="home-work-close" aria-label="Close">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -144,7 +144,7 @@
                                         <span class="cal-awake-sep">–</span>
                                         <input type="text" id="calDayEnd" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="2130" maxlength="5" aria-label="Day ends (24-hour)">
                                     </div>
-                                    <button type="button" id="calFillWeek" class="btn-primary" title="Places open estimates around busy time this week.">Fill week</button>
+                                    <button type="button" id="calFillWeek" class="btn-primary" title="Places Work leftover minutes around busy time this week. Today stays a list until you drag it.">Fill week</button>
                                 </div>
                             </header>
                             <div class="cal-week-shell is-week">
@@ -156,7 +156,7 @@
                                     <button type="button" data-draw-kind="focus" class="is-selected">Focus</button>
                                     <button type="button" data-draw-kind="event">Event</button>
                                 </div>
-                                <p id="calClockHint" class="cal-clock-hint">Drag empty time to draw. Alt draws the other kind. Alt marks attended, Shift marks not done. Click a work bar to lock it.</p>
+                                <p id="calClockHint" class="cal-clock-hint">Drag empty time to draw. Alt draws the other kind. Alt marks happened, Shift marks missed. Click a work bar to lock it.</p>
                             </div>
                             <div id="calMonthGrid" class="cal-month-grid is-hidden"></div>
                             <p id="calMonthLegend" class="cal-month-legend is-hidden">Event · placed · due</p>
@@ -190,9 +190,9 @@
                                     <button type="button" class="work-day-chip" data-status="proposed">Flexible</button>
                                     <button type="button" class="work-day-chip" data-status="locked">Locked</button>
                                 </div>
-                                <div id="calBarOutcome" class="work-weekdays is-hidden" role="group" aria-label="Attendance">
-                                    <button type="button" class="work-day-chip" data-outcome="attended">Attended</button>
-                                    <button type="button" class="work-day-chip" data-outcome="missed">Did not complete</button>
+                                <div id="calBarOutcome" class="work-weekdays is-hidden" role="group" aria-label="On the clock">
+                                    <button type="button" class="work-day-chip" data-outcome="attended">Happened</button>
+                                    <button type="button" class="work-day-chip" data-outcome="missed">Missed</button>
                                 </div>
                                 <div id="calFocusAttach" class="cal-focus-attach is-hidden">
                                     <p class="cal-focus-hint">Work and habits in this span. Overflow is fine — they stay in the block.</p>
@@ -220,7 +220,7 @@
                             </div>
                             <div class="cal-aside-block" id="calUnplacedBlock">
                                 <h3>Work</h3>
-                                <p class="cal-unplaced-hint">Drag onto the clock, or move into Today. Fill week packs leftover minutes.</p>
+                                <p class="cal-unplaced-hint">Drag onto the clock, or move into Today. Fill week packs Work leftover minutes, not Today.</p>
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
                         </aside>
@@ -360,7 +360,7 @@
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
-                                    <h2>Today’s to-do</h2>
+                                    <h2>Today</h2>
                                     <p class="panel-sub" id="todoSummary"></p>
                                 </div>
                             </div>
@@ -368,7 +368,7 @@
                                 <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="45 mins board memo" autocomplete="off">
                                 <button type="button" id="todoAddBtn" class="btn-primary">Add</button>
                             </div>
-                            <p class="todo-when-hint">Dated is not on the clock. With minutes, Fill week or drag places it.</p>
+                            <p class="todo-when-hint">Dated is not on the clock. Drag onto the clock to place it. Fill week packs Work, not Today.</p>
                             <details class="todo-more">
                                 <summary>More</summary>
                                 <p class="todo-when-label">Where</p>
@@ -611,7 +611,7 @@
                         <div id="clunySources" class="cluny-sources" hidden></div>
                         <div class="cluny-suggest-row">
                             <button type="button" class="btn-secondary" id="clunySuggestBtn">Suggest work</button>
-                            <p class="checklist-hint small" id="clunySuggestHint">Accept lands in All Work with a due date, never an HH:MM. You pick the day.</p>
+                            <p class="checklist-hint small" id="clunySuggestHint">Accept lands in Work with a due date, never an HH:MM. You pick the day.</p>
                         </div>
                         <ul id="clunyInbox" class="cluny-inbox"></ul>
                     </div>
@@ -714,7 +714,7 @@
                                 <option value="knowledge">Knowledge</option>
                                 <option value="propose">Propose</option>
                             </select>
-                            <p class="checklist-hint small">Propose drafts All Work items. Cluny never places HH:MM or writes the week clock.</p>
+                            <p class="checklist-hint small">Propose drafts Work items. Cluny never places HH:MM or writes the week clock.</p>
                             <button type="button" id="brainNewSessionBtn" class="btn-ghost">New chat</button>
                         </div>
                         <div id="brainChatLog" class="brain-chat-log" aria-live="polite"></div>
@@ -955,7 +955,7 @@
                             <div class="settings-block">
                                 <h3>Shortcuts</h3>
                                 <ul class="shortcut-list">
-                                    <li><kbd>⌘</kbd><kbd>1</kbd> Home · <kbd>2</kbd> Journal · <kbd>3</kbd> Calendar · <kbd>4</kbd> Brain · <kbd>5</kbd> Library</li>
+                                    <li><kbd>⌘</kbd><kbd>1</kbd> Calendar · <kbd>2</kbd> Home · <kbd>3</kbd> Journal · <kbd>4</kbd> Brain · <kbd>5</kbd> Library</li>
                                     <li><kbd>⌘</kbd><kbd>,</kbd> Settings</li>
                                     <li><kbd>⌘</kbd><kbd>Enter</kbd> Save journal entry</li>
                                     <li><kbd>Esc</kbd> Pause timer, then clear with confirm</li>
@@ -1003,7 +1003,7 @@
                             <label class="checklist-field-label">Sync folder</label>
                             <code id="icloudSyncFolder" class="checklist-db-path"></code>
                             <label class="checklist-checkbox-label">
-                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, To Do, Workout, or Journal changes
+                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, Work, Workout, or Journal changes
                             </label>
                             <label class="checklist-checkbox-label">
                                 <input type="checkbox" id="icloudAutoPullToggle" checked>
@@ -1050,8 +1050,8 @@
                                 <div class="export-buttons">
                                     <button type="button" class="btn-secondary" data-export="journal-json">Journal JSON</button>
                                     <button type="button" class="btn-secondary" data-export="journal-csv">Journal CSV</button>
-                                    <button type="button" class="btn-secondary" data-export="work-json">To Do JSON</button>
-                                    <button type="button" class="btn-secondary" data-export="work-csv">To Do CSV</button>
+                                    <button type="button" class="btn-secondary" data-export="work-json">Work JSON</button>
+                                    <button type="button" class="btn-secondary" data-export="work-csv">Work CSV</button>
                                     <button type="button" class="btn-secondary" data-export="workouts-json">Workout JSON</button>
                                     <button type="button" class="btn-secondary" data-export="workouts-csv">Workout CSV</button>
                                     <button type="button" class="btn-secondary" data-export="week-markdown">Week markdown</button>
@@ -1186,6 +1186,10 @@
         <div class="work-scope-card" role="dialog" aria-modal="true" aria-labelledby="workScopeTitle">
             <h3 id="workScopeTitle">This day or the whole series?</h3>
             <p class="panel-sub" id="workScopeCopy"></p>
+            <label class="checklist-checkbox-label">
+                <input type="checkbox" id="workScopeRemember" checked>
+                Remember this
+            </label>
             <div class="work-item-actions">
                 <button type="button" class="btn-secondary" id="workScopeOccurrence">This day only</button>
                 <button type="button" class="btn-primary" id="workScopeSeries">Entire series</button>
@@ -1285,7 +1289,7 @@
         <button type="button" data-act="reopen" class="is-hidden">Reopen</button>
         <button type="button" data-act="place-after">Place after first event</button>
         <div id="calDueFocusActs"></div>
-        <button type="button" data-act="todo">Open in To Do</button>
+        <button type="button" data-act="todo">Open in Today</button>
     </div>
 
     <script src="eel.js"></script>

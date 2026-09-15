@@ -1501,7 +1501,33 @@ def upsert_phone_event(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 @eel.expose
-def delete_calendar_event(event_id: str) -> Dict[str, Any]:
+def delete_calendar_event(
+    event_id: str,
+    occurrence_date: str = "",
+    scope: str = "series",
+) -> Dict[str, Any]:
+    occ = str(occurrence_date or "").strip()[:10]
+    want_occurrence = str(scope or "series").strip().lower() == "occurrence"
+    if want_occurrence and len(occ) == 10:
+        event = _load_event(event_id)
+        rec = event.get("recurrence") if isinstance(event.get("recurrence"), dict) else None
+        if rec and rec.get("weekdays"):
+            exdates = sorted(_recurrence_exdates(rec) | {occ})
+            rec = {**rec, "exdates": exdates}
+            overrides = dict(rec.get("overrides") or {}) if isinstance(rec.get("overrides"), dict) else {}
+            overrides.pop(occ, None)
+            if overrides:
+                rec["overrides"] = overrides
+            else:
+                rec.pop("overrides", None)
+            now = _now().isoformat()
+            with _connect() as conn:
+                conn.execute(
+                    "UPDATE calendar_events SET recurrence_json = ?, updated_at = ? WHERE id = ?",
+                    (json.dumps(rec), now, event_id),
+                )
+                conn.commit()
+            return {"ok": True, "id": event_id, "scope": "occurrence", "occurrence_date": occ}
     with _connect() as conn:
         cur = conn.execute("DELETE FROM calendar_events WHERE id = ?", (event_id,))
         conn.commit()
@@ -1765,15 +1791,40 @@ def update_calendar_event(
     end_at: str = "",
     weekdays: Any = None,
     occurrence_date: str = "",
+    scope: str = "series",
 ) -> Dict[str, Any]:
     """Rename or move a timed event. Recurring series keep weekdays unless you pass new ones
-    or drag an occurrence onto another weekday."""
+    or drag an occurrence onto another weekday. scope=occurrence edits one day only."""
     event = _load_event(event_id)
     clean = (title or "").strip() or event["title"]
     start = parse_datetime(start_at) if start_at else parse_datetime(event["start_at"])
     end = parse_datetime(end_at) if end_at else parse_datetime(event["end_at"])
     duration = end - start
     rec = event.get("recurrence") if isinstance(event.get("recurrence"), dict) else None
+    occ = str(occurrence_date or "").strip()[:10]
+    want_occurrence = str(scope or "series").strip().lower() == "occurrence"
+    if want_occurrence and rec and rec.get("weekdays") and len(occ) == 10:
+        day = date.fromisoformat(occ)
+        occ_start = datetime.combine(day, start.time())
+        occ_end = occ_start + duration
+        _validate_span(occ_start, occ_end, hard=True)
+        overrides = dict(rec.get("overrides") or {}) if isinstance(rec.get("overrides"), dict) else {}
+        overrides[occ] = {
+            "title": clean[:200],
+            "start_at": occ_start.isoformat(timespec="seconds"),
+            "end_at": occ_end.isoformat(timespec="seconds"),
+        }
+        rec = {**rec, "overrides": overrides}
+        now = _now().isoformat()
+        with _connect() as conn:
+            conn.execute(
+                "UPDATE calendar_events SET recurrence_json = ?, updated_at = ? WHERE id = ?",
+                (json.dumps(rec), now, event_id),
+            )
+            conn.commit()
+            row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
+        assert row is not None
+        return _row_event(row)
     if weekdays is not None:
         days = _normalize_weekdays(weekdays)
         # Keep an end date and any skipped days; only the weekdays are being set.
@@ -1879,14 +1930,12 @@ def expand_hard_events(start: date, end: date) -> List[Dict[str, Any]]:
                 if cursor.weekday() in allowed and cursor.isoformat() not in exdates:
                     occ_start = datetime.combine(cursor, event_start.time())
                     out.append(
-                        {
-                            **event,
-                            "occurrence_date": cursor.isoformat(),
-                            "start_at": occ_start.isoformat(timespec="seconds"),
-                            "end_at": (occ_start + duration).isoformat(timespec="seconds"),
-                            "kind": "hard",
-                            "status": "open",
-                        }
+                        _paint_hard_occurrence(
+                            event,
+                            occ_start,
+                            occ_start + duration,
+                            cursor.isoformat(),
+                        )
                     )
                 cursor += timedelta(days=1)
             continue
@@ -1935,9 +1984,38 @@ def _occurrence_on(event: Dict[str, Any], day: date) -> Optional[Dict[str, Any]]
             occ_end = end
         if occ_end <= occ_start:
             return None
+    return _paint_hard_occurrence(event, occ_start, occ_end, day.isoformat())
+
+
+def _occurrence_override(event: Dict[str, Any], day_iso: str) -> Dict[str, Any]:
+    rec = event.get("recurrence") if isinstance(event.get("recurrence"), dict) else None
+    raw = rec.get("overrides") if isinstance(rec, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    over = raw.get(day_iso)
+    return over if isinstance(over, dict) else {}
+
+
+def _paint_hard_occurrence(
+    event: Dict[str, Any],
+    occ_start: datetime,
+    occ_end: datetime,
+    day_iso: str,
+) -> Dict[str, Any]:
+    over = _occurrence_override(event, day_iso)
+    title = str(over.get("title") or event.get("title") or "")
+    start_raw = over.get("start_at")
+    end_raw = over.get("end_at")
+    if start_raw and end_raw:
+        try:
+            occ_start = parse_datetime(str(start_raw))
+            occ_end = parse_datetime(str(end_raw))
+        except (TypeError, ValueError):
+            pass
     return {
         **event,
-        "occurrence_date": day.isoformat(),
+        "title": title[:200] if title else event.get("title"),
+        "occurrence_date": day_iso,
         "start_at": occ_start.isoformat(timespec="seconds"),
         "end_at": occ_end.isoformat(timespec="seconds"),
         "kind": "hard",
@@ -2196,7 +2274,11 @@ def attached_work_ids() -> set:
 
 
 def unplaced_work() -> List[Dict[str, Any]]:
-    """Leftover minutes Fill week can still pack, including today's leftover."""
+    """Leftover minutes Fill week can still pack.
+
+    Includes today's dated leftover so other callers can see it. Fill week
+    itself skips items dated today — those stay on Today's list until dragged.
+    """
     placed = _placed_minutes_map()
     held = attached_work_ids()
     items = []
@@ -2228,7 +2310,8 @@ def unplaced_work() -> List[Dict[str, Any]]:
 def off_calendar_work() -> List[Dict[str, Any]]:
     """Open work that is not today's to-do and not fully on the clock.
 
-    Today's list stays separate. Fill week still uses unplaced_work().
+    Today's list stays separate. Fill week packs leftover minutes from this
+    list, not from Today's dated items.
     """
     placed = _placed_minutes_map()
     held = attached_work_ids()
@@ -2266,7 +2349,32 @@ def off_calendar_work() -> List[Dict[str, Any]]:
     return items
 
 
-def _slim_unplaced(item: Dict[str, Any]) -> Dict[str, Any]:
+def work_list_group(item: Dict[str, Any], today: Optional[date] = None, week_start: Optional[date] = None) -> str:
+    """due_soon, this_week, later, or no_day — Work list headings, not extra filters."""
+    day = today or work._today()
+    monday = week_start or monday_of(day)
+    sunday = monday + timedelta(days=6)
+    due_raw = str(item.get("due_at") or "")[:10]
+    if len(due_raw) == 10:
+        try:
+            due = date.fromisoformat(due_raw)
+            if due <= day + timedelta(days=7):
+                return "due_soon"
+        except ValueError:
+            pass
+    scheduled = str(item.get("scheduled_date") or "")[:10]
+    if not scheduled:
+        return "no_day"
+    try:
+        pinned = date.fromisoformat(scheduled)
+    except ValueError:
+        return "no_day"
+    if monday <= pinned <= sunday:
+        return "this_week"
+    return "later"
+
+
+def _slim_unplaced(item: Dict[str, Any], today: Optional[date] = None, week_start: Optional[date] = None) -> Dict[str, Any]:
     return {
         "id": item.get("id"),
         "title": item.get("title") or "",
@@ -2274,12 +2382,15 @@ def _slim_unplaced(item: Dict[str, Any]) -> Dict[str, Any]:
         "scheduled_date": item.get("scheduled_date"),
         "estimate_minutes": item.get("estimate_minutes"),
         "remaining_minutes": item.get("remaining_minutes"),
+        "group": work_list_group(item, today, week_start),
     }
 
 
 def _unplaced_ui(rows: Optional[List[Dict[str, Any]]] = None) -> Tuple[List[Dict[str, Any]], int]:
     items = rows if rows is not None else off_calendar_work()
-    return [_slim_unplaced(item) for item in items[:UNPLACED_UI_LIMIT]], len(items)
+    today = work._today()
+    monday = monday_of(today)
+    return [_slim_unplaced(item, today, monday) for item in items[:UNPLACED_UI_LIMIT]], len(items)
 
 
 def _slim_clock_item(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -2477,6 +2588,7 @@ def _slim_due(
         "title": title,
         "status": item.get("status") or "open",
         "due_at": item.get("due_at"),
+        "scheduled_date": item.get("scheduled_date"),
         "estimate_minutes": int(item.get("estimate_minutes") or DEFAULT_ESTIMATE),
         "source_calendar": item.get("source_calendar") or "",
         "course": course,

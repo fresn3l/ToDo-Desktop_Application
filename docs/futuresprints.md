@@ -22,11 +22,4 @@ The iPhone reads `appearance.json` from the iCloud pack and applies the Mac’s 
 
 Parked while Ask Cluny lands on Home. Do not treat these as blockers for the brain widget.
 
-### Composer / finish flow
-
-- Repeating series vs a single occurrence is easy to get wrong when renaming or deleting.
-- Menu bar **Run** logs a 0-mile session; the Workout widget requires miles.
-
-### Unfinished polish
-
-- Appearance still stores `todayLayout` / `todayOrder` / module toggles with no Settings UI.
+Repeating series vs occurrence, menu-bar Run miles, and unused `todayLayout` settings shipped on the today-work-align branch.

@@ -59,7 +59,7 @@ function setCalView(next) {
     const unplacedHint = document.querySelector('.cal-unplaced-hint');
     if (unplacedHint) {
         unplacedHint.textContent = calView === 'week'
-            ? 'Drag onto the clock, or move into Today. Fill week packs leftover minutes.'
+            ? 'Drag onto the clock, or move into Today. Fill week packs Work leftover minutes, not Today.'
             : 'Switch to Week to drag these onto the clock.';
     }
     document.querySelectorAll('#calViewGroup [data-cal-view]').forEach((btn) => {
@@ -462,11 +462,11 @@ function renderTodayRail(today) {
         ? `<h4>Overdue</h4><div class="cal-due-list">${overdue.map((due) => renderDueChip(due)).join('')}</div>`
         : '';
     const workHtml = work.length
-        ? `<h4>Today's work</h4><div class="cal-due-list">${work.map((row) => renderDueChip(row)).join('')}</div>`
-        : '<h4>Today\'s work</h4><p class="cal-due-empty">Nothing dated today. Drag from Work onto the week.</p>';
+        ? `<h4>Today</h4>${work.map((row) => renderWorkRow(row, { action: 'park' })).join('')}`
+        : '<h4>Today</h4><p class="cal-due-empty">Nothing dated today. Add below, or move from Work.</p>';
     const duesHtml = dues.length
         ? `<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`
-        : '<h4>Due today</h4><p class="cal-due-empty">No dues</p>';
+        : '';
     const clockHtml = items.length
         ? `<h4>On the clock</h4><ul class="cal-today-agenda">${items.map((item) => {
             const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : item.kind === 'focus' ? 'focus' : 'work';
@@ -482,17 +482,76 @@ function renderTodayRail(today) {
         </header>
         ${overdueHtml}
         ${workHtml}
+        <div class="work-add-row cal-today-add">
+            <input type="text" id="calTodayAdd" class="checklist-text-input" placeholder="Add for today" autocomplete="off">
+            <button type="button" id="calTodayAddBtn" class="btn-ghost">Add</button>
+        </div>
         ${duesHtml}
         ${clockHtml}
     `;
+    bindWorkRows(root);
+    document.getElementById('calTodayAddBtn')?.addEventListener('click', () => {
+        void addTodayFromRail();
+    });
+    document.getElementById('calTodayAdd')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            void addTodayFromRail();
+        }
+    });
 }
 
+const WORK_GROUPS = [
+    { id: 'due_soon', label: 'Due soon' },
+    { id: 'this_week', label: 'This week' },
+    { id: 'later', label: 'Later' },
+    { id: 'no_day', label: 'No day' },
+];
+
 function workListMeta(item) {
-    const dated = item.scheduled_date
-        ? String(item.scheduled_date)
-        : (item.due_at ? String(item.due_at).replace('T', ' ').slice(0, 16) : 'Not dated');
+    const scheduled = String(item.scheduled_date || '').slice(0, 10);
+    const today = utils.localISODate();
+    const dated = scheduled === today
+        ? 'Today'
+        : (scheduled
+            || (item.due_at ? String(item.due_at).replace('T', ' ').slice(0, 16) : 'No day'));
     const mins = Number(item.remaining_minutes || item.estimate_minutes || 0);
     return mins ? `${dated} · ${mins} min left` : dated;
+}
+
+function workGroupId(item) {
+    if (item.group) return item.group;
+    const due = String(item.due_at || '').slice(0, 10);
+    const today = utils.localISODate();
+    if (due && due <= addDaysISO(today, 7)) return 'due_soon';
+    const scheduled = String(item.scheduled_date || '').slice(0, 10);
+    if (!scheduled) return 'no_day';
+    const start = weekStart || mondayISO();
+    const end = addDaysISO(start, 6);
+    if (scheduled >= start && scheduled <= end) return 'this_week';
+    return 'later';
+}
+
+function addDaysISO(iso, days) {
+    const parts = String(iso || '').slice(0, 10).split('-').map(Number);
+    if (parts.length !== 3 || parts.some((n) => !n && n !== 0)) return iso;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    d.setDate(d.getDate() + days);
+    return utils.localISODate(d);
+}
+
+function renderWorkRow(item, { action = 'today' } = {}) {
+    const mins = item.remaining_minutes || item.estimate_minutes || 0;
+    const selected = editor.mode === 'unplaced' && editor.id === item.id ? ' is-selected' : '';
+    const actLabel = action === 'park' ? 'Work' : 'Today';
+    const act = action === 'park' ? 'park' : 'today';
+    return `<div class="cal-unplaced-item${selected}" data-id="${utils.escapeHtml(item.id || '')}">
+        <button type="button" class="cal-unplaced-drag" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-minutes="${mins}">
+            <h4>${utils.escapeHtml(item.title)}</h4>
+            <p>${utils.escapeHtml(workListMeta(item))}</p>
+        </button>
+        <button type="button" class="btn-ghost cal-unplaced-today" data-act="${act}" data-id="${utils.escapeHtml(item.id || '')}">${actLabel}</button>
+    </div>`;
 }
 
 function renderUnplaced(items, total) {
@@ -505,21 +564,27 @@ function renderUnplaced(items, total) {
         return;
     }
     const extra = Number(total || 0) > items.length
-        ? `<p class="checklist-hint small">${Number(total) - items.length} more in Work. Fill week still packs leftover minutes.</p>`
+        ? `<p class="checklist-hint small">${Number(total) - items.length} more in Work. Fill week packs leftover minutes from Work, not Today.</p>`
         : '';
-    root.innerHTML = items
-        .map((item) => {
-            const mins = item.remaining_minutes || item.estimate_minutes || 0;
-            const selected = editor.mode === 'unplaced' && editor.id === item.id ? ' is-selected' : '';
-            return `<div class="cal-unplaced-item${selected}" data-id="${utils.escapeHtml(item.id || '')}">
-                <button type="button" class="cal-unplaced-drag" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-minutes="${mins}">
-                    <h4>${utils.escapeHtml(item.title)}</h4>
-                    <p>${utils.escapeHtml(workListMeta(item))}</p>
-                </button>
-                <button type="button" class="btn-ghost cal-unplaced-today" data-act="today" data-id="${utils.escapeHtml(item.id || '')}">Today</button>
-            </div>`;
-        })
-        .join('') + extra;
+    const grouped = new Map(WORK_GROUPS.map((g) => [g.id, []]));
+    for (const item of items) {
+        const id = workGroupId(item);
+        if (!grouped.has(id)) grouped.set(id, []);
+        grouped.get(id).push(item);
+    }
+    let html = '';
+    for (const group of WORK_GROUPS) {
+        const rows = grouped.get(group.id) || [];
+        if (!rows.length) continue;
+        html += `<h4 class="cal-work-group">${group.label}</h4>`;
+        html += rows.map((item) => renderWorkRow(item, { action: 'today' })).join('');
+    }
+    root.innerHTML = html + extra;
+    bindWorkRows(root);
+}
+
+function bindWorkRows(root) {
+    if (!root) return;
     root.querySelectorAll('.cal-unplaced-drag').forEach((btn) => {
         btn.addEventListener('pointerdown', onDuePointerDown);
         btn.addEventListener('click', (e) => {
@@ -536,9 +601,42 @@ function renderUnplaced(items, total) {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            void moveWorkToToday(btn.getAttribute('data-id') || '');
+            const id = btn.getAttribute('data-id') || '';
+            if (btn.getAttribute('data-act') === 'park') {
+                void parkWorkFromToday(id);
+            } else {
+                void moveWorkToToday(id);
+            }
         });
     });
+}
+
+async function addTodayFromRail() {
+    const input = document.getElementById('calTodayAdd');
+    const title = input?.value?.trim() || '';
+    if (!title) return;
+    try {
+        await callEel('add_todo_to_calendar', title, utils.localISODate());
+        if (input) input.value = '';
+        utils.showSuccessFeedback('Added to Today.');
+        utils.notifyDataChanged();
+        await loadCalendar();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not add that to Today.');
+    }
+}
+
+async function parkWorkFromToday(itemId) {
+    if (!itemId) return;
+    try {
+        await callEel('assign_work_item', itemId, '');
+        if (editor.mode === 'unplaced' && editor.id === itemId) resetEditor();
+        utils.showSuccessFeedback('Moved to Work.');
+        utils.notifyDataChanged();
+        await loadCalendar();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not move that into Work.');
+    }
 }
 
 async function moveWorkToToday(itemId) {
@@ -546,7 +644,7 @@ async function moveWorkToToday(itemId) {
     try {
         await callEel('assign_work_item', itemId, utils.localISODate());
         if (editor.mode === 'unplaced' && editor.id === itemId) resetEditor();
-        utils.showSuccessFeedback('Moved to today’s to-do.');
+        utils.showSuccessFeedback('Moved to Today.');
         utils.notifyDataChanged();
         await loadCalendar();
     } catch (e) {
@@ -650,7 +748,7 @@ function paintEditor() {
                     ? 'A named hold. Fill week will not pack over it. Work and habits can run longer than the span.'
                     : isUnplaced
                         ? 'Drag onto the clock, or set a start and Place. This is not a new event.'
-                        : 'Alt marks attended. Shift marks did not complete. Drag to move.';
+                        : 'Alt marks happened. Shift marks missed. Drag to move.';
     }
     toggleHidden(fields, isIdle);
     toggleHidden(weekdays, !isHard || isIdle || isFocus);
@@ -1715,7 +1813,13 @@ async function saveEditor() {
             resetEditor();
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'hard') {
-            await callEel('update_calendar_event', editor.id, title, start, end, selectedEventDays(), editor.occurrenceDate);
+            const repeating = selectedEventDays().length > 0;
+            let scope = 'series';
+            if (repeating && editor.occurrenceDate) {
+                scope = await utils.askRepeatScope('Change only this day, or the whole series?');
+                if (!scope) return;
+            }
+            await callEel('update_calendar_event', editor.id, title, start, end, selectedEventDays(), editor.occurrenceDate, scope);
             const outcome = selectedBarOutcome();
             if (outcome) {
                 await callEel('set_bar_outcome', editor.id, outcome, editor.occurrenceDate);
@@ -1779,6 +1883,7 @@ async function parkEditor() {
 async function removeEditor() {
     if (!editor.id) return;
     const hard = editor.mode === 'hard';
+    const repeating = hard && selectedEventDays().length > 0 && editor.occurrenceDate;
     if (!(await utils.askConfirm({
         title: hard ? 'Remove event' : 'Remove from clock',
         message: hard
@@ -1789,7 +1894,12 @@ async function removeEditor() {
     }))) return;
     try {
         if (hard) {
-            await callEel('delete_calendar_event', editor.id);
+            let scope = 'series';
+            if (repeating) {
+                scope = await utils.askRepeatScope('Remove only this day, or the whole series?');
+                if (!scope) return;
+            }
+            await callEel('delete_calendar_event', editor.id, editor.occurrenceDate || '', scope);
         } else {
             await callEel('delete_schedule_block', editor.id, true);
         }
@@ -1867,7 +1977,7 @@ async function importPasted(raw) {
             utils.showSuccessFeedback(
                 clock
                     ? 'Timed events are on the week clock. Due dates stay as chips.'
-                    : 'Due dates are on that day’s To Do and as chips on the week.'
+                        : 'Due dates are on that day’s Today list and as chips on the week.'
             );
         } else {
             utils.showSuccessFeedback('Imported the feed. No new events in range.');
@@ -1990,7 +2100,7 @@ export function setupCalendar() {
     document.getElementById('calFillWeek')?.addEventListener('click', async () => {
         try {
             await callEel('fill_week', weekStart || mondayISO());
-            utils.showSuccessFeedback('Placed what fit before each due date.');
+            utils.showSuccessFeedback('Placed Work leftover minutes around busy time.');
             utils.notifyDataChanged();
             await loadCalendar();
         } catch (e) {

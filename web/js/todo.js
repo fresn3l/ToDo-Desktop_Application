@@ -8,7 +8,6 @@ import { loadGoalOptions } from './goals.js';
 
 let tickTimer = null;
 let repeatKind = 'daily';
-let scopeResolver = null;
 let selectedDoDate = null;
 let whenDays = [];
 let destKind = 'today';
@@ -33,31 +32,6 @@ function startTick() {
             el.textContent = formatDuration(seconds);
         });
     }, 1000);
-}
-
-function askScope(copy) {
-    const modal = document.getElementById('workScopeModal');
-    const text = document.getElementById('workScopeCopy');
-    if (!modal || !text) return Promise.resolve('occurrence');
-    text.textContent = copy;
-    modal.classList.remove('is-hidden');
-    modal.hidden = false;
-    return new Promise((resolve) => {
-        scopeResolver = resolve;
-    });
-}
-
-function closeScope(result) {
-    const modal = document.getElementById('workScopeModal');
-    if (modal) {
-        modal.classList.add('is-hidden');
-        modal.hidden = true;
-    }
-    if (scopeResolver) {
-        const resolve = scopeResolver;
-        scopeResolver = null;
-        resolve(result);
-    }
 }
 
 function selectedWeekdays() {
@@ -117,9 +91,11 @@ function updateAddButton() {
 function updateWhenHint() {
     const hint = document.querySelector('.todo-when-hint');
     if (!hint) return;
-    const clock = 'Dated is not on the clock. With minutes, Fill week or drag places it.';
+    const clock = destKind === 'allwork'
+        ? 'Saved in Work — not on the clock. Fill week or drag places it.'
+        : 'Dated is not on the clock. Drag onto the clock to place it. Fill week packs Work, not Today.';
     if (destKind === 'allwork') {
-        hint.textContent = `Saved in Work — not on the clock. ${clock}`;
+        hint.textContent = clock;
         updateAddButton();
         return;
     }
@@ -287,13 +263,13 @@ function bindList(root, onChange) {
                         });
                         if (next == null || !next.trim()) return;
                         const scope = repeating
-                            ? await askScope('Rename only this day, or every future day in the series?')
+                            ? await utils.askRepeatScope('Rename only this day, or every future day in the series?')
                             : 'occurrence';
                         if (!scope) return;
                         await eel.update_work_item(id, next.trim(), null, scope)();
                     } else if (act === 'delete') {
                         const scope = repeating
-                            ? await askScope('Remove only today’s copy, or stop the whole repeating series?')
+                            ? await utils.askRepeatScope('Remove only today’s copy, or stop the whole repeating series?')
                             : 'occurrence';
                         if (!scope) return;
                         await eel.delete_work_item(id, scope)();
@@ -518,9 +494,6 @@ export function setupTodo() {
         if (!chip) return;
         chip.classList.toggle('is-selected');
     });
-    document.getElementById('workScopeOccurrence')?.addEventListener('click', () => closeScope('occurrence'));
-    document.getElementById('workScopeSeries')?.addEventListener('click', () => closeScope('series'));
-    document.getElementById('workScopeCancel')?.addEventListener('click', () => closeScope(null));
     document.addEventListener('kosistenz:data-changed', () => {
         if (utils.sourceIsOpen('todoTab')) {
             void refreshTodo();

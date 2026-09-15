@@ -31,7 +31,7 @@ struct SettingsScreen: View {
                         .listRowBackground(store.palette.widgetBg)
                 }
                 Section("Cluny") {
-                    Text("Ask Cluny stays on the Mac. The phone syncs the week through this pack. If the Mac is asleep, Cluny is off here on purpose — your to-dos still save.")
+                    Text("Ask Cluny stays on the Mac. The phone syncs the week through this pack. If the Mac is asleep, Cluny is off here on purpose — Today and Work still save.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .listRowBackground(store.palette.widgetBg)

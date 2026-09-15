@@ -368,7 +368,7 @@ def _patch_info_plist(app_path: str) -> None:
                 "NSSendTypes": ["public.utf8-plain-text", "NSStringPboardType"],
             },
             {
-                "NSMenuItem": {"default": "Park in All Work"},
+                "NSMenuItem": {"default": "Park in Work"},
                 "NSMessage": "parkInAllWork",
                 "NSPortName": "Kosistenz",
                 "NSSendTypes": ["public.utf8-plain-text", "NSStringPboardType"],

@@ -146,8 +146,14 @@ def log_session(
     other_label: str = "",
 ) -> Dict[str, Any]:
     key = str(kind or "").strip().lower()
-    if key == "running" and miles is None:
-        miles = 0
+    if key == "running":
+        try:
+            mile_val = float(miles) if miles is not None and str(miles).strip() != "" else None
+        except (TypeError, ValueError):
+            mile_val = None
+        if mile_val is None or mile_val <= 0:
+            raise ValueError("Add miles for a run")
+        miles = mile_val
     import workouts
 
     day = workouts.add_workout_session(
@@ -160,11 +166,18 @@ def log_session(
     return {"ok": True, "day": day}
 
 
-def park_in_all_work(title: str) -> Dict[str, Any]:
+def _as_flag(raw: Any) -> bool:
+    if isinstance(raw, bool):
+        return raw
+    return str(raw or "").strip().lower() in {"1", "true", "yes", "today"}
+
+
+def park_in_all_work(title: str, today: Any = False) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
         raise ValueError("Title is required")
-    item = work.create_work_item(clean, scheduled_date=None, source="service")
+    scheduled = work._today().isoformat() if _as_flag(today) else None
+    item = work.create_work_item(clean, scheduled_date=scheduled, source="service")
     return {"ok": True, "item": item}
 
 
@@ -201,7 +214,10 @@ def handle_request(method: str, path: str, body: Optional[Dict[str, Any]] = None
             )
         if method == "POST" and route == "/api/work/park":
             title = payload.get("title") or (query.get("title") or [""])[0]
-            return 200, park_in_all_work(str(title))
+            today = payload.get("today")
+            if today in (None, ""):
+                today = (query.get("today") or [""])[0]
+            return 200, park_in_all_work(str(title), today=today)
         if method == "POST" and route == "/api/calendar/ingest":
             import calclock
 

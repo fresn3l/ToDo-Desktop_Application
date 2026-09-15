@@ -17,7 +17,7 @@ To add from the phone:
 - Still **ignore** packed study blocks from the phone.
 - After merge, Mac writes the pack back so the phone sees the canonical week.
 
-Unplaced to-dos stay Inbox. This is **busy time**, not “park a thought.”
+Off-clock Work stays in Work. This is **busy time**, not “park a thought.”
 
 ### UI
 

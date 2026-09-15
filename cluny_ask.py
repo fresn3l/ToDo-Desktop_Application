@@ -1,6 +1,6 @@
 """Ask Cluny, work proposals, and a local accept/dismiss inbox.
 
-Cluny never places clock times. Accepting a proposal creates an All Work item.
+Cluny never places clock times. Accepting a proposal creates a Work item.
 """
 
 from __future__ import annotations

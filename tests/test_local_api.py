@@ -64,6 +64,25 @@ class LocalApiTests(unittest.TestCase):
         self.assertIn("push", widget["workout_kinds"])
         self.assertEqual(widget["backlog_count"], 1)
 
+    def test_park_today_dates_the_item(self) -> None:
+        today = date.today().isoformat()
+        status, parked = local_api.handle_request(
+            "POST", "/api/work/park", {"title": "Board memo", "today": True}
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(parked["item"]["scheduled_date"], today)
+        self.assertFalse(parked["item"]["is_backlog"])
+
+    def test_run_without_miles_is_rejected(self) -> None:
+        status, payload = local_api.handle_request("POST", "/api/workout/log", {"kind": "running"})
+        self.assertEqual(status, 400)
+        self.assertIn("miles", payload["error"].lower())
+        status, logged = local_api.handle_request(
+            "POST", "/api/workout/log", {"kind": "running", "miles": 3.1}
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(logged["day"]["done"])
+
     def test_calendar_ingest_creates_deadline_todos(self) -> None:
         status, payload = local_api.handle_request(
             "POST",

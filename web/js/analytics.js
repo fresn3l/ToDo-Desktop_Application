@@ -194,11 +194,11 @@ async function paintRateGoals() {
         host.innerHTML = `
             <div class="review-card review-card--wide rate-goal-panel">
                 <h3>Rate goals</h3>
-                <p class="review-detail">Attendance, hours, or to-do completion. Title is yours. Attendance counts every bar.</p>
+                <p class="review-detail">Completed bars, hours, or to-do completion. Title is yours. Completed counts every bar.</p>
                 <form id="rateGoalForm" class="rate-goal-form">
                     <input type="text" name="title" class="checklist-text-input" placeholder="Show up to these" autocomplete="off">
                     <select name="measure" class="checklist-text-input" aria-label="Measure">
-                        <option value="attendance">Attendance %</option>
+                        <option value="attendance">Completed %</option>
                         <option value="hours">Hours</option>
                         <option value="todo_completion">To-do completion %</option>
                     </select>
@@ -263,7 +263,7 @@ function paintConsistency(data) {
                 <p class="review-detail">planned hours on the clock</p>
             </div>
             <div class="review-card">
-                <h3>Attendance</h3>
+                <h3>Completed</h3>
                 <p class="review-stat">${data.attendance_pct == null ? '—' : `${data.attendance_pct}%`}</p>
                 <p class="review-detail">${data.attended || 0} of ${data.closed || 0} closed bars</p>
             </div>
@@ -279,7 +279,7 @@ function paintConsistency(data) {
         </div>
         <div class="review-card review-card--wide">
             <h3>Attendance</h3>
-            ${weekChart(weeks, 'attendance_pct', 'Attendance percent each week', true)}
+            ${weekChart(weeks, 'attendance_pct', 'Completed percent each week', true)}
         </div>
         <div class="review-card review-card--wide">
             <h3>To-do completion</h3>
@@ -365,7 +365,7 @@ function renderAnalytics(data) {
                 <ul class="review-list">${byKind}</ul>
             </div>
             <div class="review-card">
-                <h3>To Do</h3>
+                <h3>Work</h3>
                 <p class="review-stat">${work.repeat_missed || 0}</p>
                 <p class="review-detail">missed repeating days</p>
                 <ul class="review-list">

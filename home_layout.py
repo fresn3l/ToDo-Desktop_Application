@@ -2,7 +2,7 @@
 Home layout — pages of snap-to-grid widgets.
 
 Stored as JSON next to other Kosistenz data. The first page is Home with
-To Do and a mini Today calendar. Extra pages are optional.
+Today and a mini clock. Extra pages are optional.
 """
 
 from __future__ import annotations
@@ -183,7 +183,7 @@ def widget_source(kind: str, settings: Any = None) -> str:
 
 
 def fold_legacy_kind(kind: str, settings: Any) -> Tuple[str, Any]:
-    """To Do, All Work, Unplaced and Due were four cuts of one list."""
+    """Today, Work, Unplaced and Due were four cuts of one list."""
     cut = LEGACY_WORK_SLICE.get(kind)
     if cut is None:
         return kind, settings

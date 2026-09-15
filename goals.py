@@ -25,7 +25,7 @@ HORIZONS = ("week", "six_month", "year", "five_year")
 RATE_HORIZON = "rate"
 RATE_MEASURES = ("attendance", "hours", "todo_completion")
 RATE_MEASURE_LABELS = {
-    "attendance": "Attendance",
+    "attendance": "Completed",
     "hours": "Hours",
     "todo_completion": "To-do completion",
 }
@@ -475,7 +475,7 @@ def get_goals_board() -> Dict[str, Any]:
         "rates": {
             "id": "rate",
             "label": "Rates",
-            "hint": "Attendance, hours, or to-do completion over 4 weeks, 12 weeks, or a year.",
+            "hint": "Completed, hours, or to-do completion over 4 weeks, 12 weeks, or a year.",
             "goals": rates,
         },
         "goals": goals,

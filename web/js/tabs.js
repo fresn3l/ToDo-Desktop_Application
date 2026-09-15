@@ -30,8 +30,11 @@ const LABELS = {
 };
 
 function canonicalTab(name) {
+    if (name === 'work' || name === 'allwork') {
+        return 'calendar';
+    }
     if (name === 'today' || name === 'workout' || name === 'todo'
-        || name === 'goals' || name === 'allwork' || name === 'timeline'
+        || name === 'goals' || name === 'timeline'
         || name === 'checklist' || name === 'word') {
         return 'home';
     }
