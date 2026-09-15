@@ -5,7 +5,7 @@
 
 export const GRID_COLUMNS = 8;
 
-# Today's to-do is the Home Work tile. Off-clock work lives on the calendar.
+// Today's to-do is the Home Work tile. Off-clock work lives on the calendar.
 export const WORK_SLICES = [
     { value: 'today', label: "Today's work", source: 'todoTab' },
 ];

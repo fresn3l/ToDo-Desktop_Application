@@ -1011,6 +1011,8 @@ function openUnplaced(btn) {
     });
     (btn.closest('.cal-unplaced-item') || btn).classList.add('is-selected');
 }
+
+function isoFromEditor() {
     return {
         title: document.getElementById('calEventTitle')?.value?.trim() || '',
         start: fromLocalInput(document.getElementById('calEventStart')?.value),

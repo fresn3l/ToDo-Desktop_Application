@@ -18,7 +18,8 @@ class FrontendSyntaxTests(unittest.TestCase):
         for path in files:
             with self.subTest(file=path.name):
                 result = subprocess.run(
-                    ["node", "--check", str(path)],
+                    ["node", "--check", "--input-type=module"],
+                    input=path.read_text(encoding="utf-8"),
                     capture_output=True,
                     text=True,
                 )
