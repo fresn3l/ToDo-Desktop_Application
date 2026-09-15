@@ -2196,6 +2196,7 @@ def attached_work_ids() -> set:
 
 
 def unplaced_work() -> List[Dict[str, Any]]:
+    """Leftover minutes Fill week can still pack, including today's leftover."""
     placed = _placed_minutes_map()
     held = attached_work_ids()
     items = []
@@ -2224,6 +2225,47 @@ def unplaced_work() -> List[Dict[str, Any]]:
     return items
 
 
+def off_calendar_work() -> List[Dict[str, Any]]:
+    """Open work that is not today's to-do and not fully on the clock.
+
+    Today's list stays separate. Fill week still uses unplaced_work().
+    """
+    placed = _placed_minutes_map()
+    held = attached_work_ids()
+    today = work._today().isoformat()
+    items = []
+    now = work._now()
+    with work._connect() as conn:
+        rows = conn.execute(
+            work._ITEM_SELECT
+            + """
+            WHERE work_items.status != 'done'
+              AND IFNULL(work_items.source, '') != 'calendar'
+            """
+        ).fetchall()
+    for row in rows:
+        item = work._row_to_dict(row, now)
+        if item.get("id") in held:
+            continue
+        if str(item.get("scheduled_date") or "") == today:
+            continue
+        leftover = remaining_minutes(item, placed.get(item["id"], 0))
+        estimate = int(item.get("estimate_minutes") or 0)
+        if estimate > 0 and leftover <= 0:
+            continue
+        packed = dict(item)
+        packed["remaining_minutes"] = leftover
+        items.append(packed)
+    items.sort(
+        key=lambda row: (
+            row.get("due_at") or "9999",
+            row.get("scheduled_date") or "9999",
+            row.get("created_at") or "",
+        )
+    )
+    return items
+
+
 def _slim_unplaced(item: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "id": item.get("id"),
@@ -2236,7 +2278,7 @@ def _slim_unplaced(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _unplaced_ui(rows: Optional[List[Dict[str, Any]]] = None) -> Tuple[List[Dict[str, Any]], int]:
-    items = rows if rows is not None else unplaced_work()
+    items = rows if rows is not None else off_calendar_work()
     return [_slim_unplaced(item) for item in items[:UNPLACED_UI_LIMIT]], len(items)
 
 
@@ -2310,7 +2352,7 @@ def get_week(week_start: str = "", include_unplaced: bool = True) -> Dict[str, A
                 "dues": dues.get(iso, []),
             }
         )
-    rows = unplaced_work() if include_unplaced else []
+    rows = off_calendar_work() if include_unplaced else []
     shown, total = _unplaced_ui(rows)
     slim_settings = {
         "day_start": settings.get("day_start") or DAY_START,

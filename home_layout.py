@@ -18,20 +18,17 @@ from appearance import COLOR_SLOTS, _as_hex
 from paths import data_directory
 
 GRID_COLUMNS = 8
-LAYOUT_VERSION = 5
+LAYOUT_VERSION = 6
 MAX_PAGES = 12
 MAX_WIDGETS_PER_PAGE = 32
 MAX_PAGE_NAME = 40
 MAX_SCAN_ROWS = 64
 
-# One tile, four slices of the same list. Each slice used to be a widget of
-# its own, which put four near-identical entries in the picker and kept four
-# renderers alive for one question asked four ways.
+# Today's to-do is the Home Work tile. Off-clock work lives on the calendar.
+# Older boards stored All work / Unplaced / Due as extra slices; those fold
+# back to Today so a saved board does not keep three copies of one list.
 WORK_SLICES = (
     {"value": "today", "label": "Today", "source": "todoTab"},
-    {"value": "backlog", "label": "All work", "source": "todoTab"},
-    {"value": "unplaced", "label": "Unplaced", "source": "todoTab"},
-    {"value": "due", "label": "Due this week", "source": "todoTab"},
 )
 
 # Allowed (width, height) in cells. 2-wide tiles are glance chips; 8-wide is the full board.
@@ -123,7 +120,14 @@ SOURCE_TAB = {
 }
 
 
-LEGACY_WORK_SLICE = {"todo": "today", "allwork": "backlog", "unplaced": "unplaced", "dues": "due"}
+LEGACY_WORK_SLICE = {
+    "todo": "today",
+    "allwork": "today",
+    "unplaced": "today",
+    "dues": "today",
+    "backlog": "today",
+    "due": "today",
+}
 
 
 def _new_id() -> str:
@@ -210,22 +214,19 @@ def _stock_home_widgets() -> List[Dict[str, Any]]:
     return [
         _widget("work:slice=today", 0, 0, 4, 6, "above"),
         _widget("today_calendar", 4, 0, 4, 6, "above"),
-        _widget("work:slice=unplaced", 0, 0, 8, 6),
     ]
 
 
 def default_week_page(name: str = "Week") -> Dict[str, Any]:
-    """Second-page template: goals, backlog, habits, dues, workout, reading."""
+    """Second-page template: goals, habits, workout, reading."""
     return {
         "id": _new_id(),
         "name": _clip_name(name, "Week"),
         "widgets": [
             _widget("goals", 0, 0, 4, 6),
-            _widget("work:slice=backlog", 4, 0, 4, 6),
-            _widget("habits", 0, 6, 4, 6),
-            _widget("work:slice=due", 4, 6, 4, 6),
-            _widget("workout", 0, 12, 4, 4),
-            _widget("reading", 4, 12, 4, 2),
+            _widget("habits", 4, 0, 4, 6),
+            _widget("workout", 0, 6, 4, 4),
+            _widget("reading", 4, 6, 4, 2),
         ],
     }
 
@@ -527,7 +528,6 @@ STOCK_HOME_KINDS = frozenset({"work:slice=today", "today_calendar", "weather", "
 STOCK_HOME_WITH_CLUNY = STOCK_HOME_KINDS | {"cluny"}
 STOCK_HOME_WITH_DAY = STOCK_HOME_KINDS | {"day_brief"}
 STOCK_HOME_FULL = STOCK_HOME_KINDS | {"cluny", "day_brief"}
-STOCK_HOME_PLANNED = STOCK_HOME_FULL | {"work:slice=unplaced"}
 STOCK_HOME_CORE_SLOTS = {
     key: _slot(key, *box)
     for key, box in (
@@ -539,22 +539,9 @@ STOCK_HOME_CORE_SLOTS = {
         ("day_brief", (0, 6, 4, 6)),
     )
 }
-STOCK_HOME_SLOTS = {
-    key: _slot(key, *box)
-    for key, box in (
-        ("work:slice=today", (0, 0, 4, 6, "above")),
-        ("today_calendar", (4, 0, 4, 6, "above")),
-        ("cluny", (0, 0, 8, 4)),
-        ("weather", (0, 4, 4, 2)),
-        ("word", (4, 4, 4, 2)),
-        ("work:slice=unplaced", (0, 6, 4, 6)),
-        ("day_brief", (4, 6, 4, 6)),
-    )
-}
-WEEK_STOCK_KINDS = frozenset(
-    {"workout", "goals", "work:slice=backlog", "habits", "reading"}
-)
-WEEK_PLAN_KINDS = ("work:slice=due",)
+STOCK_HOME_SLOTS = dict(STOCK_HOME_CORE_SLOTS)
+WEEK_STOCK_KINDS = frozenset({"workout", "goals", "habits", "reading"})
+WEEK_PLAN_KINDS = ()
 
 
 def page_keys(page: Dict[str, Any]) -> set:
@@ -596,8 +583,8 @@ def seed_day_brief(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
 
 
 def seed_home_plan_tiles(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    """Put the Unplaced slice of Work on a stock first Home page."""
-    return _seed_stock_tile(layout, "work:slice=unplaced", (STOCK_HOME_FULL,))
+    """Unplaced used to be a stock Home tile. Off-clock work lives on Calendar."""
+    return sanitize_layout(layout), False
 
 
 def seed_week_page(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
@@ -606,7 +593,7 @@ def seed_week_page(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     if len(packed["pages"]) != 1:
         return packed, False
     keys = page_keys(packed["pages"][0])
-    if keys not in (STOCK_HOME_WITH_CLUNY, STOCK_HOME_FULL, STOCK_HOME_PLANNED):
+    if keys not in (STOCK_HOME_WITH_CLUNY, STOCK_HOME_FULL):
         return packed, False
     packed["pages"].append(default_week_page())
     return packed, True
@@ -617,9 +604,7 @@ def restack_stock_home(layout: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     packed = sanitize_layout(layout)
     page = packed["pages"][0]
     keys = page_keys(page)
-    if keys == STOCK_HOME_PLANNED:
-        slots = STOCK_HOME_SLOTS
-    elif keys == STOCK_HOME_FULL:
+    if keys == STOCK_HOME_FULL:
         slots = STOCK_HOME_CORE_SLOTS
     else:
         return packed, False

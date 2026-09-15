@@ -2351,11 +2351,6 @@ input[type='range'] {
     margin: 0 0 var(--space-md);
 }
 
-#todoFilter {
-    flex: 0 1 auto;
-    max-width: 100%;
-}
-
 .todo-when-label {
     margin: 8px 0 4px;
     font-size: var(--fs-caption);
@@ -6443,17 +6438,37 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
 }
 
 .cal-unplaced-item {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     width: 100%;
     text-align: left;
     border: 1px solid var(--border-subtle);
     background: var(--bg-elevated);
     border-radius: 8px;
     padding: 8px 10px;
+    color: inherit;
+    touch-action: none;
+    user-select: none;
+}
+
+.cal-unplaced-drag {
+    flex: 1;
+    min-width: 0;
+    display: block;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: inherit;
     cursor: pointer;
     touch-action: none;
     user-select: none;
-    color: inherit;
+}
+
+.cal-unplaced-today {
+    flex-shrink: 0;
+    touch-action: manipulation;
 }
 
 .cal-unplaced-item.is-selected {

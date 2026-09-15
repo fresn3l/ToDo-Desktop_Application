@@ -136,7 +136,7 @@ def unplaced_glance(limit: int = -1) -> Dict[str, Any]:
 
     shown, total = calclock._unplaced_ui()
     if int(limit) == 0:
-        rows = calclock.unplaced_work()
+        rows = calclock.off_calendar_work()
         shown = [calclock._slim_unplaced(row) for row in rows]
         total = len(shown)
     return {

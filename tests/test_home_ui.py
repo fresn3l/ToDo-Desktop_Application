@@ -149,8 +149,7 @@ class HomeUiTests(unittest.TestCase):
     def test_js_catalog_matches_folded_tabs(self) -> None:
         body = HOME_JS.split("export const WIDGET_CATALOG = {", 1)[1].split("\n};", 1)[0]
         kinds = set(re.findall(r"^ {4}(\w+): \{", body, re.M))
-        # Journal, Checklist and Settings are tabs, not tiles. To Do, All Work,
-        # Unplaced and Due are one Work tile with a setting.
+        # Journal, Checklist and Settings are tabs, not tiles. Work is Today.
         self.assertEqual(
             kinds,
             {
@@ -169,8 +168,10 @@ class HomeUiTests(unittest.TestCase):
                 "cluny",
             },
         )
-        for slice_name in ("'today'", "'backlog'", "'unplaced'", "'due'"):
-            self.assertIn(f"value: {slice_name}", HOME_JS)
+        self.assertIn("value: 'today'", HOME_JS)
+        self.assertNotIn("value: 'backlog'", HOME_JS)
+        self.assertNotIn("value: 'unplaced'", HOME_JS)
+        self.assertNotIn("value: 'due'", HOME_JS)
 
     def test_calendar_month_year_markup(self) -> None:
         for needle in ("calViewGroup", "calMonthGrid", "calYearGrid", "calFillWeek", "calPrevWeek"):
@@ -200,13 +201,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("Nothing is written to Apple Calendar", INDEX)
         self.assertNotIn("Month and year for the long view", INDEX)
         self.assertNotIn("Class meeting times live here", INDEX)
-        self.assertIn("Nothing to place.", CAL_JS)
+        self.assertIn("Nothing off the clock.", CAL_JS)
         self.assertIn("html[data-page='calendar'] .app-content", STYLE)
         self.assertIn(".cal-month-cell.is-today", STYLE)
         self.assertIn(".cal-month-cell.is-out", STYLE)
         self.assertIn('id="calTodayRail"', INDEX)
         self.assertIn("Today's work", CAL_JS)
-        self.assertIn("Drag from Today or Unplaced onto the clock", CAL_JS)
+        self.assertIn("Drag from Today or Work onto the clock", CAL_JS)
         self.assertIn("function paintNowLine", CAL_JS)
         self.assertIn(".cal-day.is-today .cal-day-body", CAL_JS)
         self.assertIn(".cal-now-line", STYLE)
@@ -216,7 +217,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("item.title", cell)
         self.assertIn("id: 'w-todo'", HOME_RUNTIME)
         self.assertIn("id: 'w-today'", HOME_RUNTIME)
-        self.assertIn("id: 'w-unplaced'", HOME_RUNTIME)
+        self.assertNotIn("id: 'w-unplaced'", HOME_RUNTIME)
         self.assertNotIn("id: 'w-cluny'", HOME_RUNTIME)
         self.assertNotIn("id: 'local-week'", HOME_RUNTIME)
         self.assertIn("formatClockHHMM", GLANCE_TILES)
@@ -470,8 +471,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn('id="calDayDues"', INDEX)
         self.assertNotIn("cal-feeds-panel", INDEX)
         self.assertNotIn('id="calFeedToggles"', INDEX)
-        self.assertIn('id="todoFilter"', INDEX)
-        self.assertIn('data-filter="unplaced"', INDEX)
+        self.assertNotIn('id="todoFilter"', INDEX)
+        self.assertNotIn('data-filter="unplaced"', INDEX)
         self.assertIn('id="calFillWeek"', INDEX)
         self.assertIn("pasteIcsButton", SETTINGS_JS)
         self.assertIn("set_calendar_feed_enabled", SETTINGS_JS)
@@ -489,7 +490,11 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("id: 'focus'", (ROOT / "web" / "js" / "appearance.js").read_text(encoding="utf-8"))
         self.assertIn("Place work", CAL_JS)
         self.assertIn("startNewEvent", CAL_JS)
-        self.assertIn("Nothing to place.", CAL_JS)
+        self.assertIn("Nothing off the clock.", CAL_JS)
+        self.assertIn("moveWorkToToday", CAL_JS)
+        self.assertIn("cal-unplaced-today", CAL_JS)
+        self.assertIn(">Work</h3>", INDEX)
+        self.assertIn("Today’s to-do", INDEX)
         self.assertIn("Alt marks attended", INDEX)
         self.assertNotIn('id="calUnplacedBlock" hidden', INDEX)
         self.assertNotIn("Add to calendar", INDEX)
@@ -828,7 +833,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("All Work", INDEX)
         self.assertIn("glance-capture", GLANCE_TILES)
         self.assertIn("runGlanceCapture", GLANCE_TILES)
-        self.assertIn("w-unplaced", HOME_RUNTIME)
+        self.assertNotIn("w-unplaced", HOME_RUNTIME)
         self.assertIn("Save repeating to-do", (ROOT / "web" / "js" / "todo.js").read_text(encoding="utf-8"))
         self.assertIn("⌘</kbd><kbd>1</kbd> Home", INDEX)
 

@@ -219,8 +219,8 @@
                                 </div>
                             </div>
                             <div class="cal-aside-block" id="calUnplacedBlock">
-                                <h3>Unplaced</h3>
-                                <p class="cal-unplaced-hint">Drag onto the clock. Fill week packs the rest.</p>
+                                <h3>Work</h3>
+                                <p class="cal-unplaced-hint">Drag onto the clock, or move into Today. Fill week packs leftover minutes.</p>
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
                         </aside>
@@ -360,14 +360,8 @@
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
-                                    <h2>Work</h2>
+                                    <h2>Today’s to-do</h2>
                                     <p class="panel-sub" id="todoSummary"></p>
-                                </div>
-                                <div class="segmented" id="todoFilter" role="tablist" aria-label="Work filter">
-                                    <button type="button" data-filter="today" class="is-selected" aria-selected="true">Today</button>
-                                    <button type="button" data-filter="all" aria-selected="false">All</button>
-                                    <button type="button" data-filter="unplaced" aria-selected="false">Unplaced</button>
-                                    <button type="button" data-filter="due" aria-selected="false">Due</button>
                                 </div>
                             </div>
                             <div class="work-add-row">
@@ -380,7 +374,7 @@
                                 <p class="todo-when-label">Where</p>
                                 <div id="todoDest" class="todo-when work-weekdays" role="radiogroup" aria-label="Where this goes">
                                     <button type="button" class="work-day-chip is-selected" data-dest="today" role="radio" aria-checked="true">Today</button>
-                                    <button type="button" class="work-day-chip" data-dest="allwork" role="radio" aria-checked="false">All Work</button>
+                                    <button type="button" class="work-day-chip" data-dest="allwork" role="radio" aria-checked="false">Work</button>
                                 </div>
                                 <p class="todo-when-label">Day this week</p>
                                 <div id="todoWhen" class="todo-when work-weekdays" role="radiogroup" aria-label="Day this week"></div>
