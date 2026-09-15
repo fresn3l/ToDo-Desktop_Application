@@ -37,7 +37,8 @@ struct RootView: View {
                 TabView(selection: $store.tab) {
                     TodayScreen().tag(AppTab.today).tabItem { Label(AppTab.today.title, systemImage: AppTab.today.icon) }
                     CalendarScreen().tag(AppTab.calendar).tabItem { Label(AppTab.calendar.title, systemImage: AppTab.calendar.icon) }
-                    TodoScreen().tag(AppTab.todo).tabItem { Label(AppTab.todo.title, systemImage: AppTab.todo.icon) }
+                    TodoScreen().tag(AppTab.work).tabItem { Label(AppTab.work.title, systemImage: AppTab.work.icon) }
+                    JournalScreen().tag(AppTab.journal).tabItem { Label(AppTab.journal.title, systemImage: AppTab.journal.icon) }
                 }
             }
         }
@@ -66,13 +67,14 @@ struct RootView: View {
         switch tab {
         case .today: TodayScreen()
         case .calendar: CalendarScreen()
-        case .todo: TodoScreen()
+        case .work: TodoScreen()
+        case .journal: JournalScreen()
         }
     }
 }
 
 enum AppTab: String, Hashable, CaseIterable, Identifiable {
-    case today, calendar, todo
+    case today, calendar, work, journal
 
     var id: String { rawValue }
 
@@ -80,7 +82,8 @@ enum AppTab: String, Hashable, CaseIterable, Identifiable {
         switch self {
         case .today: return "Today"
         case .calendar: return "Calendar"
-        case .todo: return "To Do"
+        case .work: return "Work"
+        case .journal: return "Journal"
         }
     }
 
@@ -88,7 +91,8 @@ enum AppTab: String, Hashable, CaseIterable, Identifiable {
         switch self {
         case .today: return "sun.max"
         case .calendar: return "calendar"
-        case .todo: return "checklist"
+        case .work: return "checklist"
+        case .journal: return "book"
         }
     }
 }

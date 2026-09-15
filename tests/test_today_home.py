@@ -34,25 +34,25 @@ class TodayHomeTests(unittest.TestCase):
 
     def test_appearance_defaults_leave_journal_focus_off(self):
         self.assertFalse(appearance.DEFAULTS["autoFocus"])
-        self.assertEqual(appearance.DEFAULTS["todayLayout"], "split")
-        self.assertEqual(appearance.DEFAULTS["todayOrder"], "todo,workout,journal")
-        self.assertTrue(appearance.DEFAULTS["todayTodo"])
+        self.assertNotIn("todayLayout", appearance.DEFAULTS)
+        self.assertNotIn("todayOrder", appearance.DEFAULTS)
+        self.assertNotIn("todayTodo", appearance.DEFAULTS)
 
-    def test_sanitize_today_dashboard_flags(self):
+    def test_sanitize_ignores_retired_today_dashboard_flags(self):
         cleaned = appearance._sanitize(
             {"todayLayout": "stack", "todayTodo": False, "todayWorkout": "off", "todayJournal": "yes"}
         )
-        self.assertEqual(cleaned["todayLayout"], "stack")
-        self.assertFalse(cleaned["todayTodo"])
-        self.assertFalse(cleaned["todayWorkout"])
-        self.assertTrue(cleaned["todayJournal"])
+        self.assertNotIn("todayLayout", cleaned)
+        self.assertNotIn("todayTodo", cleaned)
+        self.assertNotIn("todayWorkout", cleaned)
+        self.assertNotIn("todayJournal", cleaned)
 
-    def test_sanitize_today_order_and_columns(self):
+    def test_sanitize_drops_today_order(self):
         cleaned = appearance._sanitize(
             {"todayLayout": "columns", "todayOrder": "journal,todo,nope,journal"}
         )
-        self.assertEqual(cleaned["todayLayout"], "columns")
-        self.assertEqual(cleaned["todayOrder"], "journal,todo,workout")
+        self.assertNotIn("todayLayout", cleaned)
+        self.assertNotIn("todayOrder", cleaned)
 
     def test_today_home_includes_todos_and_expected_kinds(self):
         weekday = str(date.today().weekday())

@@ -1,4 +1,4 @@
-"""Tests for dated To Do items, All Work backlog, timers, and evening planning."""
+"""Tests for dated Today items, off-clock Work, timers, and evening planning."""
 
 from __future__ import annotations
 

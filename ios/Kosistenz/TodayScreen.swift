@@ -20,6 +20,13 @@ struct TodayScreen: View {
                             .foregroundStyle(.secondary)
                     }
                     .listRowBackground(store.palette.widgetBg)
+                } else if let synced = store.syncedAt {
+                    Section {
+                        Text("Last pack \(synced)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .listRowBackground(store.palette.widgetBg)
                 }
                 if rows.isEmpty {
                     Section {

@@ -154,15 +154,15 @@ class AppearancePaletteTests(unittest.TestCase):
         live = appearance.resolved_snapshot()
         self.assertEqual(live["colors"]["accent"], "#c45c6a")
 
-    def test_save_keeps_stored_today_layout(self):
+    def test_save_drops_retired_today_layout_keys(self):
         first = appearance.save_appearance_settings({"theme": "paper"})
-        self.assertEqual(first["todayLayout"], "split")
+        self.assertNotIn("todayLayout", first)
         saved = appearance.save_appearance_settings(
             {"theme": "dusk", "todayLayout": "stack", "todayTodo": False}
         )
         self.assertEqual(saved["theme"], "dusk")
-        self.assertEqual(saved["todayLayout"], "split")
-        self.assertTrue(saved["todayTodo"])
+        self.assertNotIn("todayLayout", saved)
+        self.assertNotIn("todayTodo", saved)
 
     def test_futuresprints_notes_iphone_appearance(self):
         text = Path(__file__).resolve().parents[1].joinpath("docs", "futuresprints.md").read_text(encoding="utf-8")

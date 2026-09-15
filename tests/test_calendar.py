@@ -218,7 +218,7 @@ END:VCALENDAR
         self.assertEqual(result["placed"], 0)
         self.assertIsNone(result["item"]["scheduled_date"])
         self.assertEqual(result["item"]["estimate_minutes"], 45)
-        self.assertIn("All Work", result["message"])
+        self.assertIn("Saved in Work.", result["message"])
         self.assertIn("Fill week", result["message"])
 
     def test_repeating_todo_is_not_auto_placed(self) -> None:
@@ -589,6 +589,55 @@ END:VCALENDAR
         work.assign_work_item(parked["id"], today)
         moved = {row["id"] for row in calclock.off_calendar_work()}
         self.assertNotIn(parked["id"], moved)
+
+    def test_work_list_groups_due_soon_this_week_and_no_day(self) -> None:
+        parked = work.create_work_item("Parked thought")
+        this_week = work.create_work_item(
+            "Thursday draft",
+            scheduled_date="2026-09-03",
+            estimate_minutes=30,
+        )
+        later = work.create_work_item(
+            "October draft",
+            scheduled_date="2026-10-08",
+            estimate_minutes=30,
+        )
+        due = work.create_work_item(
+            "Invoice",
+            scheduled_date="2026-10-08",
+            due_at="2026-09-04T17:00:00",
+            estimate_minutes=20,
+        )
+        week = calclock.get_week("2026-08-31")
+        groups = {row["id"]: row["group"] for row in week["unplaced"]}
+        self.assertEqual(groups[parked["id"]], "no_day")
+        self.assertEqual(groups[this_week["id"]], "this_week")
+        self.assertEqual(groups[later["id"]], "later")
+        self.assertEqual(groups[due["id"]], "due_soon")
+
+    def test_fill_week_skips_today_dated_work(self) -> None:
+        today = work._today()
+        later = today + timedelta(days=2)
+        dated = work.create_work_item(
+            "Board memo",
+            scheduled_date=today.isoformat(),
+            estimate_minutes=45,
+        )
+        other = work.create_work_item(
+            "Thursday draft",
+            scheduled_date=later.isoformat(),
+            estimate_minutes=30,
+        )
+        monday = calclock.monday_of(today)
+        week = self._fill(monday.isoformat(), datetime(2026, 9, 1, 8, 0, 0))
+        placed = {
+            block.get("work_item_id")
+            for day in week["days"]
+            for block in day["blocks"]
+            if block["kind"] == "work"
+        }
+        self.assertNotIn(dated["id"], placed)
+        self.assertIn(other["id"], placed)
 
     def test_calendar_payload_caps_unplaced_and_skips_per_todo_block_queries(self) -> None:
         extra = 25

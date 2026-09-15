@@ -16,6 +16,7 @@
 		A10000000000000000000007 /* EventAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* EventAlerts.swift */; };
 		A10000000000000000000008 /* CalendarScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* CalendarScreen.swift */; };
 		A10000000000000000000009 /* TodoScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* TodoScreen.swift */; };
+		A10000000000000000000014 /* JournalScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* JournalScreen.swift */; };
 		A10000000000000000000013 /* TodayList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* TodayList.swift */; };
 		A1000000000000000000000A /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* SettingsScreen.swift */; };
 		A1000000000000000000000B /* DayTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* DayTimeline.swift */; };
@@ -71,6 +72,7 @@
 		A20000000000000000000007 /* EventAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventAlerts.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* CalendarScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarScreen.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* TodoScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoScreen.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* JournalScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalScreen.swift; sourceTree = "<group>"; };
 		A2000000000000000000001C /* TodayList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayList.swift; sourceTree = "<group>"; };
 		A2000000000000000000000A /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -127,6 +129,7 @@
 				A20000000000000000000008 /* CalendarScreen.swift */,
 				A20000000000000000000007 /* EventAlerts.swift */,
 				A20000000000000000000009 /* TodoScreen.swift */,
+				A20000000000000000000019 /* JournalScreen.swift */,
 				A2000000000000000000001C /* TodayList.swift */,
 				A2000000000000000000000A /* SettingsScreen.swift */,
 				A20000000000000000000004 /* SyncPack.swift */,
@@ -271,6 +274,7 @@
 				A10000000000000000000007 /* EventAlerts.swift in Sources */,
 				A10000000000000000000008 /* CalendarScreen.swift in Sources */,
 				A10000000000000000000009 /* TodoScreen.swift in Sources */,
+				A10000000000000000000014 /* JournalScreen.swift in Sources */,
 				A10000000000000000000013 /* TodayList.swift in Sources */,
 				A1000000000000000000000A /* SettingsScreen.swift in Sources */,
 				A1000000000000000000000D /* PackActions.swift in Sources */,

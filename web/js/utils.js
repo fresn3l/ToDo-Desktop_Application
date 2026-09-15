@@ -185,6 +185,62 @@ export function askConfirm({ title, message = '', ok = 'OK', cancel = 'Cancel', 
     return openDialog({ mode: 'confirm', title, message, ok, cancel, danger }).then((value) => value === true);
 }
 
+const REPEAT_SCOPE_KEY = 'kosistenz.repeatScope';
+let scopeResolver = null;
+let scopeBound = false;
+
+export function rememberedRepeatScope() {
+    try {
+        const value = localStorage.getItem(REPEAT_SCOPE_KEY);
+        return value === 'occurrence' || value === 'series' ? value : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+export function askRepeatScope(copy) {
+    const remembered = rememberedRepeatScope();
+    if (remembered) return Promise.resolve(remembered);
+    const modal = document.getElementById('workScopeModal');
+    const text = document.getElementById('workScopeCopy');
+    if (!modal || !text) return Promise.resolve('occurrence');
+    text.textContent = copy;
+    const remember = document.getElementById('workScopeRemember');
+    if (remember) remember.checked = true;
+    bindScopeOnce();
+    modal.classList.remove('is-hidden');
+    modal.hidden = false;
+    return new Promise((resolve) => {
+        scopeResolver = resolve;
+    });
+}
+
+function bindScopeOnce() {
+    if (scopeBound) return;
+    scopeBound = true;
+    document.getElementById('workScopeOccurrence')?.addEventListener('click', () => closeRepeatScope('occurrence'));
+    document.getElementById('workScopeSeries')?.addEventListener('click', () => closeRepeatScope('series'));
+    document.getElementById('workScopeCancel')?.addEventListener('click', () => closeRepeatScope(null));
+}
+
+function closeRepeatScope(result) {
+    const modal = document.getElementById('workScopeModal');
+    if (modal) {
+        modal.classList.add('is-hidden');
+        modal.hidden = true;
+    }
+    if (result && document.getElementById('workScopeRemember')?.checked) {
+        try {
+            localStorage.setItem(REPEAT_SCOPE_KEY, result);
+        } catch (_) { /* ignore */ }
+    }
+    if (scopeResolver) {
+        const resolve = scopeResolver;
+        scopeResolver = null;
+        resolve(result);
+    }
+}
+
 export async function deleteUndatedImportedAssignments() {
     const ok = await askConfirm({
         title: 'Delete undated imports?',

@@ -250,7 +250,7 @@ async function acceptProposal(id) {
     try {
         await eel.brain_accept_proposal(id)();
         utils.notifyDataChanged();
-        utils.showSuccessFeedback('Added to All Work.');
+        utils.showSuccessFeedback('Added to Work.');
         await runPropose();
     } catch (err) {
         logEelError(err);

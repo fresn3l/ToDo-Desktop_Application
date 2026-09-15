@@ -692,7 +692,7 @@ function bindCalendarFeeds() {
                 utils.showSuccessFeedback(
                     clock
                         ? 'Timed events are on the week clock. Due dates stay as chips.'
-                        : 'Due dates are on that day’s To Do and as chips on the week.',
+                        : 'Due dates are on that day’s Today list and as chips on the week.',
                 );
             } else {
                 utils.showSuccessFeedback('Imported the feed. No new events in range.');

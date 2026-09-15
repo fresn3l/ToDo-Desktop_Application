@@ -1,4 +1,4 @@
-"""Ask Cluny inbox: accept into All Work, never a calendar block, dedup."""
+"""Ask Cluny inbox: accept into Work, never a calendar block, dedup."""
 
 from __future__ import annotations
 

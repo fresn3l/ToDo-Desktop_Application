@@ -1,5 +1,5 @@
 /**
- * Shared helpers for To Do / All Work.
+ * Shared helpers for Today / Work.
  */
 
 import * as utils from './utils.js';
@@ -83,7 +83,7 @@ export async function mountWorkPlanner(container, { targetDate }) {
                         </label>`;
                   })
                   .join('')
-            : '<p class="checklist-empty">All Work is empty. New tasks below go straight to tomorrow.</p>';
+            : '<p class="checklist-empty">Work is empty. New tasks below go straight to tomorrow.</p>';
 
         const alreadyRows = state.already.length
             ? `<ul class="work-already">${state.already
@@ -93,8 +93,8 @@ export async function mountWorkPlanner(container, { targetDate }) {
 
         container.innerHTML = `
             <p class="panel-sub work-planner-lead">
-                These land on <strong>tomorrow’s To Do</strong> (${utils.escapeHtml(targetDate)}).
-                Anything you leave unchecked stays in All Work.
+                These land on <strong>tomorrow’s Today list</strong> (${utils.escapeHtml(targetDate)}).
+                Anything you leave unchecked stays in Work.
             </p>
             ${alreadyRows ? `<div class="work-already-wrap"><p class="checklist-field-label">Already on tomorrow</p>${alreadyRows}</div>` : ''}
             <div class="work-add-row">
@@ -102,7 +102,7 @@ export async function mountWorkPlanner(container, { targetDate }) {
                 <button type="button" class="btn-secondary" id="workPlannerAdd">Add</button>
             </div>
             ${draftRows ? `<ul class="work-draft-list">${draftRows}</ul>` : ''}
-            <p class="checklist-field-label">From All Work</p>
+            <p class="checklist-field-label">From Work</p>
             <div class="work-pick-list">${backlogRows}</div>
         `;
 

@@ -470,7 +470,7 @@ def snapshot_as_text(payload: Optional[Dict[str, Any]] = None) -> str:
         )
     unplaced = data.get("unplaced") or []
     if unplaced:
-        lines.append("Unplaced: " + "; ".join(str(row.get("title") or "") for row in unplaced[:20]))
+        lines.append("Work: " + "; ".join(str(row.get("title") or "") for row in unplaced[:20]))
     goals = data.get("goals") or []
     if goals:
         bits = []

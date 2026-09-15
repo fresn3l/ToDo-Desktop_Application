@@ -74,7 +74,7 @@ extension AppDelegate {
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(menuItem("New journal entry", action: #selector(openNewJournal), key: ""))
-        menu.addItem(menuItem("Park in All Work…", action: #selector(promptParkInAllWork), key: ""))
+        menu.addItem(menuItem("Park in Work…", action: #selector(promptParkInAllWork), key: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit Kosistenz", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
@@ -100,7 +100,29 @@ extension AppDelegate {
     @objc func logPush() { logKind("push") }
     @objc func logPull() { logKind("pull") }
     @objc func logLegs() { logKind("legs") }
-    @objc func logRun() { logKind("running") }
+    @objc func logRun() { promptLogRun() }
+
+    func promptLogRun() {
+        let alert = NSAlert()
+        alert.messageText = "Log a run"
+        alert.informativeText = "Miles are required, same as the Workout widget."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Log")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        field.placeholderString = "Miles"
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        showMainWindow()
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+        let miles = Double(field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "."))
+        guard let miles, miles > 0 else { return }
+        _ = postJSON(path: "/api/workout/log", body: ["kind": "running", "miles": miles])
+        reloadWidgets()
+        showMainWindow()
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'home'}}));")
+    }
 
     func logKind(_ kind: String) {
         _ = postJSON(path: "/api/workout/log", body: ["kind": kind])
@@ -116,10 +138,11 @@ extension AppDelegate {
 
     @objc func promptParkInAllWork() {
         let alert = NSAlert()
-        alert.messageText = "Park in All Work"
-        alert.informativeText = "Saved without a date. Assign it later from All Work."
+        alert.messageText = "Park in Work"
+        alert.informativeText = "Work has no day yet. Today puts it on today’s list."
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Park")
+        alert.addButton(withTitle: "Work")
+        alert.addButton(withTitle: "Today")
         alert.addButton(withTitle: "Cancel")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
         field.placeholderString = "Title"
@@ -127,17 +150,18 @@ extension AppDelegate {
         alert.window.initialFirstResponder = field
         showMainWindow()
         let response = alert.runModal()
-        guard response == .alertFirstButtonReturn else { return }
+        guard response == .alertFirstButtonReturn || response == .alertSecondButtonReturn else { return }
         let title = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        parkTitle(title)
+        parkTitle(title, today: response == .alertSecondButtonReturn)
     }
 
-    func parkTitle(_ title: String) {
-        _ = postJSON(path: "/api/work/park", body: ["title": title])
+    func parkTitle(_ title: String, today: Bool = false) {
+        _ = postJSON(path: "/api/work/park", body: ["title": title, "today": today])
         reloadWidgets()
         showMainWindow()
-        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'allwork'}}));")
+        let tab = today ? "home" : "calendar"
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'\(tab)'}}));")
     }
 
     func handleKosistenzURL(_ url: URL) {
@@ -150,15 +174,18 @@ extension AppDelegate {
             ?? query.first(where: { $0.name == "text" })?.value
             ?? ""
 
+        let todayFlag = query.first(where: { $0.name == "today" })?.value?.lowercased()
+        let asToday = todayFlag == "1" || todayFlag == "true" || todayFlag == "yes"
+
         if combined.hasPrefix("journal") {
             runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'journal-new'}}));")
             return
         }
         if combined.hasPrefix("work/park") || combined.hasPrefix("park") || combined == "work" {
             if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                parkTitle(title)
+                parkTitle(title, today: asToday)
             } else {
-                runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'allwork'}}));")
+                runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'calendar'}}));")
             }
             return
         }

@@ -1,5 +1,5 @@
 """
-Work items — dated To Do tasks, undated All Work backlog, and timer sessions.
+Work items — dated Today tasks, off-clock Work, and timer sessions.
 
 Storage: Application Support/ToDo/work_items.sqlite
 Widget snapshot: Application Support/ToDo/widget_snapshot.json

@@ -227,7 +227,7 @@ def export_week_markdown(days: int = 7) -> Dict[str, Any]:
                     lines.append(f"- {' · '.join(str(b) for b in bits if b)}")
                 lines.append("")
             if day_work:
-                lines.append("### To Do")
+                lines.append("### Work")
                 lines.append("")
                 for item in day_work:
                     status = item.get("status") or "open"

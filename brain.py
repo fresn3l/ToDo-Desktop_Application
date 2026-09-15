@@ -1,7 +1,7 @@
 """Brain tab — Ask Cluny over HTTP.
 
 Cluny is the local brain, not the scheduler. Kosistenz stays usable if Cluny is quit.
-Proposals become All Work items with no clock time.
+Proposals become Work items with no clock time.
 """
 
 from __future__ import annotations

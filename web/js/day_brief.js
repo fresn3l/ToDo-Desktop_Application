@@ -38,7 +38,7 @@ function paint(data) {
         const intention = data.morning?.intention_text || '';
         const agendaHtml = agenda.length
             ? `<ul class="day-brief-agenda">${agenda.map((item) => {
-                const kind = item.kind === 'hard' ? 'Class' : item.kind === 'workout' ? 'Gym' : 'Work';
+                const kind = item.kind === 'hard' ? 'Busy' : item.kind === 'workout' ? 'Gym' : 'Work';
                 return `<li><span>${utils.escapeHtml(agendaTime(item))}</span> ${utils.escapeHtml(item.title || '')} <em>${kind}</em></li>`;
             }).join('')}</ul>`
             : '<p class="checklist-empty">No timed events left today.</p>';
@@ -47,7 +47,7 @@ function paint(data) {
                 const on = selected.has(item.id) ? ' checked' : '';
                 return `<li><label class="checklist-checkbox-label"><input type="checkbox" data-focus value="${utils.escapeHtml(item.id)}"${on}> ${utils.escapeHtml(item.title || '')}</label></li>`;
             }).join('')}</ul>`
-            : '<p class="checklist-empty">No open to-dos on today. Add some on To Do, then pick two or three here.</p>';
+            : '<p class="checklist-empty">No open work on today. Add some on Today, then pick two or three here.</p>';
         body.innerHTML = `
             <div class="day-brief-block">
                 <h3>Next up</h3>

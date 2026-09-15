@@ -125,11 +125,6 @@ DEFAULTS: Dict[str, Any] = {
     "radius": "soft",
     "width": "standard",
     "sidebar": "compact",
-    "todayLayout": "split",
-    "todayOrder": "todo,workout,journal",
-    "todayTodo": True,
-    "todayWorkout": True,
-    "todayJournal": True,
     "journalFontSize": 17,
     "timerMinutes": 10,
     "autoFocus": False,
@@ -151,29 +146,11 @@ ALLOWED = {
     "radius": {"sharp", "soft", "round"},
     "width": {"narrow", "standard", "wide"},
     "sidebar": {"expanded", "compact"},
-    "todayLayout": {"split", "stack", "columns"},
 }
 
-_TODAY_MODULES = ("todo", "workout", "journal")
 _HEX_RE = re.compile(r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
 _PRESET_ID_RE = re.compile(r"^up-[a-zA-Z0-9_-]{2,36}$")
 _MAX_PRESETS = 32
-
-
-def _as_today_order(raw: Any) -> str:
-    parts: list[str] = []
-    if isinstance(raw, str):
-        parts = [p.strip() for p in raw.split(",")]
-    elif isinstance(raw, (list, tuple)):
-        parts = [str(p).strip() for p in raw]
-    seen: list[str] = []
-    for part in parts:
-        if part in _TODAY_MODULES and part not in seen:
-            seen.append(part)
-    for part in _TODAY_MODULES:
-        if part not in seen:
-            seen.append(part)
-    return ",".join(seen)
 
 
 def _app_data_dir() -> Path:
@@ -373,10 +350,6 @@ def _sanitize(raw: Any) -> Dict[str, Any]:
     out["autoFocus"] = _as_bool(raw.get("autoFocus"), False)
     out["reducedMotion"] = _as_bool(raw.get("reducedMotion"), False)
     out["highContrast"] = _as_bool(raw.get("highContrast"), False)
-    out["todayTodo"] = _as_bool(raw.get("todayTodo"), True)
-    out["todayWorkout"] = _as_bool(raw.get("todayWorkout"), True)
-    out["todayJournal"] = _as_bool(raw.get("todayJournal"), True)
-    out["todayOrder"] = _as_today_order(raw.get("todayOrder"))
     out["colorOverrides"] = _sanitize_overrides(raw.get("colorOverrides"))
     out["widgetBorderWidth"] = _clamp_int(raw.get("widgetBorderWidth"), 0, 8, DEFAULTS["widgetBorderWidth"])
     out["inkAuto"] = _as_bool(raw.get("inkAuto"), True)
@@ -405,11 +378,6 @@ def get_appearance_settings() -> Dict[str, Any]:
 @eel.expose
 def save_appearance_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
     incoming = dict(settings) if isinstance(settings, dict) else {}
-    stored = get_appearance_settings()
-    # save_appearance_settings ignores todayLayout / todayOrder / todayTodo writes
-    for key in ("todayLayout", "todayOrder", "todayTodo", "todayWorkout", "todayJournal"):
-        incoming.pop(key, None)
-        incoming[key] = stored.get(key, DEFAULTS[key])
     cleaned = _sanitize(incoming)
     path = _settings_path()
     tmp = str(path) + ".tmp"

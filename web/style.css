@@ -6424,6 +6424,18 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     flex-wrap: wrap;
 }
 
+.cal-today-add {
+    margin: 8px 0 4px;
+}
+
+.cal-work-group {
+    margin: 14px 0 6px;
+    font-size: var(--fs-micro);
+    letter-spacing: var(--letter-wider);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
 .cal-unplaced-hint {
     margin: 0 0 8px;
     font-size: var(--fs-caption);

@@ -70,7 +70,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>Park in All Work</string>
+				<string>Park in Work</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>parkInAllWork</string>
@@ -84,8 +84,8 @@
 		</dict>
 	</array>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Kosistenz reads your subscribed class calendar so due dates can become to-dos. It never writes events back to Apple Calendar.</string>
+	<string>Kosistenz reads subscribed calendars so due dates can become work items. It never writes events back to Apple Calendar.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Kosistenz reads your subscribed class calendar so due dates can become to-dos. It never writes events back to Apple Calendar.</string>
+	<string>Kosistenz reads subscribed calendars so due dates can become work items. It never writes events back to Apple Calendar.</string>
 </dict>
 </plist>

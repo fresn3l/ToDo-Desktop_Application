@@ -1,7 +1,7 @@
 import Foundation
 import WidgetKit
 
-/// Mutates the iCloud pack. Used by Today, Inbox, App Intents, and the widget.
+/// Mutates the iCloud pack. Used by Today, Work, App Intents, and the widget.
 enum PackActions {
     static func current() throws -> Pack {
         try SyncPack.load().pack
@@ -27,6 +27,31 @@ enum PackActions {
         let now = DayStamp.isoNow()
         pack.work.items.insert(newItem(title: title, date: nil, now: now), at: 0)
         return try saveWork(pack)
+    }
+
+    @discardableResult
+    static func addJournal(_ raw: String) throws -> Pack {
+        let content = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty else { throw PackActionError.message("Write something first.") }
+        var pack = try current()
+        let now = DayStamp.localStamp()
+        let stamp = now.replacingOccurrences(of: "T", with: "_").replacingOccurrences(of: ":", with: "-")
+        let hex = String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8)).lowercased()
+        let entry = JournalEntry(
+            id: "entry_\(stamp)_\(hex)",
+            content: content,
+            date: now,
+            duration_seconds: 0,
+            continued: false,
+            created_at: now,
+            updated_at: now,
+            tags: [],
+            kind: "journal"
+        )
+        pack.journal.insert(entry, at: 0)
+        try SyncPack.saveJournal(pack.journal)
+        ping(pack)
+        return pack
     }
 
     @discardableResult

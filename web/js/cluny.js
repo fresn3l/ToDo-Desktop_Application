@@ -1,6 +1,6 @@
 /**
  * Ask Cluny Home widget — questions, citations, and work proposals.
- * Cluny never places clock times. Accept lands in All Work.
+ * Cluny never places clock times. Accept lands in Work.
  */
 
 import * as utils from './utils.js';
@@ -189,10 +189,10 @@ async function acceptProposal(id) {
         paintInbox(result?.inbox);
         utils.notifyDataChanged();
         if (result?.duplicate) {
-            utils.showSuccessFeedback('Already in All Work.');
+            utils.showSuccessFeedback('Already in Work.');
             return;
         }
-        utils.showSuccessFeedback('Added to All Work. You pick the day.');
+        utils.showSuccessFeedback('Added to Work. You pick the day.');
     } catch (err) {
         console.error(err);
         utils.showErrorFeedback(err?.message || 'Could not accept that suggestion.');

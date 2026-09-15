@@ -35,7 +35,7 @@ That creates a virtualenv, packages a standalone app, copies it to `/Application
 
 Quit with **Cmd+Q**, like any Mac app. Closing the window hides it; the menu bar extra keeps running until you quit.
 
-Add the **Today** widget from Notification Center → Edit Widgets → Kosistenz (Lock Screen families need macOS 14+). Services: select text anywhere, then Services → **Park in All Work** or **New Journal Entry in Kosistenz**. URLs: `kosistenz://journal/new` and `kosistenz://work/park?title=Call%20dentist`.
+Add the **Today** widget from Notification Center → Edit Widgets → Kosistenz (Lock Screen families need macOS 14+). Services: select text anywhere, then Services → **Park in Work** or **New Journal Entry in Kosistenz**. URLs: `kosistenz://journal/new` and `kosistenz://work/park?title=Call%20dentist` (add `&today=1` to put it on Today).
 
 If you change the source and want a fresh bundle, run `./macos/install_app.sh` again. You must rebuild after `git pull` — opening the old app will still use the previous window code.
 
@@ -66,29 +66,29 @@ That still opens the **native WebKit window**, not Chrome.
 
 ## Features
 
-- **Home**: Snap-to-grid widgets (To Do, Today, Workout, Journal, Goals, All Work, Analytics, Timeline, Weather, Focus, Countdown, Habits, Heatmap, Day, Counters, Reading, Word, Check-in). Extra pages, Edit Home to place and resize. First install shows To Do and a mini Today calendar.
+- **Home**: Snap-to-grid widgets (Today, Clock, Workout, Journal, Goals, Analytics, Weather, Focus, Countdown, Habits, Day, Counters, Reading, Word, Check-in, Ask Cluny). Extra pages, Edit Home to place and resize. First install shows Today and a mini calendar.
 - **Word of the day**: German or precise English on a Home widget; Evening check-in asks you to use it
 - **Journal**: Timed entries (Home widget)
-- **To Do**: Dated tasks with start / finish timers (Home widget)
-- **All Work**: Undated backlog you assign to a day later (Home widget)
+- **Today**: Dated work for this day. Stays a checklist until you drag a row onto the clock.
+- **Work**: Everything else that is not on the clock. Park a thought, or move a row into Today.
 - **Workout**: Body weight, session types, and a simple week template (Home widget)
-- **Analytics**: Streaks, repeating to-do misses, template misses, body-weight sparkline (Home widget)
+- **Analytics**: Streaks, repeating misses, template misses, body-weight sparkline (Home widget)
 - **Weather**: Place search, current conditions, hourly rain chance, seven-day forecast (Home widget; Open-Meteo, cached locally)
 - **Focus**: One intention for today; clears at midnight (Home widget)
 - **Countdown**: Named dates with days remaining (Home widget)
 - **Habits**: Daily ticks that reset each morning (Home widget)
-- **Menu bar**: Start or finish today’s active to do, log a session type, see whether today is empty
-- **Today widget**: Notification Center (and Lock Screen on macOS 14+) — open to-dos, workout logged or not, journal streak
-- **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in All Work** in the Services menu
+- **Menu bar**: Start or finish today’s active item, log a session type, see whether today is empty. Run asks for miles.
+- **Today widget**: Notification Center (and Lock Screen on macOS 14+) — open items, workout logged or not, journal streak
+- **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in Work** in the Services menu
 - **Appearance**: Themes and type (San Francisco by default on Mac)
 - **Local storage**: SQLite + JSON under Application Support
-- **Goals**: 1 week, 6 months, a year, 5 years. Attach a to-do (or match a
+- **Goals**: 1 week, 6 months, a year, 5 years. Attach work (or match a
   keyword). 1-week goals get a to-do every Sunday for the coming week.
 - **Calendar**: Week on a clock. Events you add stay busy time. Imported
-  calendars (Apple subscription or ICS URL) become to-dos with due times, not
-  busy bars. **Fill week** or drag places dated work around those events.
-  Nothing is written back to Apple Calendar.
-- **iPhone**: Today / Calendar / To Do over the same iCloud Drive pack — see `ios/README.md`
+  calendars (Apple subscription or ICS URL) become work with due times, not
+  busy bars. **Fill week** packs Work leftover minutes around those events.
+  Today stays a list until you drag it. Nothing is written back to Apple Calendar.
+- **iPhone**: Today / Calendar / Work / Journal over the same iCloud Drive pack — see `ios/README.md`
 
 ## Data Storage
 
@@ -96,7 +96,7 @@ macOS paths (legacy `ToDo` folder name preserved for existing data):
 
 - **Journal**: `~/Library/Application Support/ToDo/Journal/`
 - **Daily checklist DB**: `~/Library/Application Support/ToDo/daily_checklist.sqlite`
-- **Work / To Do DB**: `~/Library/Application Support/ToDo/work_items.sqlite`
+- **Work / Today DB**: `~/Library/Application Support/ToDo/work_items.sqlite`
 - **Calendar**: `~/Library/Application Support/ToDo/calendar.sqlite` plus `calendar_feeds.json`
 - **Workouts DB**: `~/Library/Application Support/ToDo/workouts.sqlite`
 - **Week template**: `~/Library/Application Support/ToDo/workout_plan.json`

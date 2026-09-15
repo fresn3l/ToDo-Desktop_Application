@@ -636,7 +636,7 @@ async function renderWorkPlanningNode(node) {
     } catch (e) {
         console.error(e);
         if (mount) {
-            mount.innerHTML = '<p class="checklist-error">Could not load All Work. You can still add nothing and continue.</p>';
+            mount.innerHTML = '<p class="checklist-error">Could not load Work. You can still add nothing and continue.</p>';
         }
     }
     el.querySelector('.checklist-next')?.addEventListener('click', () => {

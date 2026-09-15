@@ -123,6 +123,39 @@ class RecurringMarkTests(unittest.TestCase):
         rows = calclock.expand_hard_events(MONDAY, MONDAY + timedelta(days=21))
         self.assertTrue(all(row["start_at"].endswith("T11:00:00") for row in rows))
 
+    def test_occurrence_scope_renames_one_day(self) -> None:
+        event = self._series()
+        edited = MONDAY + timedelta(days=2)
+        calclock.update_calendar_event(
+            event["id"],
+            "1:1",
+            f"{edited.isoformat()}T11:00:00",
+            f"{edited.isoformat()}T11:30:00",
+            WEEKDAYS,
+            edited.isoformat(),
+            "occurrence",
+        )
+        rows = calclock.expand_hard_events(MONDAY, MONDAY + timedelta(days=7))
+        titles = {row["occurrence_date"]: row["title"] for row in rows}
+        starts = {row["occurrence_date"]: row["start_at"] for row in rows}
+        self.assertEqual(titles[edited.isoformat()], "1:1")
+        self.assertTrue(starts[edited.isoformat()].endswith("T11:00:00"))
+        others = [day for day in titles if day != edited.isoformat()]
+        self.assertTrue(others)
+        self.assertTrue(all(titles[day] == "Standup" for day in others))
+        self.assertTrue(all(starts[day].endswith("T09:00:00") for day in others))
+
+    def test_occurrence_scope_delete_skips_one_day(self) -> None:
+        event = self._series()
+        skipped = (MONDAY + timedelta(days=2)).isoformat()
+        calclock.delete_calendar_event(event["id"], skipped, "occurrence")
+        rows = calclock.expand_hard_events(MONDAY, MONDAY + timedelta(days=7))
+        days = {row["occurrence_date"] for row in rows}
+        self.assertNotIn(skipped, days)
+        self.assertIn(MONDAY.isoformat(), days)
+        leftover = calclock._load_event(event["id"])
+        self.assertEqual(event["id"], leftover["id"])
+
     def test_setting_weekdays_keeps_the_end_date_and_skipped_days(self) -> None:
         event = self._series()
         skipped = (MONDAY + timedelta(days=2)).isoformat()

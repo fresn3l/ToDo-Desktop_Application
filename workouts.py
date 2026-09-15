@@ -401,7 +401,7 @@ def add_workout_session(
         raise ValueError("Name the other activity (pickleball, hill sprints, …)")
     mile_val = _parse_optional_float(miles)
     minute_val = _parse_optional_float(minutes)
-    if key == "running" and mile_val is None:
+    if key == "running" and (mile_val is None or mile_val <= 0):
         raise ValueError("Add miles for a run")
     now = datetime.now().isoformat()
     session_id = str(uuid.uuid4())
