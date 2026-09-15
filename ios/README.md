@@ -4,11 +4,13 @@ Companion to the Mac app. Same Apple ID. Data moves through **iCloud Drive / Kos
 
 The Mac writes a JSON pack (`work.json`, `workouts.json`, `journal.json`, `calendar.json`, `appearance.json`). This iOS app reads and writes those files through a folder you pick in Files. Appearance comes from the Mac pack — there is no second theme picker on the phone.
 
-Ask Cluny stays on the Mac. If the laptop is asleep, Cluny is off on the phone on purpose. To-dos and **named busy time** still save.
+Ask Cluny stays on the Mac. If the laptop is asleep, Cluny is off on the phone on purpose. To-dos, the week clock, and **named busy time** still save.
 
-Three tabs: **Today** (check-off list), **Calendar** (week or today clock), **To Do** (later + All Work). Sync is a sheet, not a tab. Local alerts fire **30, 15, and 5 minutes** before a timed event; checking it off cancels the rest.
+Two tabs: **Calendar** (week / month / year, same moves as the Mac clock) and **Work** (Today / All / Unplaced / Due). Sync is a sheet, not a tab.
 
-**Add** a named event on Calendar (one-off or weekly day chips). Times are 24-hour, same as the Mac (`0930`, `21:30`). After Save, the block is on the phone clock immediately; opening the Mac merges it (`source: iphone`) and writes the canonical week back. Packed study still cannot be dragged from the phone.
+**Calendar** can add a named event (one-off or weekly day chips), Fill week into free gaps, Place unplaced work onto a time, mark a bar Done / Skip / Park, and paste an ICS blob. Times are 24-hour, same as the Mac (`0930`, `21:30`). Phone-placed work bars merge on the Mac (`source: iphone`) the next time the laptop opens the pack.
+
+**Work** is the Mac Work sheet: Today’s check-off list, All Work (no date yet), unplaced minutes, and due dates.
 
 **Shortcuts / Siri / Action Button:** Park in All Work, check off today’s first to-do, log the expected workout. **Home Screen widget:** today’s to-dos; tap the circle to toggle. The widget reads a snapshot in the App Group; open the app once after installing so it fills.
 
@@ -35,16 +37,15 @@ Until you pick the folder, the app says **On this iPhone only**.
 
 1. On the Mac: Settings → Phone → Push to iCloud. Leave **Pull phone changes when this Mac app opens** on.
 2. On the iPhone: pull to refresh, or open Sync (cloud icon) → Sync now.
-3. Check off Today’s list, move All Work onto today, or **Add** an event on Calendar.
-4. Open Kosistenz on the Mac. Checks and new events should be there without visiting Settings → Phone.
+3. Check off Today on Work, Place or Fill week on Calendar, or **Add** an event.
+4. Open Kosistenz on the Mac. Checks, new events, and phone-placed bars should be there without visiting Settings → Phone.
 
 ## Phone tabs
 
 | Tab | What it is |
 | --- | --- |
-| Today | Ordered list of today’s timed events and dated work. Check off with a short animation. Add a task → dated today. |
-| Calendar | Toggle week clock / today’s clock. **Add** a named event; no Fill week / drag. |
-| To Do | Everything not dated today (later + All Work). Park a new thought, or send a row to today. |
+| Calendar | Week clock, month, and year. Add an event, Fill week, Place unplaced work, Done / Park / Skip a bar, paste ICS. |
+| Work | Today / All / Unplaced / Due. Add, park, send to today, or Place onto the clock. |
 
 Sync (folder, last pack time, alerts note) is the cloud icon, not a tab. Journal is not on the phone.
 
@@ -52,4 +53,4 @@ The compact layout is for iPhone. On iPad (and Catalyst) a sidebar lists the sam
 
 ## Out of scope here
 
-Day-rollover `missed` marks and Mac Analytics consistency, Timeline, Brain/Library, Ask Cluny over the internet, CloudKit, App Store / TestFlight, editing repeating series or the week workout template from the phone, Fill week / drag packed blocks.
+Day-rollover `missed` marks and Mac Analytics consistency, Timeline, Brain/Library, Ask Cluny over the internet, CloudKit, App Store / TestFlight, editing repeating series or the week workout template from the phone, drag-to-place (Place sheet and Fill week stand in for drag).

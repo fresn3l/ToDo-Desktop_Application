@@ -281,6 +281,40 @@ class IcloudSyncTests(unittest.TestCase):
         blocks = calclock.list_blocks(date(2026, 9, 7), date(2026, 9, 13))
         self.assertFalse(any(item.get("title") == "Study from phone" for item in blocks))
 
+    def test_phone_work_block_merges_and_removed_ids_delete(self):
+        import calclock
+        from datetime import date
+
+        self._use(self.src)
+        icloud_sync.write_pack(self.pack)
+        now = datetime.now().isoformat(timespec="seconds")
+        pack = icloud_sync.read_pack(self.pack)
+        calendar = pack["calendar"]
+        calendar.setdefault("phone_blocks", [])
+        calendar["phone_blocks"].append(
+            {
+                "id": "phone-essay",
+                "title": "Essay from phone",
+                "kind": "work",
+                "status": "proposed",
+                "start_at": "2026-09-08T16:00:00",
+                "end_at": "2026-09-08T17:00:00",
+                "source": "iphone",
+                "updated_at": now,
+            }
+        )
+        icloud_sync._write_json(self.pack / "calendar.json", calendar)
+        result = icloud_sync.apply_pack(self.pack)
+        self.assertGreaterEqual((result.get("applied") or {}).get("calendar_blocks") or 0, 1)
+        blocks = calclock.list_blocks(date(2026, 9, 7), date(2026, 9, 13))
+        self.assertTrue(any(item.get("title") == "Essay from phone" for item in blocks))
+        calendar["removed_block_ids"] = ["phone-essay"]
+        calendar["phone_blocks"] = []
+        icloud_sync._write_json(self.pack / "calendar.json", calendar)
+        icloud_sync.apply_pack(self.pack)
+        blocks = calclock.list_blocks(date(2026, 9, 7), date(2026, 9, 13))
+        self.assertFalse(any(item.get("id") == "phone-essay" for item in blocks))
+
     def test_phone_hard_event_newer_update_wins(self):
         import calclock
 

@@ -35,9 +35,8 @@ struct RootView: View {
                 }
             } else {
                 TabView(selection: $store.tab) {
-                    TodayScreen().tag(AppTab.today).tabItem { Label(AppTab.today.title, systemImage: AppTab.today.icon) }
                     CalendarScreen().tag(AppTab.calendar).tabItem { Label(AppTab.calendar.title, systemImage: AppTab.calendar.icon) }
-                    TodoScreen().tag(AppTab.todo).tabItem { Label(AppTab.todo.title, systemImage: AppTab.todo.icon) }
+                    WorkScreen().tag(AppTab.work).tabItem { Label(AppTab.work.title, systemImage: AppTab.work.icon) }
                 }
             }
         }
@@ -64,31 +63,28 @@ struct RootView: View {
     @ViewBuilder
     private func tabBody(_ tab: AppTab) -> some View {
         switch tab {
-        case .today: TodayScreen()
         case .calendar: CalendarScreen()
-        case .todo: TodoScreen()
+        case .work: WorkScreen()
         }
     }
 }
 
 enum AppTab: String, Hashable, CaseIterable, Identifiable {
-    case today, calendar, todo
+    case calendar, work
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .today: return "Today"
         case .calendar: return "Calendar"
-        case .todo: return "To Do"
+        case .work: return "Work"
         }
     }
 
     var icon: String {
         switch self {
-        case .today: return "sun.max"
         case .calendar: return "calendar"
-        case .todo: return "checklist"
+        case .work: return "checklist"
         }
     }
 }
@@ -99,7 +95,7 @@ final class PackStore: ObservableObject {
     @Published var error: String?
     @Published var syncedAt: String?
     @Published var palette = KosistenzPalette.ocean
-    @Published var tab: AppTab = .today
+    @Published var tab: AppTab = .calendar
     @Published var pickingFolder = false
     @Published var showSync = false
 

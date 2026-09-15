@@ -15,7 +15,7 @@
 		A10000000000000000000006 /* TodayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* TodayScreen.swift */; };
 		A10000000000000000000007 /* EventAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* EventAlerts.swift */; };
 		A10000000000000000000008 /* CalendarScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* CalendarScreen.swift */; };
-		A10000000000000000000009 /* TodoScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* TodoScreen.swift */; };
+		A10000000000000000000009 /* WorkScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* WorkScreen.swift */; };
 		A10000000000000000000013 /* TodayList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* TodayList.swift */; };
 		A1000000000000000000000A /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* SettingsScreen.swift */; };
 		A1000000000000000000000B /* DayTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* DayTimeline.swift */; };
@@ -24,6 +24,8 @@
 		A10000000000000000000010 /* PhoneCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PhoneCalendar.swift */; };
 		A10000000000000000000011 /* AddEventSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* AddEventSheet.swift */; };
 		A10000000000000000000012 /* DayClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* DayClock.swift */; };
+		A10000000000000000000019 /* PlaceWorkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* PlaceWorkSheet.swift */; };
+		A1000000000000000000001A /* PhoneWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* PhoneWork.swift */; };
 		A1000000000000000000000F /* KosistenzWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A30000000000000000000002 /* KosistenzWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B10000000000000000000001 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* Appearance.swift */; };
 		B10000000000000000000002 /* FolderBookmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* FolderBookmark.swift */; };
@@ -35,6 +37,7 @@
 		B10000000000000000000008 /* KosistenzWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* KosistenzWidget.swift */; };
 		B10000000000000000000009 /* PhoneCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PhoneCalendar.swift */; };
 		B1000000000000000000000A /* TodayList.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* TodayList.swift */; };
+		B1000000000000000000000B /* PhoneWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* PhoneWork.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,7 +73,7 @@
 		A20000000000000000000006 /* TodayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayScreen.swift; sourceTree = "<group>"; };
 		A20000000000000000000007 /* EventAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventAlerts.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* CalendarScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarScreen.swift; sourceTree = "<group>"; };
-		A20000000000000000000009 /* TodoScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoScreen.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* WorkScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkScreen.swift; sourceTree = "<group>"; };
 		A2000000000000000000001C /* TodayList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayList.swift; sourceTree = "<group>"; };
 		A2000000000000000000000A /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -84,6 +87,8 @@
 		A20000000000000000000016 /* PhoneCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneCalendar.swift; sourceTree = "<group>"; };
 		A20000000000000000000017 /* AddEventSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddEventSheet.swift; sourceTree = "<group>"; };
 		A20000000000000000000018 /* DayClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayClock.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* PlaceWorkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceWorkSheet.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* PhoneWork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneWork.swift; sourceTree = "<group>"; };
 		A30000000000000000000001 /* Kosistenz.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kosistenz.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A30000000000000000000002 /* KosistenzWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = KosistenzWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -124,9 +129,11 @@
 				A20000000000000000000018 /* DayClock.swift */,
 				A20000000000000000000017 /* AddEventSheet.swift */,
 				A20000000000000000000016 /* PhoneCalendar.swift */,
+				A2000000000000000000001A /* PhoneWork.swift */,
 				A20000000000000000000008 /* CalendarScreen.swift */,
 				A20000000000000000000007 /* EventAlerts.swift */,
-				A20000000000000000000009 /* TodoScreen.swift */,
+				A20000000000000000000009 /* WorkScreen.swift */,
+				A20000000000000000000019 /* PlaceWorkSheet.swift */,
 				A2000000000000000000001C /* TodayList.swift */,
 				A2000000000000000000000A /* SettingsScreen.swift */,
 				A20000000000000000000004 /* SyncPack.swift */,
@@ -270,7 +277,9 @@
 				A10000000000000000000012 /* DayClock.swift in Sources */,
 				A10000000000000000000007 /* EventAlerts.swift in Sources */,
 				A10000000000000000000008 /* CalendarScreen.swift in Sources */,
-				A10000000000000000000009 /* TodoScreen.swift in Sources */,
+				A10000000000000000000009 /* WorkScreen.swift in Sources */,
+				A10000000000000000000019 /* PlaceWorkSheet.swift in Sources */,
+				A1000000000000000000001A /* PhoneWork.swift in Sources */,
 				A10000000000000000000013 /* TodayList.swift in Sources */,
 				A1000000000000000000000A /* SettingsScreen.swift in Sources */,
 				A1000000000000000000000D /* PackActions.swift in Sources */,
@@ -290,6 +299,7 @@
 				B10000000000000000000009 /* PhoneCalendar.swift in Sources */,
 				B10000000000000000000006 /* PackActions.swift in Sources */,
 				B1000000000000000000000A /* TodayList.swift in Sources */,
+				B1000000000000000000000B /* PhoneWork.swift in Sources */,
 				B10000000000000000000007 /* AppIntents.swift in Sources */,
 				B10000000000000000000008 /* KosistenzWidget.swift in Sources */,
 			);

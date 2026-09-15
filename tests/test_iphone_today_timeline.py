@@ -89,6 +89,7 @@ class IphoneTodayTimelineTests(unittest.TestCase):
         self.assertIn("PackActions.complete", today)
         self.assertIn("DayClockView", calendar)
         self.assertIn("AddEventSheet", calendar)
+        self.assertIn("Fill week", calendar)
 
 
 if __name__ == "__main__":

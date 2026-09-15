@@ -1500,6 +1500,88 @@ def upsert_phone_event(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return _row_event(row)
 
 
+def upsert_phone_block(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Merge one iPhone-placed work bar. Never hijacks a Mac/ICS event."""
+    if not isinstance(payload, dict):
+        return None
+    source = str(payload.get("source") or "").strip().lower()
+    if source != "iphone":
+        return None
+    clean = str(payload.get("title") or "").strip()[:200]
+    if not clean:
+        return None
+    block_id = str(payload.get("id") or "").strip()
+    if not block_id or len(block_id) > 80:
+        return None
+    try:
+        start = parse_datetime(str(payload.get("start_at") or ""))
+        end = parse_datetime(str(payload.get("end_at") or ""))
+        _validate_span(start, end, hard=False)
+    except (TypeError, ValueError):
+        return None
+    status = str(payload.get("status") or "proposed").strip().lower()
+    if status not in BLOCK_STATUSES:
+        status = "proposed"
+    kind = str(payload.get("kind") or "work").strip().lower() or "work"
+    if kind == "hard":
+        return None
+    work_item_id = str(payload.get("work_item_id") or "").strip() or None
+    incoming_updated = str(payload.get("updated_at") or "").strip()
+    now = _now().isoformat()
+    existing = load_block(block_id)
+    if existing is not None:
+        if incoming_updated and existing.get("updated_at") and incoming_updated <= str(existing.get("updated_at")):
+            return None
+        with _connect() as conn:
+            conn.execute(
+                """
+                UPDATE schedule_blocks
+                SET title = ?, local_date = ?, start_at = ?, end_at = ?, status = ?,
+                    kind = ?, work_item_id = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    clean,
+                    start.date().isoformat(),
+                    start.isoformat(timespec="seconds"),
+                    end.isoformat(timespec="seconds"),
+                    status,
+                    kind,
+                    work_item_id,
+                    incoming_updated or now,
+                    block_id,
+                ),
+            )
+            conn.commit()
+            row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (block_id,)).fetchone()
+        assert row is not None
+        return _row_block(row)
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO schedule_blocks (
+                id, work_item_id, title, local_date, start_at, end_at, status, kind, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                block_id,
+                work_item_id,
+                clean,
+                start.date().isoformat(),
+                start.isoformat(timespec="seconds"),
+                end.isoformat(timespec="seconds"),
+                status,
+                kind,
+                incoming_updated or now,
+                incoming_updated or now,
+            ),
+        )
+        conn.commit()
+        row = conn.execute("SELECT * FROM schedule_blocks WHERE id = ?", (block_id,)).fetchone()
+    assert row is not None
+    return _row_block(row)
+
+
 @eel.expose
 def delete_calendar_event(event_id: str) -> Dict[str, Any]:
     with _connect() as conn:

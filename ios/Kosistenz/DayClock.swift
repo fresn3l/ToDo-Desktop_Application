@@ -4,6 +4,10 @@ import SwiftUI
 struct WeekClockView: View {
     var file: CalendarFile
     var palette: KosistenzPalette
+    var nowMinutes: Int? = nil
+    var today: String? = nil
+    var onSelectDay: ((CalendarDay) -> Void)? = nil
+    var onSelectItem: ((CalendarItem) -> Void)? = nil
 
     private var window: (startMin: Int, endMin: Int) {
         PhoneCalendar.clockWindow(dayStart: file.day_start, dayEnd: file.day_end)
@@ -29,9 +33,14 @@ struct WeekClockView: View {
                             endMin: window.endMin,
                             palette: palette,
                             height: height,
-                            headerHeight: headerHeight
+                            headerHeight: headerHeight,
+                            nowMinutes: (today ?? "") == (day.date ?? "") ? nowMinutes : nil,
+                            onSelectItem: onSelectItem
                         )
                         .frame(width: 78)
+                        .onTapGesture {
+                            onSelectDay?(day)
+                        }
                     }
                 }
             }
@@ -45,6 +54,8 @@ struct DayClockView: View {
     var dayEnd: String?
     var palette: KosistenzPalette
     var height: CGFloat = 360
+    var nowMinutes: Int? = nil
+    var onSelectItem: ((CalendarItem) -> Void)? = nil
 
     private var window: (startMin: Int, endMin: Int) {
         PhoneCalendar.clockWindow(dayStart: dayStart, dayEnd: dayEnd)
@@ -60,7 +71,9 @@ struct DayClockView: View {
                     startMin: window.startMin,
                     endMin: window.endMin,
                     palette: palette,
-                    height: height
+                    height: height,
+                    nowMinutes: nowMinutes,
+                    onSelectItem: onSelectItem
                 )
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -76,6 +89,8 @@ private struct DayClockColumn: View {
     var palette: KosistenzPalette
     var height: CGFloat
     var headerHeight: CGFloat
+    var nowMinutes: Int? = nil
+    var onSelectItem: ((CalendarItem) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -96,7 +111,9 @@ private struct DayClockColumn: View {
                 startMin: startMin,
                 endMin: endMin,
                 palette: palette,
-                height: height
+                height: height,
+                nowMinutes: nowMinutes,
+                onSelectItem: onSelectItem
             )
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
@@ -136,6 +153,8 @@ private struct ClockLane: View {
     var endMin: Int
     var palette: KosistenzPalette
     var height: CGFloat
+    var nowMinutes: Int? = nil
+    var onSelectItem: ((CalendarItem) -> Void)? = nil
 
     private var span: Int { max(60, endMin - startMin) }
 
@@ -150,6 +169,15 @@ private struct ClockLane: View {
             }
             ForEach(items) { item in
                 block(item)
+                    .onTapGesture {
+                        onSelectItem?(item)
+                    }
+            }
+            if let nowMinutes, nowMinutes >= startMin, nowMinutes <= endMin {
+                Rectangle()
+                    .fill(palette.accent)
+                    .frame(height: 2)
+                    .offset(y: y(for: nowMinutes))
             }
         }
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)

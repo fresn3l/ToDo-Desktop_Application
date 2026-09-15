@@ -512,6 +512,8 @@ def _dump_calendar() -> Dict[str, Any]:
             packed["work_item_id"] = item.get("work_item_id")
         if item.get("updated_at"):
             packed["updated_at"] = item.get("updated_at")
+        if item.get("source"):
+            packed["source"] = item.get("source")
         # Occurrences of a repeating event all share the event id, so the day is
         # the only thing telling them apart once they are off this machine.
         if item.get("occurrence_date"):
@@ -542,7 +544,14 @@ def _dump_calendar() -> Dict[str, Any]:
             }
         )
     unplaced = [
-        {"id": item.get("id"), "title": item.get("title") or ""}
+        {
+            "id": item.get("id"),
+            "title": item.get("title") or "",
+            "scheduled_date": item.get("scheduled_date"),
+            "due_at": item.get("due_at"),
+            "estimate_minutes": item.get("estimate_minutes"),
+            "remaining_minutes": item.get("remaining_minutes"),
+        }
         for item in (week.get("unplaced") or [])
         if item.get("title")
     ]
@@ -593,6 +602,11 @@ def _dump_calendar() -> Dict[str, Any]:
         "unplaced": unplaced[:40],
         "hard_events": hard_events[:500],
         "marks": list(marks.values())[:500],
+        "phone_blocks": [],
+        "removed_block_ids": [],
+        "default_estimate_minutes": int(
+            (week.get("settings") or {}).get("default_estimate_minutes") or 60
+        ),
     }
 
 
@@ -617,7 +631,53 @@ def _apply_calendar(payload: Dict[str, Any]) -> Dict[str, int]:
         if stored:
             applied += 1
     marks_applied = _apply_calendar_marks(payload)
-    return {"calendar": applied, "calendar_marks": marks_applied}
+    blocks_applied = _apply_phone_blocks(payload)
+    removed = _apply_removed_blocks(payload)
+    return {
+        "calendar": applied,
+        "calendar_marks": marks_applied,
+        "calendar_blocks": blocks_applied,
+        "calendar_removed": removed,
+    }
+
+
+def _apply_phone_blocks(payload: Dict[str, Any]) -> int:
+    import calclock
+
+    rows = payload.get("phone_blocks") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return 0
+    applied = 0
+    for row in rows[:500]:
+        if not isinstance(row, dict):
+            continue
+        incoming = dict(row)
+        incoming["source"] = "iphone"
+        if not _plausible_stamp(incoming.get("updated_at") or incoming.get("created_at")):
+            incoming["updated_at"] = _now()
+        stored = calclock.upsert_phone_block(incoming)
+        if stored:
+            applied += 1
+    return applied
+
+
+def _apply_removed_blocks(payload: Dict[str, Any]) -> int:
+    import calclock
+
+    rows = payload.get("removed_block_ids") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        return 0
+    removed = 0
+    for raw in rows[:500]:
+        block_id = str(raw or "").strip()
+        if not block_id:
+            continue
+        try:
+            calclock.delete_schedule_block(block_id, force=True)
+        except ValueError:
+            continue
+        removed += 1
+    return removed
 
 
 def _apply_calendar_marks(payload: Dict[str, Any]) -> int:

@@ -216,6 +216,9 @@ struct CalendarFile: Codable {
     var unplaced: [UnplacedItem]
     var hard_events: [HardEvent]
     var marks: [CalendarMark]
+    var phone_blocks: [CalendarItem]
+    var removed_block_ids: [String]
+    var default_estimate_minutes: Int?
 
     init(
         week_start: String? = nil,
@@ -225,7 +228,10 @@ struct CalendarFile: Codable {
         days: [CalendarDay] = [],
         unplaced: [UnplacedItem] = [],
         hard_events: [HardEvent] = [],
-        marks: [CalendarMark] = []
+        marks: [CalendarMark] = [],
+        phone_blocks: [CalendarItem] = [],
+        removed_block_ids: [String] = [],
+        default_estimate_minutes: Int? = nil
     ) {
         self.week_start = week_start
         self.week_end = week_end
@@ -235,6 +241,9 @@ struct CalendarFile: Codable {
         self.unplaced = unplaced
         self.hard_events = hard_events
         self.marks = marks
+        self.phone_blocks = phone_blocks
+        self.removed_block_ids = removed_block_ids
+        self.default_estimate_minutes = default_estimate_minutes
     }
 
     init(from decoder: Decoder) throws {
@@ -247,6 +256,9 @@ struct CalendarFile: Codable {
         unplaced = try container.decodeIfPresent([UnplacedItem].self, forKey: .unplaced) ?? []
         hard_events = try container.decodeIfPresent([HardEvent].self, forKey: .hard_events) ?? []
         marks = try container.decodeIfPresent([CalendarMark].self, forKey: .marks) ?? []
+        phone_blocks = try container.decodeIfPresent([CalendarItem].self, forKey: .phone_blocks) ?? []
+        removed_block_ids = try container.decodeIfPresent([String].self, forKey: .removed_block_ids) ?? []
+        default_estimate_minutes = try container.decodeIfPresent(Int.self, forKey: .default_estimate_minutes)
     }
 }
 
@@ -301,6 +313,7 @@ struct CalendarItem: Codable, Identifiable {
     var work_item_id: String?
     var updated_at: String?
     var occurrence_date: String?
+    var source: String?
     var id: String { itemId ?? "\(title ?? "event")-\(start_at ?? "")-\(end_at ?? "")" }
 
     /// What a check-off is filed under. Every occurrence of a repeating event
@@ -312,9 +325,33 @@ struct CalendarItem: Codable, Identifiable {
         return "\(base)@\(day.prefix(10))"
     }
 
+    init(
+        itemId: String? = nil,
+        title: String? = nil,
+        kind: String? = nil,
+        status: String? = nil,
+        start_at: String? = nil,
+        end_at: String? = nil,
+        work_item_id: String? = nil,
+        updated_at: String? = nil,
+        occurrence_date: String? = nil,
+        source: String? = nil
+    ) {
+        self.itemId = itemId
+        self.title = title
+        self.kind = kind
+        self.status = status
+        self.start_at = start_at
+        self.end_at = end_at
+        self.work_item_id = work_item_id
+        self.updated_at = updated_at
+        self.occurrence_date = occurrence_date
+        self.source = source
+    }
+
     enum CodingKeys: String, CodingKey {
         case itemId = "id"
-        case title, kind, status, start_at, end_at, work_item_id, updated_at, occurrence_date
+        case title, kind, status, start_at, end_at, work_item_id, updated_at, occurrence_date, source
     }
 }
 
@@ -377,15 +414,31 @@ struct HardEvent: Codable, Identifiable, Equatable {
     }
 }
 
-struct UnplacedItem: Codable, Identifiable {
+struct UnplacedItem: Codable, Identifiable, Hashable {
     var itemId: String?
     var title: String?
+    var scheduled_date: String?
+    var due_at: String?
+    var estimate_minutes: Int?
+    var remaining_minutes: Int?
     var id: String { itemId ?? title ?? UUID().uuidString }
 
     enum CodingKeys: String, CodingKey {
         case itemId = "id"
-        case title
+        case title, scheduled_date, due_at, estimate_minutes, remaining_minutes
     }
+}
+
+struct MonthCell: Identifiable, Equatable {
+    var date: String
+    var day: Int
+    var inMonth: Bool
+    var isToday: Bool
+    var eventCount: Int
+    var blockCount: Int
+    var dueCount: Int
+    var id: String { date }
+    var hasItems: Bool { eventCount > 0 || blockCount > 0 || dueCount > 0 }
 }
 
 /// Pass-through JSON object so template / series blobs stay compatible with Python.
