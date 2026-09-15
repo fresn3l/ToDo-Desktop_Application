@@ -9,13 +9,13 @@ export const GRID_COLUMNS = 8;
 // its own, which put four near-identical entries in the picker.
 export const WORK_SLICES = [
     { value: 'today', label: "Today's work", source: 'todoTab' },
-    { value: 'backlog', label: 'All work', source: 'allWorkTab' },
-    { value: 'unplaced', label: 'Unplaced', source: 'allWorkTab' },
+    { value: 'backlog', label: 'All work', source: 'todoTab' },
+    { value: 'unplaced', label: 'Unplaced', source: 'todoTab' },
     { value: 'due', label: 'Due this week', source: 'todoTab' },
 ];
 
 export const WIDGET_CATALOG = {
-    work: { label: 'Work', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'todoTab', settings: { slice: { label: 'Show', default: 'today', options: WORK_SLICES } } },
+    work: { label: 'Work', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6], [8, 6]], default: [4, 6], source: 'todoTab', settings: { slice: { label: 'Show', default: 'today', options: WORK_SLICES } } },
     today_calendar: { label: 'Today', sizes: [[2, 2], [4, 2], [4, 4], [4, 6], [6, 4]], default: [4, 4], source: 'todayCalendarSource' },
     workout: { label: 'Workout', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 4], source: 'workoutTab' },
     goals: { label: 'Goals', sizes: [[4, 2], [4, 4], [4, 6], [6, 4], [6, 6]], default: [4, 6], source: 'goalsTab' },

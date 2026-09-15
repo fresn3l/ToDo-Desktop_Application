@@ -260,7 +260,6 @@ def build_app() -> None:
         "home_layout",
         "weather",
         "glance",
-        "heatmap",
         "day_brief",
         "reading",
         "tap_counters",

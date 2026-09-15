@@ -79,7 +79,7 @@ class LoadSpeedTests(unittest.TestCase):
         self.assertEqual(snap["date"], "2026-09-08")
         export.assert_not_called()
 
-    def test_get_week_expands_events_once_and_purges_once(self) -> None:
+    def test_get_week_expands_events_once_and_does_not_purge(self) -> None:
         calclock.create_calendar_event(
             "CHEM 109",
             "2026-09-08T09:30:00",
@@ -94,7 +94,7 @@ class LoadSpeedTests(unittest.TestCase):
             again = calclock.get_week("2026-09-07")
             calclock.get_month(2026, 9)
         self.assertEqual(expand.call_count, 3)
-        self.assertEqual(purge.call_count, 1)
+        self.assertEqual(purge.call_count, 0)
         tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
         self.assertEqual(tuesday["events"][0]["title"], "CHEM 109")
         self.assertEqual(week["today"]["items"][0]["title"], "CHEM 109")

@@ -68,6 +68,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn('data-tab="today"', INDEX)
         self.assertNotIn('data-tab="workout"', INDEX)
         self.assertNotIn('data-tab="todo"', INDEX)
+        nav = INDEX.split('aria-label="Sections"', 1)[1].split("</nav>", 1)[0]
+        self.assertLess(nav.find('data-tab="calendar"'), nav.find('data-tab="home"'))
+        self.assertLess(nav.find('data-tab="home"'), nav.find('data-tab="journal"'))
 
     def test_old_pages_are_widget_sources(self) -> None:
         for source_id in (
@@ -75,14 +78,10 @@ class HomeUiTests(unittest.TestCase):
             "todayCalendarSource",
             "workoutTab",
             "goalsTab",
-            "allWorkTab",
             "analyticsTab",
-            "timelineTab",
             "weatherSource",
-            "focusSource",
             "countdownSource",
             "habitsSource",
-            "heatmapSource",
             "dayBriefSource",
             "countersSource",
             "readingSource",
@@ -92,6 +91,8 @@ class HomeUiTests(unittest.TestCase):
         ):
             self.assertIn(f'id="{source_id}"', INDEX)
             self.assertIn("widget-source", INDEX)
+        for gone in ("allWorkTab", "timelineTab", "focusSource", "heatmapSource"):
+            self.assertNotIn(f'id="{gone}"', INDEX)
         self.assertIn('id="wordCard"', INDEX)
         self.assertIn('id="checklistWizard"', INDEX)
         self.assertIn('id="journalTab"', INDEX)
@@ -137,9 +138,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("canonicalTab", TABS)
         self.assertIn("today: 'homeTab'", TABS)
         self.assertIn("journal: 'journalTab'", TABS)
-        self.assertIn("1: 'home'", TABS)
-        self.assertIn("2: 'journal'", TABS)
-        self.assertIn("3: 'calendar'", TABS)
+        self.assertIn("1: 'calendar'", TABS)
+        self.assertIn("2: 'home'", TABS)
+        self.assertIn("3: 'journal'", TABS)
         self.assertIn("analytics: 'analyticsTab'", TABS)
         self.assertIn("analytics: 'Analytics'", TABS)
         self.assertNotIn("name === 'analytics'", TABS)
@@ -203,6 +204,22 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("html[data-page='calendar'] .app-content", STYLE)
         self.assertIn(".cal-month-cell.is-today", STYLE)
         self.assertIn(".cal-month-cell.is-out", STYLE)
+        self.assertIn('id="calTodayRail"', INDEX)
+        self.assertIn("Today's work", CAL_JS)
+        self.assertIn("Drag from Today or Unplaced onto the clock", CAL_JS)
+        self.assertIn("function paintNowLine", CAL_JS)
+        self.assertIn(".cal-day.is-today .cal-day-body", CAL_JS)
+        self.assertIn(".cal-now-line", STYLE)
+        cell = CAL_JS.split("function renderMonthCell")[1].split("function renderMonthGrid")[0]
+        self.assertIn("cal-month-dots", cell)
+        self.assertNotIn("blockLabel", cell)
+        self.assertNotIn("item.title", cell)
+        self.assertIn("id: 'w-todo'", HOME_RUNTIME)
+        self.assertIn("id: 'w-today'", HOME_RUNTIME)
+        self.assertIn("id: 'w-unplaced'", HOME_RUNTIME)
+        self.assertNotIn("id: 'w-cluny'", HOME_RUNTIME)
+        self.assertNotIn("id: 'local-week'", HOME_RUNTIME)
+        self.assertIn("formatClockHHMM", GLANCE_TILES)
 
     def test_work_layer_markup_and_dismiss_controls(self) -> None:
         for needle in ("homeWorkLayer", "homeWorkBackdrop", "homeWorkPanel", "homeWorkTitle", "homeWorkClose", "homeWorkBody"):
@@ -220,8 +237,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("if (!editing) return", begin)
         self.assertIn("openHomeWork(card.getAttribute('data-key')", HOME_RUNTIME)
         self.assertIn("Escape", HOME_RUNTIME)
-        self.assertIn("w-weather", HOME_RUNTIME)
-        self.assertIn("w-word", HOME_RUNTIME)
+        self.assertIn("weather: 'weather'", HOME_RUNTIME)
+        self.assertIn("word: 'word'", HOME_RUNTIME)
         self.assertIn("inert", HOME_RUNTIME)
 
     def test_glances_mount_instead_of_full_pages(self) -> None:
@@ -416,7 +433,11 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("hourRange", CAL_JS)
         self.assertIn('id="calSaveItem"', INDEX)
         self.assertIn('id="calParkItem"', INDEX)
-        self.assertIn("Save for later", INDEX)
+        self.assertIn(">Park<", INDEX)
+        self.assertNotIn("Save for later", INDEX)
+        self.assertNotIn("Leave in All Work", CAL_JS)
+        self.assertIn('id="calNewEvent"', INDEX)
+        self.assertNotIn('id="calNewLecture"', INDEX)
         self.assertIn("update_calendar_event", CAL_JS)
         self.assertIn("park_schedule_block", CAL_JS)
         self.assertIn("schedule_work_at", CAL_JS)
@@ -432,7 +453,6 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("showDayDues", CAL_JS)
         self.assertIn("hideDayDues", CAL_JS)
         self.assertIn("cal-block-time", CAL_JS)
-        self.assertIn("replace(/^webcal:/i, 'https:')", CAL_JS)
         self.assertNotIn("dues.slice(0, 8)", CAL_JS)
         self.assertIn("grid-template-rows: subgrid", STYLE)
         self.assertIn("grid-row: 1 / span 3", STYLE)
@@ -448,8 +468,13 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn('id="calDeleteUndated"', INDEX)
         self.assertIn('id="calTodayRail"', INDEX)
         self.assertIn('id="calDayDues"', INDEX)
-        self.assertIn("cal-feeds-panel", INDEX)
-        self.assertIn('id="calFeedToggles"', INDEX)
+        self.assertNotIn("cal-feeds-panel", INDEX)
+        self.assertNotIn('id="calFeedToggles"', INDEX)
+        self.assertIn('id="todoFilter"', INDEX)
+        self.assertIn('data-filter="unplaced"', INDEX)
+        self.assertIn('id="calFillWeek"', INDEX)
+        self.assertIn("pasteIcsButton", SETTINGS_JS)
+        self.assertIn("set_calendar_feed_enabled", SETTINGS_JS)
         self.assertIn('id="calDueMenu"', INDEX)
         self.assertIn("renderDueChip", CAL_JS)
         self.assertIn("place_work_after_lecture", CAL_JS)
@@ -473,11 +498,15 @@ class HomeUiTests(unittest.TestCase):
         self.assertNotIn("Office hours", INDEX)
         self.assertIn("Place after first event", INDEX)
         self.assertIn("selectedEventDays", CAL_JS)
-        self.assertIn("set_calendar_feed_enabled", CAL_JS)
+        self.assertIn("set_calendar_feed_enabled", SETTINGS_JS)
         self.assertIn("--due-h", CAL_JS)
         self.assertIn("kosistenz:open-todo", CAL_JS)
         self.assertIn("Open in To Do", INDEX)
         self.assertIn("data-feed-enabled", SETTINGS_JS)
+        self.assertNotIn("all_work.js", HOME_RUNTIME)
+        self.assertIn("sliceFilter", HOME_RUNTIME)
+        self.assertNotIn("paintFocus", GLANCE_JS)
+        self.assertIn("import_health_export", SETTINGS_JS)
 
     def test_calendar_tab_uses_full_width_and_taller_cells(self) -> None:
         self.assertIn("html[data-page='calendar'] .tab-content.active", STYLE)
@@ -676,6 +705,7 @@ class HomeUiTests(unittest.TestCase):
     def test_app_opens_home_without_startup_delays(self) -> None:
         app = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
         bridge = (ROOT / "bridge.py").read_text(encoding="utf-8")
+        self.assertIn("await switchTab('calendar')", app)
         self.assertNotIn("setTimeout(resolve, 100)", app)
         self.assertNotIn("setTimeout(() => init().catch(handleInitError), 50)", app)
         self.assertNotIn("from './js/calendar.js'", app)
@@ -767,9 +797,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("promptCluny", cluny)
         self.assertIn("promptCluny", HOME_RUNTIME)
         self.assertIn("cluny-ask", GLANCE_TILES)
-        self.assertIn("w-cluny", HOME_RUNTIME)
-        self.assertIn("local-week", HOME_RUNTIME)
-        self.assertIn("name: 'Week'", HOME_RUNTIME)
+        self.assertIn("ensureHomeWidget('cluny')", HOME_RUNTIME)
+        self.assertIn("id: 'local-home'", HOME_RUNTIME)
+        self.assertIn("name: 'Home'", HOME_RUNTIME)
         self.assertIn("eveningAsk", (ROOT / "web" / "js" / "glance_copy.js").read_text(encoding="utf-8"))
         self.assertIn("What still matters tonight?", GLANCE_TILES)
         self.assertIn("Asking Cluny…", cluny)
@@ -883,6 +913,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("focusHitAt", CAL_JS)
         self.assertIn("attach_event_to_focus", CAL_JS)
         self.assertIn("attach_focus_item", CAL_JS)
+        self.assertIn("toggle_focus_row", CAL_JS)
+        self.assertIn("scope !== 'work' && scope !== 'calendar' && scope !== 'all'", CAL_JS)
         # JSON in data-focus-items used to die at the first quote because
         # innerHTML does not encode ". The week payload is the source of truth.
         self.assertIn("escapeAttr", CAL_JS)

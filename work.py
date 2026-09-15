@@ -1052,57 +1052,6 @@ def get_work_items_by_ids(ids: List[str]) -> List[Dict[str, Any]]:
     return out
 
 
-def series_heatmap_days(
-    series_id: str,
-    start: date,
-    end: date,
-    today: Optional[date] = None,
-) -> List[Dict[str, Any]]:
-    """Expected-vs-done cells for one repeating series (misses do not carry over)."""
-    today = today or _today()
-    key = str(series_id or "").strip()
-    if not key:
-        return []
-    with _connect() as conn:
-        series_row = conn.execute(
-            "SELECT * FROM work_series WHERE id = ? AND archived = 0",
-            (key,),
-        ).fetchone()
-        if series_row is None:
-            return []
-        series_d = dict(series_row)
-        rows: List[Dict[str, Any]] = []
-        cursor = start
-        while cursor <= end:
-            iso = cursor.isoformat()
-            if not _occurs_on(series_d, cursor):
-                rows.append({"date": iso, "state": "none", "value": 0})
-                cursor += timedelta(days=1)
-                continue
-            exception = _exception_for(conn, key, iso)
-            if exception and exception["action"] == "skip":
-                rows.append({"date": iso, "state": "skip", "value": 0})
-                cursor += timedelta(days=1)
-                continue
-            item = conn.execute(
-                """
-                SELECT status FROM work_items
-                WHERE series_id = ? AND occurrence_date = ?
-                """,
-                (key, iso),
-            ).fetchone()
-            if item and item["status"] == "done":
-                rows.append({"date": iso, "state": "hit", "value": 1})
-            elif cursor == today:
-                rows.append({"date": iso, "state": "pending", "value": 0})
-            elif cursor < today:
-                rows.append({"date": iso, "state": "miss", "value": 0})
-            else:
-                rows.append({"date": iso, "state": "none", "value": 0})
-            cursor += timedelta(days=1)
-    return rows
-
-
 @eel.expose
 def list_backlog() -> List[Dict[str, Any]]:
     with _connect() as conn:
@@ -1232,6 +1181,13 @@ def assign_work_item(item_id: str, scheduled_date: Optional[str] = None) -> Dict
                 (target, now, _next_sort(conn, target), item_id),
             )
         row = _fetch(conn, item_id)
+    if target is None:
+        try:
+            import calclock
+
+            calclock.clear_placement_for_work(item_id)
+        except Exception:
+            pass
     _write_widget_snapshot()
     assert row is not None
     return _row_to_dict(row)
@@ -1715,6 +1671,12 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
                     (attached, item_id),
                 )
                 row = _fetch(conn, item_id)
+    try:
+        import calclock
+
+        calclock.close_open_bars_for_work(item_id)
+    except Exception:
+        pass
     _write_widget_snapshot()
     assert row is not None
     packed = _row_to_dict(row)

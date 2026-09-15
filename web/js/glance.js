@@ -1,39 +1,11 @@
 /**
- * Glance Home widgets — today's focus, countdowns, and daily habits.
+ * Glance Home widgets — countdowns and daily habits.
  */
 
 import * as utils from './utils.js';
 
 function hasEel(name) {
     return typeof eel !== 'undefined' && typeof eel[name] === 'function';
-}
-
-export function paintFocus(data) {
-    const input = document.getElementById('focusInput');
-    if (!input) return;
-    const text = data?.text || '';
-    if (document.activeElement === input) return;
-    input.value = text;
-}
-
-export async function refreshFocus() {
-    if (!hasEel('get_daily_focus')) return;
-    try {
-        paintFocus(await eel.get_daily_focus()());
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-async function persistFocus() {
-    const input = document.getElementById('focusInput');
-    if (!input || !hasEel('set_daily_focus')) return;
-    try {
-        paintFocus(await eel.set_daily_focus(input.value)());
-    } catch (err) {
-        console.error(err);
-        utils.showErrorFeedback(err?.message || 'Could not save focus.');
-    }
 }
 
 export function paintCountdowns(items) {
@@ -112,20 +84,6 @@ export async function refreshHabits() {
 }
 
 export function setupGlance() {
-    const focus = document.getElementById('focusInput');
-    if (focus && focus.dataset.ready !== '1') {
-        focus.dataset.ready = '1';
-        focus.addEventListener('blur', () => {
-            void persistFocus();
-        });
-        focus.addEventListener('keydown', (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                e.preventDefault();
-                focus.blur();
-            }
-        });
-    }
-
     const countdownForm = document.getElementById('countdownForm');
     if (countdownForm && countdownForm.dataset.ready !== '1') {
         countdownForm.dataset.ready = '1';

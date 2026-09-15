@@ -66,6 +66,10 @@
         return !!(tab && tab.classList.contains('active'));
     }
 
+    function isSettingsPage() {
+        return document.documentElement.getAttribute('data-page') === 'settings';
+    }
+
     function fillIcsField(url) {
         var ics = document.getElementById('calIcsUrl');
         if (!ics) return false;
@@ -84,6 +88,7 @@
         var el = document.activeElement;
         var ics = document.getElementById('calIcsUrl');
         var calActive = isCalendarPage();
+        var settingsActive = isSettingsPage();
 
         if (/BEGIN:VCALENDAR/i.test(raw) && typeof global.kosistenzImportIcsText === 'function') {
             global.kosistenzImportIcsText(raw);
@@ -92,7 +97,7 @@
 
         var intoIcs = asUrl && ics && (
             el === ics
-            || (calActive && looksLikeCalendarUrl(url))
+            || ((calActive || settingsActive) && looksLikeCalendarUrl(url))
             || (calActive && !isEditableField(el) && !(el && el.isContentEditable))
         );
         if (intoIcs) {
@@ -143,7 +148,7 @@
             if (!looksLikeUrl(url)) return;
             var ics = document.getElementById('calIcsUrl');
             var target = e.target;
-            if (ics && (target === ics || (isCalendarPage() && looksLikeCalendarUrl(url)))) {
+            if (ics && (target === ics || ((isCalendarPage() || isSettingsPage()) && looksLikeCalendarUrl(url)))) {
                 e.preventDefault();
                 insertPlainText(url);
             }

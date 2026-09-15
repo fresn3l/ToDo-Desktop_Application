@@ -338,6 +338,14 @@ function todoCaptureHtml() {
     </form>`;
 }
 
+function formatClockHHMM(startAt) {
+    if (!startAt) return '';
+    const start = new Date(startAt);
+    if (Number.isNaN(start.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+}
+
 function workTodayHtml(data, size) {
     const key = 'work:slice=today';
     const label = keyLabel(key);
@@ -361,9 +369,12 @@ function workTodayHtml(data, size) {
     const pool = items.filter((row) => row.status !== 'done' || size.board);
     const visible = size.tall ? pool.slice(0, size.rows) : [];
     const extra = Math.max(0, pool.length - visible.length);
-    const rows = listRows(visible, visible.length, (item) => (
-        `<li class="${item.status === 'done' ? 'is-done' : ''}">${taskDot(item.status)}<strong>${utils.escapeHtml(clip(item.title || '', 80))}</strong></li>`
-    ));
+    const rows = listRows(visible, visible.length, (item) => {
+        const time = formatClockHHMM(item.start_at);
+        const leftover = Number(item.remaining_minutes || item.estimate_minutes) || 0;
+        const meta = time || (leftover ? minutesLabel(leftover) : '');
+        return `<li class="${item.status === 'done' ? 'is-done' : ''}">${taskDot(item.status)}<strong>${utils.escapeHtml(clip(item.title || '', 80))}</strong>${meta ? `<span>${utils.escapeHtml(meta)}</span>` : ''}</li>`;
+    });
     const more = extra ? `<p class="glance-message glance-message--quiet">${utils.escapeHtml(moreCount(extra))}</p>` : '';
     const active = items.find((row) => row.status === 'active');
     const nextOpen = items.find((row) => row.status === 'open' || row.status === 'active');
@@ -781,8 +792,7 @@ function posterHtml(key, _data, size) {
     return emptyShell(key, size, copy.couldNotLoad);
 }
 
-// Four cuts of one list. Today and Due come off the dated board; All work and
-// Unplaced come off the backlog.
+// Four cuts of one list. Opening any Work tile lands on the same sheet.
 const WORK_SLICE_CALL = {
     today: () => eelCall('get_work_board', utils.localISODate()),
     backlog: () => eelCall('list_backlog'),

@@ -330,6 +330,20 @@ END:VCALENDAR
         junk = calclock.get_year("later")
         self.assertEqual(junk["year"], date.today().year)
 
+    def test_get_week_does_not_purge_or_rollover(self) -> None:
+        with (
+            mock.patch.object(calclock, "maybe_purge_stale_imports", side_effect=AssertionError("purge")),
+            mock.patch.object(calclock, "rollover_missed_bars", side_effect=AssertionError("rollover")),
+        ):
+            week = calclock.get_week("2026-09-07")
+            month = calclock.get_month(2026, 9)
+            year = calclock.get_year(2026)
+            agenda = calclock.get_day_agenda("2026-09-08")
+        self.assertEqual(week["week_start"], "2026-09-07")
+        self.assertEqual(month["year"], 2026)
+        self.assertEqual(year["year"], 2026)
+        self.assertEqual(agenda["local_date"], "2026-09-08")
+
     def test_normalize_ics_url_accepts_webcal_wrappers_and_uri_lists(self) -> None:
         self.assertEqual(
             calclock.normalize_ics_url("<webcal://cal.example.edu/x.ics>"),
@@ -779,6 +793,29 @@ END:VCALENDAR
         week = calclock.get_week("2026-09-07")
         self.assertIn("today", week)
         self.assertTrue(any(feed.get("id") == "class" for feed in week["feeds"]))
+
+    def test_today_rail_lists_dated_work_not_only_dues(self) -> None:
+        real = date
+
+        class FrozenDate(real):
+            @classmethod
+            def today(cls):
+                return real(2026, 9, 8)
+
+        work.create_work_item("Board memo", scheduled_date="2026-09-08", estimate_minutes=60)
+        work.create_work_item(
+            "Quiz",
+            scheduled_date="2026-09-08",
+            due_at="2026-09-08T23:59:00",
+            estimate_minutes=30,
+        )
+        with mock.patch("calclock.date", FrozenDate), mock.patch.object(work, "_today", return_value=real(2026, 9, 8)):
+            column = calclock._today_column()
+        titles = [row["title"] for row in column.get("work") or []]
+        self.assertIn("Board memo", titles)
+        self.assertNotIn("Quiz", titles)
+        due_titles = [row["title"] for row in column.get("dues") or []]
+        self.assertIn("Quiz", due_titles)
 
     def test_weekly_icloud_lecture_lands_on_the_clock(self) -> None:
         ics = """BEGIN:VCALENDAR

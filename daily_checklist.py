@@ -12,6 +12,7 @@ import os
 import re
 import sqlite3
 import sys
+import threading
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
@@ -474,12 +475,16 @@ def submit_daily_checklist_response(
         work.apply_evening_plan(answers)
     except Exception:
         pass
-    try:
-        import cluny_sync
 
-        cluny_sync.sync_checklist_submission_safe(result)
-    except Exception:
-        pass
+    def _sync_cluny() -> None:
+        try:
+            import cluny_sync
+
+            cluny_sync.sync_checklist_submission_safe(result)
+        except Exception:
+            pass
+
+    threading.Thread(target=_sync_cluny, daemon=True, name="checkin-cluny").start()
     return result
 
 

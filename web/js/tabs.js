@@ -112,9 +112,9 @@ export function setupTabs() {
         }
         if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
         const map = {
-            1: 'home',
-            2: 'journal',
-            3: 'calendar',
+            1: 'calendar',
+            2: 'home',
+            3: 'journal',
             4: 'brain',
             5: 'library',
         };

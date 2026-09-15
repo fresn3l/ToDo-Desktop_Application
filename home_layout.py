@@ -29,8 +29,8 @@ MAX_SCAN_ROWS = 64
 # renderers alive for one question asked four ways.
 WORK_SLICES = (
     {"value": "today", "label": "Today", "source": "todoTab"},
-    {"value": "backlog", "label": "All work", "source": "allWorkTab"},
-    {"value": "unplaced", "label": "Unplaced", "source": "allWorkTab"},
+    {"value": "backlog", "label": "All work", "source": "todoTab"},
+    {"value": "unplaced", "label": "Unplaced", "source": "todoTab"},
     {"value": "due", "label": "Due this week", "source": "todoTab"},
 )
 
@@ -40,7 +40,7 @@ WORK_SLICES = (
 WIDGET_CATALOG: Dict[str, Dict[str, Any]] = {
     "work": {
         "label": "Work",
-        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6)),
+        "sizes": ((4, 2), (4, 4), (4, 6), (6, 4), (6, 6), (8, 6)),
         "default": (4, 6),
         "settings": {"slice": {"label": "Show", "default": "today", "options": WORK_SLICES}},
     },
@@ -205,16 +205,12 @@ def _slot(key: str, x: int, y: int, w: int, h: int, region: str = "below") -> Di
 
 
 def _stock_home_widgets() -> List[Dict[str, Any]]:
-    # Today already shows what is running and what is next, so the board does
-    # not carry a second clock tile saying the same thing one row down.
+    # New installs get the morning glance only. Cluny, Weather, Word, and Day
+    # stay in the picker; existing boards are not restacked onto this shape.
     return [
         _widget("work:slice=today", 0, 0, 4, 6, "above"),
         _widget("today_calendar", 4, 0, 4, 6, "above"),
-        _widget("cluny", 0, 0, 8, 4),
-        _widget("weather", 0, 4, 4, 2),
-        _widget("word", 4, 4, 4, 2),
-        _widget("work:slice=unplaced", 0, 6, 4, 6),
-        _widget("day_brief", 4, 6, 4, 6),
+        _widget("work:slice=unplaced", 0, 0, 8, 6),
     ]
 
 
@@ -246,7 +242,6 @@ def default_layout() -> Dict[str, Any]:
                 "name": "Home",
                 "widgets": _stock_home_widgets(),
             },
-            default_week_page(),
         ],
     }
 

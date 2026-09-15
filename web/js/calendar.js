@@ -15,9 +15,12 @@ let dragState = null;
 let lastWeek = null;
 let dueMenuChip = null;
 let pendingFocusItems = [];
+let lastHabits = [];
+let habitFetchGen = 0;
 let drawKind = 'focus';
 let pendingSelectId = '';
 let ignoreNextGridClick = false;
+let nowLineTimer = 0;
 
 function mondayISO(d = new Date()) {
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -128,7 +131,6 @@ async function loadMonth() {
         renderMonthGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
-        paintFeedToggles(payload.feeds || []);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calMonthGrid');
@@ -143,7 +145,6 @@ async function loadYear() {
         renderYearGrid(payload);
         renderUnplaced(payload.unplaced || [], payload.unplaced_total);
         paintAwakeFields(payload.settings);
-        paintFeedToggles(payload.feeds || []);
     } catch (e) {
         console.error(e);
         const root = document.getElementById('calYearGrid');
@@ -315,7 +316,7 @@ function renderDueChip(due) {
         data-title="${utils.escapeHtml(parts.title)}"
         data-status="${utils.escapeHtml(due.status || 'open')}"
         data-due-at="${utils.escapeHtml(due.due_at || '')}"
-        data-minutes="${Number(due.estimate_minutes || 60) || 60}"
+        data-minutes="${Number(due.remaining_minutes || due.estimate_minutes || 60) || 60}"
         data-focus-id="${utils.escapeHtml(due.focus_id || '')}"
         data-focus-title="${utils.escapeHtml(due.focus_title || '')}"
         title="${utils.escapeHtml(tip)}">${badge}<span class="cal-due-chip-copy"><span class="cal-due-chip-title">${utils.escapeHtml(parts.short)}</span>${held}</span></button>`;
@@ -428,6 +429,7 @@ function renderGrid(week) {
         })
         .join('');
     root.innerHTML = `${hourCol}<div class="cal-week-board"><div class="cal-days">${days}</div></div>`;
+    paintNowLine();
 }
 
 function agendaKind(item) {
@@ -453,11 +455,15 @@ function renderTodayRail(today) {
     }
     root.setAttribute('data-date', today.date || '');
     const overdue = today.overdue || [];
+    const work = today.work || [];
     const dues = today.dues || [];
     const items = today.items || [];
     const overdueHtml = overdue.length
         ? `<h4>Overdue</h4><div class="cal-due-list">${overdue.map((due) => renderDueChip(due)).join('')}</div>`
         : '';
+    const workHtml = work.length
+        ? `<h4>Today's work</h4><div class="cal-due-list">${work.map((row) => renderDueChip(row)).join('')}</div>`
+        : '<h4>Today\'s work</h4><p class="cal-due-empty">Nothing dated today. Drag Unplaced onto the week.</p>';
     const duesHtml = dues.length
         ? `<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`
         : '<h4>Due today</h4><p class="cal-due-empty">No dues</p>';
@@ -467,7 +473,7 @@ function renderTodayRail(today) {
             const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
             return `<li class="is-${kind}${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
         }).join('')}</ul>`
-        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag a due onto the week clock to time-block it.</p>';
+        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag from Today or Unplaced onto the week clock.</p>';
     root.innerHTML = `
         <header>
             <p class="eyebrow">Today</p>
@@ -475,54 +481,10 @@ function renderTodayRail(today) {
             <p class="cal-today-awake">${utils.escapeHtml(formatHHMM(today.day_start))}–${utils.escapeHtml(formatHHMM(today.day_end))}</p>
         </header>
         ${overdueHtml}
+        ${workHtml}
         ${duesHtml}
         ${clockHtml}
     `;
-}
-
-function paintFeedToggles(feeds) {
-    const root = document.getElementById('calFeedToggles');
-    if (!root) return;
-    const rows = (feeds || []).filter((feed) => feed.id);
-    if (!rows.length) {
-        root.innerHTML = '';
-        return;
-    }
-    root.innerHTML = `<h4>Show calendars</h4>` + rows.map((feed) => {
-        const on = feed.enabled !== false;
-        const host = (() => {
-            try {
-                const href = String(feed.url || '').replace(/^webcal:/i, 'https:');
-                return href ? new URL(href).hostname.replace(/^www\./, '') : '';
-            } catch (_) {
-                return '';
-            }
-        })();
-        const label = host || feed.title || feed.id;
-        return `<label class="cal-feed-toggle">
-            <input type="checkbox" data-feed-id="${utils.escapeHtml(feed.id || '')}" ${on ? 'checked' : ''}>
-            <span title="${utils.escapeHtml(feed.title || feed.id || '')}">${utils.escapeHtml(label)}</span>
-        </label>`;
-    }).join('');
-    root.querySelectorAll('input[data-feed-id]').forEach((input) => {
-        input.addEventListener('change', async () => {
-            try {
-                await callEel('set_calendar_feed_enabled', input.getAttribute('data-feed-id'), input.checked);
-                utils.notifyDataChanged();
-                await loadCalendar();
-            } catch (err) {
-                utils.showErrorFeedback('Could not update that calendar.');
-            }
-        });
-    });
-}
-
-async function refreshFeedToggles() {
-    try {
-        paintFeedToggles((await callEel('list_calendar_feeds')).feeds || []);
-    } catch (_) {
-        /* eel not ready */
-    }
 }
 
 function renderUnplaced(items, total) {
@@ -572,10 +534,7 @@ async function loadWeek() {
         renderGrid(week);
         renderTodayRail(week.today);
         hideDayDues();
-        paintFeedToggles(week.feeds || week.settings?.feeds || []);
         renderUnplaced(week.unplaced || [], week.unplaced_total);
-        const url = document.getElementById('calIcsUrl');
-        if (url && week.settings?.ics_url && !url.value) url.value = week.settings.ics_url;
         bindGrid();
     } catch (e) {
         console.error(e);
@@ -629,7 +588,7 @@ function paintEditor() {
     const attach = document.getElementById('calFocusAttach');
     const park = document.getElementById('calParkItem');
     const remove = document.getElementById('calRemoveItem');
-    const fresh = document.getElementById('calNewLecture');
+        const fresh = document.getElementById('calNewEvent');
     const ask = document.getElementById('calAskCluny');
     const save = document.getElementById('calSaveItem');
     const mode = editor.mode;
@@ -653,11 +612,11 @@ function paintEditor() {
     }
     if (hint) {
         hint.textContent = isIdle
-            ? 'Drag Unplaced onto the clock, or Add event for a meeting. Add focus for a named span that holds several to-dos.'
+            ? 'Drag from Today or Unplaced onto the clock, or Add event for a meeting. Add focus for a named span that holds work and habits.'
             : isNew
                 ? 'Busy time — a meeting, hold, or recurring block. Work stays in Unplaced until you drag or Fill week.'
                 : isNewFocus
-                    ? 'A named hold. Fill week will not pack over it. To-dos can run longer than the span.'
+                    ? 'A named hold. Fill week will not pack over it. Work and habits can run longer than the span.'
                     : isUnplaced
                         ? 'Drag onto the clock, or set a start and Place. This is not a new event.'
                         : 'Alt marks attended. Shift marks did not complete. Drag to move.';
@@ -679,7 +638,7 @@ function paintEditor() {
     if (save) {
         save.textContent = isUnplaced ? 'Place' : 'Save';
     }
-    if (park) park.textContent = isUnplaced ? 'Leave in All Work' : 'Save for later';
+    if (park) park.textContent = 'Park';
 }
 
 function clearEditorFields() {
@@ -761,84 +720,164 @@ function focusSpanMinutes() {
     return Math.max(0, Math.round((b - a) / 60000));
 }
 
+function focusRowKind(row) {
+    return row?.kind === 'habit' ? 'habit' : 'work';
+}
+
+function fillFocusPick() {
+    const pick = document.getElementById('calFocusPick');
+    if (!pick) return;
+    const held = new Set(pendingFocusItems.map((row) => `${focusRowKind(row)}:${row.id}`));
+    const workOpts = (lastWeek?.unplaced || []).filter((row) => row.id && !held.has(`work:${row.id}`));
+    const habitOpts = (lastHabits || []).filter((row) => row.id && !held.has(`habit:${row.id}`));
+    const options = ['<option value="">Work or habit…</option>']
+        .concat(workOpts.map((row) => {
+            const mins = row.remaining_minutes || row.estimate_minutes;
+            const label = `${row.title || 'Work'}${mins ? ` · ${mins}m` : ''}`;
+            return `<option value="work:${utils.escapeHtml(row.id)}">${utils.escapeHtml(label)}</option>`;
+        }))
+        .concat(habitOpts.map((row) => {
+            const mins = row.minutes || row.estimate_minutes;
+            const label = `${row.title || 'Habit'}${mins ? ` · ${mins}m` : ''} · habit`;
+            return `<option value="habit:${utils.escapeHtml(row.id)}">${utils.escapeHtml(label)}</option>`;
+        }));
+    pick.innerHTML = options.join('');
+}
+
+async function loadFocusHabits() {
+    const gen = ++habitFetchGen;
+    try {
+        const packed = await callEel('get_habits');
+        if (gen !== habitFetchGen) return;
+        lastHabits = packed?.habits || [];
+        fillFocusPick();
+    } catch (_) {
+        /* keep lastHabits */
+    }
+}
+
 function paintFocusAttach() {
     const host = document.getElementById('calFocusItems');
     const overflow = document.getElementById('calFocusOverflow');
-    const pick = document.getElementById('calFocusPick');
-    const planned = pendingFocusItems.reduce((n, row) => n + Number(row.estimate_minutes || 0), 0);
+    const planned = pendingFocusItems.reduce((n, row) => n + Number(row.minutes || row.estimate_minutes || 0), 0);
     const span = focusSpanMinutes();
     const over = Math.max(0, planned - span);
     if (overflow) {
         overflow.textContent = span
-            ? `${planned} min of to-dos in a ${span} min span${over ? ` · ${over} min over` : ''}`
+            ? `${planned} min planned in a ${span} min span${over ? ` · ${over} min over` : ''}`
             : '';
         overflow.classList.toggle('is-over', over > 0);
     }
     if (host) {
         host.innerHTML = pendingFocusItems.length
-            ? pendingFocusItems.map((row) => `
-                <div class="cal-focus-item" data-id="${utils.escapeHtml(row.id || '')}" data-title="${utils.escapeHtml(row.title || 'To-do')}" data-minutes="${Number(row.estimate_minutes || 60) || 60}" data-focus-id="${utils.escapeHtml(editor.id || '')}">
-                    <span>${utils.escapeHtml(row.title || 'To-do')}${row.estimate_minutes ? ` · ${row.estimate_minutes}m` : ''}</span>
-                    <button type="button" class="btn-ghost" data-act="detach-focus">Remove</button>
-                </div>`).join('')
-            : '<p class="checklist-empty">No to-dos in this span yet.</p>';
+            ? pendingFocusItems.map((row) => {
+                const kind = focusRowKind(row);
+                const done = !!row.done || row.status === 'done';
+                const mins = Number(row.minutes || row.estimate_minutes || 0);
+                const tick = kind === 'habit' ? (done ? 'Undo' : 'Tick') : (done ? 'Open' : 'Done');
+                return `
+                <div class="cal-focus-item${done ? ' is-done' : ''}" data-id="${utils.escapeHtml(row.id || '')}" data-kind="${kind}" data-title="${utils.escapeHtml(row.title || 'Work')}" data-minutes="${mins || 60}" data-focus-id="${utils.escapeHtml(editor.id || '')}">
+                    <span>${utils.escapeHtml(row.title || 'Work')}${mins ? ` · ${mins}m` : ''}${kind === 'habit' ? ' · habit' : ''}</span>
+                    <span class="cal-focus-item-actions">
+                        <button type="button" class="btn-ghost" data-act="toggle-focus">${tick}</button>
+                        <button type="button" class="btn-ghost" data-act="detach-focus">Remove</button>
+                    </span>
+                </div>`;
+            }).join('')
+            : '<p class="checklist-empty">No work or habits in this span yet.</p>';
         host.querySelectorAll('[data-act="detach-focus"]').forEach((btn) => {
             btn.addEventListener('click', () => {
-                void detachFocusRow(btn.closest('[data-id]')?.getAttribute('data-id'));
+                const row = btn.closest('[data-id]');
+                void detachFocusRow(row?.getAttribute('data-id'), row?.getAttribute('data-kind'));
+            });
+        });
+        host.querySelectorAll('[data-act="toggle-focus"]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const row = btn.closest('[data-id]');
+                void toggleFocusRow(row?.getAttribute('data-id'), row?.getAttribute('data-kind'));
             });
         });
         host.querySelectorAll('.cal-focus-item').forEach((row) => {
             row.addEventListener('pointerdown', onFocusItemPointerDown);
         });
     }
-    if (pick) {
-        const held = new Set(pendingFocusItems.map((row) => row.id));
-        const options = (lastWeek?.unplaced || []).filter((row) => row.id && !held.has(row.id));
-        pick.innerHTML = ['<option value="">Unplaced to-do…</option>']
-            .concat(options.map((row) => {
-                const mins = row.remaining_minutes || row.estimate_minutes;
-                const label = `${row.title || 'To-do'}${mins ? ` · ${mins}m` : ''}`;
-                return `<option value="${utils.escapeHtml(row.id)}">${utils.escapeHtml(label)}</option>`;
-            }))
-            .join('');
-    }
+    fillFocusPick();
+    if (editor.mode === 'focus' || editor.mode === 'new-focus') void loadFocusHabits();
 }
 
-async function detachFocusRow(itemId) {
+async function detachFocusRow(itemId, kind) {
     if (!itemId) return;
+    const rowKind = kind === 'habit' ? 'habit' : 'work';
     if (editor.id && editor.mode === 'focus') {
         try {
-            const packed = await callEel('detach_focus_item', editor.id, itemId);
+            const packed = await callEel('detach_focus_item', editor.id, itemId, rowKind);
             pendingFocusItems = packed.items || [];
             paintFocusAttach();
-            utils.notifyDataChanged();
+            utils.notifyDataChanged('work');
         } catch (err) {
-            utils.showErrorFeedback(err?.message || 'Could not remove that to-do.');
+            utils.showErrorFeedback(err?.message || 'Could not remove that.');
         }
         return;
     }
-    pendingFocusItems = pendingFocusItems.filter((row) => row.id !== itemId);
+    pendingFocusItems = pendingFocusItems.filter((row) => !(row.id === itemId && focusRowKind(row) === rowKind));
     paintFocusAttach();
 }
 
-async function attachFocusExisting(itemId) {
+async function toggleFocusRow(itemId, kind) {
+    if (!itemId || !editor.id || editor.mode !== 'focus') return;
+    const rowKind = kind === 'habit' ? 'habit' : 'work';
+    try {
+        const packed = await callEel('toggle_focus_row', editor.id, itemId, rowKind);
+        pendingFocusItems = packed.items || [];
+        paintFocusAttach();
+        utils.notifyDataChanged(rowKind === 'habit' ? 'habits' : 'work');
+        await loadCalendar();
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not update that.');
+    }
+}
+
+function parseFocusPickValue(raw) {
+    const value = String(raw || '');
+    if (value.startsWith('habit:')) return { kind: 'habit', id: value.slice(6) };
+    if (value.startsWith('work:')) return { kind: 'work', id: value.slice(5) };
+    return { kind: 'work', id: value };
+}
+
+async function attachFocusExisting(rawId) {
+    const parsed = parseFocusPickValue(rawId);
+    const itemId = parsed.id;
     if (!itemId) return;
-    const fromUnplaced = (lastWeek?.unplaced || []).find((row) => row.id === itemId);
-    const row = fromUnplaced
-        ? { id: fromUnplaced.id, title: fromUnplaced.title, estimate_minutes: fromUnplaced.estimate_minutes || fromUnplaced.remaining_minutes || 0, status: 'open' }
-        : { id: itemId, title: 'To-do', estimate_minutes: 0, status: 'open' };
     if (editor.id && editor.mode === 'focus') {
         try {
-            const packed = await callEel('attach_focus_item', editor.id, itemId);
+            const packed = await callEel('attach_focus_item', editor.id, itemId, parsed.kind);
             pendingFocusItems = packed.items || [];
             paintFocusAttach();
-            utils.notifyDataChanged();
+            utils.notifyDataChanged('work');
         } catch (err) {
-            utils.showErrorFeedback(err?.message || 'Could not attach that to-do.');
+            utils.showErrorFeedback(err?.message || 'Could not attach that.');
         }
         return;
     }
-    if (!pendingFocusItems.some((item) => item.id === itemId)) pendingFocusItems.push(row);
+    if (pendingFocusItems.some((item) => item.id === itemId && focusRowKind(item) === parsed.kind)) return;
+    if (parsed.kind === 'habit') {
+        const fromHabit = (lastHabits || []).find((row) => row.id === itemId);
+        pendingFocusItems.push({
+            id: itemId,
+            kind: 'habit',
+            title: fromHabit?.title || 'Habit',
+            minutes: fromHabit?.minutes || 0,
+            estimate_minutes: fromHabit?.minutes || 0,
+            done: !!fromHabit?.done,
+            status: fromHabit?.done ? 'done' : 'open',
+        });
+        paintFocusAttach();
+        return;
+    }
+    const fromUnplaced = (lastWeek?.unplaced || []).find((row) => row.id === itemId);
+    pendingFocusItems.push(fromUnplaced
+        ? { id: fromUnplaced.id, kind: 'work', title: fromUnplaced.title, estimate_minutes: fromUnplaced.estimate_minutes || fromUnplaced.remaining_minutes || 0, status: 'open' }
+        : { id: itemId, kind: 'work', title: 'Work', estimate_minutes: 0, status: 'open' });
     paintFocusAttach();
 }
 
@@ -846,7 +885,7 @@ async function addFocusTodo() {
     const title = (document.getElementById('calFocusNewTitle')?.value || '').trim();
     const mins = document.getElementById('calFocusNewMins')?.value || '';
     if (!title) {
-        utils.showErrorFeedback('Name the to-do first.');
+        utils.showErrorFeedback('Name the work first.');
         return;
     }
     if (editor.id && editor.mode === 'focus') {
@@ -1034,6 +1073,26 @@ function applyGridTime(e, body) {
     const endEl = document.getElementById('calEventEnd');
     if (startEl) startEl.value = toLocalInput(start);
     if (endEl) endEl.value = toLocalInput(end);
+}
+
+function paintNowLine() {
+    document.querySelectorAll('.cal-now-line').forEach((el) => el.remove());
+    if (calView !== 'week') return;
+    const body = document.querySelector('.cal-day.is-today .cal-day-body');
+    if (!body) return;
+    const { startMin, endMin, span } = clockWindow(lastSettings);
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    if (mins < startMin || mins > endMin) return;
+    const line = document.createElement('div');
+    line.className = 'cal-now-line';
+    line.style.top = `${((mins - startMin) / span) * 100}%`;
+    body.appendChild(line);
+}
+
+function startNowLineClock() {
+    if (nowLineTimer) return;
+    nowLineTimer = window.setInterval(paintNowLine, 60000);
 }
 
 function bindDueChips(root) {
@@ -1633,11 +1692,14 @@ async function saveEditor() {
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'new-focus') {
             const existing = pendingFocusItems
-                .filter((row) => row.id && !String(row.id).startsWith('pending-'))
+                .filter((row) => focusRowKind(row) === 'work' && row.id && !String(row.id).startsWith('pending-') && !row.pending)
                 .map((row) => row.id);
             const created = await callEel('create_focus_block', title, start, end, existing);
-            for (const row of pendingFocusItems.filter((item) => item.pending)) {
+            for (const row of pendingFocusItems.filter((item) => item.pending && focusRowKind(item) === 'work')) {
                 await callEel('add_todo_to_focus', created.id, row.title, row.estimate_minutes || '');
+            }
+            for (const row of pendingFocusItems.filter((item) => focusRowKind(item) === 'habit')) {
+                await callEel('attach_focus_item', created.id, row.id, 'habit');
             }
             resetEditor();
             utils.showSuccessFeedback('Focus block saved.');
@@ -1668,11 +1730,11 @@ async function parkEditor() {
         if (editor.mode === 'unplaced' && editor.id) {
             await callEel('assign_work_item', editor.id, '');
             resetEditor();
-            utils.showSuccessFeedback('Left in All Work.');
+            utils.showSuccessFeedback('Parked.');
         } else if ((editor.mode === 'work' || editor.mode === 'workout') && editor.id) {
             await callEel('park_schedule_block', editor.id);
             resetEditor();
-            utils.showSuccessFeedback(editor.mode === 'workout' ? 'Taken off the clock.' : 'Saved for later in All Work.');
+            utils.showSuccessFeedback(editor.mode === 'workout' ? 'Taken off the clock.' : 'Parked.');
         } else {
             return;
         }
@@ -1749,10 +1811,8 @@ async function applyPastedCalendar(raw) {
             field.value = cleaned;
             field.dispatchEvent(new Event('input', { bubbles: true }));
             field.dispatchEvent(new Event('change', { bubbles: true }));
-            try { field.focus(); } catch (err) { /* ignore */ }
         }
-        utils.showSuccessFeedback('Pasted the calendar URL. Import ICS to load events and due dates.');
-        return true;
+        return importPasted(cleaned);
     }
     if (isIcs) {
         if (field) field.value = '';
@@ -1859,6 +1919,7 @@ function importIcs() {
 export function setupCalendar() {
     setCalView(calView);
     trackDragAtWindow();
+    startNowLineClock();
     paintEditor();
     document.getElementById('calDueMenu')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-act]');
@@ -1914,7 +1975,7 @@ export function setupCalendar() {
     document.getElementById('calRemoveItem')?.addEventListener('click', () => {
         void removeEditor();
     });
-    document.getElementById('calNewLecture')?.addEventListener('click', () => {
+    document.getElementById('calNewEvent')?.addEventListener('click', () => {
         startNewEvent();
     });
     document.getElementById('calNewFocus')?.addEventListener('click', () => {
@@ -1972,12 +2033,6 @@ export function setupCalendar() {
         const next = chip.classList.contains('is-selected') ? '' : chip.getAttribute('data-outcome');
         setOutcomeSelection(next === 'attended' ? 'done' : next === 'missed' ? 'missed' : '');
     });
-    document.getElementById('calImportIcs')?.addEventListener('click', () => {
-        void importIcs();
-    });
-    document.getElementById('calPasteIcs')?.addEventListener('click', () => {
-        void pasteIcsButton();
-    });
     ['calDayStart', 'calDayEnd'].forEach((id) => {
         const field = document.getElementById(id);
         field?.addEventListener('change', () => { void saveAwake(); });
@@ -1987,14 +2042,6 @@ export function setupCalendar() {
                 void saveAwake();
             }
         });
-    });
-    document.getElementById('calIcsUrl')?.addEventListener('paste', (e) => {
-        const dt = e.clipboardData;
-        if (!dt) return;
-        const raw = dt.getData('text/uri-list') || dt.getData('text/plain');
-        if (!raw) return;
-        e.preventDefault();
-        void applyPastedCalendar(raw);
     });
     document.addEventListener('paste', (e) => {
         const tab = document.getElementById('calendarTab');
@@ -2008,7 +2055,6 @@ export function setupCalendar() {
         e.preventDefault();
         void applyPastedCalendar(raw);
     });
-    document.getElementById('calImportApple')?.addEventListener('click', importApple);
     document.getElementById('calEventWeekdays')?.addEventListener('click', (e) => {
         const chip = e.target.closest('.work-day-chip');
         if (!chip) return;
@@ -2039,7 +2085,9 @@ export function setupCalendar() {
         }
         void loadCalendar();
     });
-    document.addEventListener('kosistenz:data-changed', () => {
+    document.addEventListener('kosistenz:data-changed', (event) => {
+        const scope = event.detail?.scope || 'work';
+        if (scope !== 'work' && scope !== 'calendar' && scope !== 'all') return;
         if (document.getElementById('calendarTab')?.classList.contains('active')) {
             void loadCalendar();
         }

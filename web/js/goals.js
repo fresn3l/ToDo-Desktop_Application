@@ -179,7 +179,6 @@ export async function refreshGoals() {
         bindGoals(root);
         await loadGoalOptions('todoNewGoal');
         await loadGoalOptions('todayNewGoal');
-        await loadGoalOptions('allWorkNewGoal');
     } catch (e) {
         console.error(e);
         root.innerHTML = '<p class="checklist-error">Could not load goals.</p>';

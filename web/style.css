@@ -2351,6 +2351,11 @@ input[type='range'] {
     margin: 0 0 var(--space-md);
 }
 
+#todoFilter {
+    flex: 0 1 auto;
+    max-width: 100%;
+}
+
 .todo-when-label {
     margin: 8px 0 4px;
     font-size: var(--fs-caption);
@@ -5980,6 +5985,27 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     z-index: 0;
 }
 
+.cal-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary);
+    pointer-events: none;
+    z-index: 4;
+}
+
+.cal-now-line::before {
+    content: '';
+    position: absolute;
+    left: -3px;
+    top: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+}
+
 .cal-block {
     position: absolute;
     left: 6px;
@@ -6134,6 +6160,18 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     cursor: grab;
     touch-action: none;
     user-select: none;
+}
+
+.cal-focus-item.is-done span:first-child {
+    opacity: 0.6;
+    text-decoration: line-through;
+}
+
+.cal-focus-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
 }
 
 .cal-block.is-locked {
