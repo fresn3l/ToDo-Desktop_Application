@@ -1,20 +1,20 @@
 import AppIntents
 
 struct ParkWorkIntent: AppIntent {
-    static var title: LocalizedStringResource = "Park in Work"
-    static var description: IntentDescription = "Save a thought to Kosistenz Work with no day yet."
+    static var title: LocalizedStringResource = "Park in To Do"
+    static var description: IntentDescription = "Save a thought to Kosistenz To Do with no day yet."
     static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Thought")
     var title: String
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Park \(\.$title) in Work")
+        Summary("Park \(\.$title) in To Do")
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         _ = try PackActions.park(title)
-        return .result(dialog: "Parked in Work.")
+        return .result(dialog: "Parked in To Do.")
     }
 }
 
@@ -75,7 +75,7 @@ struct KosistenzShortcuts: AppShortcutsProvider {
                 "Park in \(.applicationName)",
                 "Park a thought in \(.applicationName)",
             ],
-            shortTitle: "Park in Work",
+            shortTitle: "Park in To Do",
             systemImageName: "tray"
         )
         AppShortcut(

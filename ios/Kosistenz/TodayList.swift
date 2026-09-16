@@ -55,6 +55,7 @@ enum TodayList {
             )
         }
         for item in pack.work.items where item.scheduled_date == today {
+            if item.source == "calendar" { continue }
             if usedWork.contains(item.id) { continue }
             rows.append(
                 Entry(

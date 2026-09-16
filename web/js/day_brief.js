@@ -38,7 +38,7 @@ function paint(data) {
         const intention = data.morning?.intention_text || '';
         const agendaHtml = agenda.length
             ? `<ul class="day-brief-agenda">${agenda.map((item) => {
-                const kind = item.kind === 'hard' ? 'Busy' : item.kind === 'workout' ? 'Gym' : 'Work';
+                const kind = item.kind === 'hard' ? 'Busy' : item.kind === 'workout' ? 'Gym' : 'To Do';
                 return `<li><span>${utils.escapeHtml(agendaTime(item))}</span> ${utils.escapeHtml(item.title || '')} <em>${kind}</em></li>`;
             }).join('')}</ul>`
             : '<p class="checklist-empty">No timed events left today.</p>';

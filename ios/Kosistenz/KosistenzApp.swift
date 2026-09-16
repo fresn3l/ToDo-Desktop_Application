@@ -82,7 +82,7 @@ enum AppTab: String, Hashable, CaseIterable, Identifiable {
         switch self {
         case .today: return "Today"
         case .calendar: return "Calendar"
-        case .work: return "Work"
+        case .work: return "To Do"
         case .journal: return "Journal"
         }
     }

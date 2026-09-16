@@ -52,7 +52,7 @@ enum DayTimeline {
         } else if raw == "workout" {
             label = "Gym"
         } else {
-            label = "Work"
+            label = "To Do"
         }
         let state = (status ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if ["locked", "done", "skipped"].contains(state) {

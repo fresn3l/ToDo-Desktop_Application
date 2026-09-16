@@ -1,7 +1,7 @@
 import Foundation
 import WidgetKit
 
-/// Mutates the iCloud pack. Used by Today, Work, App Intents, and the widget.
+/// Mutates the iCloud pack. Used by Today, To Do, App Intents, and the widget.
 enum PackActions {
     static func current() throws -> Pack {
         try SyncPack.load().pack
@@ -80,13 +80,56 @@ enum PackActions {
 
     @discardableResult
     static func assignToToday(id: String, date: String) throws -> Pack {
+        try assignDay(id: id, date: date)
+    }
+
+    @discardableResult
+    static func assignDay(id: String, date: String?) throws -> Pack {
         var pack = try current()
         guard let index = pack.work.items.firstIndex(where: { $0.id == id }) else {
             throw PackActionError.message("That to-do is gone.")
         }
-        pack.work.items[index].scheduled_date = date
+        let day = (date ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        pack.work.items[index].scheduled_date = day.isEmpty ? nil : String(day.prefix(10))
         pack.work.items[index].updated_at = DayStamp.isoNow()
         return try saveWork(pack)
+    }
+
+    @discardableResult
+    static func markBar(_ item: CalendarItem, status: String, series: Bool) throws -> Pack {
+        var pack = try current()
+        let stamp = DayStamp.localStamp()
+        let keys: [String]
+        if series, let eventId = item.itemId {
+            keys = pack.calendar.days.flatMap { day in
+                (day.events + day.blocks).filter { $0.itemId == eventId }.map(\.markKey)
+            }
+        } else {
+            keys = [item.markKey]
+        }
+        for key in keys {
+            upsertMark(&pack, id: key, status: status, at: stamp)
+            paintClockStatus(&pack, id: key, status: status)
+        }
+        try SyncPack.saveCalendar(pack.calendar)
+        ping(pack)
+        return pack
+    }
+
+    @discardableResult
+    static func completeClock(_ item: CalendarItem) throws -> Pack {
+        let done = item.status != "done" && item.status != "skipped"
+        let entry = TodayList.Entry(
+            id: item.markKey,
+            title: item.title ?? "",
+            startAt: item.start_at,
+            endAt: item.end_at,
+            done: !done,
+            kind: .clock,
+            workId: item.work_item_id,
+            clockId: item.markKey
+        )
+        return try complete(entry)
     }
 
     @discardableResult

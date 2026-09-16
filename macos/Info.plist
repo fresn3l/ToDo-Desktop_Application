@@ -70,7 +70,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>Park in Work</string>
+				<string>Park in To Do</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>parkInAllWork</string>

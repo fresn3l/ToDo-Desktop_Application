@@ -20,13 +20,6 @@ struct TodayScreen: View {
                             .foregroundStyle(.secondary)
                     }
                     .listRowBackground(store.palette.widgetBg)
-                } else if let synced = store.syncedAt {
-                    Section {
-                        Text("Last pack \(synced)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .listRowBackground(store.palette.widgetBg)
                 }
                 if rows.isEmpty {
                     Section {
@@ -60,7 +53,7 @@ struct TodayScreen: View {
             .navigationTitle(heading)
             .toolbarBackground(store.palette.sidebar, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar { SyncToolbarButton() }
+            .toolbar { QuietSyncButton() }
             .scrollContentBackground(.hidden)
             .background(store.palette.pageBg)
             .refreshable { store.reload() }
@@ -150,7 +143,7 @@ struct TodayCheckRow: View {
     }
 }
 
-struct SyncToolbarButton: View {
+struct QuietSyncButton: View {
     @EnvironmentObject private var store: PackStore
 
     var body: some View {
@@ -158,7 +151,12 @@ struct SyncToolbarButton: View {
             store.showSync = true
         } label: {
             Image(systemName: store.access == .iCloudDrive ? "icloud" : "icloud.slash")
+                .foregroundStyle(store.access == .iCloudDrive ? store.palette.ink : Color.red)
         }
-        .accessibilityLabel("Sync")
+        .accessibilityLabel(store.access == .iCloudDrive ? "Sync" : "Sync failed — choose folder")
     }
+}
+
+struct SyncToolbarButton: View {
+    var body: some View { QuietSyncButton() }
 }

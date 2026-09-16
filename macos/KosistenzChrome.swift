@@ -74,7 +74,7 @@ extension AppDelegate {
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(menuItem("New journal entry", action: #selector(openNewJournal), key: ""))
-        menu.addItem(menuItem("Park in Work…", action: #selector(promptParkInAllWork), key: ""))
+        menu.addItem(menuItem("Park in To Do…", action: #selector(promptParkInAllWork), key: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit Kosistenz", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
@@ -138,10 +138,10 @@ extension AppDelegate {
 
     @objc func promptParkInAllWork() {
         let alert = NSAlert()
-        alert.messageText = "Park in Work"
-        alert.informativeText = "Work has no day yet. Today puts it on today’s list."
+        alert.messageText = "Park in To Do"
+        alert.informativeText = "To Do has no day yet. Today puts it on today’s list."
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Work")
+        alert.addButton(withTitle: "To Do")
         alert.addButton(withTitle: "Today")
         alert.addButton(withTitle: "Cancel")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))

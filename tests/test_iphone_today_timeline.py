@@ -45,7 +45,7 @@ class IphoneTodayTimelineTests(unittest.TestCase):
         self.assertEqual(rows[1]["minutes"], 90)
         self.assertEqual(rows[2]["minutes"], 30)
         self.assertEqual(rows[0]["label"], "Event")
-        self.assertEqual(rows[1]["label"], "Work")
+        self.assertEqual(rows[1]["label"], "To Do")
         self.assertEqual(
             phone_today.unplaced_titles([{"id": "u1", "title": "Parked thought"}, {"title": ""}]),
             ["Parked thought"],
@@ -78,6 +78,7 @@ class IphoneTodayTimelineTests(unittest.TestCase):
         self.assertIn("phone_today.py", text)
         self.assertIn("struct DayTimelineView", text)
         self.assertIn("label = \"Event\"", text)
+        self.assertIn("label = \"To Do\"", text)
         self.assertNotIn("label = \"Class\"", text)
         today = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "TodayScreen.swift").read_text(
             encoding="utf-8"
@@ -89,6 +90,11 @@ class IphoneTodayTimelineTests(unittest.TestCase):
         self.assertIn("PackActions.complete", today)
         self.assertIn("DayClockView", calendar)
         self.assertIn("AddEventSheet", calendar)
+        self.assertIn("tabViewStyle(.page", calendar)
+        self.assertIn("QuietSyncButton", calendar)
+        self.assertIn("Happened", calendar)
+        self.assertIn("struct BarSheet", calendar)
+        self.assertIn("CalMode = .today", calendar)
 
 
 if __name__ == "__main__":

@@ -4,13 +4,14 @@ import SwiftUI
 struct WeekClockView: View {
     var file: CalendarFile
     var palette: KosistenzPalette
+    var height: CGFloat = 360
+    var onSelect: ((CalendarItem) -> Void)? = nil
 
     private var window: (startMin: Int, endMin: Int) {
         PhoneCalendar.clockWindow(dayStart: file.day_start, dayEnd: file.day_end)
     }
 
     var body: some View {
-        let height: CGFloat = 360
         let headerHeight: CGFloat = 44
         VStack(alignment: .leading, spacing: 8) {
             Text("\(PhoneCalendar.formatHHMM(file.day_start))–\(PhoneCalendar.formatHHMM(file.day_end))")
@@ -29,7 +30,8 @@ struct WeekClockView: View {
                             endMin: window.endMin,
                             palette: palette,
                             height: height,
-                            headerHeight: headerHeight
+                            headerHeight: headerHeight,
+                            onSelect: onSelect
                         )
                         .frame(width: 78)
                     }
@@ -45,6 +47,8 @@ struct DayClockView: View {
     var dayEnd: String?
     var palette: KosistenzPalette
     var height: CGFloat = 360
+    var onSelect: ((CalendarItem) -> Void)? = nil
+    var onToggleDue: ((DueItem) -> Void)? = nil
 
     private var window: (startMin: Int, endMin: Int) {
         PhoneCalendar.clockWindow(dayStart: dayStart, dayEnd: dayEnd)
@@ -52,7 +56,7 @@ struct DayClockView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            DueChipRow(dues: day.dues, palette: palette)
+            DueChipRow(dues: day.dues, palette: palette, onToggle: onToggleDue)
             HStack(alignment: .top, spacing: 8) {
                 HourGutter(startMin: window.startMin, endMin: window.endMin, height: height)
                 ClockLane(
@@ -60,7 +64,8 @@ struct DayClockView: View {
                     startMin: window.startMin,
                     endMin: window.endMin,
                     palette: palette,
-                    height: height
+                    height: height,
+                    onSelect: onSelect
                 )
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -76,6 +81,7 @@ private struct DayClockColumn: View {
     var palette: KosistenzPalette
     var height: CGFloat
     var headerHeight: CGFloat
+    var onSelect: ((CalendarItem) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -96,7 +102,8 @@ private struct DayClockColumn: View {
                 startMin: startMin,
                 endMin: endMin,
                 palette: palette,
-                height: height
+                height: height,
+                onSelect: onSelect
             )
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
@@ -136,6 +143,7 @@ private struct ClockLane: View {
     var endMin: Int
     var palette: KosistenzPalette
     var height: CGFloat
+    var onSelect: ((CalendarItem) -> Void)? = nil
 
     private var span: Int { max(60, endMin - startMin) }
 
@@ -189,19 +197,24 @@ private struct ClockLane: View {
         } else {
             color = palette.widgetBorder
         }
-        return VStack(alignment: .leading, spacing: 1) {
-            Text(DayStamp.clock(item.start_at))
-                .font(.system(size: 9, design: .monospaced))
-            Text(item.title ?? "")
-                .font(.system(size: 10, weight: .semibold))
-                .lineLimit(2)
+        return Button {
+            onSelect?(item)
+        } label: {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(DayStamp.clock(item.start_at))
+                    .font(.system(size: 9, design: .monospaced))
+                Text(item.title ?? "")
+                    .font(.system(size: 10, weight: .semibold))
+                    .lineLimit(2)
+            }
+            .foregroundStyle(palette.titles)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, minHeight: blockHeight, maxHeight: blockHeight, alignment: .topLeading)
+            .background(color.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
         }
-        .foregroundStyle(palette.titles)
-        .padding(.horizontal, 4)
-        .padding(.vertical, 3)
-        .frame(maxWidth: .infinity, minHeight: blockHeight, maxHeight: blockHeight, alignment: .topLeading)
-        .background(color.opacity(0.85))
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .buttonStyle(.plain)
         .offset(y: top)
     }
 
@@ -213,6 +226,7 @@ private struct ClockLane: View {
 struct DueChipRow: View {
     var dues: [DueItem]
     var palette: KosistenzPalette
+    var onToggle: ((DueItem) -> Void)? = nil
 
     var body: some View {
         if dues.isEmpty {
@@ -223,7 +237,12 @@ struct DueChipRow: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(dues) { due in
-                        DueChip(due: due, palette: palette)
+                        Button {
+                            onToggle?(due)
+                        } label: {
+                            DueChip(due: due, palette: palette)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
