@@ -29,6 +29,7 @@ class PhoneCalendarTests(unittest.TestCase):
         self.assertEqual([row["occurrence_date"] for row in rows], ["2026-09-07", "2026-09-09"])
         self.assertEqual(rows[0]["kind"], "hard")
         self.assertEqual(phone_calendar.kind_label("hard", "locked"), "Event · locked")
+        self.assertEqual(phone_calendar.kind_label("work"), "To Do")
 
     def test_one_shot_overnight_spans_both_days(self) -> None:
         event = {
@@ -73,6 +74,9 @@ class PhoneCalendarTests(unittest.TestCase):
         self.assertIn("static func expandHardEvent", calendar)
         self.assertIn("static func paint(", calendar)
         self.assertIn("label = \"Event\"", calendar)
+        self.assertIn("label = \"To Do\"", calendar)
+        self.assertIn("var onSelect", clock)
+        self.assertIn("struct DueChipRow", clock)
         self.assertIn("static func addHardEvent", actions)
         self.assertIn("source: \"iphone\"", actions)
         self.assertIn("hard_events", actions)

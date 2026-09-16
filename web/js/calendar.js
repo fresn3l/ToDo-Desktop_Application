@@ -59,7 +59,7 @@ function setCalView(next) {
     const unplacedHint = document.querySelector('.cal-unplaced-hint');
     if (unplacedHint) {
         unplacedHint.textContent = calView === 'week'
-            ? 'Drag onto the clock, or move into Today. Fill week packs Work leftover minutes, not Today.'
+            ? 'Drag onto the clock, or move into Today. Fill week packs To Do leftover minutes, not Today.'
             : 'Switch to Week to drag these onto the clock.';
     }
     document.querySelectorAll('#calViewGroup [data-cal-view]').forEach((btn) => {
@@ -436,7 +436,7 @@ function agendaKind(item) {
     if (item.kind === 'hard') return 'Event';
     if (item.kind === 'workout') return 'Gym';
     if (item.kind === 'focus') return 'Focus';
-    return 'Work';
+    return 'To Do';
 }
 
 function agendaTime(item) {
@@ -463,7 +463,7 @@ function renderTodayRail(today) {
         : '';
     const workHtml = work.length
         ? `<h4>Today</h4>${work.map((row) => renderWorkRow(row, { action: 'park' })).join('')}`
-        : '<h4>Today</h4><p class="cal-due-empty">Nothing dated today. Add below, or move from Work.</p>';
+        : '<h4>Today</h4><p class="cal-due-empty">Nothing dated today. Add below, or move from To Do.</p>';
     const duesHtml = dues.length
         ? `<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`
         : '';
@@ -473,7 +473,7 @@ function renderTodayRail(today) {
             const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
             return `<li class="is-${kind}${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
         }).join('')}</ul>`
-        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag from Today or Work onto the week clock.</p>';
+        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag from Today or To Do onto the week clock.</p>';
     root.innerHTML = `
         <header>
             <p class="eyebrow">Today</p>
@@ -502,7 +502,6 @@ function renderTodayRail(today) {
 }
 
 const WORK_GROUPS = [
-    { id: 'due_soon', label: 'Due soon' },
     { id: 'this_week', label: 'This week' },
     { id: 'later', label: 'Later' },
     { id: 'no_day', label: 'No day' },
@@ -521,9 +520,6 @@ function workListMeta(item) {
 
 function workGroupId(item) {
     if (item.group) return item.group;
-    const due = String(item.due_at || '').slice(0, 10);
-    const today = utils.localISODate();
-    if (due && due <= addDaysISO(today, 7)) return 'due_soon';
     const scheduled = String(item.scheduled_date || '').slice(0, 10);
     if (!scheduled) return 'no_day';
     const start = weekStart || mondayISO();
@@ -543,7 +539,7 @@ function addDaysISO(iso, days) {
 function renderWorkRow(item, { action = 'today' } = {}) {
     const mins = item.remaining_minutes || item.estimate_minutes || 0;
     const selected = editor.mode === 'unplaced' && editor.id === item.id ? ' is-selected' : '';
-    const actLabel = action === 'park' ? 'Work' : 'Today';
+    const actLabel = action === 'park' ? 'To Do' : 'Today';
     const act = action === 'park' ? 'park' : 'today';
     return `<div class="cal-unplaced-item${selected}" data-id="${utils.escapeHtml(item.id || '')}">
         <button type="button" class="cal-unplaced-drag" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-minutes="${mins}">
@@ -564,7 +560,7 @@ function renderUnplaced(items, total) {
         return;
     }
     const extra = Number(total || 0) > items.length
-        ? `<p class="checklist-hint small">${Number(total) - items.length} more in Work. Fill week packs leftover minutes from Work, not Today.</p>`
+        ? `<p class="checklist-hint small">${Number(total) - items.length} more in To Do. Fill week packs leftover minutes from To Do, not Today.</p>`
         : '';
     const grouped = new Map(WORK_GROUPS.map((g) => [g.id, []]));
     for (const item of items) {
@@ -631,11 +627,11 @@ async function parkWorkFromToday(itemId) {
     try {
         await callEel('assign_work_item', itemId, '');
         if (editor.mode === 'unplaced' && editor.id === itemId) resetEditor();
-        utils.showSuccessFeedback('Moved to Work.');
+        utils.showSuccessFeedback('Moved to To Do.');
         utils.notifyDataChanged();
         await loadCalendar();
     } catch (e) {
-        utils.showErrorFeedback(e?.message || 'Could not move that into Work.');
+        utils.showErrorFeedback(e?.message || 'Could not move that into To Do.');
     }
 }
 
@@ -741,9 +737,9 @@ function paintEditor() {
     }
     if (hint) {
         hint.textContent = isIdle
-            ? 'Drag from Today or Work onto the clock, or Add event for a meeting. Add focus for a named span that holds work and habits.'
+            ? 'Drag from Today or To Do onto the clock, or Add event for a meeting. Add focus for a named span that holds work and habits.'
             : isNew
-                ? 'Busy time — a meeting, hold, or recurring block. Work stays off the clock until you drag or Fill week.'
+                ? 'Busy time — a meeting, hold, or recurring block. To Do stays off the clock until you drag or Fill week.'
                 : isNewFocus
                     ? 'A named hold. Fill week will not pack over it. Work and habits can run longer than the span.'
                     : isUnplaced
@@ -2100,7 +2096,7 @@ export function setupCalendar() {
     document.getElementById('calFillWeek')?.addEventListener('click', async () => {
         try {
             await callEel('fill_week', weekStart || mondayISO());
-            utils.showSuccessFeedback('Placed Work leftover minutes around busy time.');
+            utils.showSuccessFeedback('Placed To Do leftover minutes around busy time.');
             utils.notifyDataChanged();
             await loadCalendar();
         } catch (e) {

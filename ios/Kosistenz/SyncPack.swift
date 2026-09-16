@@ -457,4 +457,39 @@ enum DayStamp {
         let slice = String(raw.dropFirst(11).prefix(5))
         return slice
     }
+
+    static func addDays(_ iso: String, _ days: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: String(iso.prefix(10))) else { return iso }
+        return formatter.string(from: Calendar(identifier: .gregorian).date(byAdding: .day, value: days, to: date) ?? date)
+    }
+
+    static func weekday(_ iso: String) -> String {
+        weekdayFormatter(format: "EEE", iso: iso)
+    }
+
+    static func weekdayLong(_ iso: String) -> String {
+        weekdayFormatter(format: "EEEE", iso: iso)
+    }
+
+    static func dayString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.current
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    private static func weekdayFormatter(format: String, iso: String) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar.current
+        formatter.locale = Locale.current
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: String(iso.prefix(10))) else { return iso }
+        formatter.dateFormat = format
+        return formatter.string(from: date)
+    }
 }

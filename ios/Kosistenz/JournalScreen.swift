@@ -21,11 +21,13 @@ struct JournalScreen: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    Text(store.statusLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .listRowBackground(store.palette.widgetBg)
+                if store.access == .needsFolder {
+                    Section {
+                        Text(store.statusLine)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .listRowBackground(store.palette.widgetBg)
+                    }
                 }
                 Section("Write") {
                     TextEditor(text: $draft)
@@ -54,7 +56,7 @@ struct JournalScreen: View {
             .scrollContentBackground(.hidden)
             .background(store.palette.pageBg)
             .navigationTitle("Journal")
-            .toolbar { SyncToolbarButton() }
+            .toolbar { QuietSyncButton() }
             .refreshable { store.reload() }
         }
     }

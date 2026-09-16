@@ -1,5 +1,5 @@
 /**
- * Today’s to-do sheet. Off-clock work lives on the calendar Work list.
+ * Today’s to-do sheet. Off-clock To Do lives on the calendar list.
  */
 
 import * as utils from './utils.js';
@@ -75,7 +75,7 @@ const WEEKDAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 
 function addButtonLabel() {
     if (document.getElementById('todoRepeatToggle')?.checked) return 'Save repeating to-do';
-    if (destKind === 'allwork') return 'Add to Work';
+    if (destKind === 'allwork') return 'Add to To Do';
     const iso = selectedWhenDate();
     const day = whenDays.find((row) => row.place_date === iso);
     if (day?.is_today) return 'Add';
@@ -92,8 +92,8 @@ function updateWhenHint() {
     const hint = document.querySelector('.todo-when-hint');
     if (!hint) return;
     const clock = destKind === 'allwork'
-        ? 'Saved in Work — not on the clock. Fill week or drag places it.'
-        : 'Dated is not on the clock. Drag onto the clock to place it. Fill week packs Work, not Today.';
+        ? 'Saved in To Do — not on the clock. Fill week or drag places it.'
+        : 'Dated is not on the clock. Drag onto the clock to place it. Fill week packs To Do, not Today.';
     if (destKind === 'allwork') {
         hint.textContent = clock;
         updateAddButton();
@@ -233,7 +233,7 @@ function itemRow(item, { showDate = false } = {}) {
                 ${repeatActions}
                 <details class="work-more">
                     <summary>More</summary>
-                    <button type="button" class="btn-ghost" data-act="park">Work</button>
+                    <button type="button" class="btn-ghost" data-act="park">To Do</button>
                     <button type="button" class="btn-ghost" data-act="delete">Delete</button>
                 </details>
             </div>

@@ -3,10 +3,13 @@ import SwiftUI
 struct TodoScreen: View {
     @EnvironmentObject private var store: PackStore
     @State private var draft = ""
+    @State private var picking: WorkItem?
 
     private var offClock: [WorkItem] {
         (store.pack?.work.items ?? []).filter { item in
-            item.status != "done" && (item.scheduled_date ?? "") != store.today
+            item.status != "done"
+                && item.source != "calendar"
+                && (item.scheduled_date ?? "") != store.today
         }
         .sorted(by: workSort)
     }
@@ -14,13 +17,15 @@ struct TodoScreen: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    Text(store.statusLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .listRowBackground(store.palette.widgetBg)
+                if store.access == .needsFolder {
+                    Section {
+                        Text(store.statusLine)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .listRowBackground(store.palette.widgetBg)
+                    }
                 }
-                Section("Park in Work") {
+                Section("Park in To Do") {
                     HStack {
                         TextField("No day yet", text: $draft)
                         Button("Park") { park() }
@@ -40,7 +45,7 @@ struct TodoScreen: View {
                 }
                 if offClock.isEmpty {
                     Section {
-                        Text("Nothing off the clock. Park a thought, or it is already on Today.")
+                        Text("Nothing in To Do. Park a thought, or it is already on Today.")
                             .foregroundStyle(.secondary)
                             .listRowBackground(store.palette.widgetBg)
                     }
@@ -51,9 +56,22 @@ struct TodoScreen: View {
             }
             .scrollContentBackground(.hidden)
             .background(store.palette.pageBg)
-            .navigationTitle("Work")
-            .toolbar { SyncToolbarButton() }
+            .navigationTitle("To Do")
+            .toolbar { QuietSyncButton() }
             .refreshable { store.reload() }
+            .sheet(item: $picking) { item in
+                DayPickSheet(
+                    item: item,
+                    today: store.today,
+                    weekDates: weekDates,
+                    palette: store.palette,
+                    onPick: { day in
+                        assign(item, day: day)
+                        picking = nil
+                    },
+                    onDismiss: { picking = nil }
+                )
+            }
         }
     }
 
@@ -68,10 +86,24 @@ struct TodoScreen: View {
                 }
             }
             Spacer()
-            Button("Today") { moveToday(item) }
+            Button("Today") { assign(item, day: store.today) }
                 .font(.caption.weight(.semibold))
         }
+        .contentShape(Rectangle())
+        .onLongPressGesture { picking = item }
+        .contextMenu {
+            Button("Today") { assign(item, day: store.today) }
+            ForEach(weekDates, id: \.self) { day in
+                Button(DayStamp.weekday(day)) { assign(item, day: day) }
+            }
+            Button("No day") { assign(item, day: "") }
+            Button("Pick a day…") { picking = item }
+        }
         .listRowBackground(store.palette.widgetBg)
+    }
+
+    private var weekDates: [String] {
+        (store.pack?.calendar.days ?? []).compactMap(\.date)
     }
 
     private func park() {
@@ -85,9 +117,9 @@ struct TodoScreen: View {
         }
     }
 
-    private func moveToday(_ item: WorkItem) {
+    private func assign(_ item: WorkItem, day: String) {
         do {
-            store.pack = try PackActions.assignToToday(id: item.id, date: store.today)
+            store.pack = try PackActions.assignDay(id: item.id, date: day)
             store.error = nil
         } catch {
             store.error = error.localizedDescription
@@ -95,9 +127,6 @@ struct TodoScreen: View {
     }
 
     private func workSort(_ lhs: WorkItem, _ rhs: WorkItem) -> Bool {
-        let leftDue = lhs.due_at ?? "9999"
-        let rightDue = rhs.due_at ?? "9999"
-        if leftDue != rightDue { return leftDue < rightDue }
         let leftDay = lhs.scheduled_date ?? "9999"
         let rightDay = rhs.scheduled_date ?? "9999"
         if leftDay != rightDay { return leftDay < rightDay }
@@ -105,72 +134,69 @@ struct TodoScreen: View {
     }
 
     private func workSubtitle(_ item: WorkItem) -> String? {
-        if let due = item.due_at, due.count >= 10 {
-            return "Due \(String(due.prefix(10)))"
-        }
-        return item.scheduled_date
+        item.scheduled_date
     }
 
     private func bucket(_ item: WorkItem) -> WorkGroup {
-        let today = store.today
-        if let due = item.due_at, due.count >= 10 {
-            let dueDay = String(due.prefix(10))
-            if dueDay <= addDays(today, 7) {
-                return .dueSoon
-            }
-        }
-        guard let scheduled = item.scheduled_date, !scheduled.isEmpty else {
-            return .noDay
-        }
-        let start = weekStart
-        let end = addDays(start, 6)
-        if scheduled >= start && scheduled <= end {
+        let scheduled = item.scheduled_date ?? ""
+        if scheduled.isEmpty { return .noDay }
+        let dates = weekDates
+        if dates.contains(scheduled) { return .thisWeek }
+        if let first = dates.first, let last = dates.last, scheduled >= first && scheduled <= last {
             return .thisWeek
         }
         return .later
     }
-
-    private var weekStart: String {
-        if let packed = store.pack?.calendar.week_start, packed.count >= 10 {
-            return String(packed.prefix(10))
-        }
-        return monday(of: store.today)
-    }
-
-    private func monday(of iso: String) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        guard let day = formatter.date(from: String(iso.prefix(10))) else { return iso }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.firstWeekday = 2
-        let weekday = calendar.component(.weekday, from: day)
-        let offset = (weekday + 5) % 7
-        return formatter.string(from: calendar.date(byAdding: .day, value: -offset, to: day) ?? day)
-    }
-
-    private func addDays(_ iso: String, _ days: Int) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        guard let day = formatter.date(from: String(iso.prefix(10))) else { return iso }
-        return formatter.string(from: Calendar(identifier: .gregorian).date(byAdding: .day, value: days, to: day) ?? day)
-    }
 }
 
 private enum WorkGroup: String, CaseIterable, Identifiable {
-    case dueSoon, thisWeek, later, noDay
-
+    case thisWeek, later, noDay
     var id: String { rawValue }
-
     var title: String {
         switch self {
-        case .dueSoon: return "Due soon"
         case .thisWeek: return "This week"
         case .later: return "Later"
         case .noDay: return "No day"
+        }
+    }
+}
+
+private struct DayPickSheet: View {
+    var item: WorkItem
+    var today: String
+    var weekDates: [String]
+    var palette: KosistenzPalette
+    var onPick: (String) -> Void
+    var onDismiss: () -> Void
+    @State private var picked = Date()
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section(item.title) {
+                    Button("Today") { onPick(today) }
+                        .listRowBackground(palette.widgetBg)
+                    ForEach(weekDates, id: \.self) { day in
+                        Button(DayStamp.weekdayLong(day)) { onPick(day) }
+                            .listRowBackground(palette.widgetBg)
+                    }
+                    DatePicker("Other day", selection: $picked, displayedComponents: .date)
+                        .listRowBackground(palette.widgetBg)
+                    Button("Use that day") { onPick(DayStamp.dayString(picked)) }
+                        .listRowBackground(palette.widgetBg)
+                    Button("No day") { onPick("") }
+                        .listRowBackground(palette.widgetBg)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(palette.pageBg)
+            .navigationTitle("Pick a day")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", action: onDismiss)
+                }
+            }
         }
     }
 }

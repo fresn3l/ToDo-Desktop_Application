@@ -289,7 +289,7 @@ def add_todo_to_calendar(
         else " Dated is not on the clock."
     )
     if park:
-        message = "Saved in Work." + (
+        message = "Saved in To Do." + (
             " Add minutes, then Fill week or drag to place." if mins else ""
         )
     else:

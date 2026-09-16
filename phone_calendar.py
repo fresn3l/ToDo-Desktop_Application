@@ -39,7 +39,7 @@ def kind_label(kind: Optional[str], status: Optional[str] = None) -> str:
     elif raw == "workout":
         label = "Gym"
     else:
-        label = "Work"
+        label = "To Do"
     state = (status or "").strip().lower()
     if state in {"locked", "done", "skipped"}:
         return f"{label} · {state}"
