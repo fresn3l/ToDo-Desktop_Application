@@ -144,7 +144,7 @@
                                         <span class="cal-awake-sep">–</span>
                                         <input type="text" id="calDayEnd" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="2130" maxlength="5" aria-label="Day ends (24-hour)">
                                     </div>
-                                    <button type="button" id="calFillWeek" class="btn-primary" title="Places Work leftover minutes around busy time this week. Today stays a list until you drag it.">Fill week</button>
+                                    <button type="button" id="calFillWeek" class="btn-primary" title="Places To Do leftover minutes around busy time this week. Today stays a list until you drag it.">Fill week</button>
                                 </div>
                             </header>
                             <div class="cal-week-shell is-week">
@@ -165,7 +165,7 @@
                         <aside class="cal-aside">
                             <div class="cal-aside-block" id="calEditor">
                                 <h3 id="calEditorHeading">Clock</h3>
-                                <p id="calEditorHint" class="cal-editor-hint">Drag from Today or Work onto the clock, or Add event for a meeting.</p>
+                                <p id="calEditorHint" class="cal-editor-hint">Drag from Today or To Do onto the clock, or Add event for a meeting.</p>
                                 <div id="calEditorFields">
                                 <label class="checklist-field-label" for="calEventTitle">Name</label>
                                 <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="Meeting" autocomplete="off">
@@ -219,8 +219,8 @@
                                 </div>
                             </div>
                             <div class="cal-aside-block" id="calUnplacedBlock">
-                                <h3>Work</h3>
-                                <p class="cal-unplaced-hint">Drag onto the clock, or move into Today. Fill week packs Work leftover minutes, not Today.</p>
+                                <h3>To Do</h3>
+                                <p class="cal-unplaced-hint">Park a thought, pick a day, or drag onto the clock. Fill week packs To Do leftover minutes, not Today. Due from a subscribed calendar stays on the day.</p>
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
                         </aside>
@@ -355,7 +355,7 @@
                     </div>
                 </section>
 
-                <section id="todoTab" class="widget-source" aria-label="Work" data-work-filter="today">
+                <section id="todoTab" class="widget-source" aria-label="To Do" data-work-filter="today">
                     <div class="work-layout">
                         <div class="panel">
                             <div class="panel-header">
@@ -368,13 +368,13 @@
                                 <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="45 mins board memo" autocomplete="off">
                                 <button type="button" id="todoAddBtn" class="btn-primary">Add</button>
                             </div>
-                            <p class="todo-when-hint">Dated is not on the clock. Drag onto the clock to place it. Fill week packs Work, not Today.</p>
+                            <p class="todo-when-hint">Dated is not on the clock. Drag onto the clock to place it. Fill week packs To Do, not Today.</p>
                             <details class="todo-more">
                                 <summary>More</summary>
                                 <p class="todo-when-label">Where</p>
                                 <div id="todoDest" class="todo-when work-weekdays" role="radiogroup" aria-label="Where this goes">
                                     <button type="button" class="work-day-chip is-selected" data-dest="today" role="radio" aria-checked="true">Today</button>
-                                    <button type="button" class="work-day-chip" data-dest="allwork" role="radio" aria-checked="false">Work</button>
+                                    <button type="button" class="work-day-chip" data-dest="allwork" role="radio" aria-checked="false">To Do</button>
                                 </div>
                                 <p class="todo-when-label">Day this week</p>
                                 <div id="todoWhen" class="todo-when work-weekdays" role="radiogroup" aria-label="Day this week"></div>
@@ -611,7 +611,7 @@
                         <div id="clunySources" class="cluny-sources" hidden></div>
                         <div class="cluny-suggest-row">
                             <button type="button" class="btn-secondary" id="clunySuggestBtn">Suggest work</button>
-                            <p class="checklist-hint small" id="clunySuggestHint">Accept lands in Work with a due date, never an HH:MM. You pick the day.</p>
+                            <p class="checklist-hint small" id="clunySuggestHint">Accept lands in To Do with a due date, never an HH:MM. You pick the day.</p>
                         </div>
                         <ul id="clunyInbox" class="cluny-inbox"></ul>
                     </div>
@@ -714,7 +714,7 @@
                                 <option value="knowledge">Knowledge</option>
                                 <option value="propose">Propose</option>
                             </select>
-                            <p class="checklist-hint small">Propose drafts Work items. Cluny never places HH:MM or writes the week clock.</p>
+                            <p class="checklist-hint small">Propose drafts To Do items. Cluny never places HH:MM or writes the week clock.</p>
                             <button type="button" id="brainNewSessionBtn" class="btn-ghost">New chat</button>
                         </div>
                         <div id="brainChatLog" class="brain-chat-log" aria-live="polite"></div>
@@ -1003,7 +1003,7 @@
                             <label class="checklist-field-label">Sync folder</label>
                             <code id="icloudSyncFolder" class="checklist-db-path"></code>
                             <label class="checklist-checkbox-label">
-                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, Work, Workout, or Journal changes
+                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, To Do, Workout, or Journal changes
                             </label>
                             <label class="checklist-checkbox-label">
                                 <input type="checkbox" id="icloudAutoPullToggle" checked>

@@ -2308,10 +2308,10 @@ def unplaced_work() -> List[Dict[str, Any]]:
 
 
 def off_calendar_work() -> List[Dict[str, Any]]:
-    """Open work that is not today's to-do and not fully on the clock.
+    """Open To Do that is not today's list and not fully on the clock.
 
-    Today's list stays separate. Fill week packs leftover minutes from this
-    list, not from Today's dated items.
+    Imported calendar assignments stay Due chips. Fill week packs leftover
+    minutes from this list, not from Today's dated items.
     """
     placed = _placed_minutes_map()
     held = attached_work_ids()
@@ -2350,18 +2350,10 @@ def off_calendar_work() -> List[Dict[str, Any]]:
 
 
 def work_list_group(item: Dict[str, Any], today: Optional[date] = None, week_start: Optional[date] = None) -> str:
-    """due_soon, this_week, later, or no_day — Work list headings, not extra filters."""
+    """this_week, later, or no_day — To Do headings. Imported dues are not in this list."""
     day = today or work._today()
     monday = week_start or monday_of(day)
     sunday = monday + timedelta(days=6)
-    due_raw = str(item.get("due_at") or "")[:10]
-    if len(due_raw) == 10:
-        try:
-            due = date.fromisoformat(due_raw)
-            if due <= day + timedelta(days=7):
-                return "due_soon"
-        except ValueError:
-            pass
     scheduled = str(item.get("scheduled_date") or "")[:10]
     if not scheduled:
         return "no_day"

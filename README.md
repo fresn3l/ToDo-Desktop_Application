@@ -35,7 +35,7 @@ That creates a virtualenv, packages a standalone app, copies it to `/Application
 
 Quit with **Cmd+Q**, like any Mac app. Closing the window hides it; the menu bar extra keeps running until you quit.
 
-Add the **Today** widget from Notification Center → Edit Widgets → Kosistenz (Lock Screen families need macOS 14+). Services: select text anywhere, then Services → **Park in Work** or **New Journal Entry in Kosistenz**. URLs: `kosistenz://journal/new` and `kosistenz://work/park?title=Call%20dentist` (add `&today=1` to put it on Today).
+Add the **Today** widget from Notification Center → Edit Widgets → Kosistenz (Lock Screen families need macOS 14+). Services: select text anywhere, then Services → **Park in To Do** or **New Journal Entry in Kosistenz**. URLs: `kosistenz://journal/new` and `kosistenz://work/park?title=Call%20dentist` (add `&today=1` to put it on Today).
 
 If you change the source and want a fresh bundle, run `./macos/install_app.sh` again. You must rebuild after `git pull` — opening the old app will still use the previous window code.
 
@@ -69,8 +69,8 @@ That still opens the **native WebKit window**, not Chrome.
 - **Home**: Snap-to-grid widgets (Today, Clock, Workout, Journal, Goals, Analytics, Weather, Focus, Countdown, Habits, Day, Counters, Reading, Word, Check-in, Ask Cluny). Extra pages, Edit Home to place and resize. First install shows Today and a mini calendar.
 - **Word of the day**: German or precise English on a Home widget; Evening check-in asks you to use it
 - **Journal**: Timed entries (Home widget)
-- **Today**: Dated work for this day. Stays a checklist until you drag a row onto the clock.
-- **Work**: Everything else that is not on the clock. Park a thought, or move a row into Today.
+- **Today**: Dated To Do for this day. Stays a checklist until you drag a row onto the clock.
+- **To Do**: Personal list that is not on the clock. Park a thought, or pick a day. Imported class assignments are **Due** on the day, not this list.
 - **Workout**: Body weight, session types, and a simple week template (Home widget)
 - **Analytics**: Streaks, repeating misses, template misses, body-weight sparkline (Home widget)
 - **Weather**: Place search, current conditions, hourly rain chance, seven-day forecast (Home widget; Open-Meteo, cached locally)
@@ -79,16 +79,16 @@ That still opens the **native WebKit window**, not Chrome.
 - **Habits**: Daily ticks that reset each morning (Home widget)
 - **Menu bar**: Start or finish today’s active item, log a session type, see whether today is empty. Run asks for miles.
 - **Today widget**: Notification Center (and Lock Screen on macOS 14+) — open items, workout logged or not, journal streak
-- **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in Work** in the Services menu
+- **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in To Do** in the Services menu
 - **Appearance**: Themes and type (San Francisco by default on Mac)
 - **Local storage**: SQLite + JSON under Application Support
 - **Goals**: 1 week, 6 months, a year, 5 years. Attach work (or match a
   keyword). 1-week goals get a to-do every Sunday for the coming week.
 - **Calendar**: Week on a clock. Events you add stay busy time. Imported
-  calendars (Apple subscription or ICS URL) become work with due times, not
-  busy bars. **Fill week** packs Work leftover minutes around those events.
+  calendars (Apple subscription or ICS URL) become **Due** chips, not
+  busy bars. **Fill week** packs To Do leftover minutes around those events.
   Today stays a list until you drag it. Nothing is written back to Apple Calendar.
-- **iPhone**: Today / Calendar / Work / Journal over the same iCloud Drive pack — see `ios/README.md`
+- **iPhone**: Today / Calendar / To Do / Journal over the same iCloud Drive pack — see `ios/README.md`
 
 ## Data Storage
 
