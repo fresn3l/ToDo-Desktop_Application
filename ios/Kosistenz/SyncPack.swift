@@ -38,6 +38,7 @@ enum SyncPack {
                 workouts: coordinatedDecode(WorkoutsFile.self, at: live.appendingPathComponent("workouts.json"))
                     ?? WorkoutsFile(days: [], sessions: [], template: nil),
                 journal: coordinatedDecode([JournalEntry].self, at: live.appendingPathComponent("journal.json")) ?? [],
+                notes: coordinatedDecode([NoteEntry].self, at: live.appendingPathComponent("notes.json")) ?? [],
                 calendar: coordinatedDecode(CalendarFile.self, at: live.appendingPathComponent("calendar.json"))
                     ?? CalendarFile(),
                 appearance: coordinatedJSON(at: live.appendingPathComponent("appearance.json")),
@@ -60,10 +61,11 @@ enum SyncPack {
     static func saveWork(_ file: WorkFile) throws { try write(file, name: "work.json") }
     static func saveWorkouts(_ file: WorkoutsFile) throws { try write(file, name: "workouts.json") }
     static func saveJournal(_ entries: [JournalEntry]) throws { try write(entries, name: "journal.json") }
+    static func saveNotes(_ entries: [NoteEntry]) throws { try write(entries, name: "notes.json") }
     static func saveCalendar(_ file: CalendarFile) throws { try write(file, name: "calendar.json") }
 
     private static func packHasBytes(_ pack: Pack) -> Bool {
-        !pack.work.items.isEmpty || !pack.journal.isEmpty || !pack.workouts.sessions.isEmpty
+        !pack.work.items.isEmpty || !pack.journal.isEmpty || !pack.notes.isEmpty || !pack.workouts.sessions.isEmpty
     }
 
     private static func write<T: Encodable>(_ value: T, name: String) throws {
@@ -138,9 +140,19 @@ struct Pack {
     var work: WorkFile
     var workouts: WorkoutsFile
     var journal: [JournalEntry]
+    var notes: [NoteEntry]
     var calendar: CalendarFile
     var appearance: [String: Any]
     var folder: URL
+}
+
+struct NoteEntry: Codable, Identifiable {
+    var id: String
+    var title: String
+    var body: String
+    var focus_id: String?
+    var created_at: String?
+    var updated_at: String?
 }
 
 struct WorkFile: Codable {

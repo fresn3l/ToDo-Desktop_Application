@@ -67,13 +67,15 @@ LAZY_MODULES: Tuple[str, ...] = (
     "weather",
     "word_of_the_day",
     "journal",
+    "notes",
     "daily_checklist",
     "workouts",
 )
 
 FEATURE_MODULES: Dict[str, Tuple[str, ...]] = {
-    "calendar": ("calclock", "schedule"),
+    "calendar": ("calclock", "schedule", "notes"),
     "journal": ("journal",),
+    "notes": ("notes",),
     "brain": ("brain", "cluny_brain"),
     "library": ("library",),
     # Settings paints locally. iCloud / Cluny / calendar load on first use.
@@ -285,6 +287,14 @@ EXPOSE_FALLBACK: Dict[str, Tuple[str, ...]] = {
         "save_journal_entry",
         "get_recent_entries",
         "get_all_entries",
+    ),
+    "notes": (
+        "list_notes",
+        "save_note",
+        "delete_note",
+        "attach_note",
+        "detach_note",
+        "list_focus_spans",
     ),
     "daily_checklist": (
         "get_custom_checklist_items",

@@ -55,6 +55,74 @@ enum PackActions {
     }
 
     @discardableResult
+    static func addNote(title: String, body: String, focusId: String?) throws -> Pack {
+        var pack = try current()
+        let note = try makeNote(title: title, body: body, focusId: focusId, pack: pack)
+        pack.notes.insert(note, at: 0)
+        return try saveNotes(pack)
+    }
+
+    @discardableResult
+    static func updateNote(id: String, title: String, body: String, focusId: String?) throws -> Pack {
+        var pack = try current()
+        guard let index = pack.notes.firstIndex(where: { $0.id == id }) else {
+            throw PackActionError.message("That note is gone.")
+        }
+        let now = DayStamp.localStamp()
+        let named = noteTitle(title, body: body)
+        let text = String(body.prefix(80_000))
+        guard !named.isEmpty || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw PackActionError.message("Write something first.")
+        }
+        let focus = cleanedFocus(focusId)
+        if let focus, pack.notes[index].focus_id != focus {
+            try requireFocus(pack, focusId: focus)
+        }
+        pack.notes[index].title = named
+        pack.notes[index].body = text
+        pack.notes[index].focus_id = focus
+        pack.notes[index].updated_at = now
+        return try saveNotes(pack)
+    }
+
+    @discardableResult
+    static func attachNote(id: String, focusId: String) throws -> Pack {
+        guard let focus = cleanedFocus(focusId) else {
+            return try detachNote(id: id)
+        }
+        var pack = try current()
+        guard let index = pack.notes.firstIndex(where: { $0.id == id }) else {
+            throw PackActionError.message("That note is gone.")
+        }
+        try requireFocus(pack, focusId: focus)
+        pack.notes[index].focus_id = focus
+        pack.notes[index].updated_at = DayStamp.localStamp()
+        return try saveNotes(pack)
+    }
+
+    @discardableResult
+    static func detachNote(id: String) throws -> Pack {
+        var pack = try current()
+        guard let index = pack.notes.firstIndex(where: { $0.id == id }) else {
+            throw PackActionError.message("That note is gone.")
+        }
+        pack.notes[index].focus_id = nil
+        pack.notes[index].updated_at = DayStamp.localStamp()
+        return try saveNotes(pack)
+    }
+
+    @discardableResult
+    static func deleteNote(id: String) throws -> Pack {
+        var pack = try current()
+        let before = pack.notes.count
+        pack.notes.removeAll { $0.id == id }
+        guard pack.notes.count < before else {
+            throw PackActionError.message("That note is gone.")
+        }
+        return try saveNotes(pack)
+    }
+
+    @discardableResult
     static func addTodo(_ raw: String, date: String) throws -> Pack {
         let title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { throw PackActionError.message("Type a to-do.") }
@@ -269,6 +337,64 @@ enum PackActions {
         try SyncPack.saveWork(pack.work)
         ping(pack)
         return pack
+    }
+
+    private static func saveNotes(_ pack: Pack) throws -> Pack {
+        try SyncPack.saveNotes(pack.notes)
+        ping(pack)
+        return pack
+    }
+
+    private static func cleanedFocus(_ raw: String?) -> String? {
+        let value = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : String(value.prefix(80))
+    }
+
+    private static func noteTitle(_ title: String, body: String) -> String {
+        let named = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !named.isEmpty { return String(named.prefix(200)) }
+        let first = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: \.isNewline)
+            .first
+            .map(String.init) ?? ""
+        return String((first.isEmpty ? "Note" : first).prefix(200))
+    }
+
+    private static func requireFocus(_ pack: Pack, focusId: String) throws {
+        let hit = pack.calendar.days.contains { day in
+            day.blocks.contains { item in
+                (item.itemId == focusId || item.id == focusId)
+                    && (item.kind ?? "").lowercased() == "focus"
+            }
+        }
+        guard hit else { throw PackActionError.message("Notes attach to a focus span.") }
+    }
+
+    private static func makeNote(title: String, body: String, focusId: String?, pack: Pack) throws -> NoteEntry {
+        if pack.notes.count >= 8_000 {
+            throw PackActionError.message("Too many notes.")
+        }
+        let text = String(body.prefix(80_000))
+        let named = noteTitle(title, body: text)
+        guard !named.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            throw PackActionError.message("Write something first.")
+        }
+        let focus = cleanedFocus(focusId)
+        if let focus {
+            try requireFocus(pack, focusId: focus)
+        }
+        let now = DayStamp.localStamp()
+        let hex = String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(12)).lowercased()
+        return NoteEntry(
+            id: "note_\(hex)",
+            title: named,
+            body: text,
+            focus_id: focus,
+            created_at: now,
+            updated_at: now
+        )
     }
 
     private static func upsertMark(_ pack: inout Pack, id: String, status: String, at: String) {

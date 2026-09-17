@@ -11,6 +11,7 @@ const ID_MAP = {
     home: 'homeTab',
     today: 'homeTab',
     journal: 'journalTab',
+    notes: 'notesTab',
     calendar: 'calendarTab',
     analytics: 'analyticsTab',
     brain: 'brainTab',
@@ -22,6 +23,7 @@ const LABELS = {
     home: 'Home',
     today: 'Home',
     journal: 'Journal',
+    notes: 'Notes',
     calendar: 'Calendar',
     analytics: 'Analytics',
     brain: 'Brain',
@@ -66,6 +68,12 @@ async function loadTab(key) {
             const mod = await import('./journal.js');
             mod.setupJournal();
             journalApi = mod;
+            return mod;
+        }
+        if (key === 'notes') {
+            await bootFeature('notes');
+            const mod = await import('./notes.js');
+            mod.setupNotes();
             return mod;
         }
         if (key === 'calendar') {
@@ -172,6 +180,7 @@ export async function switchTab(name, opts = {}) {
         } else {
             const mod = await loadTab(key);
             if (key === 'journal') void mod?.loadPastEntries?.();
+            else if (key === 'notes') void mod?.loadNotes?.();
             else if (key === 'calendar') await mod?.onCalendarTabShown?.();
             else if (key === 'analytics') await mod?.onAnalyticsTabShown?.();
             else if (key === 'brain') await mod?.onBrainTabShown?.();

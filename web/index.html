@@ -35,6 +35,10 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v12a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 18V6A1.5 1.5 0 0 1 7 4.5Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
                     <span class="nav-label">Journal</span>
                 </button>
+                <button type="button" class="nav-item" data-tab="notes">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 4.5h9l3.5 3.5V19A1.5 1.5 0 0 1 17 20.5H6A1.5 1.5 0 0 1 4.5 19V6A1.5 1.5 0 0 1 6 4.5Z"/><path d="M15 4.5V9h4.5"/><path d="M8 12.5h8M8 16h5"/></svg>
+                    <span class="nav-label">Notes</span>
+                </button>
                 <button type="button" class="nav-item" data-tab="analytics">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 19V9"/><path d="M10 19V5"/><path d="M15 19v-7"/><path d="M20 19V8"/></svg>
                     <span class="nav-label">Analytics</span>
@@ -207,6 +211,13 @@
                                     <select id="calFocusPick" class="checklist-text-input">
                                         <option value="">Work or habit…</option>
                                     </select>
+                                    <p class="checklist-field-label">Notes on this span</p>
+                                    <div id="calFocusNotes" class="cal-focus-notes"></div>
+                                    <select id="calFocusNotePick" class="checklist-text-input">
+                                        <option value="">Attach from storage…</option>
+                                    </select>
+                                    <textarea id="calFocusNoteBody" class="checklist-text-input" rows="3" placeholder="New note on this span"></textarea>
+                                    <button type="button" id="calFocusNoteAdd" class="btn-ghost">Save note here</button>
                                 </div>
                                 </div>
                                 <div class="reminder-actions cal-editor-actions">
@@ -299,6 +310,36 @@
                             </div>
                             <div id="journalEntriesContainer" class="journal-entries-container"></div>
                         </aside>
+                    </div>
+                </section>
+
+                <section id="notesTab" class="tab-content" aria-label="Notes">
+                    <header class="page-head">
+                        <div class="page-head-titles">
+                            <h1 class="page-title">Notes</h1>
+                            <p class="page-sub">Things to remember. Pin a note to a focus span, or leave it in storage.</p>
+                        </div>
+                    </header>
+                    <div class="notes-layout">
+                        <aside class="notes-list-pane">
+                            <div class="work-add-row">
+                                <button type="button" id="notesNewBtn" class="btn-primary">New note</button>
+                            </div>
+                            <div id="notesList" class="notes-list"></div>
+                        </aside>
+                        <div class="notes-editor-pane">
+                            <input type="text" id="notesTitle" class="checklist-text-input" placeholder="Title" autocomplete="off">
+                            <textarea id="notesBody" class="notes-body" rows="12" placeholder="Bullets, talking points, anything you may need on the span."></textarea>
+                            <label class="checklist-field-label" for="notesFocusPick">Focus span</label>
+                            <select id="notesFocusPick" class="checklist-text-input">
+                                <option value="">In storage</option>
+                            </select>
+                            <div class="reminder-actions">
+                                <button type="button" id="notesSaveBtn" class="btn-primary">Save</button>
+                                <button type="button" id="notesDetachBtn" class="btn-ghost">Back to storage</button>
+                                <button type="button" id="notesDeleteBtn" class="btn-ghost">Delete</button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -1003,7 +1044,7 @@
                             <label class="checklist-field-label">Sync folder</label>
                             <code id="icloudSyncFolder" class="checklist-db-path"></code>
                             <label class="checklist-checkbox-label">
-                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, To Do, Workout, or Journal changes
+                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, To Do, Workout, Journal, or Notes changes
                             </label>
                             <label class="checklist-checkbox-label">
                                 <input type="checkbox" id="icloudAutoPullToggle" checked>
