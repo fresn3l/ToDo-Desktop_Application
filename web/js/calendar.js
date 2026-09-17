@@ -15,6 +15,8 @@ let dragState = null;
 let lastWeek = null;
 let dueMenuChip = null;
 let pendingFocusItems = [];
+let pendingFocusNotes = [];
+let storageNotes = [];
 let lastHabits = [];
 let habitFetchGen = 0;
 let drawKind = 'focus';
@@ -372,6 +374,7 @@ function renderBlock(item, settings) {
         ? `<span class="cal-block-held">${utils.escapeHtml(heldNames.join(' · '))}${heldMore}</span>`
         : '';
     const focusItems = kind === 'focus' ? escapeAttr(JSON.stringify(item.items || [])) : '';
+    const focusNotes = kind === 'focus' ? escapeAttr(JSON.stringify(item.notes || [])) : '';
     return `<button type="button" class="cal-block is-${kind}${locked ? ' is-locked' : ''}${done ? ' is-done' : ''}${missed ? ' is-missed' : ''}${overflow ? ' is-overflow' : ''}${selected}${short}${tiny}"
         style="top:${topPct}%;height:${height}%"
         data-id="${utils.escapeHtml(item.id || '')}"
@@ -384,6 +387,7 @@ function renderBlock(item, settings) {
         data-occurrence-date="${utils.escapeHtml(item.occurrence_date || item.local_date || '')}"
         data-weekdays="${utils.escapeHtml((item.recurrence && item.recurrence.weekdays ? item.recurrence.weekdays : []).join(','))}"
         data-focus-items="${focusItems}"
+        data-focus-notes="${focusNotes}"
         data-planned-minutes="${utils.escapeHtml(String(item.planned_minutes || ''))}"
         data-overflow-minutes="${utils.escapeHtml(String(item.overflow_minutes || ''))}"
         title="${utils.escapeHtml(blockLabel(item))}"><span class="cal-block-time">${utils.escapeHtml(timeLabel)}</span><span class="cal-block-title">${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</span>${heldHtml}${overflowHtml}</button>`;
@@ -751,7 +755,11 @@ function paintEditor() {
     toggleHidden(status, !isBlock);
     toggleHidden(outcome, isIdle || isNew || isNewFocus || isUnplaced || !editor.id);
     toggleHidden(attach, !isFocus);
-    if (isFocus) paintFocusAttach();
+    if (isFocus) {
+        paintFocusAttach();
+        paintFocusNotes();
+        if (editor.id) void loadFocusNotes();
+    }
     toggleHidden(park, !(isBlock || isUnplaced));
     toggleHidden(remove, isIdle || isNew || isNewFocus || isUnplaced);
     toggleHidden(fresh, isNew);
@@ -781,6 +789,7 @@ function clearEditorFields() {
 function resetEditor() {
     editor = { mode: 'idle', kind: 'hard', id: '', workItemId: '', status: 'proposed', occurrenceDate: '', minutes: 60 };
     pendingFocusItems = [];
+    pendingFocusNotes = [];
     clearEditorFields();
     paintEditor();
     document.querySelectorAll('.cal-block.is-selected, .cal-unplaced-item.is-selected').forEach((el) => {
@@ -802,6 +811,7 @@ function startNewEvent() {
 function startNewFocus() {
     editor = { mode: 'new-focus', kind: 'focus', id: '', workItemId: '', status: 'locked', occurrenceDate: '', minutes: 60 };
     pendingFocusItems = [];
+    pendingFocusNotes = [];
     clearEditorFields();
     defaultEventTimes(true);
     paintEditor();
@@ -818,6 +828,114 @@ function escapeAttr(text) {
         .replace(/&/g, '&amp;')
         .replace(/"/g, '&quot;')
         .replace(/</g, '&lt;');
+}
+
+function parseFocusNotes(btn) {
+    const id = btn.getAttribute('data-id') || '';
+    for (const day of lastWeek?.days || []) {
+        const match = (day.blocks || []).find((row) => row.id === id);
+        if (match && Array.isArray(match.notes)) return match.notes;
+    }
+    const raw = btn.getAttribute('data-focus-notes') || '[]';
+    try {
+        const rows = JSON.parse(raw);
+        return Array.isArray(rows) ? rows : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+async function loadFocusNotes() {
+    if (!editor.id || (editor.mode !== 'focus' && editor.mode !== 'new-focus')) {
+        pendingFocusNotes = [];
+        storageNotes = [];
+        paintFocusNotes();
+        return;
+    }
+    try {
+        const rows = (await callEel('list_notes')) || [];
+        pendingFocusNotes = rows.filter((row) => row.focus_id === editor.id);
+        storageNotes = rows.filter((row) => !row.focus_id);
+        paintFocusNotes();
+    } catch (_) {
+        paintFocusNotes();
+    }
+}
+
+function paintFocusNotes() {
+    const host = document.getElementById('calFocusNotes');
+    const pick = document.getElementById('calFocusNotePick');
+    if (host) {
+        if (!editor.id) {
+            host.innerHTML = '<p class="checklist-empty">Save the span first, then pin a note.</p>';
+        } else if (!pendingFocusNotes.length) {
+            host.innerHTML = '<p class="checklist-empty">No notes on this span.</p>';
+        } else {
+            host.innerHTML = pendingFocusNotes
+                .map((row) => `
+                    <div class="cal-focus-note" data-id="${utils.escapeHtml(row.id || '')}">
+                        <strong>${utils.escapeHtml(row.title || 'Note')}</strong>
+                        <p>${utils.escapeHtml(row.body || '')}</p>
+                        <button type="button" class="btn-ghost" data-act="detach-note">Back to storage</button>
+                    </div>`)
+                .join('');
+            host.querySelectorAll('[data-act="detach-note"]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const id = btn.closest('[data-id]')?.getAttribute('data-id');
+                    void detachFocusNote(id);
+                });
+            });
+        }
+    }
+    if (pick) {
+        const options = ['<option value="">Attach from storage…</option>'].concat(
+            storageNotes.map((row) => `<option value="${utils.escapeHtml(row.id || '')}">${utils.escapeHtml(row.title || 'Note')}</option>`),
+        );
+        pick.innerHTML = options.join('');
+    }
+}
+
+async function detachFocusNote(noteId) {
+    if (!noteId) return;
+    try {
+        await callEel('detach_note', noteId);
+        utils.notifyDataChanged('notes');
+        await loadFocusNotes();
+        await loadCalendar();
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not move that into storage.');
+    }
+}
+
+async function attachFocusNote(noteId) {
+    if (!noteId || !editor.id) return;
+    try {
+        await callEel('attach_note', noteId, editor.id);
+        utils.notifyDataChanged('notes');
+        await loadFocusNotes();
+        await loadCalendar();
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not pin that note.');
+    }
+}
+
+async function addFocusNote() {
+    if (!editor.id) {
+        utils.showErrorFeedback('Save the span first, then pin a note.');
+        return;
+    }
+    const bodyEl = document.getElementById('calFocusNoteBody');
+    const body = (bodyEl?.value || '').trim();
+    if (!body) return;
+    try {
+        await callEel('save_note', '', body, '', editor.id);
+        if (bodyEl) bodyEl.value = '';
+        utils.notifyDataChanged('notes');
+        await loadFocusNotes();
+        await loadCalendar();
+    } catch (err) {
+        utils.showErrorFeedback(err?.message || 'Could not save that note.');
+    }
 }
 
 function parseFocusItems(btn) {
@@ -1045,6 +1163,7 @@ async function addFocusTodo() {
 function openEditorFromBlock(btn) {
     const kind = btn.getAttribute('data-kind') || 'work';
     pendingFocusItems = kind === 'focus' ? parseFocusItems(btn) : [];
+    pendingFocusNotes = kind === 'focus' ? parseFocusNotes(btn) : [];
     editor = {
         mode: kind,
         kind,
@@ -2131,6 +2250,14 @@ export function setupCalendar() {
         const id = e.target.value;
         e.target.value = '';
         if (id) void attachFocusExisting(id);
+    });
+    document.getElementById('calFocusNotePick')?.addEventListener('change', (e) => {
+        const id = e.target.value;
+        e.target.value = '';
+        if (id) void attachFocusNote(id);
+    });
+    document.getElementById('calFocusNoteAdd')?.addEventListener('click', () => {
+        void addFocusNote();
     });
     document.getElementById('calEventStart')?.addEventListener('input', () => {
         if (editor.mode === 'focus' || editor.mode === 'new-focus') paintFocusAttach();

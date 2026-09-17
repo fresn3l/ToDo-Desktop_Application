@@ -2146,12 +2146,23 @@ def _focus_stats(block: Dict[str, Any], items: List[Dict[str, Any]]) -> Dict[str
 def _enrich_focus_blocks(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     ids = [str(row.get("id") or "") for row in blocks if str(row.get("kind") or "") == "focus"]
     attached = _focus_item_rows(ids)
-    return [
-        _focus_stats(row, attached.get(str(row.get("id") or ""), []))
-        if str(row.get("kind") or "") == "focus"
-        else row
-        for row in blocks
-    ]
+    note_map: Dict[str, List[Dict[str, Any]]] = {}
+    if ids:
+        try:
+            import notes as note_store
+
+            note_map = note_store.notes_by_focus_ids(ids)
+        except Exception:
+            note_map = {}
+    out = []
+    for row in blocks:
+        if str(row.get("kind") or "") != "focus":
+            out.append(row)
+            continue
+        packed = _focus_stats(row, attached.get(str(row.get("id") or ""), []))
+        packed["notes"] = note_map.get(str(row.get("id") or ""), [])
+        out.append(packed)
+    return out
 
 
 def list_blocks(start: date, end: date) -> List[Dict[str, Any]]:
@@ -2407,6 +2418,17 @@ def _slim_clock_item(item: Dict[str, Any]) -> Dict[str, Any]:
         out["items"] = item.get("items") or []
         out["planned_minutes"] = int(item.get("planned_minutes") or 0)
         out["overflow_minutes"] = int(item.get("overflow_minutes") or 0)
+        out["notes"] = [
+            {
+                "id": note.get("id"),
+                "title": note.get("title") or "",
+                "body": note.get("body") or "",
+                "focus_id": note.get("focus_id"),
+                "updated_at": note.get("updated_at"),
+            }
+            for note in (item.get("notes") or [])
+            if note.get("id")
+        ]
     rec = item.get("recurrence")
     if isinstance(rec, dict) and rec.get("weekdays"):
         out["recurrence"] = {"weekdays": rec.get("weekdays")}
@@ -2964,6 +2986,12 @@ def delete_schedule_block(block_id: str, force: bool = False) -> Dict[str, Any]:
         conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
         conn.execute("DELETE FROM schedule_blocks WHERE id = ?", (block_id,))
         conn.commit()
+    try:
+        import notes as note_store
+
+        note_store.release_focus(block_id)
+    except Exception:
+        pass
     return {"ok": True, "id": block_id}
 
 

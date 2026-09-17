@@ -19,6 +19,7 @@ import eel
 
 import appearance
 import journal
+import notes
 import work
 import workouts
 from paths import data_directory
@@ -28,6 +29,7 @@ SETTINGS_NAME = "icloud_sync.json"
 MAX_PACK_FILE_BYTES = 8 * 1024 * 1024
 MAX_WORK_ITEMS = 20_000
 MAX_JOURNAL_ENTRIES = 20_000
+MAX_NOTES = 8_000
 MAX_TITLE_CHARS = 500
 MAX_FUTURE_SKEW = timedelta(hours=24)
 
@@ -482,6 +484,27 @@ def _apply_journal(entries: List[Any]) -> Dict[str, int]:
     return {"journal": applied}
 
 
+def _apply_notes(entries: List[Any]) -> Dict[str, int]:
+    existing = {row.get("id"): row for row in notes.dump_notes()}
+    applied = 0
+    for entry in list(entries or [])[:MAX_NOTES]:
+        if not isinstance(entry, dict):
+            continue
+        note_id = entry.get("id")
+        if note_id and note_id in existing:
+            if not _newer(
+                entry.get("updated_at") or entry.get("created_at"),
+                existing[note_id].get("updated_at") or existing[note_id].get("created_at"),
+            ):
+                continue
+            if notes.import_note(entry, overwrite=True):
+                applied += 1
+            continue
+        if notes.import_note(entry):
+            applied += 1
+    return {"notes": applied}
+
+
 def _dump_calendar() -> Dict[str, Any]:
     import calclock
 
@@ -666,6 +689,7 @@ def build_pack() -> Dict[str, Any]:
         "work": _dump_work(),
         "workouts": _dump_workouts(),
         "journal": journal.get_all_entries(),
+        "notes": notes.dump_notes(),
         "calendar": _dump_calendar(),
         "appearance": {
             **appearance.get_appearance_settings(),
@@ -682,6 +706,7 @@ def write_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
     _write_json(dest / "work.json", pack["work"])
     _write_json(dest / "workouts.json", pack["workouts"])
     _write_json(dest / "journal.json", pack["journal"])
+    _write_json(dest / "notes.json", pack["notes"])
     _write_json(dest / "calendar.json", pack["calendar"])
     _write_json(dest / "appearance.json", pack["appearance"])
     if not _settings_path().exists():
@@ -696,6 +721,7 @@ def read_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
         "work": _read_json(src / "work.json", {"items": [], "series": [], "exceptions": []}),
         "workouts": _read_json(src / "workouts.json", {"days": [], "sessions": [], "template": {}}),
         "journal": _read_json(src / "journal.json", []),
+        "notes": _read_json(src / "notes.json", []),
         "calendar": _read_json(src / "calendar.json", {"days": [], "unplaced": []}),
         "appearance": _read_json(src / "appearance.json", {}),
         "folder": str(src),
@@ -712,6 +738,8 @@ def apply_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
         counts.update(_apply_workouts(pack.get("workouts") or {}))
         journal_list = pack.get("journal")
         counts.update(_apply_journal(journal_list if isinstance(journal_list, list) else []))
+        notes_list = pack.get("notes")
+        counts.update(_apply_notes(notes_list if isinstance(notes_list, list) else []))
         counts.update(_apply_calendar(pack.get("calendar") or {}))
         incoming_appearance = pack.get("appearance")
         if isinstance(incoming_appearance, dict) and incoming_appearance:

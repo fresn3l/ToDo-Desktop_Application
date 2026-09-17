@@ -764,6 +764,7 @@ html.native-shell[data-page='home'] .app-content {
    sitting in the centred column Home uses. Four copies of this said the same
    thing with one stray declaration each. */
 html[data-page='journal'] .app-content,
+html[data-page='notes'] .app-content,
 html[data-page='calendar'] .app-content,
 html[data-page='analytics'] .app-content,
 html[data-page='brain'] .app-content,
@@ -775,6 +776,7 @@ html[data-page='settings'] .app-content {
 }
 
 html[data-page='journal'] .tab-content.active,
+html[data-page='notes'] .tab-content.active,
 html[data-page='calendar'] .tab-content.active,
 html[data-page='analytics'] .tab-content.active,
 html[data-page='brain'] .tab-content.active,
@@ -807,6 +809,11 @@ html[data-page='journal'] .journal-layout {
     flex: 1;
     min-height: 0;
     align-items: stretch;
+}
+
+html[data-page='notes'] .notes-layout {
+    flex: 1;
+    min-height: 0;
 }
 
 html[data-page='analytics'] #analyticsTab.widget-source {
@@ -1175,6 +1182,85 @@ input[type='radio'] {
     grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
     gap: var(--space-lg);
     align-items: stretch;
+}
+
+.notes-layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    gap: var(--space-lg);
+    align-items: stretch;
+    min-height: 0;
+}
+
+.notes-list-pane,
+.notes-editor-pane {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    min-height: 0;
+}
+
+.notes-list {
+    overflow: auto;
+    min-height: 0;
+}
+
+.notes-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.notes-row span {
+    font-size: 0.85em;
+    color: var(--text-muted);
+}
+
+.notes-row.is-selected {
+    background: color-mix(in srgb, var(--accent) 16%, var(--bg-panel));
+}
+
+.notes-body {
+    flex: 1;
+    min-height: 180px;
+    resize: vertical;
+    font: inherit;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+    color: inherit;
+}
+
+.cal-focus-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.cal-focus-note {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+}
+
+.cal-focus-note p {
+    margin: 0;
+    white-space: pre-wrap;
 }
 
 .journal-paper {

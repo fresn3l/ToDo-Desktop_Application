@@ -38,7 +38,7 @@ struct RootView: View {
                     TodayScreen().tag(AppTab.today).tabItem { Label(AppTab.today.title, systemImage: AppTab.today.icon) }
                     CalendarScreen().tag(AppTab.calendar).tabItem { Label(AppTab.calendar.title, systemImage: AppTab.calendar.icon) }
                     TodoScreen().tag(AppTab.work).tabItem { Label(AppTab.work.title, systemImage: AppTab.work.icon) }
-                    JournalScreen().tag(AppTab.journal).tabItem { Label(AppTab.journal.title, systemImage: AppTab.journal.icon) }
+                    NotesScreen().tag(AppTab.notes).tabItem { Label(AppTab.notes.title, systemImage: AppTab.notes.icon) }
                 }
             }
         }
@@ -68,13 +68,13 @@ struct RootView: View {
         case .today: TodayScreen()
         case .calendar: CalendarScreen()
         case .work: TodoScreen()
-        case .journal: JournalScreen()
+        case .notes: NotesScreen()
         }
     }
 }
 
 enum AppTab: String, Hashable, CaseIterable, Identifiable {
-    case today, calendar, work, journal
+    case today, calendar, work, notes
 
     var id: String { rawValue }
 
@@ -83,7 +83,7 @@ enum AppTab: String, Hashable, CaseIterable, Identifiable {
         case .today: return "Today"
         case .calendar: return "Calendar"
         case .work: return "To Do"
-        case .journal: return "Journal"
+        case .notes: return "Notes"
         }
     }
 
@@ -92,7 +92,7 @@ enum AppTab: String, Hashable, CaseIterable, Identifiable {
         case .today: return "sun.max"
         case .calendar: return "calendar"
         case .work: return "checklist"
-        case .journal: return "book"
+        case .notes: return "note.text"
         }
     }
 }

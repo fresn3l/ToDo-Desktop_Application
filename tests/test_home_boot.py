@@ -162,6 +162,7 @@ print("ok")
         self.assertIn('"cluny_brain"', build)
         self.assertIn('"brain"', build)
         self.assertIn('"library"', build)
+        self.assertIn('"notes"', build)
 
     def test_invoke_exposed_runs_today_and_week(self) -> None:
         import lazy_eel

@@ -55,6 +55,51 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertEqual(item["id"], work.list_all_work_items()[0]["id"])
         self.assertTrue((self.pack / "calendar.json").is_file())
 
+    def test_notes_round_trip_and_newer_wins(self):
+        import notes as note_store
+
+        self._use(self.src)
+        saved = note_store.save_note("Agenda", "- budget")
+        exported = icloud_sync.write_pack(self.pack)
+        self.assertTrue(exported["ok"])
+        self.assertTrue((self.pack / "notes.json").is_file())
+
+        self._use(self.dst)
+        pulled = icloud_sync.apply_pack(self.pack)
+        self.assertTrue(pulled["ok"])
+        titles = [row["title"] for row in note_store.list_notes()]
+        self.assertIn("Agenda", titles)
+
+        pack = icloud_sync.read_pack(self.pack)
+        row = next(entry for entry in pack["notes"] if entry["id"] == saved["id"])
+        row["body"] = "- budget\n- hiring"
+        row["updated_at"] = (datetime.now() + timedelta(minutes=2)).isoformat(timespec="seconds")
+        icloud_sync._write_json(self.pack / "notes.json", pack["notes"])
+        icloud_sync.apply_pack(self.pack)
+        bodies = [entry.get("body") for entry in note_store.list_notes()]
+        self.assertIn("- budget\n- hiring", bodies)
+
+    def test_calendar_pack_omits_note_bodies(self):
+        import calclock
+        import notes as note_store
+
+        self._use(self.src)
+        today = work._today().isoformat()
+        focus = calclock.create_focus_block(
+            "Deep work",
+            f"{today}T14:00:00",
+            f"{today}T16:00:00",
+            [],
+        )
+        note_store.save_note("Agenda", "- one", "", focus["id"])
+        icloud_sync.write_pack(self.pack)
+        calendar = icloud_sync._read_json(self.pack / "calendar.json", {})
+        for day in calendar.get("days") or []:
+            for block in day.get("blocks") or []:
+                self.assertNotIn("notes", block)
+        packed = icloud_sync._read_json(self.pack / "notes.json", [])
+        self.assertTrue(any(row.get("body") == "- one" for row in packed))
+
     def test_calendar_pack_includes_awake_window(self):
         import calclock
 

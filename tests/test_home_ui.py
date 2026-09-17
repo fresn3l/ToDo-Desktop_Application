@@ -62,6 +62,7 @@ class HomeUiTests(unittest.TestCase):
     def test_sidebar_is_home_journal_and_calendar(self) -> None:
         self.assertIn('data-tab="home"', INDEX)
         self.assertIn('data-tab="journal"', INDEX)
+        self.assertIn('data-tab="notes"', INDEX)
         self.assertIn('data-tab="calendar"', INDEX)
         self.assertIn('data-tab="analytics"', INDEX)
         self.assertIn('data-tab="settings"', INDEX)
@@ -71,6 +72,8 @@ class HomeUiTests(unittest.TestCase):
         nav = INDEX.split('aria-label="Sections"', 1)[1].split("</nav>", 1)[0]
         self.assertLess(nav.find('data-tab="calendar"'), nav.find('data-tab="home"'))
         self.assertLess(nav.find('data-tab="home"'), nav.find('data-tab="journal"'))
+        self.assertLess(nav.find('data-tab="journal"'), nav.find('data-tab="notes"'))
+        self.assertLess(nav.find('data-tab="notes"'), nav.find('data-tab="analytics"'))
 
     def test_old_pages_are_widget_sources(self) -> None:
         for source_id in (
@@ -97,6 +100,8 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn('id="checklistWizard"', INDEX)
         self.assertIn('id="journalTab"', INDEX)
         self.assertIn('id="journalTab" class="tab-content"', INDEX)
+        self.assertIn('id="notesTab"', INDEX)
+        self.assertIn('id="notesTab" class="tab-content"', INDEX)
         self.assertIn('id="analyticsTab" class="tab-content widget-source"', INDEX)
         self.assertIn('data-value="28"', INDEX)
         self.assertIn("4 weeks", INDEX)
@@ -140,6 +145,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("canonicalTab", TABS)
         self.assertIn("today: 'homeTab'", TABS)
         self.assertIn("journal: 'journalTab'", TABS)
+        self.assertIn("notes: 'notesTab'", TABS)
         self.assertIn("1: 'calendar'", TABS)
         self.assertIn("2: 'home'", TABS)
         self.assertIn("3: 'journal'", TABS)
@@ -578,7 +584,7 @@ class HomeUiTests(unittest.TestCase):
         heads = re.findall(r'<section id="(\w+)Tab" class="tab-content', INDEX)
         self.assertEqual(
             heads,
-            ["home", "calendar", "journal", "analytics", "brain", "library", "settings"],
+            ["home", "calendar", "journal", "notes", "analytics", "brain", "library", "settings"],
         )
         for tab in heads:
             body = INDEX.split(f'<section id="{tab}Tab" class="tab-content')[1].split("</section>")[0]
@@ -596,7 +602,7 @@ class HomeUiTests(unittest.TestCase):
 
     def test_tabs_that_fill_the_window_share_one_rule(self) -> None:
         fill = STYLE.split("html[data-page='journal'] .tab-content.active,")[1].split("}")[0]
-        for tab in ("calendar", "analytics", "brain", "library", "settings"):
+        for tab in ("notes", "calendar", "analytics", "brain", "library", "settings"):
             self.assertIn(f"html[data-page='{tab}'] .tab-content.active", fill)
         self.assertIn("flex-direction: column", fill)
         # Brain and Library filled the window by subtracting a topbar height.
@@ -767,6 +773,7 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("home-checkin-band", STYLE)
         self.assertIn("is-empty-drop", STYLE)
         self.assertIn("html[data-page='journal'] .tab-content.active", STYLE)
+        self.assertIn("html[data-page='notes'] .tab-content.active", STYLE)
         self.assertIn('class="journal-compose journal-paper"', INDEX)
         self.assertNotIn("panel journal-compose", INDEX)
         self.assertNotIn("journal-compose journal-paper panel", INDEX)
@@ -1095,3 +1102,9 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("callEel('get_recent_entries'", journal)
         self.assertIn("void mod?.loadPastEntries?.()", TABS)
         self.assertNotIn("await mod?.loadPastEntries?.()", TABS)
+        notes = (ROOT / "web" / "js" / "notes.js").read_text(encoding="utf-8")
+        self.assertIn("callEel('list_notes'", notes)
+        self.assertIn("callEel('attach_note'", CAL_JS)
+        self.assertIn("void mod?.loadNotes?.()", TABS)
+        self.assertIn('"web/js/notes.js"', (ROOT / "setup.py").read_text(encoding="utf-8"))
+        self.assertIn('"notes"', (ROOT / "build_app.py").read_text(encoding="utf-8"))
