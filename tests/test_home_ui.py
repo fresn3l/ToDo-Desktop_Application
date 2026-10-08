@@ -1108,3 +1108,27 @@ class HomeUiTests(unittest.TestCase):
         self.assertIn("void mod?.loadNotes?.()", TABS)
         self.assertIn('"web/js/notes.js"', (ROOT / "setup.py").read_text(encoding="utf-8"))
         self.assertIn('"notes"', (ROOT / "build_app.py").read_text(encoding="utf-8"))
+
+    def test_home_first_page_is_execute_not_a_widget_board(self) -> None:
+        execute_js = (ROOT / "web" / "js" / "execute.js").read_text(encoding="utf-8")
+        board = INDEX.split('id="executeBoard"')[1].split('id="homeGridAbove"')[0]
+        for needle in ("executePhase", "executeThing", "executeBout", "executeAim", "executeHabits", "executeCloseBlock"):
+            self.assertIn(f'id="{needle}"', board)
+        self.assertLess(INDEX.find('id="executeBoard"'), INDEX.find('id="homeCheckinBand"'))
+        self.assertIn('id="homeEditBtn" class="btn-ghost" hidden', INDEX)
+        self.assertIn("from './execute.js'", HOME_RUNTIME)
+        self.assertIn("setupExecute()", HOME_RUNTIME)
+        self.assertIn("paintExecute(boot.execute)", HOME_RUNTIME)
+        self.assertIn("pinFirstPage()", HOME_RUNTIME)
+        grid = HOME_RUNTIME.split("function paintGrid")[1].split("\n}")[0]
+        self.assertIn("if (firstPageActive())", grid)
+        sidebar = HOME_RUNTIME.split("function paintSidebar")[1].split("\n}")[0]
+        self.assertNotIn("layout.pages\n        .map", sidebar)
+        self.assertIn("checkinForceOpen == null ? false", HOME_RUNTIME)
+        for name in ("start_execute_bout", "set_execute_outcome", "close_execute_day", "save_execute_aim", "add_execute_habit"):
+            self.assertIn(f"'{name}'", execute_js)
+        self.assertIn("endsAt", execute_js)
+        self.assertNotIn("window.prompt", execute_js)
+        self.assertIn(".execute-board", STYLE)
+        self.assertIn('"web/js/execute.js"', (ROOT / "setup.py").read_text(encoding="utf-8"))
+        self.assertIn('"execute"', (ROOT / "build_app.py").read_text(encoding="utf-8"))
