@@ -22,6 +22,7 @@ DATA_FILES = [
             "web/js/settings.js",
             "web/js/today.js",
             "web/js/home.js",
+            "web/js/execute.js",
             "web/js/home_layout.js",
             "web/js/weather.js",
             "web/js/glance.js",
@@ -64,7 +65,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["daily_checklist", "journal", "notes", "brain", "library", "cluny_brain", "cluny_ask", "cluny_snapshot", "cluny_client", "cluny_sync", "cluny_voice", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts", "goals", "home_layout", "weather", "glance", "day_brief", "reading", "tap_counters", "word_of_the_day", "db"],
+    "includes": ["daily_checklist", "journal", "notes", "execute", "brain", "library", "cluny_brain", "cluny_ask", "cluny_snapshot", "cluny_client", "cluny_sync", "cluny_voice", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts", "goals", "home_layout", "weather", "glance", "day_brief", "reading", "tap_counters", "word_of_the_day", "db"],
 }
 
 setup(
