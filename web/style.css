@@ -2940,6 +2940,192 @@ input[type='range'] {
     display: none;
 }
 
+/* ---------- Execute (Home first page) ---------- */
+
+.execute-board {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-areas:
+        "phase phase"
+        "main aim"
+        "main habits"
+        "close close";
+    gap: var(--space-md);
+    align-items: start;
+}
+
+.execute-board[hidden] {
+    display: none;
+}
+
+.execute-phase {
+    grid-area: phase;
+    margin: 0;
+    font-size: var(--fs-micro);
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--letter-wide);
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.execute-board[data-phase="hard"] .execute-phase {
+    color: var(--primary);
+}
+
+.execute-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    padding: 16px;
+    border: var(--home-widget-border-width, 1px) solid var(--home-widget-border-color, var(--border-subtle));
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+}
+
+.execute-block h2 {
+    margin: 0;
+    font-size: var(--fs-heading);
+    font-weight: var(--fw-semibold);
+    color: var(--text-title);
+}
+
+.execute-main { grid-area: main; }
+.execute-aim { grid-area: aim; }
+.execute-habits { grid-area: habits; }
+.execute-close { grid-area: close; }
+
+.execute-close.is-hidden {
+    display: none;
+}
+
+.execute-thing {
+    margin: 0;
+    font-size: var(--fs-title);
+    font-weight: var(--fw-semibold);
+    letter-spacing: var(--letter-tight);
+    color: var(--text-title);
+    overflow-wrap: anywhere;
+}
+
+.execute-aim-title {
+    margin: 0;
+    font-size: var(--fs-lead);
+    font-weight: var(--fw-semibold);
+    color: var(--text-title);
+    overflow-wrap: anywhere;
+}
+
+.execute-meta {
+    margin: 0;
+    font-size: var(--fs-body);
+    color: var(--text-secondary);
+}
+
+.execute-meta:empty {
+    display: none;
+}
+
+.execute-timer {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--fs-title);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-title);
+}
+
+.execute-bout,
+.execute-fields,
+.execute-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.execute-form--row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.execute-form--row .checklist-text-input {
+    flex: 1 1 12rem;
+    width: auto;
+}
+
+.execute-form--row select.checklist-text-input {
+    flex: 0 0 auto;
+}
+
+.execute-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.execute-suck {
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.execute-board .btn-ghost.is-selected {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.execute-habit-list,
+.execute-leftovers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.execute-habit,
+.execute-leftovers li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.execute-habit .checklist-checkbox-label {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.execute-leftovers li > span:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.execute-habit.is-off-phase .checklist-checkbox-label {
+    opacity: 0.55;
+}
+
+.execute-bucket,
+.execute-remove {
+    min-height: 1.6rem;
+    padding: 2px 8px;
+    font-size: var(--fs-caption);
+}
+
+@media (max-width: 860px) {
+    .execute-board {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "phase"
+            "main"
+            "aim"
+            "habits"
+            "close";
+    }
+}
+
 .home-grid.is-empty-drop {
     min-height: calc(var(--home-row) * 4 + var(--home-gap) * 3);
     border: 1px dashed var(--border-subtle);

@@ -74,7 +74,7 @@
                                 <h1 id="homePageTitle" class="page-title">Home</h1>
                             </div>
                             <div class="page-head-actions">
-                                <button type="button" id="homeEditBtn" class="btn-ghost">Edit</button>
+                                <button type="button" id="homeEditBtn" class="btn-ghost" hidden>Edit</button>
                             </div>
                         </header>
                         <div id="homeEditBar" class="home-edit-bar is-hidden">
@@ -88,6 +88,28 @@
                             </div>
                         </div>
                         <div id="homeBoard" class="home-board">
+                            <div id="executeBoard" class="execute-board">
+                                <p id="executePhase" class="execute-phase">Hard window</p>
+                                <section class="execute-block execute-main" aria-label="Execute">
+                                    <h2>Execute</h2>
+                                    <p id="executeThing" class="execute-thing">Name the hard thing</p>
+                                    <p id="executeThingMeta" class="execute-meta"></p>
+                                    <div id="executeBout" class="execute-bout"></div>
+                                </section>
+                                <section class="execute-block execute-aim" aria-label="Aim">
+                                    <h2>Aim</h2>
+                                    <div id="executeAim"></div>
+                                </section>
+                                <section class="execute-block execute-habits" aria-label="Habits">
+                                    <h2>Habits</h2>
+                                    <p id="executeHabitsMeta" class="execute-meta"></p>
+                                    <div id="executeHabits"></div>
+                                </section>
+                                <section id="executeCloseBlock" class="execute-block execute-close is-hidden" aria-label="Close">
+                                    <h2>Close</h2>
+                                    <div id="executeClose"></div>
+                                </section>
+                            </div>
                             <div id="homeGridAbove" class="home-grid home-grid--above is-absent" aria-label="Widgets above check-in"></div>
                             <section id="homeCheckinBand" class="home-checkin-band" hidden>
                                 <header class="home-checkin-bar">

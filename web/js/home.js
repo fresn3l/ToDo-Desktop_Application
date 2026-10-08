@@ -1,5 +1,6 @@
 /**
- * Customizable Home — snap-to-grid widgets, extra pages, Edit Home mode.
+ * Home is Execute, Aim, Close. Extra widget pages stay in the layout file
+ * but are no longer listed or editable from Home.
  */
 
 import * as utils from './utils.js';
@@ -7,6 +8,7 @@ import { WIDGET_CATALOG, GRID_COLUMNS, catalogEntries, canPlace, snapCell, pickR
 import { mountGlance, refreshGlances, runGlanceAction, runGlanceCapture, syncHomeDayPart } from './glance_tiles.js';
 import { getAppearance, onAppearanceChange, applyAppearance, applyAppearanceOverlay, notifyNativeTab } from './appearance.js';
 import { bootFeature, callEel, loadOnce } from './lazy.js';
+import { setupExecute, paintExecute, loadExecute } from './execute.js';
 
 const FALLBACK_LAYOUT = {
     columns: 8,
@@ -46,6 +48,24 @@ function activePage() {
 
 function firstPageActive() {
     return isFirstHomePage(layout, activePage());
+}
+
+function pinFirstPage() {
+    const first = layout?.pages?.[0];
+    if (first) layout.active_page_id = first.id;
+}
+
+function executeOnScreen() {
+    const board = document.getElementById('executeBoard');
+    return Boolean(board && !board.hidden && firstPageActive());
+}
+
+function applyExecuteMode() {
+    const first = firstPageActive();
+    const board = document.getElementById('executeBoard');
+    if (board) board.hidden = !first;
+    const editBtn = document.getElementById('homeEditBtn');
+    if (editBtn) editBtn.hidden = first;
 }
 
 function homeWidgetCards() {
@@ -445,8 +465,6 @@ function pageKeys(page) {
 }
 
 const HOME_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>';
-const PAGE_NAV_ICON = '<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="4.5" width="14" height="15" rx="1.5"/><path d="M8 9h8M8 12.5h8M8 16h5"/></svg>';
-
 // The sidebar is where you switch pages. There used to be a second row of
 // page chips above the board as well, styled out of sight for long enough
 // that nobody noticed it was still being built on every repaint.
@@ -473,13 +491,12 @@ function paintSidebar() {
     const el = document.getElementById('homeNavPages');
     if (!el || !layout) return;
     const onHome = document.documentElement.getAttribute('data-page') === 'home';
-    el.innerHTML = layout.pages
-        .map((page, index) => {
-            const selected = onHome && page.id === layout.active_page_id;
-            const icon = index === 0 ? HOME_NAV_ICON : PAGE_NAV_ICON;
-            return `<button type="button" class="nav-item${selected ? ' active' : ''}" data-tab="home" data-home-page="${utils.escapeHtml(page.id)}" aria-current="${selected ? 'page' : 'false'}">${icon}<span class="nav-label">${utils.escapeHtml(page.name)}</span></button>`;
-        })
-        .join('');
+    const page = layout.pages[0];
+    if (!page) {
+        el.innerHTML = '';
+        return;
+    }
+    el.innerHTML = `<button type="button" class="nav-item${onHome ? ' active' : ''}" data-tab="home" data-home-page="${utils.escapeHtml(page.id)}" aria-current="${onHome ? 'page' : 'false'}">${HOME_NAV_ICON}<span class="nav-label">Home</span></button>`;
 }
 
 function syncPageColors() {
@@ -541,6 +558,19 @@ function paintGrid() {
     const band = document.getElementById('homeCheckinBand');
     if (!below || !layout) return;
     returnSources();
+    applyExecuteMode();
+    if (firstPageActive()) {
+        if (above) {
+            above.innerHTML = '';
+            above.classList.add('is-absent');
+            above.classList.remove('is-empty-drop');
+        }
+        below.innerHTML = '';
+        below.classList.add('is-absent');
+        if (band) band.hidden = false;
+        return;
+    }
+    below.classList.remove('is-absent');
     const page = activePage();
     const first = firstPageActive();
     const live = !editing;
@@ -618,7 +648,8 @@ async function syncCheckin(prefetched) {
     const done = slot === 'evening' ? !!info.evening_done : !!info.morning_done;
     if (done && !lastViewedDone) checkinForceOpen = null;
     lastViewedDone = done;
-    const open = checkinForceOpen == null ? !done : checkinForceOpen;
+    // Execute leads Home. The check-in waits folded until it is asked for.
+    const open = checkinForceOpen == null ? false : checkinForceOpen;
     band.classList.toggle('is-open', open);
     paintCheckinChrome(info, slot, done, open);
     if (!open) {
@@ -641,7 +672,7 @@ async function syncCheckin(prefetched) {
 }
 
 function setEditing(on) {
-    const next = !!on;
+    const next = !!on && !firstPageActive();
     if (next) closeHomeWork(true);
     editing = next;
     document.getElementById('homeShell')?.classList.toggle('is-editing', editing);
@@ -669,33 +700,31 @@ function setEditing(on) {
     });
 }
 
-async function renderHome(pageId, opts = {}) {
+async function renderHome(opts = {}) {
     if (!layout?.pages?.length) {
         await loadLayout();
     }
-    if (pageId && (layout.pages || []).some((page) => page.id === pageId)) {
-        layout.active_page_id = pageId;
-    }
+    pinFirstPage();
     const page = activePage();
-    const keepGrid = !opts.force && paintedPageId && paintedPageId === page?.id
-        && document.querySelector('#homeGrid .home-widget, #homeGridAbove .home-widget');
+    const pageId = page?.id || '';
+    const keepGrid = !opts.force && paintedPageId && paintedPageId === pageId && executeOnScreen();
     paintPages();
     if (!keepGrid) {
         paintGrid();
-        paintedPageId = page?.id || '';
+        paintedPageId = pageId;
     }
-    paintCatalog();
     syncHomeDayPart();
     const peek = await peekHomeBoot(pageId);
     if (peek?.ok) await applyBootPaint(peek);
     const boot = await fetchHomeBoot(pageId, '1');
     await applyBootPaint(boot);
-    void fetchHomeWave2(pageId);
+    if (!boot?.execute) void loadExecute();
 }
 
 async function applyBootPaint(boot) {
     if (boot?.layout?.pages?.length) {
         layout = boot.layout;
+        pinFirstPage();
         paintPages();
         const next = activePage();
         if (next?.id && next.id !== paintedPageId) {
@@ -703,6 +732,7 @@ async function applyBootPaint(boot) {
             paintedPageId = next.id;
         }
     }
+    if (boot?.execute) paintExecute(boot.execute);
     const glances = boot?.glances || {};
     await refreshKeys(Object.keys(glances), glances);
     if (boot?.checkin) void syncCheckin(boot.checkin);
@@ -720,6 +750,15 @@ let homeRefreshTimer = 0;
 
 async function refreshHomeData(scope = 'all') {
     const wanted = scope || 'all';
+    if (firstPageActive() && wanted !== 'all' && wanted !== 'checkin') {
+        // Execute repaints from its own answer; anything else can move the
+        // priority list, the leftovers, or the habits.
+        if (wanted === 'execute') return;
+        lastBootAt = Date.now();
+        bootStale = false;
+        void loadExecute();
+        return;
+    }
     if (wanted !== 'all') {
         if (wanted === 'checkin') {
             lastBootAt = Date.now();
@@ -741,6 +780,10 @@ async function refreshHomeData(scope = 'all') {
     }
     const boot = await fetchHomeBoot('', '1');
     await applyBootPaint(boot);
+    if (firstPageActive()) {
+        if (!boot?.execute) void loadExecute();
+        return;
+    }
     void fetchHomeWave2();
 }
 
@@ -755,11 +798,11 @@ function scheduleHomeRefresh(scope) {
 async function run(action) {
     try {
         layout = await action();
-        await renderHome(undefined, { force: true });
+        await renderHome({ force: true });
     } catch (err) {
         console.error(err);
         utils.showErrorFeedback(err?.message || 'Could not update Home.');
-        await renderHome(undefined, { force: true });
+        await renderHome({ force: true });
     }
 }
 
@@ -1075,6 +1118,7 @@ function bindHome() {
 
 export function setupHome() {
     bindHome();
+    setupExecute();
     syncHomeDayPart();
     onAppearanceChange(() => {
         if (document.getElementById('homeTab')?.classList.contains('active')) {
@@ -1113,11 +1157,11 @@ export function setupHome() {
     });
 }
 
-export async function onHomeTabShown(pageId) {
+export async function onHomeTabShown() {
     closeHomeWork(true);
+    pinFirstPage();
     setEditing(false);
-    const same = !pageId || pageId === layout?.active_page_id;
-    if (same && paintedPageId && document.querySelector('#homeGrid .home-widget, #homeGridAbove .home-widget')) {
+    if (paintedPageId && executeOnScreen()) {
         paintPages();
         syncPageColors();
         // The board is still on screen and still current. Stepping away to
@@ -1125,7 +1169,7 @@ export async function onHomeTabShown(pageId) {
         if (!bootIsFresh()) void refreshHomeData();
         return;
     }
-    await renderHome(pageId);
+    await renderHome();
 }
 
 export async function ensureHomeWidget(key) {
@@ -1140,6 +1184,6 @@ export async function ensureHomeWidget(key) {
             console.error(err);
         }
     }
-    await renderHome(undefined, { force: true });
+    await renderHome({ force: true });
     await openHomeWork(key);
 }
