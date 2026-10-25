@@ -231,7 +231,13 @@ def _dump_work() -> Dict[str, Any]:
         series = [dict(row) for row in conn.execute("SELECT * FROM work_series")]
         exceptions = [dict(row) for row in conn.execute("SELECT * FROM work_exceptions")]
         goals = [dict(row) for row in conn.execute("SELECT * FROM goals")]
-    return {"items": slim, "series": series, "exceptions": exceptions, "goals": goals}
+    return {
+        "items": slim,
+        "series": series,
+        "exceptions": exceptions,
+        "goals": goals,
+        "deleted": work.list_work_deletions()[:500],
+    }
 
 
 def _dump_workouts() -> Dict[str, Any]:
@@ -326,6 +332,13 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
             if not isinstance(row, dict) or not row.get("id"):
                 continue
             existing = conn.execute("SELECT updated_at FROM work_items WHERE id = ?", (row["id"],)).fetchone()
+            tomb_row = conn.execute(
+                "SELECT deleted_at FROM work_deletions WHERE id = ?",
+                (row["id"],),
+            ).fetchone()
+            tomb = "" if tomb_row is None else str(tomb_row["deleted_at"] or "")
+            if tomb and not _newer(row.get("updated_at"), tomb):
+                continue
             if existing and not _newer(row.get("updated_at"), existing["updated_at"]):
                 continue
             conn.execute(
@@ -376,6 +389,8 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                     row.get("goal_id"),
                 ),
             )
+            if tomb:
+                conn.execute("DELETE FROM work_deletions WHERE id = ?", (row["id"],))
             applied += 1
         for row in list(exceptions or [])[:MAX_WORK_ITEMS]:
             if not isinstance(row, dict) or not row.get("series_id") or not row.get("occurrence_date"):
@@ -397,7 +412,34 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
             )
             applied += 1
         conn.commit()
-    return {"work": applied}
+    deleted = payload.get("deleted") if isinstance(payload, dict) else None
+    removed = _apply_work_deletions(deleted if isinstance(deleted, list) else [])
+    return {"work": applied, "work_deleted": removed}
+
+
+def _apply_work_deletions(rows: List[Any]) -> int:
+    """A tombstone deletes one to-do. A missing item does not."""
+    removed = 0
+    for row in list(rows or [])[:500]:
+        if not isinstance(row, dict):
+            continue
+        item_id = str(row.get("id") or "").strip()
+        stamp = str(row.get("deleted_at") or "").strip()
+        if not item_id or not _plausible_stamp(stamp):
+            continue
+        with work._connect() as conn:
+            existing = conn.execute(
+                "SELECT updated_at FROM work_items WHERE id = ?",
+                (item_id,),
+            ).fetchone()
+            if existing and not _newer(stamp, existing["updated_at"]):
+                continue
+            if existing:
+                conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
+                conn.commit()
+        work.remember_work_deletion(item_id, stamp)
+        removed += 1
+    return removed
 
 
 def _apply_workouts(payload: Dict[str, Any]) -> Dict[str, int]:
@@ -630,31 +672,47 @@ def _dump_calendar() -> Dict[str, Any]:
         "unplaced": unplaced[:40],
         "hard_events": hard_events[:500],
         "marks": list(marks.values())[:500],
+        "deleted": calclock.list_event_deletions()[:500],
     }
 
 
 def _apply_calendar(payload: Dict[str, Any]) -> Dict[str, int]:
-    """Merge iPhone hard events. Packed study blocks in the pack are ignored."""
+    """Merge owned appointments. Packed study blocks in the pack are ignored.
+
+    Source kosistenz is imported so a phone edit can update a Mac meeting.
+    Absence is not a delete; only an explicit tombstone is.
+    """
     import calclock
 
     applied = 0
     rows = payload.get("hard_events") if isinstance(payload, dict) else None
-    if not isinstance(rows, list):
-        return {"calendar": 0}
-    for row in rows[:500]:
-        if not isinstance(row, dict):
-            continue
-        if str(row.get("source") or "").strip().lower() != "iphone":
-            continue
-        incoming = dict(row)
-        incoming["source"] = "iphone"
-        if not _plausible_stamp(incoming.get("updated_at") or incoming.get("created_at")):
-            incoming["updated_at"] = _now()
-        stored = calclock.upsert_phone_event(incoming)
-        if stored:
-            applied += 1
+    if isinstance(rows, list):
+        for row in rows[:500]:
+            if not isinstance(row, dict):
+                continue
+            source = str(row.get("source") or "").strip().lower()
+            if source not in ("iphone", "kosistenz"):
+                continue
+            incoming = dict(row)
+            incoming["source"] = source
+            if not _plausible_stamp(incoming.get("updated_at") or incoming.get("created_at")):
+                incoming["updated_at"] = _now()
+            stored = calclock.upsert_phone_event(incoming)
+            if stored:
+                applied += 1
+    deleted = payload.get("deleted") if isinstance(payload, dict) else None
+    removed = 0
+    if isinstance(deleted, list):
+        for row in deleted[:500]:
+            if not isinstance(row, dict):
+                continue
+            stamp = str(row.get("deleted_at") or "").strip()
+            if not _plausible_stamp(stamp):
+                continue
+            if calclock.apply_event_tombstone(str(row.get("id") or ""), stamp):
+                removed += 1
     marks_applied = _apply_calendar_marks(payload)
-    return {"calendar": applied, "calendar_marks": marks_applied}
+    return {"calendar": applied, "calendar_marks": marks_applied, "calendar_deleted": removed}
 
 
 def _apply_calendar_marks(payload: Dict[str, Any]) -> int:

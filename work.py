@@ -158,6 +158,14 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
         ON work_items(source_calendar, source_uid)
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS work_deletions (
+            id TEXT PRIMARY KEY,
+            deleted_at TEXT NOT NULL
+        )
+        """
+    )
     import goals as _goals
 
     _goals.ensure_schema(conn)
@@ -895,6 +903,7 @@ def create_work_item(
     goal_id: Optional[str] = None,
     source_uid: Optional[str] = None,
     source_calendar: Optional[str] = None,
+    item_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
@@ -902,7 +911,8 @@ def create_work_item(
     target = _parse_date(scheduled_date)
     cadence = _normalize_repeat(repeat)
     now = _now().isoformat()
-    item_id = str(uuid.uuid4())
+    chosen = str(item_id or "").strip()
+    item_id = chosen or str(uuid.uuid4())
     src = (source or "manual").strip() or "manual"
     due = _parse_due_at(due_at)
     estimate = _parse_estimate(estimate_minutes)
@@ -1003,6 +1013,7 @@ def create_work_item(
     _write_widget_snapshot()
     assert row is not None
     packed = _row_to_dict(row)
+    forget_work_deletion(item_id)
     _mirror_task(packed)
     return packed
 
@@ -1595,6 +1606,8 @@ def update_work_item(
 @eel.expose
 def delete_work_item(item_id: str, scope: str = "occurrence") -> Dict[str, Any]:
     scope = (scope or "occurrence").strip().lower()
+    removed: List[str] = []
+    stamp = _now().isoformat()
     with _connect() as conn:
         row = _fetch(conn, item_id)
         if row is None:
@@ -1604,8 +1617,17 @@ def delete_work_item(item_id: str, scope: str = "occurrence") -> Dict[str, Any]:
         if scope == "series" and series_id:
             conn.execute(
                 "UPDATE work_series SET archived = 1, updated_at = ? WHERE id = ?",
-                (_now().isoformat(), series_id),
+                (stamp, series_id),
             )
+            doomed = conn.execute(
+                """
+                SELECT id FROM work_items
+                WHERE series_id = ? AND status != 'done'
+                  AND scheduled_date >= ?
+                """,
+                (series_id, _today().isoformat()),
+            ).fetchall()
+            removed = [str(item["id"]) for item in doomed]
             conn.execute(
                 """
                 DELETE FROM work_items
@@ -1618,6 +1640,9 @@ def delete_work_item(item_id: str, scope: str = "occurrence") -> Dict[str, Any]:
             if series_id and occurrence:
                 _upsert_exception(conn, series_id, occurrence, "skip")
             conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
+            removed = [item_id]
+    for gone in removed:
+        remember_work_deletion(gone, stamp)
     _write_widget_snapshot()
     _mirror_task_delete(item_id)
     return {"ok": True, "id": item_id, "scope": scope}
@@ -1774,6 +1799,51 @@ def apply_evening_plan(answers: Dict[str, Any]) -> Dict[str, Any]:
             except ValueError:
                 continue
     return {"tomorrow": tomorrow, "created": created, "assigned": assigned}
+
+
+def list_work_deletions() -> List[Dict[str, str]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, deleted_at FROM work_deletions ORDER BY deleted_at ASC"
+        ).fetchall()
+    return [{"id": row["id"], "deleted_at": row["deleted_at"]} for row in rows]
+
+
+def work_deleted_at(item_id: str) -> str:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT deleted_at FROM work_deletions WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+    return "" if row is None else str(row["deleted_at"] or "")
+
+
+def remember_work_deletion(item_id: str, deleted_at: str) -> None:
+    key = str(item_id or "").strip()
+    stamp = str(deleted_at or "").strip()
+    if not key or not stamp:
+        return
+    current = work_deleted_at(key)
+    if current and current >= stamp:
+        return
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO work_deletions (id, deleted_at) VALUES (?, ?)
+            ON CONFLICT(id) DO UPDATE SET deleted_at = excluded.deleted_at
+            """,
+            (key, stamp),
+        )
+        conn.commit()
+
+
+def forget_work_deletion(item_id: str) -> None:
+    key = str(item_id or "").strip()
+    if not key:
+        return
+    with _connect() as conn:
+        conn.execute("DELETE FROM work_deletions WHERE id = ?", (key,))
+        conn.commit()
 
 
 def list_all_work_items() -> List[Dict[str, Any]]:

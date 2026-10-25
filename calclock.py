@@ -196,6 +196,14 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sync_deletions (
+            id TEXT PRIMARY KEY,
+            deleted_at TEXT NOT NULL
+        )
+        """
+    )
     _ensure_focus_items_schema(conn)
     global _marks_healed
     if not _marks_healed:
@@ -1387,12 +1395,102 @@ def next_owned_appointment(now: Optional[datetime] = None) -> Optional[Dict[str,
     }
 
 
+def list_event_deletions() -> List[Dict[str, str]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, deleted_at FROM sync_deletions ORDER BY deleted_at ASC"
+        ).fetchall()
+    return [{"id": row["id"], "deleted_at": row["deleted_at"]} for row in rows]
+
+
+def event_deleted_at(event_id: str) -> str:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT deleted_at FROM sync_deletions WHERE id = ?",
+            (event_id,),
+        ).fetchone()
+    return "" if row is None else str(row["deleted_at"] or "")
+
+
+def remember_event_deletion(event_id: str, deleted_at: str) -> None:
+    key = str(event_id or "").strip()
+    stamp = str(deleted_at or "").strip()
+    if not key or not stamp:
+        return
+    current = event_deleted_at(key)
+    if current and current >= stamp:
+        return
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO sync_deletions (id, deleted_at) VALUES (?, ?)
+            ON CONFLICT(id) DO UPDATE SET deleted_at = excluded.deleted_at
+            """,
+            (key, stamp),
+        )
+        conn.commit()
+
+
+def forget_event_deletion(event_id: str) -> None:
+    key = str(event_id or "").strip()
+    if not key:
+        return
+    with _connect() as conn:
+        conn.execute("DELETE FROM sync_deletions WHERE id = ?", (key,))
+        conn.commit()
+
+
+def matching_owned_event(title: str, start_at: str, end_at: str) -> Optional[Dict[str, Any]]:
+    """The owned appointment already stored at this name and span."""
+    clean = (title or "").strip()
+    try:
+        start = parse_datetime(start_at).isoformat(timespec="seconds")
+        end = parse_datetime(end_at).isoformat(timespec="seconds")
+    except (TypeError, ValueError):
+        return None
+    for row in list_owned_hard_events():
+        if row.get("title") == clean and row.get("start_at") == start and row.get("end_at") == end:
+            try:
+                return _load_event(str(row["id"]))
+            except ValueError:
+                return None
+    return None
+
+
+def apply_event_tombstone(event_id: str, deleted_at: str) -> bool:
+    """Drop an owned appointment when the delete is the later write.
+
+    Imported calendars stay. A missing row in the pack is not a delete; only
+    this record is. A later edit of the same id wins.
+    """
+    key = str(event_id or "").strip()
+    stamp = str(deleted_at or "").strip()
+    if not key or not stamp:
+        return False
+    existing = None
+    try:
+        existing = _load_event(key)
+    except ValueError:
+        existing = None
+    if existing is not None:
+        if existing.get("source_calendar") or not _owned_source(existing.get("source")):
+            return False
+        if stamp <= str(existing.get("updated_at") or ""):
+            return False
+        with _connect() as conn:
+            conn.execute("DELETE FROM calendar_events WHERE id = ?", (key,))
+            conn.commit()
+    remember_event_deletion(key, stamp)
+    return True
+
+
 @eel.expose
 def create_calendar_event(
     title: str,
     start_at: str,
     end_at: str,
     weekdays: Any = None,
+    event_id: str = "",
 ) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
@@ -1406,7 +1504,10 @@ def create_calendar_event(
     days = _normalize_weekdays(weekdays)
     recurrence = {"kind": "weekly", "weekdays": days} if days else None
     now = _now().isoformat()
-    event_id = str(uuid.uuid4())
+    chosen = str(event_id or "").strip()
+    if len(chosen) > 80:
+        raise ValueError("Event id is too long")
+    event_id = chosen or str(uuid.uuid4())
     with _connect() as conn:
         conn.execute(
             """
@@ -1428,6 +1529,7 @@ def create_calendar_event(
         row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
     assert row is not None
     packed = _row_event(row)
+    forget_event_deletion(event_id)
     _share_pack()
     return packed
 
@@ -1470,11 +1572,15 @@ def list_owned_hard_events() -> List[Dict[str, Any]]:
 
 
 def upsert_phone_event(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Merge one iPhone-authored hard event. Never touches ICS or packed blocks."""
+    """Merge one owned appointment from the pack. Never touches ICS or packed blocks.
+
+    Source kosistenz is a meeting this Mac created. A later phone edit of that
+    same id updates it. An older stamp does not.
+    """
     if not isinstance(payload, dict):
         return None
     source = str(payload.get("source") or "").strip().lower()
-    if source != "iphone":
+    if source not in ("iphone", "kosistenz"):
         return None
     clean = str(payload.get("title") or "").strip()[:200]
     if not clean:
@@ -1498,10 +1604,12 @@ def upsert_phone_event(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         existing = _load_event(event_id)
     except ValueError:
         existing = None
+    tomb = event_deleted_at(event_id)
+    stamp = incoming_updated or now
+    if tomb and stamp <= tomb:
+        return None
     if existing is not None:
         if not _owned_source(existing.get("source")) or existing.get("source_calendar"):
-            return None
-        if str(existing.get("source") or "").lower() != "iphone":
             return None
         if incoming_updated and existing.get("updated_at") and incoming_updated <= str(existing.get("updated_at")):
             return None
@@ -1509,8 +1617,7 @@ def upsert_phone_event(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             conn.execute(
                 """
                 UPDATE calendar_events
-                SET title = ?, start_at = ?, end_at = ?, recurrence_json = ?,
-                    source = 'iphone', updated_at = ?
+                SET title = ?, start_at = ?, end_at = ?, recurrence_json = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
@@ -1518,20 +1625,22 @@ def upsert_phone_event(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                     start.isoformat(timespec="seconds"),
                     end.isoformat(timespec="seconds"),
                     json.dumps(recurrence) if recurrence else None,
-                    incoming_updated or now,
+                    stamp,
                     event_id,
                 ),
             )
             conn.commit()
             row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
         assert row is not None
+        if tomb and stamp > tomb:
+            forget_event_deletion(event_id)
         return _row_event(row)
     with _connect() as conn:
         conn.execute(
             """
             INSERT INTO calendar_events (
                 id, title, start_at, end_at, all_day, recurrence_json, source, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, 0, ?, 'iphone', ?, ?)
+            ) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)
             """,
             (
                 event_id,
@@ -1539,13 +1648,16 @@ def upsert_phone_event(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                 start.isoformat(timespec="seconds"),
                 end.isoformat(timespec="seconds"),
                 json.dumps(recurrence) if recurrence else None,
+                source,
                 incoming_created or now,
-                incoming_updated or now,
+                stamp,
             ),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
     assert row is not None
+    if tomb and stamp > tomb:
+        forget_event_deletion(event_id)
     return _row_event(row)
 
 
@@ -1583,6 +1695,7 @@ def delete_calendar_event(
         conn.commit()
         if cur.rowcount < 1:
             raise ValueError("Event not found")
+    remember_event_deletion(event_id, _now().isoformat())
     _share_pack()
     return {"ok": True, "id": event_id}
 

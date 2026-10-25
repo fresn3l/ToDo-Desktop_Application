@@ -325,6 +325,81 @@ enum PackActions {
         return pack
     }
 
+    @discardableResult
+    static func updateHardEvent(id: String, title: String, startAt: String, endAt: String) throws -> Pack {
+        let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw PackActionError.message("Name the event") }
+        var pack = try current()
+        guard let index = pack.calendar.hard_events.firstIndex(where: { $0.id == id }) else {
+            throw PackActionError.message("That appointment is gone.")
+        }
+        var event = pack.calendar.hard_events[index]
+        event.title = String(clean.prefix(200))
+        event.start_at = startAt
+        event.end_at = endAt
+        event.updated_at = DayStamp.localStamp()
+        pack.calendar.hard_events[index] = event
+        for dayIndex in pack.calendar.days.indices {
+            pack.calendar.days[dayIndex].events.removeAll { $0.itemId == id }
+        }
+        let weekStart = pack.calendar.week_start ?? pack.calendar.days.first?.date ?? String(startAt.prefix(10))
+        let weekEnd = pack.calendar.week_end ?? pack.calendar.days.last?.date ?? String(startAt.prefix(10))
+        pack.calendar.days = PhoneCalendar.paint(
+            days: pack.calendar.days,
+            event: event,
+            weekStart: weekStart,
+            weekEnd: weekEnd
+        )
+        try SyncPack.saveCalendar(pack.calendar)
+        ping(pack)
+        return pack
+    }
+
+    @discardableResult
+    static func deleteHardEvent(id: String) throws -> Pack {
+        let key = id.split(separator: "@").first.map(String.init) ?? id
+        guard !key.isEmpty else { throw PackActionError.message("That appointment is gone.") }
+        var pack = try current()
+        let now = DayStamp.localStamp()
+        pack.calendar.hard_events.removeAll { $0.id == key }
+        for dayIndex in pack.calendar.days.indices {
+            pack.calendar.days[dayIndex].events.removeAll { $0.itemId == key }
+        }
+        pack.calendar.deleted.removeAll { $0.id == key }
+        pack.calendar.deleted.append(PackDeletion(id: key, deleted_at: now))
+        try SyncPack.saveCalendar(pack.calendar)
+        ping(pack)
+        return pack
+    }
+
+    @discardableResult
+    static func renameTodo(id: String, title: String) throws -> Pack {
+        let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { throw PackActionError.message("Type a to-do.") }
+        var pack = try current()
+        guard let index = pack.work.items.firstIndex(where: { $0.id == id }) else {
+            throw PackActionError.message("That to-do is gone.")
+        }
+        pack.work.items[index].title = String(clean.prefix(500))
+        pack.work.items[index].updated_at = DayStamp.isoNow()
+        return try saveWork(pack)
+    }
+
+    @discardableResult
+    static func deleteTodo(id: String) throws -> Pack {
+        var pack = try current()
+        guard pack.work.items.contains(where: { $0.id == id }) else {
+            throw PackActionError.message("That to-do is gone.")
+        }
+        let now = DayStamp.isoNow()
+        pack.work.items.removeAll { $0.id == id }
+        var gone = pack.work.deleted ?? []
+        gone.removeAll { $0.id == id }
+        gone.append(PackDeletion(id: id, deleted_at: now))
+        pack.work.deleted = gone
+        return try saveWork(pack)
+    }
+
     private static func localDate(_ iso: String) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -475,7 +550,7 @@ struct WidgetSnapshot: Codable, Equatable {
         var best: (Date, String)?
         for offset in 0..<8 {
             let day = DayStamp.addDays(startDay, offset)
-            for event in pack.calendar.hard_events {
+            for event in pack.calendar.hard_events where TodayList.live(id: event.id, updated: event.updated_at, deletions: pack.calendar.deleted) {
                 for item in PhoneCalendar.expandHardEvent(event, weekStart: day, weekEnd: day) {
                     guard let start = TodayList.parseLocal(item.start_at),
                           let end = TodayList.parseLocal(item.end_at),

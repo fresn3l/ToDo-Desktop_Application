@@ -155,11 +155,17 @@ struct NoteEntry: Codable, Identifiable {
     var updated_at: String?
 }
 
+struct PackDeletion: Codable, Equatable, Identifiable {
+    var id: String
+    var deleted_at: String
+}
+
 struct WorkFile: Codable {
     var items: [WorkItem]
     var series: [FlexibleJSON]
     var exceptions: [FlexibleJSON]
     var goals: [GoalRow]?
+    var deleted: [PackDeletion]?
 }
 
 struct WorkItem: Codable, Identifiable {
@@ -228,6 +234,7 @@ struct CalendarFile: Codable {
     var unplaced: [UnplacedItem]
     var hard_events: [HardEvent]
     var marks: [CalendarMark]
+    var deleted: [PackDeletion]
 
     init(
         week_start: String? = nil,
@@ -237,7 +244,8 @@ struct CalendarFile: Codable {
         days: [CalendarDay] = [],
         unplaced: [UnplacedItem] = [],
         hard_events: [HardEvent] = [],
-        marks: [CalendarMark] = []
+        marks: [CalendarMark] = [],
+        deleted: [PackDeletion] = []
     ) {
         self.week_start = week_start
         self.week_end = week_end
@@ -247,6 +255,7 @@ struct CalendarFile: Codable {
         self.unplaced = unplaced
         self.hard_events = hard_events
         self.marks = marks
+        self.deleted = deleted
     }
 
     init(from decoder: Decoder) throws {
@@ -259,6 +268,7 @@ struct CalendarFile: Codable {
         unplaced = try container.decodeIfPresent([UnplacedItem].self, forKey: .unplaced) ?? []
         hard_events = try container.decodeIfPresent([HardEvent].self, forKey: .hard_events) ?? []
         marks = try container.decodeIfPresent([CalendarMark].self, forKey: .marks) ?? []
+        deleted = try container.decodeIfPresent([PackDeletion].self, forKey: .deleted) ?? []
     }
 }
 

@@ -155,3 +155,99 @@ class DayPassTests(unittest.TestCase):
         self.assertNotIn("expectedLabel", phone_widget)
         self.assertNotIn("item.itemId ?? item.id", listing)
         self.assertIn("item.markKey", listing)
+        self.assertIn("'/api/work/create'", calendar)
+        self.assertIn("'/api/work/reschedule'", calendar)
+        self.assertIn("'/api/work/complete'", calendar)
+        self.assertIn("'/api/work/delete'", calendar)
+        self.assertIn("'/api/appointment/create'", calendar)
+        self.assertIn("'/api/appointment/delete'", calendar)
+        actions = (ROOT / "ios" / "Kosistenz" / "PackActions.swift").read_text(encoding="utf-8")
+        self.assertIn("static func updateHardEvent", actions)
+        self.assertIn("static func deleteHardEvent", actions)
+        self.assertIn("static func deleteTodo", actions)
+        self.assertIn("PackActions.deleteHardEvent", phone)
+        self.assertIn("PackActions.deleteTodo", phone)
+
+    def test_phone_edit_reschedule_and_delete_round_trip(self) -> None:
+        icloud_sync.ensure_automatic_sync()
+        event = calclock.create_calendar_event(
+            "Lab meeting",
+            "2026-10-26T09:30:00",
+            "2026-10-26T10:30:00",
+        )
+        item = work.create_work_item("Call the lab", scheduled_date="2026-10-26")
+        icloud_sync.write_pack()
+        folder = Path(icloud_sync.load_settings()["folder"])
+        later = (datetime.now() + timedelta(minutes=2)).replace(microsecond=0)
+        earlier = (datetime.now() - timedelta(days=1)).replace(microsecond=0)
+
+        calendar = icloud_sync._read_json(folder / "calendar.json", {})
+        calendar["hard_events"] = [
+            row for row in calendar.get("hard_events") or [] if row.get("id") != event["id"]
+        ]
+        calendar.pop("deleted", None)
+        icloud_sync._write_json(folder / "calendar.json", calendar)
+        icloud_sync.apply_pack(folder)
+        self.assertIn(event["id"], {row["id"] for row in calclock.list_owned_hard_events()})
+
+        calendar["hard_events"] = [
+            {
+                "id": event["id"],
+                "title": "Stale phone",
+                "start_at": "2026-10-26T09:30:00",
+                "end_at": "2026-10-26T10:30:00",
+                "weekdays": [],
+                "source": "kosistenz",
+                "updated_at": earlier.isoformat(timespec="seconds"),
+            }
+        ]
+        icloud_sync._write_json(folder / "calendar.json", calendar)
+        icloud_sync.apply_pack(folder)
+        owned = {row["id"]: row for row in calclock.list_owned_hard_events()}
+        self.assertEqual(owned[event["id"]]["title"], "Lab meeting")
+
+        calendar["hard_events"][0]["title"] = "Lab moved"
+        calendar["hard_events"][0]["start_at"] = "2026-10-27T11:00:00"
+        calendar["hard_events"][0]["end_at"] = "2026-10-27T12:00:00"
+        calendar["hard_events"][0]["updated_at"] = later.isoformat(timespec="seconds")
+        icloud_sync._write_json(folder / "calendar.json", calendar)
+        icloud_sync.apply_pack(folder)
+        owned = {row["id"]: row for row in calclock.list_owned_hard_events()}
+        self.assertEqual(owned[event["id"]]["title"], "Lab moved")
+        self.assertEqual(owned[event["id"]]["source"], "kosistenz")
+        self.assertTrue(owned[event["id"]]["start_at"].startswith("2026-10-27T11:00:00"))
+
+        calendar["hard_events"] = []
+        calendar["deleted"] = [
+            {"id": event["id"], "deleted_at": (later + timedelta(minutes=1)).isoformat(timespec="seconds")}
+        ]
+        icloud_sync._write_json(folder / "calendar.json", calendar)
+        icloud_sync.apply_pack(folder)
+        self.assertNotIn(event["id"], {row["id"] for row in calclock.list_owned_hard_events()})
+
+        packed = icloud_sync._read_json(folder / "work.json", {"items": []})
+        packed["items"] = [row for row in packed.get("items") or [] if row.get("id") != item["id"]]
+        packed.pop("deleted", None)
+        icloud_sync._write_json(folder / "work.json", packed)
+        icloud_sync.apply_pack(folder)
+        stored = {row["id"]: row for row in work.list_all_work_items()}
+        self.assertEqual(stored[item["id"]]["title"], "Call the lab")
+
+        packed["deleted"] = [
+            {"id": item["id"], "deleted_at": later.isoformat(timespec="seconds")}
+        ]
+        icloud_sync._write_json(folder / "work.json", packed)
+        icloud_sync.apply_pack(folder)
+        self.assertNotIn(item["id"], {row["id"] for row in work.list_all_work_items()})
+
+        revived = dict(item)
+        revived["title"] = "Call back"
+        revived["updated_at"] = (later + timedelta(minutes=5)).isoformat(timespec="seconds")
+        packed["items"] = [revived]
+        packed["deleted"] = [
+            {"id": item["id"], "deleted_at": later.isoformat(timespec="seconds")}
+        ]
+        icloud_sync._write_json(folder / "work.json", packed)
+        icloud_sync.apply_pack(folder)
+        stored = {row["id"]: row for row in work.list_all_work_items()}
+        self.assertEqual(stored[item["id"]]["title"], "Call back")

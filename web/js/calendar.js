@@ -5,6 +5,32 @@
 import * as utils from './utils.js';
 import { callEel } from './lazy.js';
 
+async function dayCommand(path, body) {
+    let lastError = 'Kosistenz is not open.';
+    for (let port = 18741; port <= 18750; port += 1) {
+        try {
+            const res = await fetch(`http://127.0.0.1:${port}${path}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body || {}),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 404) continue;
+            if (!res.ok || data.ok === false) {
+                throw new Error(data.error || 'Could not do that.');
+            }
+            return data;
+        } catch (err) {
+            if (err instanceof TypeError) {
+                lastError = 'Kosistenz is not open.';
+                continue;
+            }
+            throw err;
+        }
+    }
+    throw new Error(lastError);
+}
+
 let weekStart = null;
 let calView = 'week';
 let monthCursor = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
@@ -481,7 +507,8 @@ function renderTodayRail(today) {
     const clockHtml = appointments.length
         ? `<ul class="cal-today-agenda">${appointments.map((item) => {
             const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
-            return `<li class="is-hard${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Appointment'))}</b></li>`;
+            const days = Array.isArray(item.recurrence?.weekdays) ? item.recurrence.weekdays.join(',') : '';
+            return `<li class="is-hard${outcome}"><button type="button" class="cal-today-clock" data-kind="hard" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-start-at="${utils.escapeHtml(item.start_at || '')}" data-end-at="${utils.escapeHtml(item.end_at || '')}" data-occurrence-date="${utils.escapeHtml(item.occurrence_date || '')}" data-weekdays="${utils.escapeHtml(days)}" data-status="${utils.escapeHtml(item.status || '')}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Appointment'))}</b></button></li>`;
         }).join('')}</ul>`
         : '<p class="cal-due-empty">Nothing on the clock.</p>';
     root.innerHTML = `
@@ -506,6 +533,9 @@ function renderTodayRail(today) {
         ${overdueHtml}
     `;
     bindWorkRows(root);
+    root.querySelectorAll('.cal-today-clock').forEach((btn) => {
+        btn.addEventListener('click', () => openEditorFromBlock(btn));
+    });
     document.getElementById('calTodayAddBtn')?.addEventListener('click', () => {
         void addTodayFromRail();
     });
@@ -566,12 +596,16 @@ function renderWorkRow(item, { action = 'today' } = {}) {
     const selected = editor.mode === 'unplaced' && editor.id === item.id ? ' is-selected' : '';
     const actLabel = action === 'park' ? 'To Do' : 'Today';
     const act = action === 'park' ? 'park' : 'today';
+    const dayActs = action === 'park'
+        ? `<button type="button" class="btn-ghost cal-unplaced-today" data-act="done" data-id="${utils.escapeHtml(item.id || '')}">Done</button><button type="button" class="btn-ghost cal-unplaced-today" data-act="remove" data-id="${utils.escapeHtml(item.id || '')}">Remove</button>`
+        : '';
     return `<div class="cal-unplaced-item${selected}" data-id="${utils.escapeHtml(item.id || '')}">
         <button type="button" class="cal-unplaced-drag" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-minutes="${mins}">
             <h4>${utils.escapeHtml(item.title)}</h4>
             <p>${utils.escapeHtml(workListMeta(item))}</p>
         </button>
         <button type="button" class="btn-ghost cal-unplaced-today" data-act="${act}" data-id="${utils.escapeHtml(item.id || '')}">${actLabel}</button>
+        ${dayActs}
     </div>`;
 }
 
@@ -623,8 +657,13 @@ function bindWorkRows(root) {
             e.preventDefault();
             e.stopPropagation();
             const id = btn.getAttribute('data-id') || '';
-            if (btn.getAttribute('data-act') === 'park') {
+            const actName = btn.getAttribute('data-act');
+            if (actName === 'park') {
                 void parkWorkFromToday(id);
+            } else if (actName === 'done') {
+                void completeWorkFromToday(id);
+            } else if (actName === 'remove') {
+                void deleteWorkFromToday(id);
             } else {
                 void moveWorkToToday(id);
             }
@@ -637,7 +676,7 @@ async function addTodayFromRail() {
     const title = input?.value?.trim() || '';
     if (!title) return;
     try {
-        await callEel('add_todo_to_calendar', title, utils.localISODate());
+        await dayCommand('/api/work/create', { title, date: utils.localISODate() });
         if (input) input.value = '';
         utils.showSuccessFeedback('Added to Today.');
         utils.notifyDataChanged();
@@ -651,7 +690,7 @@ async function parkNamed(title, input) {
     const clean = String(title || '').trim();
     if (!clean) return;
     try {
-        await callEel('add_todo_to_calendar', clean, 'park');
+        await dayCommand('/api/work/park', { title: clean });
         if (input) input.value = '';
         utils.showSuccessFeedback('Parked.');
         utils.notifyDataChanged();
@@ -674,7 +713,7 @@ async function parkFromAside() {
 async function parkWorkFromToday(itemId) {
     if (!itemId) return;
     try {
-        await callEel('assign_work_item', itemId, '');
+        await dayCommand('/api/work/reschedule', { id: itemId, date: '' });
         if (editor.mode === 'unplaced' && editor.id === itemId) resetEditor();
         utils.showSuccessFeedback('Moved to To Do.');
         utils.notifyDataChanged();
@@ -684,10 +723,35 @@ async function parkWorkFromToday(itemId) {
     }
 }
 
+async function completeWorkFromToday(itemId) {
+    if (!itemId) return;
+    try {
+        await dayCommand('/api/work/complete', { id: itemId });
+        utils.showSuccessFeedback('Marked done.');
+        utils.notifyDataChanged();
+        await loadCalendar();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not complete that.');
+    }
+}
+
+async function deleteWorkFromToday(itemId) {
+    if (!itemId) return;
+    try {
+        await dayCommand('/api/work/delete', { id: itemId });
+        if (editor.mode === 'unplaced' && editor.id === itemId) resetEditor();
+        utils.showSuccessFeedback('Removed.');
+        utils.notifyDataChanged();
+        await loadCalendar();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not remove that.');
+    }
+}
+
 async function moveWorkToToday(itemId) {
     if (!itemId) return;
     try {
-        await callEel('assign_work_item', itemId, utils.localISODate());
+        await dayCommand('/api/work/reschedule', { id: itemId, date: utils.localISODate() });
         if (editor.mode === 'unplaced' && editor.id === itemId) resetEditor();
         utils.showSuccessFeedback('Moved to Today.');
         utils.notifyDataChanged();
@@ -1722,7 +1786,12 @@ async function onBlockPointerUp(e) {
     const end = new Date(start.getTime() + state.preview.duration * 60000);
     try {
         if (state.kind === 'hard') {
-            await callEel('update_calendar_event', state.id, '', toApiIso(start), toApiIso(end), null, state.occurrenceDate);
+            await dayCommand('/api/appointment/reschedule', {
+                id: state.id,
+                start_at: toApiIso(start),
+                end_at: toApiIso(end),
+                occurrence_date: state.occurrenceDate || '',
+            });
         } else {
             await callEel('update_schedule_block', state.id, '', toApiIso(start), toApiIso(end), '');
         }
@@ -1962,7 +2031,7 @@ async function runDueMenu(act, btn) {
     if (!id) return;
     try {
         if (act === 'done') {
-            await callEel('finish_work_item', id);
+            await dayCommand('/api/work/complete', { id });
             utils.showSuccessFeedback('Marked done.');
         } else if (act === 'reopen') {
             await callEel('reopen_work_item', id);
@@ -2004,7 +2073,12 @@ async function saveEditor() {
     }
     try {
         if (editor.mode === 'new' || editor.mode === 'hard' && !editor.id) {
-            await callEel('create_calendar_event', title, start, end, selectedEventDays());
+            await dayCommand('/api/appointment/create', {
+                title,
+                start_at: start,
+                end_at: end,
+                weekdays: selectedEventDays(),
+            });
             resetEditor();
             utils.showSuccessFeedback('Saved on the clock.');
         } else if (editor.mode === 'hard') {
@@ -2014,7 +2088,15 @@ async function saveEditor() {
                 scope = await utils.askRepeatScope('Change only this day, or the whole series?');
                 if (!scope) return;
             }
-            await callEel('update_calendar_event', editor.id, title, start, end, selectedEventDays(), editor.occurrenceDate, scope);
+            await dayCommand('/api/appointment/reschedule', {
+                id: editor.id,
+                title,
+                start_at: start,
+                end_at: end,
+                weekdays: selectedEventDays(),
+                occurrence_date: editor.occurrenceDate || '',
+                scope,
+            });
             const outcome = selectedBarOutcome();
             if (outcome) {
                 await callEel('set_bar_outcome', editor.id, outcome, editor.occurrenceDate);
@@ -2058,7 +2140,7 @@ async function saveEditor() {
 async function parkEditor() {
     try {
         if (editor.mode === 'unplaced' && editor.id) {
-            await callEel('assign_work_item', editor.id, '');
+            await dayCommand('/api/work/reschedule', { id: editor.id, date: '' });
             resetEditor();
             utils.showSuccessFeedback('Parked.');
         } else if ((editor.mode === 'work' || editor.mode === 'workout') && editor.id) {
@@ -2094,7 +2176,11 @@ async function removeEditor() {
                 scope = await utils.askRepeatScope('Remove only this day, or the whole series?');
                 if (!scope) return;
             }
-            await callEel('delete_calendar_event', editor.id, editor.occurrenceDate || '', scope);
+            await dayCommand('/api/appointment/delete', {
+                id: editor.id,
+                occurrence_date: editor.occurrenceDate || '',
+                scope,
+            });
         } else {
             await callEel('delete_schedule_block', editor.id, true);
         }
