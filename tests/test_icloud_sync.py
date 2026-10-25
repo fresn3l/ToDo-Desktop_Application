@@ -129,9 +129,10 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertEqual(titles[item["id"]], "Keep from phone")
         self.assertIn("Local only", titles.values())
 
-    def test_auto_export_stays_off_until_first_push(self):
+    def test_missing_sync_flag_does_not_push_before_settings_exist(self):
         self._use(self.src)
-        self.assertFalse(icloud_sync.load_settings()["auto"])
+        self.assertTrue(icloud_sync.load_settings()["auto"])
+        self.assertEqual(icloud_sync.load_settings()["sync_pass"], 0)
         work.create_work_item("Quiet", scheduled_date=None)
         self.assertFalse((icloud_sync.default_sync_dir() / "work.json").exists())
 
@@ -361,7 +362,7 @@ class IcloudSyncTests(unittest.TestCase):
         owned = {row["id"]: row for row in calclock.list_owned_hard_events()}
         self.assertEqual(owned["phone-office"]["title"], "Moved office")
 
-    def test_phone_cannot_overwrite_mac_or_ics_events(self):
+    def test_phone_can_update_a_mac_event_but_not_ics(self):
         import calclock
 
         self._use(self.src)
@@ -413,7 +414,8 @@ class IcloudSyncTests(unittest.TestCase):
         icloud_sync._write_json(self.pack / "calendar.json", calendar)
         icloud_sync.apply_pack(self.pack)
         owned = {row["id"]: row for row in calclock.list_owned_hard_events()}
-        self.assertEqual(owned[mac["id"]]["title"], "Mac class")
+        self.assertEqual(owned[mac["id"]]["title"], "Hijacked Mac")
+        self.assertEqual(owned[mac["id"]]["source"], "kosistenz")
         with calclock._connect() as conn:
             row = conn.execute(
                 "SELECT title, source FROM calendar_events WHERE id = ?",

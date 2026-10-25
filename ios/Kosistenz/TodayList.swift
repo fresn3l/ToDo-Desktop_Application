@@ -32,15 +32,27 @@ enum TodayList {
         for mark in pack.calendar.marks {
             marked[mark.id] = mark.status.lowercased()
         }
-        var usedWork = Set<String>()
-        var rows: [Entry] = []
-        let clockItems = (day?.events ?? []) + (day?.blocks ?? [])
-        for item in clockItems.sorted(by: clockOrder) {
-            let clockId = item.markKey
-            let status = (item.status ?? marked[clockId] ?? "").lowercased()
-            if let workId = item.work_item_id, !workId.isEmpty {
-                usedWork.insert(workId)
+        var clockByKey: [String: CalendarItem] = [:]
+        func put(_ item: CalendarItem) {
+            clockByKey[item.markKey] = item
+        }
+        for item in day?.events ?? [] where (item.kind ?? "").lowercased() == "hard" {
+            put(item)
+        }
+        for event in pack.calendar.hard_events where live(id: event.id, updated: event.updated_at, deletions: pack.calendar.deleted) {
+            for item in PhoneCalendar.expandHardEvent(event, weekStart: today, weekEnd: today) {
+                put(item)
             }
+        }
+        var rows: [Entry] = []
+        for item in clockByKey.values.sorted(by: clockOrder) {
+            let eventId = item.itemId ?? ""
+            let event = pack.calendar.hard_events.first(where: { $0.id == eventId })
+            if !live(id: eventId, updated: event?.updated_at ?? item.updated_at, deletions: pack.calendar.deleted) {
+                continue
+            }
+            let clockId = item.markKey
+            let status = (item.status ?? marked[clockId] ?? marked[item.itemId ?? ""] ?? "").lowercased()
             rows.append(
                 Entry(
                     id: "clock-\(clockId)",
@@ -54,9 +66,11 @@ enum TodayList {
                 )
             )
         }
-        for item in pack.work.items where item.scheduled_date == today {
-            if item.source == "calendar" { continue }
-            if usedWork.contains(item.id) { continue }
+        let tasks = pack.work.items
+            .filter { $0.scheduled_date == today && $0.source != "calendar" }
+            .filter { live(id: $0.id, updated: $0.updated_at, deletions: pack.work.deleted ?? []) }
+            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        for item in tasks {
             rows.append(
                 Entry(
                     id: "task-\(item.id)",
@@ -70,7 +84,7 @@ enum TodayList {
                 )
             )
         }
-        return rows.sorted(by: rowOrder)
+        return rows
     }
 
     static func upcomingClockItems(pack: Pack, now: Date = Date()) -> [CalendarItem] {
@@ -90,18 +104,16 @@ enum TodayList {
         return items
     }
 
+    static func live(id: String, updated: String?, deletions: [PackDeletion]) -> Bool {
+        guard !id.isEmpty, let tomb = deletions.first(where: { $0.id == id }) else { return true }
+        return (updated ?? "") > tomb.deleted_at
+    }
+
     private static func clockOrder(_ lhs: CalendarItem, _ rhs: CalendarItem) -> Bool {
         if (lhs.start_at ?? "") != (rhs.start_at ?? "") {
             return (lhs.start_at ?? "") < (rhs.start_at ?? "")
         }
         return (lhs.title ?? "").localizedCaseInsensitiveCompare(rhs.title ?? "") == .orderedAscending
-    }
-
-    private static func rowOrder(_ lhs: Entry, _ rhs: Entry) -> Bool {
-        let leftTime = lhs.startAt ?? "z"
-        let rightTime = rhs.startAt ?? "z"
-        if leftTime != rightTime { return leftTime < rightTime }
-        return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
     }
 
     static func parseLocal(_ raw: String?) -> Date? {

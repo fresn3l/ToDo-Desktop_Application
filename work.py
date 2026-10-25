@@ -158,6 +158,14 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
         ON work_items(source_calendar, source_uid)
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS work_deletions (
+            id TEXT PRIMARY KEY,
+            deleted_at TEXT NOT NULL
+        )
+        """
+    )
     import goals as _goals
 
     _goals.ensure_schema(conn)
@@ -632,25 +640,56 @@ def _journal_snapshot_bits(today: date) -> Dict[str, Any]:
     return {"journal_today": today in days, "journal_streak": streak}
 
 
+def _clock_label(raw: str) -> str:
+    text = str(raw or "")
+    if len(text) < 16:
+        return ""
+    return text[11:16]
+
+
+def _next_appointment_bits() -> Dict[str, str]:
+    empty = {"next_title": "", "next_start": "", "next_end": "", "next_when": ""}
+    try:
+        import calclock
+
+        row = calclock.next_owned_appointment()
+    except Exception:
+        return empty
+    if not isinstance(row, dict):
+        return empty
+    title = str(row.get("title") or "").strip()
+    start = _clock_label(str(row.get("start_at") or ""))
+    end = _clock_label(str(row.get("end_at") or ""))
+    when = f"{start}–{end}" if start and end else start
+    return {
+        "next_title": title,
+        "next_start": str(row.get("start_at") or ""),
+        "next_end": str(row.get("end_at") or ""),
+        "next_when": when,
+    }
+
+
 def _summary_line(
     *,
     open_count: int,
     done_count: int,
-    workout_logged: bool,
-    journal_streak: int,
+    next_title: str,
+    next_when: str,
     today_empty: bool,
 ) -> str:
-    if today_empty and done_count == 0:
+    if today_empty and done_count == 0 and not next_title:
         return "Today is empty"
     bits = []
+    if next_when and next_title:
+        bits.append(f"{next_when} {next_title}")
+    elif next_title:
+        bits.append(next_title)
     if open_count:
         bits.append(f"{open_count} open")
-    elif done_count:
+    elif done_count and not bits:
         bits.append("To dos done")
-    else:
-        bits.append("No to dos")
-    bits.append("Workout logged" if workout_logged else "No workout")
-    bits.append(f"Streak {journal_streak}" if journal_streak else "No journal streak")
+    elif not bits:
+        bits.append("No open to-dos")
     return " · ".join(bits)
 
 
@@ -700,10 +739,9 @@ def _write_widget_snapshot_body() -> Dict[str, Any]:
                 active_count += 1
     workout = _workout_snapshot_bits(today_iso)
     journal = _journal_snapshot_bits(today)
+    nxt = _next_appointment_bits()
     open_count = len(open_items)
-    today_empty = (
-        open_count == 0 and not workout["workout_logged"] and not journal["journal_today"]
-    )
+    today_empty = open_count == 0 and not nxt["next_title"]
     active_title = None
     for item in open_items:
         if item["status"] == "active":
@@ -723,12 +761,16 @@ def _write_widget_snapshot_body() -> Dict[str, Any]:
         "workout_session_count": workout["workout_session_count"],
         "journal_today": journal["journal_today"],
         "journal_streak": journal["journal_streak"],
+        "next_title": nxt["next_title"],
+        "next_start": nxt["next_start"],
+        "next_end": nxt["next_end"],
+        "next_when": nxt["next_when"],
         "today_empty": today_empty,
         "summary": _summary_line(
             open_count=open_count,
             done_count=done_count,
-            workout_logged=workout["workout_logged"],
-            journal_streak=journal["journal_streak"],
+            next_title=nxt["next_title"],
+            next_when=nxt["next_when"],
             today_empty=today_empty,
         ),
     }
@@ -861,6 +903,7 @@ def create_work_item(
     goal_id: Optional[str] = None,
     source_uid: Optional[str] = None,
     source_calendar: Optional[str] = None,
+    item_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
@@ -868,7 +911,8 @@ def create_work_item(
     target = _parse_date(scheduled_date)
     cadence = _normalize_repeat(repeat)
     now = _now().isoformat()
-    item_id = str(uuid.uuid4())
+    chosen = str(item_id or "").strip()
+    item_id = chosen or str(uuid.uuid4())
     src = (source or "manual").strip() or "manual"
     due = _parse_due_at(due_at)
     estimate = _parse_estimate(estimate_minutes)
@@ -969,6 +1013,7 @@ def create_work_item(
     _write_widget_snapshot()
     assert row is not None
     packed = _row_to_dict(row)
+    forget_work_deletion(item_id)
     _mirror_task(packed)
     return packed
 
@@ -1561,6 +1606,8 @@ def update_work_item(
 @eel.expose
 def delete_work_item(item_id: str, scope: str = "occurrence") -> Dict[str, Any]:
     scope = (scope or "occurrence").strip().lower()
+    removed: List[str] = []
+    stamp = _now().isoformat()
     with _connect() as conn:
         row = _fetch(conn, item_id)
         if row is None:
@@ -1570,8 +1617,17 @@ def delete_work_item(item_id: str, scope: str = "occurrence") -> Dict[str, Any]:
         if scope == "series" and series_id:
             conn.execute(
                 "UPDATE work_series SET archived = 1, updated_at = ? WHERE id = ?",
-                (_now().isoformat(), series_id),
+                (stamp, series_id),
             )
+            doomed = conn.execute(
+                """
+                SELECT id FROM work_items
+                WHERE series_id = ? AND status != 'done'
+                  AND scheduled_date >= ?
+                """,
+                (series_id, _today().isoformat()),
+            ).fetchall()
+            removed = [str(item["id"]) for item in doomed]
             conn.execute(
                 """
                 DELETE FROM work_items
@@ -1584,6 +1640,9 @@ def delete_work_item(item_id: str, scope: str = "occurrence") -> Dict[str, Any]:
             if series_id and occurrence:
                 _upsert_exception(conn, series_id, occurrence, "skip")
             conn.execute("DELETE FROM work_items WHERE id = ?", (item_id,))
+            removed = [item_id]
+    for gone in removed:
+        remember_work_deletion(gone, stamp)
     _write_widget_snapshot()
     _mirror_task_delete(item_id)
     return {"ok": True, "id": item_id, "scope": scope}
@@ -1740,6 +1799,51 @@ def apply_evening_plan(answers: Dict[str, Any]) -> Dict[str, Any]:
             except ValueError:
                 continue
     return {"tomorrow": tomorrow, "created": created, "assigned": assigned}
+
+
+def list_work_deletions() -> List[Dict[str, str]]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, deleted_at FROM work_deletions ORDER BY deleted_at ASC"
+        ).fetchall()
+    return [{"id": row["id"], "deleted_at": row["deleted_at"]} for row in rows]
+
+
+def work_deleted_at(item_id: str) -> str:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT deleted_at FROM work_deletions WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+    return "" if row is None else str(row["deleted_at"] or "")
+
+
+def remember_work_deletion(item_id: str, deleted_at: str) -> None:
+    key = str(item_id or "").strip()
+    stamp = str(deleted_at or "").strip()
+    if not key or not stamp:
+        return
+    current = work_deleted_at(key)
+    if current and current >= stamp:
+        return
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO work_deletions (id, deleted_at) VALUES (?, ?)
+            ON CONFLICT(id) DO UPDATE SET deleted_at = excluded.deleted_at
+            """,
+            (key, stamp),
+        )
+        conn.commit()
+
+
+def forget_work_deletion(item_id: str) -> None:
+    key = str(item_id or "").strip()
+    if not key:
+        return
+    with _connect() as conn:
+        conn.execute("DELETE FROM work_deletions WHERE id = ?", (key,))
+        conn.commit()
 
 
 def list_all_work_items() -> List[Dict[str, Any]]:

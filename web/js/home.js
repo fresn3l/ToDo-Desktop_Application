@@ -618,7 +618,7 @@ async function syncCheckin(prefetched) {
     const done = slot === 'evening' ? !!info.evening_done : !!info.morning_done;
     if (done && !lastViewedDone) checkinForceOpen = null;
     lastViewedDone = done;
-    const open = checkinForceOpen == null ? !done : checkinForceOpen;
+    const open = checkinForceOpen === true;
     band.classList.toggle('is-open', open);
     paintCheckinChrome(info, slot, done, open);
     if (!open) {
