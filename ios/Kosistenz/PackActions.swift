@@ -470,15 +470,37 @@ struct WidgetSnapshot: Codable, Equatable {
         var done: Bool
     }
 
+    static func nextAppointment(pack: Pack, now: Date = Date()) -> String {
+        let startDay = DayStamp.today()
+        var best: (Date, String)?
+        for offset in 0..<8 {
+            let day = DayStamp.addDays(startDay, offset)
+            for event in pack.calendar.hard_events {
+                for item in PhoneCalendar.expandHardEvent(event, weekStart: day, weekEnd: day) {
+                    guard let start = TodayList.parseLocal(item.start_at),
+                          let end = TodayList.parseLocal(item.end_at),
+                          end > now
+                    else { continue }
+                    let when = DayStamp.clock(item.start_at)
+                    let until = DayStamp.clock(item.end_at)
+                    let title = item.title ?? event.title
+                    let label = until.isEmpty ? "\(when) \(title)" : "\(when)–\(until) \(title)"
+                    if best == nil || start < best!.0 {
+                        best = (start, label)
+                    }
+                }
+            }
+        }
+        return best?.1 ?? ""
+    }
+
     static func from(pack: Pack, access: SyncPack.Access) -> WidgetSnapshot {
         let today = DayStamp.today()
         let todos = pack.work.items
             .filter { $0.scheduled_date == today }
             .prefix(4)
             .map { WidgetTodo(id: $0.id, title: $0.title, done: $0.status == "done") }
-        let day = pack.calendar.days.first(where: { $0.date == today })
-        let lanes = DayTimeline.blocks(events: day?.events ?? [], packed: day?.blocks ?? [])
-        let next = lanes.first(where: { $0.isNow }) ?? lanes.first
+        let nextLabel = nextAppointment(pack: pack)
         let expected = WorkoutPlan.expectedKinds(on: Date(), template: pack.workouts.template)
         let expectedLabel = expected
             .map { id in WorkoutPlan.chipKinds.first(where: { $0.id == id })?.label ?? id }
@@ -491,7 +513,7 @@ struct WidgetSnapshot: Codable, Equatable {
         }
         return WidgetSnapshot(
             todos: Array(todos),
-            nextBlock: next.map { "\(DayTimeline.clock($0.startAt)) \($0.title)" } ?? "",
+            nextBlock: nextLabel,
             expectedLabel: expectedLabel,
             access: accessName,
             today: today

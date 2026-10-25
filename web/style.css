@@ -5601,6 +5601,46 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     align-items: stretch;
 }
 
+.cal-week-shell.is-day {
+    display: block;
+}
+
+.cal-week-shell.is-day .cal-today-rail {
+    width: min(100%, 40rem);
+}
+
+.nav-more {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-more > summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.nav-more > summary::-webkit-details-marker {
+    display: none;
+}
+
+.cal-behind {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cal-behind > summary {
+    cursor: pointer;
+}
+
+.cal-behind.is-hidden {
+    display: none;
+}
+
+#calShowEvent {
+    margin-bottom: 10px;
+}
+
 .cal-nav {
     display: flex;
     align-items: center;

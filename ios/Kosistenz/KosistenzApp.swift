@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -59,6 +60,9 @@ struct RootView: View {
             if store.access == .needsFolder {
                 store.showSync = true
             }
+        }
+        .onReceive(Timer.publish(every: 20, on: .main, in: .common).autoconnect()) { _ in
+            store.reload()
         }
     }
 

@@ -1340,6 +1340,53 @@ def _normalize_weekdays(raw: Any) -> List[int]:
     return sorted(out)
 
 
+def _share_pack() -> None:
+    """Refresh the glance and write the shared pack. A failure stays local."""
+    try:
+        work.refresh_widget_snapshot()
+    except Exception:
+        pass
+    try:
+        import icloud_sync
+
+        icloud_sync.export_if_enabled()
+    except Exception:
+        pass
+
+
+def next_owned_appointment(now: Optional[datetime] = None) -> Optional[Dict[str, Any]]:
+    """The next appointment this person created, on the Mac or the phone.
+
+    Imported dues stay off this glance. A dated to-do is not an appointment.
+    """
+    moment = now or _now()
+    start = moment.date()
+    last = start + timedelta(days=7)
+    candidates = []
+    for item in expand_hard_events(start, last):
+        if item.get("source_calendar"):
+            continue
+        if not _owned_source(item.get("source")):
+            continue
+        try:
+            begin = parse_datetime(item.get("start_at"))
+            end = parse_datetime(item.get("end_at"))
+        except (TypeError, ValueError):
+            continue
+        if end <= moment:
+            continue
+        candidates.append((begin, item))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda pair: pair[0])
+    item = candidates[0][1]
+    return {
+        "title": item.get("title") or "",
+        "start_at": item.get("start_at") or "",
+        "end_at": item.get("end_at") or "",
+    }
+
+
 @eel.expose
 def create_calendar_event(
     title: str,
@@ -1380,7 +1427,9 @@ def create_calendar_event(
         conn.commit()
         row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
     assert row is not None
-    return _row_event(row)
+    packed = _row_event(row)
+    _share_pack()
+    return packed
 
 
 def _owned_source(raw: Any) -> bool:
@@ -1527,12 +1576,14 @@ def delete_calendar_event(
                     (json.dumps(rec), now, event_id),
                 )
                 conn.commit()
+            _share_pack()
             return {"ok": True, "id": event_id, "scope": "occurrence", "occurrence_date": occ}
     with _connect() as conn:
         cur = conn.execute("DELETE FROM calendar_events WHERE id = ?", (event_id,))
         conn.commit()
         if cur.rowcount < 1:
             raise ValueError("Event not found")
+    _share_pack()
     return {"ok": True, "id": event_id}
 
 
@@ -1671,6 +1722,7 @@ def upsert_event_mark(item_id: str, status: str, updated_at: str = "") -> Option
             (key, state, stamp),
         )
         conn.commit()
+    _share_pack()
     return {"id": key, "status": state, "updated_at": stamp}
 
 
@@ -1754,6 +1806,7 @@ def set_bar_outcome(bar_id: str, outcome: str, occurrence_date: str = "") -> Dic
     if mark is None:
         raise ValueError("Could not mark that event")
     _nudge_rate_voice()
+    _share_pack()
     return {"ok": True, "kind": "hard", **mark}
 
 
@@ -1824,7 +1877,9 @@ def update_calendar_event(
             conn.commit()
             row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
         assert row is not None
-        return _row_event(row)
+        packed = _row_event(row)
+        _share_pack()
+        return packed
     if weekdays is not None:
         days = _normalize_weekdays(weekdays)
         # Keep an end date and any skipped days; only the weekdays are being set.
@@ -1867,7 +1922,9 @@ def update_calendar_event(
         conn.commit()
         row = conn.execute("SELECT * FROM calendar_events WHERE id = ?", (event_id,)).fetchone()
     assert row is not None
-    return _row_event(row)
+    packed = _row_event(row)
+    _share_pack()
+    return packed
 
 
 def _recurrence_until(recurrence: Any) -> Optional[date]:
@@ -2972,6 +3029,7 @@ def set_block_status(block_id: str, status: str) -> Dict[str, Any]:
         if again:
             packed = again
     _sync_widget_snapshot()
+    _share_pack()
     return packed
 
 

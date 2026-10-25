@@ -26,6 +26,12 @@ def run_bridge(port: int, web_dir: str) -> None:
     os.environ["KOSISTENZ_UI_PORT"] = str(int(port))
     api_port = local_api.start_background_server()
     print(f"KOSISTENZ_API_PORT={api_port}", flush=True)
+    try:
+        import icloud_sync
+
+        icloud_sync.start_sync_watcher()
+    except Exception:
+        pass
 
     def _on_close(page: str, sockets: list) -> None:  # noqa: ARG001
         try:

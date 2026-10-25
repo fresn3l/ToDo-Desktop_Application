@@ -15,7 +15,7 @@ struct KosistenzTodayWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Kosistenz")
-        .description("Today’s to-dos. Tap a circle to check one off.")
+        .description("The next appointment and today’s open to-dos.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -71,11 +71,6 @@ struct TodayWidgetView: View {
                             .strikethrough(item.done)
                     }
                 }
-            }
-            if family == .systemMedium, !entry.snapshot.expectedLabel.isEmpty {
-                Text("Gym · \(entry.snapshot.expectedLabel)")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

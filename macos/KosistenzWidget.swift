@@ -11,6 +11,8 @@ struct Snapshot: Codable {
     var todayEmpty: Bool
     var activeTitle: String?
     var summary: String
+    var nextTitle: String = ""
+    var nextWhen: String = ""
     var stale: Bool = false
 
     static let placeholder = Snapshot(
@@ -23,6 +25,8 @@ struct Snapshot: Codable {
         todayEmpty: true,
         activeTitle: nil,
         summary: "Open Kosistenz",
+        nextTitle: "",
+        nextWhen: "",
         stale: true
     )
 
@@ -37,6 +41,8 @@ struct Snapshot: Codable {
             todayEmpty: boolValue(json, "today_empty"),
             activeTitle: json["active_title"] as? String,
             summary: json["summary"] as? String ?? "",
+            nextTitle: json["next_title"] as? String ?? "",
+            nextWhen: json["next_when"] as? String ?? "",
             stale: stale
         )
     }
@@ -147,6 +153,16 @@ struct KosistenzWidgetEntryView: View {
             Text("Kosistenz")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
+            if !snap.nextWhen.isEmpty {
+                Text(snap.nextWhen)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                if !snap.nextTitle.isEmpty {
+                    Text(snap.nextTitle)
+                        .font(.caption)
+                        .lineLimit(2)
+                }
+            }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("\(snap.openCount)")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -154,11 +170,6 @@ struct KosistenzWidgetEntryView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Text(snap.workoutLogged ? "Workout logged" : "No workout yet")
-                .font(.caption)
-            Text("Streak \(snap.journalStreak)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
             if snap.todayEmpty {
                 Text("Today is empty")
                     .font(.caption2)
@@ -170,13 +181,13 @@ struct KosistenzWidgetEntryView: View {
 
     private var mediumView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Today")
-                    .font(.headline)
-                Spacer()
-                Text("Streak \(snap.journalStreak)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Text(snap.nextWhen.isEmpty ? "Today" : snap.nextWhen)
+                .font(.headline)
+                .lineLimit(1)
+            if !snap.nextTitle.isEmpty {
+                Text(snap.nextTitle)
+                    .font(.subheadline)
+                    .lineLimit(1)
             }
             if snap.titles.isEmpty {
                 Text(snap.todayEmpty ? "Today is empty" : "No open to-dos")
@@ -189,18 +200,15 @@ struct KosistenzWidgetEntryView: View {
                         .lineLimit(1)
                 }
             }
-            Text(snap.workoutLogged ? "Workout logged" : "No workout yet")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var accessoryRect: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("\(snap.openCount) open · \(snap.workoutLogged ? "workout" : "no workout")")
+            Text(snap.nextWhen.isEmpty ? "\(snap.openCount) open" : snap.nextWhen)
                 .font(.headline)
-            Text("Streak \(snap.journalStreak)")
+            Text(snap.nextTitle.isEmpty ? "\(snap.openCount) open" : snap.nextTitle)
                 .font(.caption)
         }
     }
@@ -234,7 +242,7 @@ struct KosistenzTodayWidget: Widget {
                 .widgetURL(URL(string: "kosistenz://open"))
         }
         .configurationDisplayName("Kosistenz Today")
-        .description("Open to-dos, whether you logged a workout, and your journal streak.")
+        .description("The next appointment and today’s open to-dos.")
         .supportedFamilies(Self.families)
     }
 

@@ -21,6 +21,7 @@ class LocalApiTests(unittest.TestCase):
             mock.patch.object(work, "_data_dir", lambda: path),
             mock.patch.object(workouts, "_data_dir", lambda: path),
             mock.patch.object(work, "_journal_snapshot_bits", return_value={"journal_today": False, "journal_streak": 0}),
+            mock.patch.object(work, "_next_appointment_bits", return_value={"next_title": "", "next_start": "", "next_end": "", "next_when": ""}),
         ]
         for patcher in self.patches:
             patcher.start()

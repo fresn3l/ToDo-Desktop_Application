@@ -632,25 +632,56 @@ def _journal_snapshot_bits(today: date) -> Dict[str, Any]:
     return {"journal_today": today in days, "journal_streak": streak}
 
 
+def _clock_label(raw: str) -> str:
+    text = str(raw or "")
+    if len(text) < 16:
+        return ""
+    return text[11:16]
+
+
+def _next_appointment_bits() -> Dict[str, str]:
+    empty = {"next_title": "", "next_start": "", "next_end": "", "next_when": ""}
+    try:
+        import calclock
+
+        row = calclock.next_owned_appointment()
+    except Exception:
+        return empty
+    if not isinstance(row, dict):
+        return empty
+    title = str(row.get("title") or "").strip()
+    start = _clock_label(str(row.get("start_at") or ""))
+    end = _clock_label(str(row.get("end_at") or ""))
+    when = f"{start}–{end}" if start and end else start
+    return {
+        "next_title": title,
+        "next_start": str(row.get("start_at") or ""),
+        "next_end": str(row.get("end_at") or ""),
+        "next_when": when,
+    }
+
+
 def _summary_line(
     *,
     open_count: int,
     done_count: int,
-    workout_logged: bool,
-    journal_streak: int,
+    next_title: str,
+    next_when: str,
     today_empty: bool,
 ) -> str:
-    if today_empty and done_count == 0:
+    if today_empty and done_count == 0 and not next_title:
         return "Today is empty"
     bits = []
+    if next_when and next_title:
+        bits.append(f"{next_when} {next_title}")
+    elif next_title:
+        bits.append(next_title)
     if open_count:
         bits.append(f"{open_count} open")
-    elif done_count:
+    elif done_count and not bits:
         bits.append("To dos done")
-    else:
-        bits.append("No to dos")
-    bits.append("Workout logged" if workout_logged else "No workout")
-    bits.append(f"Streak {journal_streak}" if journal_streak else "No journal streak")
+    elif not bits:
+        bits.append("No open to-dos")
     return " · ".join(bits)
 
 
@@ -700,10 +731,9 @@ def _write_widget_snapshot_body() -> Dict[str, Any]:
                 active_count += 1
     workout = _workout_snapshot_bits(today_iso)
     journal = _journal_snapshot_bits(today)
+    nxt = _next_appointment_bits()
     open_count = len(open_items)
-    today_empty = (
-        open_count == 0 and not workout["workout_logged"] and not journal["journal_today"]
-    )
+    today_empty = open_count == 0 and not nxt["next_title"]
     active_title = None
     for item in open_items:
         if item["status"] == "active":
@@ -723,12 +753,16 @@ def _write_widget_snapshot_body() -> Dict[str, Any]:
         "workout_session_count": workout["workout_session_count"],
         "journal_today": journal["journal_today"],
         "journal_streak": journal["journal_streak"],
+        "next_title": nxt["next_title"],
+        "next_start": nxt["next_start"],
+        "next_end": nxt["next_end"],
+        "next_when": nxt["next_when"],
         "today_empty": today_empty,
         "summary": _summary_line(
             open_count=open_count,
             done_count=done_count,
-            workout_logged=workout["workout_logged"],
-            journal_streak=journal["journal_streak"],
+            next_title=nxt["next_title"],
+            next_when=nxt["next_when"],
             today_empty=today_empty,
         ),
     }

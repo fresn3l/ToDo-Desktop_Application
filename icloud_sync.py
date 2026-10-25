@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -87,15 +88,22 @@ def load_settings() -> Dict[str, Any]:
         folder = str(_require_allowed_folder(raw_folder))
     except ValueError:
         folder = str(default_sync_dir())
-    auto = bool(raw.get("auto")) if "auto" in raw else False
+    # Automatic sync is the daily path. A missing flag used to mean off, which
+    # left Push and Pull as a chore. An explicit false still means off.
+    auto = bool(raw.get("auto")) if "auto" in raw else True
     if "auto_pull" in raw:
         auto_pull = bool(raw.get("auto_pull"))
     else:
-        auto_pull = auto
+        auto_pull = True
+    try:
+        sync_pass = int(raw.get("sync_pass") or 0)
+    except (TypeError, ValueError):
+        sync_pass = 0
     return {
         "folder": folder,
         "auto": auto,
         "auto_pull": auto_pull,
+        "sync_pass": sync_pass,
         "using_icloud_drive": "com~apple~CloudDocs" in folder.replace("\\", "/"),
     }
 
@@ -110,6 +118,11 @@ def save_settings(partial: Dict[str, Any], *, allow_folder: bool = False) -> Dic
         current["auto"] = bool(partial["auto"])
     if "auto_pull" in partial:
         current["auto_pull"] = bool(partial["auto_pull"])
+    if "sync_pass" in partial:
+        try:
+            current["sync_pass"] = int(partial.get("sync_pass") or 0)
+        except (TypeError, ValueError):
+            current["sync_pass"] = 0
     path = _settings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = str(path) + ".tmp"
@@ -119,6 +132,7 @@ def save_settings(partial: Dict[str, Any], *, allow_folder: bool = False) -> Dic
                 "folder": current["folder"],
                 "auto": current["auto"],
                 "auto_pull": current.get("auto_pull", current["auto"]),
+                "sync_pass": int(current.get("sync_pass") or 0),
             },
             handle,
             indent=2,
@@ -710,7 +724,8 @@ def write_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
     _write_json(dest / "calendar.json", pack["calendar"])
     _write_json(dest / "appearance.json", pack["appearance"])
     if not _settings_path().exists():
-        save_settings({"auto": True, "auto_pull": True})
+        save_settings({"auto": True, "auto_pull": True, "sync_pass": 1})
+    _note_written(str(pack["manifest"]["exported_at"]))
     return {"ok": True, "folder": str(dest), "exported_at": pack["manifest"]["exported_at"]}
 
 
@@ -761,7 +776,64 @@ def apply_pack(folder: Optional[Path] = None) -> Dict[str, Any]:
 
 _exporting = False
 _last_open_pull = 0.0
+_last_written_stamp = ""
+_watcher_started = False
 PULL_DEBOUNCE_SEC = 20.0
+SYNC_POLL_SEC = 15.0
+
+
+def _note_written(stamp: str) -> None:
+    global _last_written_stamp
+    _last_written_stamp = str(stamp or "")
+
+
+def ensure_automatic_sync() -> Dict[str, Any]:
+    """Turn the daily path on once. A later uncheck stays off."""
+    current = load_settings()
+    if int(current.get("sync_pass") or 0) >= 1:
+        return current
+    return save_settings({"auto": True, "auto_pull": True, "sync_pass": 1})
+
+
+def pull_if_remote_changed() -> Dict[str, Any]:
+    """Read the pack when the other device wrote it. Our own export is a no-op."""
+    settings = load_settings()
+    if not settings.get("auto_pull"):
+        return {"ok": True, "skipped": True, "reason": "auto_pull_off"}
+    folder = Path(settings["folder"])
+    manifest = _read_json(folder / "manifest.json", {})
+    if not isinstance(manifest, dict):
+        return {"ok": True, "skipped": True, "reason": "no_pack"}
+    stamp = str(manifest.get("exported_at") or "")
+    if not stamp:
+        return {"ok": True, "skipped": True, "reason": "no_pack"}
+    if stamp == _last_written_stamp:
+        return {"ok": True, "skipped": True, "reason": "own_export"}
+    result = apply_pack(folder)
+    result["pulled_remote"] = True
+    return result
+
+
+def start_sync_watcher() -> None:
+    """While Kosistenz is open, a phone create or check-off shows up without Push/Pull."""
+    global _watcher_started
+    if _watcher_started:
+        return
+    _watcher_started = True
+    try:
+        ensure_automatic_sync()
+    except OSError:
+        pass
+
+    def _loop() -> None:
+        while True:
+            time.sleep(SYNC_POLL_SEC)
+            try:
+                pull_if_remote_changed()
+            except Exception:
+                pass
+
+    threading.Thread(target=_loop, name="kosistenz-sync", daemon=True).start()
 
 
 def export_if_enabled() -> None:

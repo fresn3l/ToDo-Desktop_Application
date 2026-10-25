@@ -4,11 +4,20 @@ import UIKit
 struct TodayScreen: View {
     @EnvironmentObject private var store: PackStore
     @State private var draft = ""
+    @State private var parkDraft = ""
     @State private var burstingId: String?
 
     private var rows: [TodayList.Entry] {
         guard let pack = store.pack else { return [] }
         return TodayList.entries(pack: pack, today: store.today)
+    }
+
+    private var clockRows: [TodayList.Entry] {
+        rows.filter { $0.kind == .clock }
+    }
+
+    private var taskRows: [TodayList.Entry] {
+        rows.filter { $0.kind == .task }
     }
 
     var body: some View {
@@ -21,28 +30,48 @@ struct TodayScreen: View {
                     }
                     .listRowBackground(store.palette.widgetBg)
                 }
-                if rows.isEmpty {
-                    Section {
-                        Text("Nothing dated for today. Add a task here, or an event on Calendar.")
+                Section("On the clock") {
+                    if clockRows.isEmpty {
+                        Text("Nothing on the clock.")
                             .foregroundStyle(.secondary)
                     }
-                    .listRowBackground(store.palette.widgetBg)
-                }
-                ForEach(rows) { row in
-                    TodayCheckRow(
-                        entry: row,
-                        palette: store.palette,
-                        bursting: burstingId == row.id
-                    ) {
-                        complete(row)
+                    ForEach(clockRows) { row in
+                        TodayCheckRow(
+                            entry: row,
+                            palette: store.palette,
+                            bursting: burstingId == row.id
+                        ) {
+                            complete(row)
+                        }
                     }
-                    .listRowBackground(store.palette.widgetBg)
                 }
-                Section {
+                .listRowBackground(store.palette.widgetBg)
+                Section("Today") {
+                    if taskRows.isEmpty {
+                        Text("Nothing dated today.")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(taskRows) { row in
+                        TodayCheckRow(
+                            entry: row,
+                            palette: store.palette,
+                            bursting: burstingId == row.id
+                        ) {
+                            complete(row)
+                        }
+                    }
                     HStack {
                         TextField("Add for today", text: $draft)
                         Button("Add") { addTodo() }
                             .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+                .listRowBackground(store.palette.widgetBg)
+                Section("Park") {
+                    HStack {
+                        TextField("No day yet", text: $parkDraft)
+                        Button("Park") { park() }
+                            .disabled(parkDraft.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 }
                 .listRowBackground(store.palette.widgetBg)
@@ -88,6 +117,17 @@ struct TodayScreen: View {
         draft = ""
         do {
             store.pack = try PackActions.addTodo(title, date: store.today)
+            store.error = nil
+        } catch {
+            store.error = error.localizedDescription
+        }
+    }
+
+    private func park() {
+        let title = parkDraft
+        parkDraft = ""
+        do {
+            store.pack = try PackActions.park(title)
             store.error = nil
         } catch {
             store.error = error.localizedDescription

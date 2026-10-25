@@ -110,6 +110,8 @@ def menu_status() -> Dict[str, Any]:
         "workout_logged": bool(payload.get("workout_logged")),
         "journal_today": bool(payload.get("journal_today")),
         "journal_streak": int(payload.get("journal_streak") or 0),
+        "next_title": payload.get("next_title") or "",
+        "next_when": payload.get("next_when") or "",
         "active_id": None if active is None else active.get("id"),
         "active_title": None if active is None else active.get("title"),
         "first_open_id": None if first_open is None else first_open.get("id"),

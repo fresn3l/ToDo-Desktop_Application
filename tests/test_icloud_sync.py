@@ -129,9 +129,10 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertEqual(titles[item["id"]], "Keep from phone")
         self.assertIn("Local only", titles.values())
 
-    def test_auto_export_stays_off_until_first_push(self):
+    def test_missing_sync_flag_does_not_push_before_settings_exist(self):
         self._use(self.src)
-        self.assertFalse(icloud_sync.load_settings()["auto"])
+        self.assertTrue(icloud_sync.load_settings()["auto"])
+        self.assertEqual(icloud_sync.load_settings()["sync_pass"], 0)
         work.create_work_item("Quiet", scheduled_date=None)
         self.assertFalse((icloud_sync.default_sync_dir() / "work.json").exists())
 

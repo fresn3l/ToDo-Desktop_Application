@@ -44,6 +44,19 @@ extension AppDelegate {
         menu.removeAllItems()
 
         let summary = (status?["summary"] as? String) ?? "Kosistenz"
+        let nextWhen = (status?["next_when"] as? String) ?? ""
+        let nextTitle = (status?["next_title"] as? String) ?? ""
+        if let button = statusItem?.button {
+            if !nextTitle.isEmpty {
+                statusItem?.length = NSStatusItem.variableLength
+                let when = nextWhen.isEmpty ? "" : "\(nextWhen) "
+                button.title = " \(when)\(clipped(nextTitle, limit: 22))"
+            } else {
+                statusItem?.length = NSStatusItem.squareLength
+                button.title = ""
+            }
+            button.toolTip = summary
+        }
         let summaryItem = NSMenuItem(title: summary, action: nil, keyEquivalent: "")
         summaryItem.isEnabled = false
         menu.addItem(summaryItem)
@@ -64,16 +77,6 @@ extension AppDelegate {
         }
 
         menu.addItem(NSMenuItem.separator())
-        let logHeader = NSMenuItem(title: "Log session", action: nil, keyEquivalent: "")
-        logHeader.isEnabled = false
-        menu.addItem(logHeader)
-        menu.addItem(menuItem("Push", action: #selector(logPush), key: ""))
-        menu.addItem(menuItem("Pull", action: #selector(logPull), key: ""))
-        menu.addItem(menuItem("Legs", action: #selector(logLegs), key: ""))
-        menu.addItem(menuItem("Run", action: #selector(logRun), key: ""))
-
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(menuItem("New journal entry", action: #selector(openNewJournal), key: ""))
         menu.addItem(menuItem("Park in To Do…", action: #selector(promptParkInAllWork), key: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit Kosistenz", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))

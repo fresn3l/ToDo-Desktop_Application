@@ -44,20 +44,22 @@ function humanWeekRange(startIso, endIso) {
     return `${left} – ${right}`;
 }
 
-function setCalView(next) {
-    calView = next === 'week' || next === 'year' ? next : 'month';
-    // Fill week stays visible in month and year; it still packs this week.
-    document.getElementById('calGrid')?.classList.toggle('is-hidden', calView !== 'week');
-    document.getElementById('calTodayRail')?.classList.toggle('is-hidden', calView !== 'week');
-    document.querySelector('.cal-week-shell')?.classList.toggle('is-week', calView === 'week');
+export function setCalView(next) {
+    const allowed = ['day', 'week', 'month', 'year'];
+    calView = allowed.includes(next) ? next : 'day';
+    const week = calView === 'week';
+    const day = calView === 'day';
+    document.getElementById('calGrid')?.classList.toggle('is-hidden', !week);
+    document.getElementById('calTodayRail')?.classList.toggle('is-hidden', !(day || week));
+    const shell = document.querySelector('.cal-week-shell');
+    shell?.classList.toggle('is-week', week);
+    shell?.classList.toggle('is-day', day);
     document.getElementById('calMonthGrid')?.classList.toggle('is-hidden', calView !== 'month');
     document.getElementById('calYearGrid')?.classList.toggle('is-hidden', calView !== 'year');
-    // Month and year views hide the week-clock hint.
-    document.getElementById('calClockHint')?.classList.toggle('is-hidden', calView !== 'week');
-    document.querySelector('.cal-clock-tools')?.classList.toggle('is-hidden', calView !== 'week');
-    // Month and year views show the event / placed / due legend.
-    document.getElementById('calMonthLegend')?.classList.toggle('is-hidden', calView === 'week');
-    // There is no clock to drop onto outside Week, so stop inviting the drag.
+    document.getElementById('calClockHint')?.classList.toggle('is-hidden', !week);
+    document.querySelector('.cal-clock-tools')?.classList.toggle('is-hidden', !week);
+    document.getElementById('calMonthLegend')?.classList.toggle('is-hidden', calView !== 'month');
+    document.getElementById('calBehind')?.classList.toggle('is-hidden', day);
     const unplacedHint = document.querySelector('.cal-unplaced-hint');
     if (unplacedHint) {
         unplacedHint.textContent = calView === 'week'
@@ -67,6 +69,7 @@ function setCalView(next) {
     document.querySelectorAll('#calViewGroup [data-cal-view]').forEach((btn) => {
         btn.classList.toggle('is-selected', btn.getAttribute('data-cal-view') === calView);
     });
+    document.dispatchEvent(new CustomEvent('kosistenz:cal-view', { detail: { view: calView } }));
 }
 
 function openWeekForDate(iso) {
@@ -447,7 +450,10 @@ function agendaTime(item) {
     const start = new Date(item.start_at);
     if (Number.isNaN(start.getTime())) return '';
     const pad = (n) => String(n).padStart(2, '0');
-    return `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+    const startText = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+    const end = new Date(item.end_at);
+    if (Number.isNaN(end.getTime())) return startText;
+    return `${startText}–${pad(end.getHours())}:${pad(end.getMinutes())}`;
 }
 
 function renderTodayRail(today) {
@@ -462,36 +468,42 @@ function renderTodayRail(today) {
     const work = today.work || [];
     const dues = today.dues || [];
     const items = today.items || [];
+    const appointments = items.filter((item) => item.kind === 'hard' && item.start_at && item.end_at);
     const overdueHtml = overdue.length
         ? `<h4>Overdue</h4><div class="cal-due-list">${overdue.map((due) => renderDueChip(due)).join('')}</div>`
         : '';
     const workHtml = work.length
-        ? `<h4>Today</h4>${work.map((row) => renderWorkRow(row, { action: 'park' })).join('')}`
-        : '<h4>Today</h4><p class="cal-due-empty">Nothing dated today. Add below, or move from To Do.</p>';
+        ? work.map((row) => renderWorkRow(row, { action: 'park' })).join('')
+        : '<p class="cal-due-empty">Nothing dated today.</p>';
     const duesHtml = dues.length
         ? `<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`
         : '';
-    const clockHtml = items.length
-        ? `<h4>On the clock</h4><ul class="cal-today-agenda">${items.map((item) => {
-            const kind = item.kind === 'hard' ? 'hard' : item.kind === 'workout' ? 'workout' : item.kind === 'focus' ? 'focus' : 'work';
+    const clockHtml = appointments.length
+        ? `<ul class="cal-today-agenda">${appointments.map((item) => {
             const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
-            return `<li class="is-${kind}${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Block'))}</b><em>${utils.escapeHtml(agendaKind(item))}</em></li>`;
+            return `<li class="is-hard${outcome}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Appointment'))}</b></li>`;
         }).join('')}</ul>`
-        : '<h4>On the clock</h4><p class="cal-due-empty">Nothing placed yet. Drag from Today or To Do onto the week clock.</p>';
+        : '<p class="cal-due-empty">Nothing on the clock.</p>';
     root.innerHTML = `
         <header>
             <p class="eyebrow">Today</p>
             <h3>${utils.escapeHtml(today.label || today.weekday || 'Today')}</h3>
-            <p class="cal-today-awake">${utils.escapeHtml(formatHHMM(today.day_start))}–${utils.escapeHtml(formatHHMM(today.day_end))}</p>
         </header>
-        ${overdueHtml}
+        <h4>On the clock</h4>
+        ${clockHtml}
+        <h4>Today</h4>
         ${workHtml}
         <div class="work-add-row cal-today-add">
             <input type="text" id="calTodayAdd" class="checklist-text-input" placeholder="Add for today" autocomplete="off">
             <button type="button" id="calTodayAddBtn" class="btn-ghost">Add</button>
         </div>
+        <h4>Park</h4>
+        <div class="work-add-row cal-today-add">
+            <input type="text" id="calTodayPark" class="checklist-text-input" placeholder="No day yet" autocomplete="off" aria-label="Park">
+            <button type="button" id="calTodayParkBtn" class="btn-ghost">Park</button>
+        </div>
         ${duesHtml}
-        ${clockHtml}
+        ${overdueHtml}
     `;
     bindWorkRows(root);
     document.getElementById('calTodayAddBtn')?.addEventListener('click', () => {
@@ -501,6 +513,15 @@ function renderTodayRail(today) {
         if (e.key === 'Enter') {
             e.preventDefault();
             void addTodayFromRail();
+        }
+    });
+    document.getElementById('calTodayParkBtn')?.addEventListener('click', () => {
+        void parkFromRail();
+    });
+    document.getElementById('calTodayPark')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            void parkFromRail();
         }
     });
 }
@@ -564,7 +585,7 @@ function renderUnplaced(items, total) {
         return;
     }
     const extra = Number(total || 0) > items.length
-        ? `<p class="checklist-hint small">${Number(total) - items.length} more in To Do. Fill week packs leftover minutes from To Do, not Today.</p>`
+        ? `<p class="checklist-hint small">${Number(total) - items.length} more in To Do.</p>`
         : '';
     const grouped = new Map(WORK_GROUPS.map((g) => [g.id, []]));
     for (const item of items) {
@@ -624,6 +645,30 @@ async function addTodayFromRail() {
     } catch (e) {
         utils.showErrorFeedback(e?.message || 'Could not add that to Today.');
     }
+}
+
+async function parkNamed(title, input) {
+    const clean = String(title || '').trim();
+    if (!clean) return;
+    try {
+        await callEel('add_todo_to_calendar', clean, 'park');
+        if (input) input.value = '';
+        utils.showSuccessFeedback('Parked.');
+        utils.notifyDataChanged();
+        await loadCalendar();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not park that.');
+    }
+}
+
+async function parkFromRail() {
+    const input = document.getElementById('calTodayPark');
+    await parkNamed(input?.value, input);
+}
+
+async function parkFromAside() {
+    const input = document.getElementById('calParkAdd');
+    await parkNamed(input?.value, input);
 }
 
 async function parkWorkFromToday(itemId) {
@@ -722,6 +767,7 @@ function paintEditor() {
     const save = document.getElementById('calSaveItem');
     const mode = editor.mode;
     const isIdle = mode === 'idle';
+    toggleHidden(document.getElementById('calEditor'), isIdle);
     const isNew = mode === 'new';
     const isHard = mode === 'hard' || isNew;
     const isUnplaced = mode === 'unplaced';
@@ -774,14 +820,49 @@ function paintEditor() {
     if (park) park.textContent = 'Park';
 }
 
+function dateText(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function clockText(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function readClock(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return '';
+    return formatHHMM(text);
+}
+
+function setEditorRange(start, end) {
+    const startDate = start instanceof Date ? start : new Date(start);
+    const endDate = end instanceof Date ? end : new Date(end);
+    const dateEl = document.getElementById('calEventDate');
+    const startEl = document.getElementById('calEventStart');
+    const endEl = document.getElementById('calEventEnd');
+    if (Number.isNaN(startDate.getTime())) {
+        if (dateEl) dateEl.value = '';
+        if (startEl) startEl.value = '';
+        if (endEl) endEl.value = '';
+        return;
+    }
+    if (dateEl) dateEl.value = dateText(startDate);
+    if (startEl) startEl.value = clockText(startDate);
+    if (endEl) endEl.value = Number.isNaN(endDate.getTime()) ? '' : clockText(endDate);
+}
+
 function clearEditorFields() {
     const titleEl = document.getElementById('calEventTitle');
     if (titleEl) titleEl.value = '';
     setWeekdaySelection([]);
     setStatusSelection('proposed');
     setOutcomeSelection('');
+    const dateEl = document.getElementById('calEventDate');
     const start = document.getElementById('calEventStart');
     const end = document.getElementById('calEventEnd');
+    if (dateEl) dateEl.value = '';
     if (start) start.value = '';
     if (end) end.value = '';
 }
@@ -954,8 +1035,7 @@ function parseFocusItems(btn) {
 }
 
 function focusSpanMinutes() {
-    const start = fromLocalInput(document.getElementById('calEventStart')?.value);
-    const end = fromLocalInput(document.getElementById('calEventEnd')?.value);
+    const { start, end } = isoFromEditor();
     if (!start || !end) return 0;
     const a = new Date(start);
     const b = new Date(end);
@@ -1175,11 +1255,7 @@ function openEditorFromBlock(btn) {
     };
     const titleEl = document.getElementById('calEventTitle');
     if (titleEl) titleEl.value = btn.getAttribute('data-title') || '';
-    const startEl = document.getElementById('calEventStart');
-    const endEl = document.getElementById('calEventEnd');
-    const startIso = btn.getAttribute('data-start-at') || '';
-    if (startEl) startEl.value = toLocalInput(startIso);
-    if (endEl) endEl.value = toLocalInput(btn.getAttribute('data-end-at'));
+    setEditorRange(btn.getAttribute('data-start-at') || '', btn.getAttribute('data-end-at') || '');
     // Only a series lights its days. A one-off used to arrive with its own
     // weekday already lit, so saving it quietly turned it into a weekly event.
     const rawDays = (btn.getAttribute('data-weekdays') || '').split(',').map((d) => d.trim()).filter(Boolean);
@@ -1207,12 +1283,11 @@ function openUnplaced(btn) {
     const titleEl = document.getElementById('calEventTitle');
     if (titleEl) titleEl.value = btn.getAttribute('data-title') || '';
     defaultEventTimes(true);
-    const start = document.getElementById('calEventStart');
-    const end = document.getElementById('calEventEnd');
-    if (start?.value && end) {
-        const d = new Date(start.value);
+    const range = isoFromEditor();
+    if (range.start) {
+        const d = new Date(range.start);
         if (!Number.isNaN(d.getTime())) {
-            end.value = toLocalInput(new Date(d.getTime() + Math.max(15, minutes) * 60000));
+            setEditorRange(d, new Date(d.getTime() + Math.max(15, minutes) * 60000));
         }
     }
     setWeekdaySelection([]);
@@ -1226,10 +1301,17 @@ function openUnplaced(btn) {
 }
 
 function isoFromEditor() {
+    const title = document.getElementById('calEventTitle')?.value?.trim() || '';
+    const date = document.getElementById('calEventDate')?.value || '';
+    const startClock = readClock(document.getElementById('calEventStart')?.value);
+    const endClock = readClock(document.getElementById('calEventEnd')?.value);
+    if (!date || !startClock || !endClock) {
+        return { title, start: '', end: '' };
+    }
     return {
-        title: document.getElementById('calEventTitle')?.value?.trim() || '',
-        start: fromLocalInput(document.getElementById('calEventStart')?.value),
-        end: fromLocalInput(document.getElementById('calEventEnd')?.value),
+        title,
+        start: fromLocalInput(`${date} ${startClock.replace(':', '')}`),
+        end: fromLocalInput(`${date} ${endClock.replace(':', '')}`),
     };
 }
 
@@ -1313,10 +1395,7 @@ function applyGridTime(e, body) {
     const start = new Date(y, m - 1, d, 0, 0, 0);
     start.setMinutes(startMin + mins);
     const end = new Date(start.getTime() + dur * 60000);
-    const startEl = document.getElementById('calEventStart');
-    const endEl = document.getElementById('calEventEnd');
-    if (startEl) startEl.value = toLocalInput(start);
-    if (endEl) endEl.value = toLocalInput(end);
+    setEditorRange(start, end);
 }
 
 function paintNowLine() {
@@ -1525,9 +1604,10 @@ async function onSpanPointerUp(e) {
     const endIso = toApiIso(end);
     try {
         if (state.drawKind === 'event') {
-            const created = await callEel('create_calendar_event', 'Event', startIso, endIso, []);
-            pendingSelectId = created?.id || '';
-            utils.showSuccessFeedback('Event on the clock. Name it.');
+            startNewEvent();
+            setEditorRange(start, end);
+            document.getElementById('calEventTitle')?.focus();
+            return;
         } else {
             const created = await callEel('create_focus_block', 'Focus', startIso, endIso, []);
             pendingSelectId = created?.id || '';
@@ -2143,14 +2223,11 @@ function importApple() {
 
 function defaultEventTimes(force = false) {
     const start = document.getElementById('calEventStart');
-    const end = document.getElementById('calEventEnd');
     if (!start || (!force && start.value)) return;
     const d = new Date();
-    d.setMinutes(0, 0, 0);
+    d.setSeconds(0, 0);
     d.setHours(9, 30, 0, 0);
-    start.value = toLocalInput(d);
-    const e = new Date(d.getTime() + 50 * 60000);
-    if (end) end.value = toLocalInput(e);
+    setEditorRange(d, new Date(d.getTime() + 60 * 60000));
 }
 
 function importIcs() {
@@ -2234,6 +2311,18 @@ export function setupCalendar() {
     document.getElementById('calNewEvent')?.addEventListener('click', () => {
         startNewEvent();
     });
+    document.getElementById('calShowEvent')?.addEventListener('click', () => {
+        startNewEvent();
+    });
+    document.getElementById('calParkAddBtn')?.addEventListener('click', () => {
+        void parkFromAside();
+    });
+    document.getElementById('calParkAdd')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            void parkFromAside();
+        }
+    });
     document.getElementById('calNewFocus')?.addEventListener('click', () => {
         startNewFocus();
     });
@@ -2269,9 +2358,10 @@ export function setupCalendar() {
         // Ask about this week or this event from the editor. Never auto-placement.
         // Ask about this month stays a seeded question, never Fill week.
         const title = (document.getElementById('calEventTitle')?.value || '').trim() || 'this';
-        const date = editor.occurrenceDate || String(document.getElementById('calEventStart')?.value || '').slice(0, 10);
-        const start = document.getElementById('calEventStart')?.value || '';
-        const end = document.getElementById('calEventEnd')?.value || '';
+        const range = isoFromEditor();
+        const date = editor.occurrenceDate || document.getElementById('calEventDate')?.value || '';
+        const start = range.start || '';
+        const end = range.end || '';
         const question = date
             ? `What should I know about ${title} on ${date}?`
             : `What should I know about ${title}?`;
