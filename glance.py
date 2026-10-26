@@ -180,7 +180,10 @@ def _habits_store() -> Dict[str, Any]:
             if not title:
                 continue
             seen.add(hid)
-            habits.append({"id": hid, "title": title, "sort": index})
+            bucket = str(row.get("bucket") or "hard").strip().lower()
+            if bucket not in ("hard", "easy"):
+                bucket = "hard"
+            habits.append({"id": hid, "title": title, "sort": index, "bucket": bucket})
     checks: Dict[str, List[str]] = {}
     if isinstance(checks_in, dict):
         cutoff = (_today() - timedelta(days=HABIT_HISTORY_DAYS)).isoformat()
@@ -201,7 +204,10 @@ def _habits_store() -> Dict[str, Any]:
 
 def _save_habits_store(store: Dict[str, Any]) -> Dict[str, Any]:
     packed = {
-        "habits": [{"id": row["id"], "title": row["title"]} for row in store["habits"][:MAX_HABITS]],
+        "habits": [
+            {"id": row["id"], "title": row["title"], "bucket": row.get("bucket") or "hard"}
+            for row in store["habits"][:MAX_HABITS]
+        ],
         "checks": store.get("checks") or {},
     }
     _write(_path("habits.json"), packed)
@@ -218,6 +224,7 @@ def load_habits(today: Optional[date] = None) -> Dict[str, Any]:
             {
                 "id": row["id"],
                 "title": row["title"],
+                "bucket": row.get("bucket") or "hard",
                 "done": row["id"] in checked,
             }
         )
@@ -230,14 +237,27 @@ def load_habits(today: Optional[date] = None) -> Dict[str, Any]:
     }
 
 
-def add_habit(title: str) -> Dict[str, Any]:
+def add_habit(title: str, bucket: str = "hard") -> Dict[str, Any]:
     store = _habits_store()
     if len(store["habits"]) >= MAX_HABITS:
         raise ValueError("Too many habits")
     name = _clip(title, MAX_HABIT_TITLE)
     if not name:
         raise ValueError("Name this habit")
-    store["habits"].append({"id": _new_id(), "title": name, "sort": len(store["habits"])})
+    side = bucket if bucket in ("hard", "easy") else "hard"
+    store["habits"].append({"id": _new_id(), "title": name, "sort": len(store["habits"]), "bucket": side})
+    _save_habits_store(store)
+    return load_habits()
+
+
+def set_bucket(habit_id: str, bucket: str) -> Dict[str, Any]:
+    want = str(habit_id or "").strip()
+    side = bucket if bucket in ("hard", "easy") else "hard"
+    store = _habits_store()
+    row = next((row for row in store["habits"] if row["id"] == want), None)
+    if row is None:
+        raise ValueError("Habit not found")
+    row["bucket"] = side
     _save_habits_store(store)
     return load_habits()
 

@@ -28,6 +28,18 @@ class HomeBootTests(unittest.TestCase):
         self.env.stop()
         self.tmp.cleanup()
 
+    def _widget_page(self, *extra: str) -> str:
+        """The first page is Execute. Widget fetching lives on extra pages."""
+        import home_layout
+
+        layout = home_layout.add_home_page("Widgets")
+        page_id = layout["pages"][-1]["id"]
+        home_layout.add_home_widget(page_id, "work", "below", {"slice": "today"})
+        home_layout.add_home_widget(page_id, "today_calendar")
+        for kind in extra:
+            home_layout.add_home_widget(page_id, kind)
+        return page_id
+
     def test_bridge_import_does_not_load_calendar_or_brain(self) -> None:
         code = r"""
 import sys
@@ -47,6 +59,7 @@ print("ok")
 
         self.assertEqual(lazy_eel.FEATURE_MODULES["settings"], ())
         self.assertEqual(lazy_eel.FEATURE_MODULES["today"], ("insights", "calclock", "home_glances"))
+        self.assertEqual(lazy_eel.FEATURE_MODULES["execute"], ("execute",))
 
     def test_home_boot_does_not_probe_cluny_health(self) -> None:
         import home_boot
@@ -61,15 +74,28 @@ print("ok")
         names = [row.args[1] for row in called.call_args_list if row.args]
         self.assertNotIn("get_cluny_health", names)
         self.assertNotIn("get_today_home", names)
-        self.assertIn("now_next_glance", names)
+        self.assertIn("get_execute_home", names)
 
-    def test_get_home_boot_is_one_payload(self) -> None:
+    def test_first_page_boot_is_execute_not_widgets(self) -> None:
         import home_boot
         import work
 
         work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
         with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
             boot = home_boot.get_home_boot()
+        self.assertEqual(boot["glances"], {})
+        self.assertEqual(boot["execute"]["one_thing"]["title"], "Write the paper")
+        self.assertIsNotNone(boot.get("checkin"))
+        self.assertNotIn(home_boot.EXECUTE_TASK, boot["glances"])
+
+    def test_get_home_boot_is_one_payload(self) -> None:
+        import home_boot
+        import work
+
+        work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        page_id = self._widget_page()
+        with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+            boot = home_boot.get_home_boot(page_id)
         self.assertIn("layout", boot)
         self.assertIn("glances", boot)
         # Tiles come back keyed by widget key, so two Work slices on one page
@@ -79,8 +105,8 @@ print("ok")
         todo = boot["glances"]["work:slice=today"]
         titles = [row.get("title") for row in (todo.get("today") or [])]
         self.assertIn("Write the paper", titles)
-        self.assertIsNotNone(boot.get("checkin"))
-        # The check-in runs beside the tiles but is not one of them.
+        self.assertIsNone(boot.get("checkin"))
+        self.assertIsNone(boot.get("execute"))
         self.assertNotIn(home_boot.CHECKIN_TASK, boot["glances"])
 
     def test_each_work_slice_fetches_its_own_list(self) -> None:
@@ -204,8 +230,8 @@ from unittest import mock
 with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
     boot = home_boot.get_home_boot()
 json.dumps(boot)
-assert boot["glances"]["today_calendar"].get("ok") is not False
-assert "beat" in boot["glances"]["today_calendar"]
+assert boot.get("execute") and boot["execute"].get("ok") is not False, boot.get("execute")
+assert "phase" in boot["execute"]
 assert boot.get("checkin") and boot["checkin"].get("ok") is not False
 print("ok")
 """ % (str(ROOT),)
@@ -219,8 +245,7 @@ print("ok")
         import home_boot
         import home_layout
 
-        layout = home_layout.get_home_layout()
-        home_layout.add_home_widget(layout["pages"][0]["id"], "weather")
+        page_id = self._widget_page("weather")
         real = home_boot.fetch_glance
         release = threading.Event()
 
@@ -234,7 +259,7 @@ print("ok")
             with mock.patch.object(home_boot, "fetch_glance", side_effect=hang):
                 with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
                     started = time.monotonic()
-                    boot = home_boot.get_home_boot()
+                    boot = home_boot.get_home_boot(page_id)
                     elapsed = time.monotonic() - started
         release.set()
         self.assertLess(elapsed, 2)
@@ -256,8 +281,8 @@ with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
     boot = home_boot.get_home_boot()
 blocked = [name for name in ("insights", "workouts", "timeline") if name in sys.modules]
 assert not blocked, blocked
-assert boot["glances"]["today_calendar"].get("ok") is not False
-assert "beat" in boot["glances"]["today_calendar"]
+assert boot["execute"].get("ok") is not False, boot["execute"]
+assert "phase" in boot["execute"]
 print("ok")
 """ % (str(ROOT),)
         out = subprocess.check_output([sys.executable, "-c", code], cwd=str(ROOT), text=True)
@@ -274,9 +299,7 @@ print("ok")
         self.assertTrue(peek["ok"])
         self.assertTrue(peek["stale"])
         self.assertEqual(peek["page_id"], boot["page_id"])
-        self.assertIn("work:slice=today", peek["glances"])
-        titles = [row.get("title") for row in peek["glances"]["work:slice=today"].get("today") or []]
-        self.assertIn("Write the paper", titles)
+        self.assertEqual(peek["execute"]["one_thing"]["title"], "Write the paper")
 
     def test_peek_wrong_page_omits_stale_glances(self) -> None:
         import home_boot
@@ -289,13 +312,15 @@ print("ok")
         self.assertTrue(peek["ok"])
         self.assertEqual(peek["glances"], {})
         self.assertIsNone(peek["checkin"])
+        self.assertIsNone(peek["execute"])
         self.assertIsNotNone(peek.get("layout"))
 
     def test_wave1_excludes_weather_word_and_unplaced(self) -> None:
         import home_boot
 
+        page_id = self._widget_page("weather", "word")
         with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
-            boot = home_boot.get_home_boot(wave="1")
+            boot = home_boot.get_home_boot(page_id, wave="1")
         self.assertEqual(boot["wave"], "1")
         self.assertIn("work:slice=today", boot["glances"])
         self.assertIn("today_calendar", boot["glances"])
@@ -303,7 +328,17 @@ print("ok")
         self.assertNotIn("weather", boot["glances"])
         self.assertNotIn("word", boot["glances"])
         self.assertNotIn("work:slice=unplaced", boot["glances"])
+
+    def test_wave1_on_the_first_page_carries_execute_and_checkin(self) -> None:
+        import home_boot
+
+        with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+            boot = home_boot.get_home_boot(wave="1")
         self.assertIsNotNone(boot.get("checkin"))
+        self.assertIsNotNone(boot.get("execute"))
+        with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
+            later = home_boot.get_home_boot(wave="2")
+        self.assertIsNone(later.get("execute"))
 
     def test_wave2_is_the_rest(self) -> None:
         import home_boot
@@ -322,15 +357,15 @@ print("ok")
         import work
 
         work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
+        page_id = self._widget_page()
         with mock.patch.object(home_boot, "_ensure_cluny_supervisor"):
-            boot = home_boot.get_home_boot()
+            boot = home_boot.get_home_boot(page_id)
         self.assertEqual(boot.get("wave"), "all")
         self.assertIn("today_calendar", boot["glances"])
         self.assertIn("work:slice=today", boot["glances"])
         self.assertNotIn("work:slice=unplaced", boot["glances"])
         self.assertNotIn("weather", boot["glances"])
         self.assertNotIn("word", boot["glances"])
-        self.assertIsNotNone(boot.get("checkin"))
 
     def test_rollover_is_not_on_the_request(self) -> None:
         import home_boot
@@ -395,11 +430,12 @@ print("ok")
 
         work.create_work_item("Write the paper", scheduled_date=work._today().isoformat())
         work.create_work_item("Parked later")
+        page_id = self._widget_page()
         with (
             mock.patch.object(home_boot, "_ensure_cluny_supervisor"),
             mock.patch.object(work, "get_work_board", wraps=work.get_work_board) as board,
         ):
-            boot = home_boot.get_home_boot()
+            boot = home_boot.get_home_boot(page_id)
         self.assertEqual(board.call_count, 1)
         today = boot["glances"]["work:slice=today"]
         self.assertIn("Write the paper", [row.get("title") for row in today.get("today") or []])

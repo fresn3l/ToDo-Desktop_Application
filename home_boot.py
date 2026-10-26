@@ -209,6 +209,7 @@ NETWORK_GLANCES = frozenset({"weather"})
 NETWORK_GLANCE_TIMEOUT_SEC = 3.0
 # Not a widget kind. Rides in the glance pool so the check-in does not wait.
 CHECKIN_TASK = "__checkin"
+EXECUTE_TASK = "__execute"
 
 
 def _run_together(tasks: Dict[str, Any], timeout: float) -> Dict[str, Any]:
@@ -348,6 +349,7 @@ def _write_boot_cache(payload: Dict[str, Any]) -> None:
         "layout": payload.get("layout"),
         "glances": payload.get("glances") or {},
         "checkin": payload.get("checkin"),
+        "execute": payload.get("execute"),
         "page_id": payload.get("page_id") or "",
         "saved_at": datetime.now().isoformat(timespec="seconds"),
     }
@@ -371,10 +373,14 @@ def _save_boot_cache(payload: Dict[str, Any], *, merge: bool) -> None:
             checkin = payload.get("checkin")
             if checkin is None:
                 checkin = existing.get("checkin")
+            execute = payload.get("execute")
+            if execute is None:
+                execute = existing.get("execute")
             packed = {
                 "layout": payload.get("layout") or existing.get("layout"),
                 "glances": glances,
                 "checkin": checkin,
+                "execute": execute,
                 "page_id": payload.get("page_id") or existing.get("page_id") or "",
             }
             _write_boot_cache(packed)
@@ -428,21 +434,25 @@ def peek_home_boot(page_id: str = "") -> Dict[str, Any]:
             "layout": None,
             "glances": {},
             "checkin": None,
+            "execute": None,
             "page_id": "",
         }
     wanted = str(page_id or "").strip()
     cached_page = str(packed.get("page_id") or "")
     glances = packed.get("glances") or {}
     checkin = packed.get("checkin")
+    execute = packed.get("execute")
     if wanted and cached_page and wanted != cached_page:
         glances = {}
         checkin = None
+        execute = None
     return {
         "ok": True,
         "stale": True,
         "layout": packed.get("layout"),
         "glances": glances if isinstance(glances, dict) else {},
         "checkin": checkin,
+        "execute": execute,
         "page_id": cached_page,
     }
 
@@ -488,11 +498,18 @@ def get_home_boot(page_id: str = "", wave: str = "all") -> Dict[str, Any]:
     if wave_name != "2":
         _rollover_later()
     first = _first_page(layout)
+    on_first = bool(first) and page.get("id") == first.get("id")
     extra: Dict[str, Any] = {}
-    if wave_name != "2" and first and page.get("id") == first.get("id"):
-        extra[CHECKIN_TASK] = lambda: _safe_call("daily_checklist", "get_home_checkin")
+    if on_first:
+        # The first page is Execute, Aim, Close. Its old widget list stays in
+        # the layout file but is not fetched or drawn.
+        keys = []
+        if wave_name != "2":
+            extra[CHECKIN_TASK] = lambda: _safe_call("daily_checklist", "get_home_checkin")
+            extra[EXECUTE_TASK] = lambda: _safe_call("execute", "get_execute_home")
     glances = _fetch_glances(keys, extra)
     checkin = glances.pop(CHECKIN_TASK, None)
+    execute = glances.pop(EXECUTE_TASK, None)
     if wave_name != "2":
         _ensure_cluny_supervisor()
         _nudge_rate_voice_later()
@@ -500,6 +517,7 @@ def get_home_boot(page_id: str = "", wave: str = "all") -> Dict[str, Any]:
         "layout": layout,
         "glances": glances,
         "checkin": checkin,
+        "execute": execute,
         "page_id": page.get("id") or "",
         "wave": wave_name,
         "stale": False,

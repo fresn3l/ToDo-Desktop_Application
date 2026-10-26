@@ -68,6 +68,7 @@ LAZY_MODULES: Tuple[str, ...] = (
     "word_of_the_day",
     "journal",
     "notes",
+    "execute",
     "daily_checklist",
     "workouts",
 )
@@ -96,6 +97,7 @@ FEATURE_MODULES: Dict[str, Tuple[str, ...]] = {
     "cluny": ("cluny_ask", "cluny_brain", "cluny_sync"),
     "allwork": ("work",),
     "checklist": ("daily_checklist", "day_brief"),
+    "execute": ("execute",),
 }
 
 
@@ -295,6 +297,25 @@ EXPOSE_FALLBACK: Dict[str, Tuple[str, ...]] = {
         "attach_note",
         "detach_note",
         "list_focus_spans",
+    ),
+    "execute": (
+        "get_execute_home",
+        "pin_execute_priority",
+        "save_first_bout",
+        "start_execute_bout",
+        "skip_execute_visual",
+        "set_execute_outcome",
+        "finish_execute_defocus",
+        "save_execute_aim",
+        "set_aim_difficulty",
+        "save_micro_suck",
+        "toggle_micro_suck",
+        "close_execute_day",
+        "add_execute_habit",
+        "set_habit_bucket",
+        "start_habits_block",
+        "toggle_execute_habit",
+        "remove_execute_habit",
     ),
     "daily_checklist": (
         "get_custom_checklist_items",

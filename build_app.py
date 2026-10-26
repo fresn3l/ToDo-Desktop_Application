@@ -241,6 +241,7 @@ def build_app() -> None:
         "setuptools",
         "journal",
         "notes",
+        "execute",
         "cluny_ask",
         "cluny_snapshot",
         "cluny_client",
