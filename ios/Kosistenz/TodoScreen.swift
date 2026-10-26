@@ -1,17 +1,63 @@
 import SwiftUI
 
+enum TodoGroups {
+    static func group(_ item: WorkItem, today: String) -> String {
+        let monday = DayStamp.weekMonday(today)
+        let scheduled = String((item.scheduled_date ?? "").prefix(10))
+        if scheduled == today { return "today" }
+        if !scheduled.isEmpty {
+            let sunday = DayStamp.addDays(monday, 6)
+            if scheduled >= monday && scheduled <= sunday { return "thisWeek" }
+            return "later"
+        }
+        let horizon = item.horizon ?? ""
+        let weekOf = String((item.week_of ?? "").prefix(10))
+        if horizon == "later" { return "later" }
+        if horizon == "week" {
+            if weekOf == monday { return "thisWeek" }
+            if !weekOf.isEmpty && weekOf < monday { return "review" }
+            if !weekOf.isEmpty && weekOf > monday { return "later" }
+        }
+        return "noDay"
+    }
+
+    static func rows(_ pack: Pack?, today: String, group name: String) -> [WorkItem] {
+        guard let pack else { return [] }
+        return pack.work.items.filter { item in
+            item.status != "done"
+                && item.source != "calendar"
+                && TodayList.live(id: item.id, updated: item.updated_at, deletions: pack.work.deleted ?? [])
+                && group(item, today: today) == name
+        }
+        .sorted(by: sort)
+    }
+
+    static func reviewCount(_ pack: Pack?, today: String = DayStamp.today()) -> Int {
+        rows(pack, today: today, group: "review").count
+    }
+
+    private static func sort(_ lhs: WorkItem, _ rhs: WorkItem) -> Bool {
+        let left = lhs.sort_order ?? 0
+        let right = rhs.sort_order ?? 0
+        if left != right { return left < right }
+        return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+    }
+}
+
 struct TodoScreen: View {
     @EnvironmentObject private var store: PackStore
     @State private var draft = ""
+    @State private var reviewMode = false
     @State private var picking: WorkItem?
 
-    private var offClock: [WorkItem] {
-        (store.pack?.work.items ?? []).filter { item in
-            item.status != "done"
-                && item.source != "calendar"
-                && (item.scheduled_date ?? "") != store.today
-        }
-        .sorted(by: workSort)
+    private var thisWeek: [WorkItem] { TodoGroups.rows(store.pack, today: store.today, group: "thisWeek") }
+    private var later: [WorkItem] { TodoGroups.rows(store.pack, today: store.today, group: "later") }
+    private var noDay: [WorkItem] { TodoGroups.rows(store.pack, today: store.today, group: "noDay") }
+    private var review: [WorkItem] { TodoGroups.rows(store.pack, today: store.today, group: "review") }
+
+    private var thisWeekDates: [String] {
+        let monday = DayStamp.weekMonday(store.today)
+        return (0..<7).map { DayStamp.addDays(monday, $0) }
     }
 
     var body: some View {
@@ -25,30 +71,35 @@ struct TodoScreen: View {
                             .listRowBackground(store.palette.widgetBg)
                     }
                 }
-                Section("Park in To Do") {
+                Section {
+                    TextField("Sometime this week", text: $draft)
+                        .onSubmit { addWeek() }
                     HStack {
-                        TextField("No day yet", text: $draft)
+                        Button("This week") { addWeek() }
+                            .buttonStyle(.borderedProminent)
+                        Button("Today") { addToday() }
                         Button("Park") { park() }
-                            .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
-                    .listRowBackground(store.palette.widgetBg)
+                    .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button(review.isEmpty ? "Review" : "Review \(review.count)") {
+                        reviewMode.toggle()
+                    }
                 }
-                ForEach(WorkGroup.allCases) { group in
-                    let rows = offClock.filter { bucket($0) == group }
-                    if !rows.isEmpty {
-                        Section(group.title) {
-                            ForEach(rows) { item in
-                                todoRow(item)
-                            }
+                .listRowBackground(store.palette.widgetBg)
+                if reviewMode {
+                    Section("Place these") {
+                        if review.isEmpty {
+                            Text("Nothing left to place.")
+                                .foregroundStyle(.secondary)
+                        }
+                        ForEach(review) { item in
+                            todoRow(item, showReview: true)
                         }
                     }
-                }
-                if offClock.isEmpty {
-                    Section {
-                        Text("Nothing in To Do. Park a thought, or it is already on Today.")
-                            .foregroundStyle(.secondary)
-                            .listRowBackground(store.palette.widgetBg)
-                    }
+                } else {
+                    bucketSection("This week", rows: thisWeek, name: "thisWeek")
+                    bucketSection("Later", rows: later, name: "later")
+                    bucketSection("No day", rows: noDay, name: "noDay")
                 }
                 if let error = store.error {
                     Section { Text(error).foregroundStyle(.red) }
@@ -57,13 +108,19 @@ struct TodoScreen: View {
             .scrollContentBackground(.hidden)
             .background(store.palette.pageBg)
             .navigationTitle("To Do")
-            .toolbar { QuietSyncButton() }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { EditButton() }
+                ToolbarItem(placement: .topBarTrailing) { QuietSyncButton() }
+            }
             .refreshable { store.reload() }
+            .onAppear {
+                if store.openReview { reviewMode = true }
+            }
             .sheet(item: $picking) { item in
                 DayPickSheet(
                     item: item,
                     today: store.today,
-                    weekDates: weekDates,
+                    weekDates: thisWeekDates,
                     palette: store.palette,
                     onPick: { day in
                         assign(item, day: day)
@@ -75,88 +132,130 @@ struct TodoScreen: View {
         }
     }
 
-    private func todoRow(_ item: WorkItem) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                if let subtitle = workSubtitle(item), !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    @ViewBuilder
+    private func bucketSection(_ title: String, rows: [WorkItem], name: String) -> some View {
+        Section(title) {
+            if rows.isEmpty {
+                Text("Nothing here.")
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(rows) { item in
+                todoRow(item, showReview: false)
+            }
+            .onMove { from, to in
+                move(name, from: from, to: to)
+            }
+        }
+    }
+
+    private func todoRow(_ item: WorkItem, showReview: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(item.title)
+            Text(subtitle(item))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if showReview {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        Button("This week") { place(item, "week") }
+                        ForEach(thisWeekDates, id: \.self) { day in
+                            Button(DayStamp.weekday(day)) { assign(item, day: day) }
+                        }
+                        Button("Later") { place(item, "later") }
+                        Button("Done") { markDone(item) }
+                    }
+                    .font(.caption.weight(.semibold))
                 }
             }
-            Spacer()
-            Button("Today") { assign(item, day: store.today) }
-                .font(.caption.weight(.semibold))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .onLongPressGesture { picking = item }
-        .contextMenu {
-            Button("Today") { assign(item, day: store.today) }
-            ForEach(weekDates, id: \.self) { day in
-                Button(DayStamp.weekday(day)) { assign(item, day: day) }
-            }
-            Button("No day") { assign(item, day: "") }
-            Button("Pick a day…") { picking = item }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button("Done") { markDone(item) }
+                .tint(.green)
         }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("Delete", role: .destructive) { remove(item) }
+            Button("Today") { assign(item, day: store.today) }
+        }
+        .contextMenu { rowMenu(item) }
         .listRowBackground(store.palette.widgetBg)
     }
 
-    private var weekDates: [String] {
-        (store.pack?.calendar.days ?? []).compactMap(\.date)
+    @ViewBuilder
+    private func rowMenu(_ item: WorkItem) -> some View {
+        Button("This week") { place(item, "week") }
+        Button("Today") { assign(item, day: store.today) }
+        Button("Later") { place(item, "later") }
+        Button("No day") { place(item, "none") }
+        ForEach(thisWeekDates, id: \.self) { day in
+            Button(DayStamp.weekdayLong(day)) { assign(item, day: day) }
+        }
+        Button("Other day…") { picking = item }
+        Button("Delete", role: .destructive) { remove(item) }
+    }
+
+    private func subtitle(_ item: WorkItem) -> String {
+        let scheduled = String((item.scheduled_date ?? "").prefix(10))
+        if !scheduled.isEmpty { return DayStamp.weekdayLong(scheduled) }
+        if item.horizon == "week" { return "Sometime this week" }
+        if item.horizon == "later" { return "Later" }
+        return "No day"
+    }
+
+    private func addWeek() {
+        let title = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        draft = ""
+        mutate { try PackActions.addThisWeek(title) }
+    }
+
+    private func addToday() {
+        let title = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        draft = ""
+        mutate { try PackActions.addTodo(title, date: store.today) }
     }
 
     private func park() {
-        let title = draft
+        let title = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
         draft = ""
-        do {
-            store.pack = try PackActions.park(title)
-            store.error = nil
-        } catch {
-            store.error = error.localizedDescription
-        }
+        mutate { try PackActions.park(title) }
     }
 
     private func assign(_ item: WorkItem, day: String) {
+        mutate { try PackActions.assignDay(id: item.id, date: day) }
+    }
+
+    private func place(_ item: WorkItem, _ bucket: String) {
+        mutate { try PackActions.placeBucket(id: item.id, bucket: bucket) }
+    }
+
+    private func markDone(_ item: WorkItem) {
+        mutate { try PackActions.toggle(id: item.id) }
+    }
+
+    private func remove(_ item: WorkItem) {
+        mutate { try PackActions.deleteTodo(id: item.id) }
+    }
+
+    private func move(_ name: String, from: IndexSet, to: Int) {
+        var rows = TodoGroups.rows(store.pack, today: store.today, group: name)
+        rows.move(fromOffsets: from, toOffset: to)
+        mutate { try PackActions.reorder(rows.map(\.id)) }
+    }
+
+    private func mutate(_ action: () throws -> Pack) {
         do {
-            store.pack = try PackActions.assignDay(id: item.id, date: day)
+            store.pack = try action()
             store.error = nil
+            if reviewMode && review.isEmpty {
+                reviewMode = false
+                store.openReview = false
+            }
         } catch {
             store.error = error.localizedDescription
-        }
-    }
-
-    private func workSort(_ lhs: WorkItem, _ rhs: WorkItem) -> Bool {
-        let leftDay = lhs.scheduled_date ?? "9999"
-        let rightDay = rhs.scheduled_date ?? "9999"
-        if leftDay != rightDay { return leftDay < rightDay }
-        return lhs.title < rhs.title
-    }
-
-    private func workSubtitle(_ item: WorkItem) -> String? {
-        item.scheduled_date
-    }
-
-    private func bucket(_ item: WorkItem) -> WorkGroup {
-        let scheduled = item.scheduled_date ?? ""
-        if scheduled.isEmpty { return .noDay }
-        let dates = weekDates
-        if dates.contains(scheduled) { return .thisWeek }
-        if let first = dates.first, let last = dates.last, scheduled >= first && scheduled <= last {
-            return .thisWeek
-        }
-        return .later
-    }
-}
-
-private enum WorkGroup: String, CaseIterable, Identifiable {
-    case thisWeek, later, noDay
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .thisWeek: return "This week"
-        case .later: return "Later"
-        case .noDay: return "No day"
         }
     }
 }

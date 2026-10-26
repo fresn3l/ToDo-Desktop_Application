@@ -12,6 +12,7 @@ const ID_MAP = {
     today: 'calendarTab',
     journal: 'journalTab',
     notes: 'notesTab',
+    todo: 'todoPage',
     calendar: 'calendarTab',
     analytics: 'analyticsTab',
     brain: 'brainTab',
@@ -24,6 +25,7 @@ const LABELS = {
     today: 'Today',
     journal: 'Journal',
     notes: 'Notes',
+    todo: 'To Do',
     calendar: 'Calendar',
     analytics: 'Analytics',
     brain: 'Brain',
@@ -36,7 +38,8 @@ function canonicalTab(name) {
     if (name === 'work' || name === 'allwork') {
         return 'calendar';
     }
-    if (name === 'workout' || name === 'todo'
+    if (name === 'todo') return 'todo';
+    if (name === 'workout'
         || name === 'goals' || name === 'timeline'
         || name === 'checklist' || name === 'word') {
         return 'home';
@@ -91,6 +94,12 @@ async function loadTab(key) {
             await bootFeature('notes');
             const mod = await import('./notes.js');
             mod.setupNotes();
+            return mod;
+        }
+        if (key === 'todo') {
+            await bootFeature('todo');
+            const mod = await import('./todo_page.js');
+            mod.setupTodoPage();
             return mod;
         }
         if (key === 'calendar') {
@@ -206,6 +215,7 @@ export async function switchTab(name, opts = {}) {
             const mod = await loadTab(key);
             if (key === 'journal') void mod?.loadPastEntries?.();
             else if (key === 'notes') void mod?.loadNotes?.();
+            else if (key === 'todo') await mod?.onTodoPageShown?.();
             else if (key === 'calendar') {
                 const view = name === 'today' || opts.calView === 'day' ? 'day' : (opts.calView || 'week');
                 mod?.setCalView?.(view);

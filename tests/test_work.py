@@ -261,5 +261,52 @@ class WorkStoreTests(unittest.TestCase):
             self.assertEqual(stats["misses"], [])
 
 
+    def test_sometime_this_week_has_no_day_and_waits_for_review(self) -> None:
+        wednesday = date(2026, 9, 2)
+        with mock.patch.object(self.work, "_today", return_value=wednesday):
+            page = self.work.add_todo_bucket("Call dentist", "week")
+            row = page["this_week"][0]
+            self.assertIsNone(row["scheduled_date"])
+            self.assertEqual(row["horizon"], "week")
+            self.assertEqual(row["week_of"], "2026-08-31")
+            self.assertEqual(page["review"], [])
+            self.assertEqual(page["no_day"], [])
+        with mock.patch.object(self.work, "_today", return_value=date(2026, 9, 7)):
+            page = self.work.get_todo_page()
+            self.assertEqual([row["title"] for row in page["review"]], ["Call dentist"])
+            self.assertEqual(page["this_week"], [])
+            self.assertEqual(page["no_day"], [])
+            self.assertEqual(page["later"], [])
+
+    def test_drop_changes_bucket_and_reorder_keeps_it(self) -> None:
+        with mock.patch.object(self.work, "_today", return_value=date(2026, 9, 2)):
+            self.work.add_todo_bucket("First", "week")
+            page = self.work.add_todo_bucket("Second", "week")
+            by_title = {row["title"]: row for row in page["this_week"]}
+            first = by_title["First"]
+            second = by_title["Second"]
+            ordered = self.work.reorder_work_items([second["id"], first["id"]])
+            self.assertEqual([row["title"] for row in ordered["this_week"]], ["Second", "First"])
+            later = self.work.place_work_bucket(second["id"], "later")
+            moved = next(row for row in later["later"] if row["id"] == second["id"])
+            self.assertIsNone(moved["scheduled_date"])
+            self.assertEqual(moved["horizon"], "later")
+            dated = self.work.place_work_bucket(first["id"], "date", "2026-10-08")
+        pinned = self.work.get_work_items_by_ids([first["id"]])[0]
+        self.assertEqual(pinned["scheduled_date"], "2026-10-08")
+        self.assertEqual(pinned["horizon"], "")
+        self.assertTrue(any(row["id"] == first["id"] for row in dated["later"]))
+
+    def test_today_rows_stay_off_the_todo_page(self) -> None:
+        self.work.add_todo_bucket("Board memo", "today")
+        page = self.work.get_todo_page()
+        titles = [
+            row["title"]
+            for key in ("this_week", "later", "no_day", "review")
+            for row in page[key]
+        ]
+        self.assertNotIn("Board memo", titles)
+
+
 if __name__ == "__main__":
     unittest.main()

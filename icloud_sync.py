@@ -225,6 +225,8 @@ def _dump_work() -> Dict[str, Any]:
                 "source_uid": item.get("source_uid"),
                 "source_calendar": item.get("source_calendar"),
                 "goal_id": item.get("goal_id"),
+                "horizon": item.get("horizon") or "",
+                "week_of": item.get("week_of"),
             }
         )
     with work._connect() as conn:
@@ -346,8 +348,8 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                 INSERT INTO work_items (
                     id, title, notes, scheduled_date, status, active_started_at, finished_at,
                     duration_seconds, sort_order, created_at, updated_at, source, series_id, occurrence_date,
-                    due_at, estimate_minutes, source_uid, source_calendar, goal_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    due_at, estimate_minutes, source_uid, source_calendar, goal_id, horizon, week_of
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     notes = excluded.notes,
@@ -365,7 +367,9 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                     estimate_minutes = excluded.estimate_minutes,
                     source_uid = excluded.source_uid,
                     source_calendar = excluded.source_calendar,
-                    goal_id = excluded.goal_id
+                    goal_id = excluded.goal_id,
+                    horizon = excluded.horizon,
+                    week_of = excluded.week_of
                 """,
                 (
                     row["id"],
@@ -387,6 +391,8 @@ def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
                     row.get("source_uid"),
                     row.get("source_calendar"),
                     row.get("goal_id"),
+                    str(row.get("horizon") or "").strip() or None,
+                    row.get("week_of") or None,
                 ),
             )
             if tomb:

@@ -2513,6 +2513,8 @@ def off_calendar_work() -> List[Dict[str, Any]]:
             continue
         if str(item.get("scheduled_date") or "") == today:
             continue
+        if work_list_group(item) == "review":
+            continue
         leftover = remaining_minutes(item, placed.get(item["id"], 0))
         estimate = int(item.get("estimate_minutes") or 0)
         if estimate > 0 and leftover <= 0:
@@ -2531,20 +2533,8 @@ def off_calendar_work() -> List[Dict[str, Any]]:
 
 
 def work_list_group(item: Dict[str, Any], today: Optional[date] = None, week_start: Optional[date] = None) -> str:
-    """this_week, later, or no_day — To Do headings. Imported dues are not in this list."""
-    day = today or work._today()
-    monday = week_start or monday_of(day)
-    sunday = monday + timedelta(days=6)
-    scheduled = str(item.get("scheduled_date") or "")[:10]
-    if not scheduled:
-        return "no_day"
-    try:
-        pinned = date.fromisoformat(scheduled)
-    except ValueError:
-        return "no_day"
-    if monday <= pinned <= sunday:
-        return "this_week"
-    return "later"
+    """this_week, later, no_day, or review. Imported dues are not in this list."""
+    return work.todo_group(item, today or work._today(), week_start or monday_of(today or work._today()))
 
 
 def _slim_unplaced(item: Dict[str, Any], today: Optional[date] = None, week_start: Optional[date] = None) -> Dict[str, Any]:

@@ -25,7 +25,26 @@ enum PackActions {
         guard !title.isEmpty else { throw PackActionError.message("Type a thought to park.") }
         var pack = try current()
         let now = DayStamp.isoNow()
-        pack.work.items.insert(newItem(title: title, date: nil, now: now), at: 0)
+        var item = newItem(title: title, date: nil, now: now)
+        item.sort_order = nextSort(in: pack, matching: { ($0.scheduled_date ?? "").isEmpty && ($0.horizon ?? "").isEmpty })
+        pack.work.items.insert(item, at: 0)
+        return try saveWork(pack)
+    }
+
+    @discardableResult
+    static func addThisWeek(_ raw: String) throws -> Pack {
+        let title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { throw PackActionError.message("Type a to-do.") }
+        var pack = try current()
+        let now = DayStamp.isoNow()
+        let monday = DayStamp.weekMonday()
+        var item = newItem(title: title, date: nil, now: now)
+        item.horizon = "week"
+        item.week_of = monday
+        item.sort_order = nextSort(in: pack, matching: {
+            ($0.scheduled_date ?? "").isEmpty && $0.horizon == "week" && $0.week_of == monday
+        })
+        pack.work.items.insert(item, at: 0)
         return try saveWork(pack)
     }
 
@@ -159,7 +178,51 @@ enum PackActions {
         }
         let day = (date ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         pack.work.items[index].scheduled_date = day.isEmpty ? nil : String(day.prefix(10))
+        pack.work.items[index].horizon = nil
+        pack.work.items[index].week_of = nil
         pack.work.items[index].updated_at = DayStamp.isoNow()
+        return try saveWork(pack)
+    }
+
+    @discardableResult
+    static func placeBucket(id: String, bucket: String) throws -> Pack {
+        var pack = try current()
+        guard let index = pack.work.items.firstIndex(where: { $0.id == id }) else {
+            throw PackActionError.message("That to-do is gone.")
+        }
+        let now = DayStamp.isoNow()
+        let monday = DayStamp.weekMonday()
+        switch bucket {
+        case "week":
+            pack.work.items[index].scheduled_date = nil
+            pack.work.items[index].horizon = "week"
+            pack.work.items[index].week_of = monday
+        case "later":
+            pack.work.items[index].scheduled_date = nil
+            pack.work.items[index].horizon = "later"
+            pack.work.items[index].week_of = nil
+        case "today":
+            pack.work.items[index].scheduled_date = DayStamp.today()
+            pack.work.items[index].horizon = nil
+            pack.work.items[index].week_of = nil
+        default:
+            pack.work.items[index].scheduled_date = nil
+            pack.work.items[index].horizon = nil
+            pack.work.items[index].week_of = nil
+        }
+        pack.work.items[index].updated_at = now
+        return try saveWork(pack)
+    }
+
+    @discardableResult
+    static func reorder(_ ids: [String]) throws -> Pack {
+        var pack = try current()
+        let now = DayStamp.isoNow()
+        for (offset, id) in ids.enumerated() {
+            guard let index = pack.work.items.firstIndex(where: { $0.id == id }) else { continue }
+            pack.work.items[index].sort_order = (offset + 1) * 10
+            pack.work.items[index].updated_at = now
+        }
         return try saveWork(pack)
     }
 
@@ -517,8 +580,15 @@ enum PackActions {
             occurrence_date: date,
             due_at: nil,
             estimate_minutes: nil,
-            goal_id: nil
+            goal_id: nil,
+            horizon: nil,
+            week_of: nil
         )
+    }
+
+    private static func nextSort(in pack: Pack, matching: (WorkItem) -> Bool) -> Int {
+        let maxOrder = pack.work.items.filter(matching).compactMap(\.sort_order).max() ?? 0
+        return maxOrder + 10
     }
 }
 

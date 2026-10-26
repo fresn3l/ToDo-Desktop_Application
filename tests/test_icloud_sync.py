@@ -55,6 +55,22 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertEqual(item["id"], work.list_all_work_items()[0]["id"])
         self.assertTrue((self.pack / "calendar.json").is_file())
 
+    def test_sometime_this_week_round_trips(self):
+        self._use(self.src)
+        work.add_todo_bucket("Call dentist", "week")
+        icloud_sync.write_pack(self.pack)
+        packed = icloud_sync.read_pack(self.pack)
+        row = next(entry for entry in packed["work"]["items"] if entry["title"] == "Call dentist")
+        self.assertEqual(row["horizon"], "week")
+        self.assertTrue(row["week_of"])
+        self.assertIsNone(row["scheduled_date"])
+        self._use(self.dst)
+        icloud_sync.apply_pack(self.pack)
+        saved = next(entry for entry in work.list_all_work_items() if entry["title"] == "Call dentist")
+        self.assertEqual(saved["horizon"], "week")
+        self.assertEqual(saved["week_of"], row["week_of"])
+        self.assertIsNone(saved["scheduled_date"])
+
     def test_notes_round_trip_and_newer_wins(self):
         import notes as note_store
 

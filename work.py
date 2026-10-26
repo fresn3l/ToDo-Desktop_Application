@@ -152,6 +152,11 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE work_items ADD COLUMN source_uid TEXT")
     if "source_calendar" not in cols:
         conn.execute("ALTER TABLE work_items ADD COLUMN source_calendar TEXT")
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(work_items)")}
+    if "horizon" not in cols:
+        conn.execute("ALTER TABLE work_items ADD COLUMN horizon TEXT")
+    if "week_of" not in cols:
+        conn.execute("ALTER TABLE work_items ADD COLUMN week_of TEXT")
     conn.execute(
         """
         CREATE INDEX IF NOT EXISTS idx_work_source_uid
@@ -295,6 +300,48 @@ def _parse_date(value: Optional[str]) -> Optional[str]:
 
 
 WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+def week_monday(day: Optional[date] = None) -> date:
+    current = day or _today()
+    return current - timedelta(days=current.weekday())
+
+
+def todo_group(
+    item: Dict[str, Any],
+    today: Optional[date] = None,
+    week_start: Optional[date] = None,
+) -> str:
+    """this_week, later, no_day, or review.
+
+    A dated row follows its day. An empty day with horizon week is sometime
+    this week until that Monday passes, then it waits in review. It does not
+    become No day, and it does not roll forward.
+    """
+    day = today or _today()
+    monday = week_start or week_monday(day)
+    sunday = monday + timedelta(days=6)
+    scheduled = str(item.get("scheduled_date") or "")[:10]
+    horizon = str(item.get("horizon") or "").strip().lower()
+    week_of = str(item.get("week_of") or "")[:10]
+    if not scheduled:
+        if horizon == "later":
+            return "later"
+        if horizon == "week":
+            if week_of == monday.isoformat():
+                return "this_week"
+            if week_of and week_of < monday.isoformat():
+                return "review"
+            if week_of and week_of > monday.isoformat():
+                return "later"
+        return "no_day"
+    try:
+        pinned = date.fromisoformat(scheduled)
+    except ValueError:
+        return "no_day"
+    if monday <= pinned <= sunday:
+        return "this_week"
+    return "later"
 
 
 def _col(row: sqlite3.Row | Dict[str, Any], key: str, default: Any = None) -> Any:
@@ -451,7 +498,9 @@ def _row_to_dict(row: sqlite3.Row, now: Optional[datetime] = None) -> Dict[str, 
         "cadence_label": cadence_label(cadence_raw) if cadence_raw else "",
         "is_today": scheduled == today,
         "is_overdue": _is_overdue_row(scheduled, _col(row, "due_at"), row["status"], series_id, today),
-        "is_backlog": scheduled is None,
+        "is_backlog": scheduled is None and not str(_col(row, "horizon") or "").strip(),
+        "horizon": str(_col(row, "horizon") or "").strip(),
+        "week_of": _col(row, "week_of"),
         "due_at": _col(row, "due_at"),
         "estimate_minutes": (
             None if _col(row, "estimate_minutes") is None else int(row["estimate_minutes"])
@@ -1104,6 +1153,7 @@ def list_backlog() -> List[Dict[str, Any]]:
             """
             SELECT * FROM work_items
             WHERE scheduled_date IS NULL AND status != 'done'
+              AND IFNULL(horizon, '') = ''
             ORDER BY sort_order ASC, created_at ASC
             """
         ).fetchall()
@@ -1206,6 +1256,8 @@ def assign_work_item(item_id: str, scheduled_date: Optional[str] = None) -> Dict
                 """
                 UPDATE work_items
                 SET scheduled_date = NULL,
+                    horizon = NULL,
+                    week_of = NULL,
                     status = 'open',
                     active_started_at = NULL,
                     duration_seconds = ?,
@@ -1219,7 +1271,8 @@ def assign_work_item(item_id: str, scheduled_date: Optional[str] = None) -> Dict
             conn.execute(
                 """
                 UPDATE work_items
-                SET scheduled_date = ?, updated_at = ?,
+                SET scheduled_date = ?, horizon = NULL, week_of = NULL,
+                    updated_at = ?,
                     sort_order = ?
                 WHERE id = ?
                 """,
@@ -1236,6 +1289,205 @@ def assign_work_item(item_id: str, scheduled_date: Optional[str] = None) -> Dict
     _write_widget_snapshot()
     assert row is not None
     return _row_to_dict(row)
+
+
+def _bucket_kind(bucket: str) -> str:
+    kind = str(bucket or "").strip().lower().replace("-", "_")
+    if kind in {"", "park", "none", "no_day", "noday"}:
+        return "none"
+    if kind in {"week", "this_week", "thisweek"}:
+        return "week"
+    if kind in {"later"}:
+        return "later"
+    if kind in {"today"}:
+        return "today"
+    if kind in {"date", "day"}:
+        return "date"
+    raise ValueError("Unknown place")
+
+
+def _next_sort_for_bucket(conn: sqlite3.Connection, kind: str, target: Optional[str]) -> int:
+    if kind in {"today", "date"}:
+        return _next_sort(conn, target)
+    if kind == "week":
+        row = conn.execute(
+            """
+            SELECT MAX(sort_order) AS m FROM work_items
+            WHERE scheduled_date IS NULL AND horizon = 'week' AND week_of = ?
+            """,
+            (week_monday().isoformat(),),
+        ).fetchone()
+    elif kind == "later":
+        row = conn.execute(
+            """
+            SELECT MAX(sort_order) AS m FROM work_items
+            WHERE scheduled_date IS NULL AND horizon = 'later'
+            """
+        ).fetchone()
+    else:
+        row = conn.execute(
+            """
+            SELECT MAX(sort_order) AS m FROM work_items
+            WHERE scheduled_date IS NULL AND IFNULL(horizon, '') = ''
+            """
+        ).fetchone()
+    return int(row["m"] or 0) + 10
+
+
+def _todo_page_payload(now: Optional[datetime] = None) -> Dict[str, Any]:
+    today = _today()
+    monday = week_monday(today)
+    groups: Dict[str, List[Dict[str, Any]]] = {
+        "this_week": [],
+        "later": [],
+        "no_day": [],
+        "review": [],
+    }
+    stamp = now or _now()
+    with _connect() as conn:
+        rows = conn.execute(
+            _ITEM_SELECT
+            + """
+            WHERE work_items.status != 'done'
+              AND IFNULL(work_items.source, '') != 'calendar'
+            """
+        ).fetchall()
+    today_iso = today.isoformat()
+    for row in rows:
+        item = _row_to_dict(row, stamp)
+        if str(item.get("scheduled_date") or "")[:10] == today_iso:
+            continue
+        group = todo_group(item, today, monday)
+        groups.setdefault(group, []).append(item)
+    for rows_in_group in groups.values():
+        rows_in_group.sort(
+            key=lambda item: (
+                int(item.get("sort_order") or 0),
+                str(item.get("created_at") or ""),
+                str(item.get("title") or ""),
+            )
+        )
+    return {
+        "today": today_iso,
+        "week_monday": monday.isoformat(),
+        "weekdays": [
+            {
+                "date": (monday + timedelta(days=offset)).isoformat(),
+                "label": WEEKDAY_NAMES[offset],
+            }
+            for offset in range(7)
+        ],
+        "this_week": groups["this_week"],
+        "later": groups["later"],
+        "no_day": groups["no_day"],
+        "review": groups["review"],
+        "review_count": len(groups["review"]),
+    }
+
+
+@eel.expose
+def get_todo_page() -> Dict[str, Any]:
+    """Off-clock To Do. Today's dated rows stay on the Today tab."""
+    return _todo_page_payload()
+
+
+@eel.expose
+def place_work_bucket(item_id: str, bucket: str, day: str = "") -> Dict[str, Any]:
+    """Move a row between sometime-this-week, later, no day, today, or a weekday."""
+    kind = _bucket_kind(bucket)
+    now = _now().isoformat()
+    with _connect() as conn:
+        row = _fetch(conn, item_id)
+        if row is None:
+            raise ValueError("Work item not found")
+        if kind == "today":
+            target: Optional[str] = _today().isoformat()
+            horizon, week_of = None, None
+        elif kind == "date":
+            target = _parse_date(day)
+            if not target:
+                raise ValueError("Date must be YYYY-MM-DD")
+            horizon, week_of = None, None
+        elif kind == "week":
+            target, horizon, week_of = None, "week", week_monday().isoformat()
+        elif kind == "later":
+            target, horizon, week_of = None, "later", None
+        else:
+            target, horizon, week_of = None, None, None
+        if target is None and row["status"] == "active":
+            elapsed = _elapsed_seconds(row)
+            conn.execute(
+                """
+                UPDATE work_items
+                SET scheduled_date = NULL,
+                    horizon = ?,
+                    week_of = ?,
+                    status = 'open',
+                    active_started_at = NULL,
+                    duration_seconds = ?,
+                    updated_at = ?,
+                    sort_order = ?
+                WHERE id = ?
+                """,
+                (horizon, week_of, elapsed, now, _next_sort_for_bucket(conn, kind, None), item_id),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE work_items
+                SET scheduled_date = ?, horizon = ?, week_of = ?,
+                    updated_at = ?, sort_order = ?
+                WHERE id = ?
+                """,
+                (target, horizon, week_of, now, _next_sort_for_bucket(conn, kind, target), item_id),
+            )
+        row = _fetch(conn, item_id)
+    if target is None:
+        try:
+            import calclock
+
+            calclock.clear_placement_for_work(item_id)
+        except Exception:
+            pass
+    _write_widget_snapshot()
+    assert row is not None
+    return _todo_page_payload()
+
+
+@eel.expose
+def add_todo_bucket(title: str, bucket: str = "week", day: str = "") -> Dict[str, Any]:
+    """Capture a to-do into today, sometime this week, later, no day, or a date."""
+    kind = _bucket_kind(bucket)
+    if kind == "today":
+        create_work_item(title, scheduled_date=_today().isoformat())
+        return _todo_page_payload()
+    if kind == "date":
+        if not _parse_date(day):
+            raise ValueError("Date must be YYYY-MM-DD")
+        create_work_item(title, scheduled_date=day)
+        return _todo_page_payload()
+    item = create_work_item(title)
+    return place_work_bucket(item["id"], kind, day)
+
+
+@eel.expose
+def reorder_work_items(ids: Any) -> Dict[str, Any]:
+    """Write sort order for the ids in the order given. Does not change the bucket."""
+    raw = ids if isinstance(ids, list) else []
+    now = _now().isoformat()
+    with _connect() as conn:
+        order = 10
+        for raw_id in raw:
+            item_id = str(raw_id or "").strip()
+            if not item_id:
+                continue
+            conn.execute(
+                "UPDATE work_items SET sort_order = ?, updated_at = ? WHERE id = ?",
+                (order, now, item_id),
+            )
+            order += 10
+    _write_widget_snapshot()
+    return _todo_page_payload()
 
 
 @eel.expose
