@@ -648,8 +648,7 @@ async function syncCheckin(prefetched) {
     const done = slot === 'evening' ? !!info.evening_done : !!info.morning_done;
     if (done && !lastViewedDone) checkinForceOpen = null;
     lastViewedDone = done;
-    // Execute leads Home. The check-in waits folded until it is asked for.
-    const open = checkinForceOpen == null ? false : checkinForceOpen;
+    const open = checkinForceOpen === true;
     band.classList.toggle('is-open', open);
     paintCheckinChrome(info, slot, done, open);
     if (!open) {

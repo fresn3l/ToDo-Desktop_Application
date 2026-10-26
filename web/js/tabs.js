@@ -9,7 +9,7 @@ import { bootFeature, loadOnce, logEelError } from './lazy.js';
 
 const ID_MAP = {
     home: 'homeTab',
-    today: 'homeTab',
+    today: 'calendarTab',
     journal: 'journalTab',
     notes: 'notesTab',
     calendar: 'calendarTab',
@@ -21,7 +21,7 @@ const ID_MAP = {
 
 const LABELS = {
     home: 'Home',
-    today: 'Home',
+    today: 'Today',
     journal: 'Journal',
     notes: 'Notes',
     calendar: 'Calendar',
@@ -32,10 +32,11 @@ const LABELS = {
 };
 
 function canonicalTab(name) {
+    if (name === 'today') return 'calendar';
     if (name === 'work' || name === 'allwork') {
         return 'calendar';
     }
-    if (name === 'today' || name === 'workout' || name === 'todo'
+    if (name === 'workout' || name === 'todo'
         || name === 'goals' || name === 'timeline'
         || name === 'checklist' || name === 'word') {
         return 'home';
@@ -43,10 +44,26 @@ function canonicalTab(name) {
     return name;
 }
 
+function markNav(face) {
+    const homePage = document.documentElement.getAttribute('data-home-page');
+    document.querySelectorAll('.nav-item').forEach((b) => {
+        const pageId = b.getAttribute('data-home-page');
+        const tab = b.getAttribute('data-tab');
+        let on = false;
+        if (pageId) on = face === 'home' && pageId === homePage;
+        else if (tab === 'today') on = face === 'today';
+        else if (tab === 'calendar') on = face === 'calendar';
+        else on = tab === face;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-current', on ? 'page' : 'false');
+    });
+}
+
 function setDocumentTitle(name) {
     const key = canonicalTab(name);
-    document.title = `${LABELS[key] || 'Kosistenz'} · Kosistenz`;
-    notifyNativeTab(key, LABELS[key] || 'Kosistenz');
+    const label = LABELS[name] || LABELS[key] || 'Kosistenz';
+    document.title = `${label} · Kosistenz`;
+    notifyNativeTab(key, label);
 }
 
 function openTabFromEvent(e) {
@@ -123,11 +140,9 @@ export function setupTabs() {
         }
         if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
         const map = {
-            1: 'calendar',
-            2: 'home',
+            1: 'today',
+            2: 'calendar',
             3: 'journal',
-            4: 'brain',
-            5: 'library',
         };
         const tab = map[e.key];
         if (!tab) return;
@@ -136,7 +151,22 @@ export function setupTabs() {
     });
 
     document.addEventListener('kosistenz:open-day', () => {
-        switchTab('home').catch((err) => console.error(err));
+        switchTab('today').catch((err) => console.error(err));
+    });
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest?.('[data-open-tab]');
+        if (!btn) return;
+        const tab = btn.getAttribute('data-open-tab');
+        if (!tab) return;
+        e.preventDefault();
+        switchTab(tab).catch((err) => console.error(err));
+    });
+
+    document.addEventListener('kosistenz:cal-view', (e) => {
+        const view = e.detail?.view;
+        if (document.documentElement.getAttribute('data-page') !== 'calendar') return;
+        markNav(view === 'day' ? 'today' : 'calendar');
     });
 
     document.addEventListener('kosistenz:open-tab', (e) => {
@@ -147,23 +177,18 @@ export function setupTabs() {
 
 export async function switchTab(name, opts = {}) {
     const key = canonicalTab(name);
+    const face = name === 'today' || opts.calView === 'day'
+        ? 'today'
+        : (name === 'calendar' ? 'calendar' : key);
     if (opts.homePageId) {
         document.documentElement.setAttribute('data-home-page', opts.homePageId);
     }
-    const homePage = document.documentElement.getAttribute('data-home-page');
-    document.querySelectorAll('.nav-item').forEach((b) => {
-        const pageId = b.getAttribute('data-home-page');
-        const on = pageId
-            ? key === 'home' && pageId === homePage
-            : b.getAttribute('data-tab') === key;
-        b.classList.toggle('active', on);
-        b.setAttribute('aria-current', on ? 'page' : 'false');
-    });
+    markNav(face);
     const activeId = ID_MAP[key];
     document.querySelectorAll('.tab-content').forEach((c) => {
         c.classList.toggle('active', activeId !== undefined && c.id === activeId);
     });
-    setDocumentTitle(key);
+    setDocumentTitle(face === 'today' ? 'today' : key);
     document.documentElement.setAttribute('data-page', key);
 
     if (key !== 'journal') {
@@ -181,7 +206,11 @@ export async function switchTab(name, opts = {}) {
             const mod = await loadTab(key);
             if (key === 'journal') void mod?.loadPastEntries?.();
             else if (key === 'notes') void mod?.loadNotes?.();
-            else if (key === 'calendar') await mod?.onCalendarTabShown?.();
+            else if (key === 'calendar') {
+                const view = name === 'today' || opts.calView === 'day' ? 'day' : (opts.calView || 'week');
+                mod?.setCalView?.(view);
+                await mod?.onCalendarTabShown?.();
+            }
             else if (key === 'analytics') await mod?.onAnalyticsTabShown?.();
             else if (key === 'brain') await mod?.onBrainTabShown?.();
             else if (key === 'library') await mod?.onLibraryTabShown?.();

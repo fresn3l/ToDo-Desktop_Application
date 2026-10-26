@@ -21,36 +21,34 @@
             </div>
 
             <nav class="app-nav" aria-label="Sections">
-                <button type="button" class="nav-item active" data-tab="calendar" aria-current="page">
+                <button type="button" class="nav-item active" data-tab="today" aria-current="page">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 1.8"/></svg>
+                    <span class="nav-label">Today</span>
+                </button>
+                <button type="button" class="nav-item" data-tab="calendar">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="5.5" width="15" height="14" rx="1.5"/><path d="M8 3.5v4M16 3.5v4M4.5 10h15"/></svg>
                     <span class="nav-label">Calendar</span>
                 </button>
-                <div id="homeNavPages" class="home-nav-pages">
-                    <button type="button" class="nav-item" data-tab="home">
-                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>
-                        <span class="nav-label">Home</span>
+                <details class="nav-more">
+                    <summary class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg>
+                        <span class="nav-label">More</span>
+                    </summary>
+                    <div id="homeNavPages" class="home-nav-pages">
+                        <button type="button" class="nav-item" data-tab="home">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>
+                            <span class="nav-label">Home</span>
+                        </button>
+                    </div>
+                    <button type="button" class="nav-item" data-tab="journal">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v12a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 18V6A1.5 1.5 0 0 1 7 4.5Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+                        <span class="nav-label">Journal</span>
                     </button>
-                </div>
-                <button type="button" class="nav-item" data-tab="journal">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v12a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 18V6A1.5 1.5 0 0 1 7 4.5Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
-                    <span class="nav-label">Journal</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="notes">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 4.5h9l3.5 3.5V19A1.5 1.5 0 0 1 17 20.5H6A1.5 1.5 0 0 1 4.5 19V6A1.5 1.5 0 0 1 6 4.5Z"/><path d="M15 4.5V9h4.5"/><path d="M8 12.5h8M8 16h5"/></svg>
-                    <span class="nav-label">Notes</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="analytics">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 19V9"/><path d="M10 19V5"/><path d="M15 19v-7"/><path d="M20 19V8"/></svg>
-                    <span class="nav-label">Analytics</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="brain">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3a4 4 0 0 0-4 4v1.1A4.9 4.9 0 0 0 4 12.9V14a4 4 0 0 0 4 4h1"/><path d="M12 3a4 4 0 0 1 4 4v1.1A4.9 4.9 0 0 1 20 12.9V14a4 4 0 0 1-4 4h-1"/><path d="M9.5 10.5h5M10 14h4"/></svg>
-                    <span class="nav-label">Brain</span>
-                </button>
-                <button type="button" class="nav-item" data-tab="library">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 6.5h15v11a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4.5 17.5v-11Z"/><path d="M8 6.5V5a1.5 1.5 0 0 1 1.5-1.5h5A1.5 1.5 0 0 1 16 5v1.5"/></svg>
-                    <span class="nav-label">Library</span>
-                </button>
+                    <button type="button" class="nav-item" data-tab="notes">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 4.5h9l3.5 3.5V19A1.5 1.5 0 0 1 17 20.5H6A1.5 1.5 0 0 1 4.5 19V6A1.5 1.5 0 0 1 6 4.5Z"/><path d="M15 4.5V9h4.5"/><path d="M8 12.5h8M8 16h5"/></svg>
+                        <span class="nav-label">Notes</span>
+                    </button>
+                </details>
             </nav>
 
             <div class="sidebar-footer">
@@ -155,7 +153,8 @@
                                 </div>
                                 <div class="page-head-actions">
                                     <div class="segmented" id="calViewGroup" role="group" aria-label="Calendar view">
-                                        <button type="button" data-cal-view="week" class="is-selected">Week</button>
+                                        <button type="button" data-cal-view="day" class="is-selected">Day</button>
+                                        <button type="button" data-cal-view="week">Week</button>
                                         <button type="button" data-cal-view="month">Month</button>
                                         <button type="button" data-cal-view="year">Year</button>
                                     </div>
@@ -164,44 +163,59 @@
                                         <button type="button" id="calThisWeek" class="btn-ghost">Today</button>
                                         <button type="button" id="calNextWeek" class="btn-ghost">Next</button>
                                     </div>
-                                    <div class="cal-awake" title="Fill week only uses this window. Nights stay empty.">
-                                        <label class="checklist-field-label" for="calDayStart">Awake</label>
-                                        <input type="text" id="calDayStart" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="0530" maxlength="5" aria-label="Day starts (24-hour)">
-                                        <span class="cal-awake-sep">–</span>
-                                        <input type="text" id="calDayEnd" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="2130" maxlength="5" aria-label="Day ends (24-hour)">
-                                    </div>
-                                    <button type="button" id="calFillWeek" class="btn-primary" title="Places To Do leftover minutes around busy time this week. Today stays a list until you drag it.">Fill week</button>
+                                    <details class="cal-behind is-hidden" id="calBehind">
+                                        <summary>Awake window</summary>
+                                        <div class="cal-awake">
+                                            <label class="checklist-field-label" for="calDayStart">Awake</label>
+                                            <input type="text" id="calDayStart" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="0530" maxlength="5" aria-label="Day starts (24-hour)">
+                                            <span class="cal-awake-sep">–</span>
+                                            <input type="text" id="calDayEnd" class="checklist-text-input cal-awake-input" inputmode="numeric" placeholder="2130" maxlength="5" aria-label="Day ends (24-hour)">
+                                        </div>
+                                        <button type="button" id="calFillWeek" class="btn-primary">Fill week</button>
+                                    </details>
                                 </div>
                             </header>
-                            <div class="cal-week-shell is-week">
+                            <div class="cal-week-shell is-day">
                                 <aside id="calTodayRail" class="cal-today-rail" aria-label="Today"></aside>
-                                <div id="calGrid" class="cal-grid"></div>
+                                <div id="calGrid" class="cal-grid is-hidden"></div>
                             </div>
-                            <div class="cal-clock-tools">
+                            <div class="cal-clock-tools is-hidden">
                                 <div class="segmented" id="calDrawKind" role="group" aria-label="Draw on the clock">
                                     <button type="button" data-draw-kind="focus" class="is-selected">Focus</button>
                                     <button type="button" data-draw-kind="event">Event</button>
                                 </div>
-                                <p id="calClockHint" class="cal-clock-hint">Drag empty time to draw. Alt draws the other kind. Alt marks happened, Shift marks missed. Click a work bar to lock it.</p>
+                                <p id="calClockHint" class="cal-clock-hint">Drag empty time to draw. Then name it. Alt marks happened. Shift marks missed.</p>
                             </div>
                             <div id="calMonthGrid" class="cal-month-grid is-hidden"></div>
                             <p id="calMonthLegend" class="cal-month-legend is-hidden">Event · placed · due</p>
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
-                            <div class="cal-aside-block" id="calEditor">
-                                <h3 id="calEditorHeading">Clock</h3>
-                                <p id="calEditorHint" class="cal-editor-hint">Drag from Today or To Do onto the clock, or Add event for a meeting.</p>
+                            <div class="cal-aside-block" id="calUnplacedBlock">
+                                <h3>To Do</h3>
+                                <button type="button" id="calShowEvent" class="btn-primary">Add appointment</button>
+                                <div class="work-add-row cal-park-row">
+                                    <input type="text" id="calParkAdd" class="checklist-text-input" placeholder="Park" autocomplete="off" aria-label="Park">
+                                    <button type="button" id="calParkAddBtn" class="btn-ghost">Park</button>
+                                </div>
+                                <p class="cal-unplaced-hint"></p>
+                                <div id="calUnplaced" class="cal-unplaced"></div>
+                            </div>
+                            <div class="cal-aside-block is-hidden" id="calEditor">
+                                <h3 id="calEditorHeading">Appointment</h3>
+                                <p id="calEditorHint" class="cal-editor-hint">Name, date, start, and end.</p>
                                 <div id="calEditorFields">
                                 <label class="checklist-field-label" for="calEventTitle">Name</label>
                                 <input type="text" id="calEventTitle" class="checklist-text-input" placeholder="Meeting" autocomplete="off">
+                                <label class="checklist-field-label" for="calEventDate">Date</label>
+                                <input type="date" id="calEventDate" class="checklist-text-input" aria-label="Date">
                                 <div class="cal-time-row">
-                                    <label class="checklist-field-label" for="calEventStart">Starts</label>
-                                    <input type="text" id="calEventStart" class="checklist-text-input" placeholder="2026-09-08 0930" spellcheck="false" autocomplete="off" inputmode="numeric" aria-label="Starts (24-hour)">
+                                    <label class="checklist-field-label" for="calEventStart">Start</label>
+                                    <input type="text" id="calEventStart" class="checklist-text-input" placeholder="09:30" spellcheck="false" autocomplete="off" inputmode="numeric" aria-label="Start (24-hour)">
                                 </div>
                                 <div class="cal-time-row">
-                                    <label class="checklist-field-label" for="calEventEnd">Ends</label>
-                                    <input type="text" id="calEventEnd" class="checklist-text-input" placeholder="2026-09-08 1020" spellcheck="false" autocomplete="off" inputmode="numeric" aria-label="Ends (24-hour)">
+                                    <label class="checklist-field-label" for="calEventEnd">End</label>
+                                    <input type="text" id="calEventEnd" class="checklist-text-input" placeholder="10:30" spellcheck="false" autocomplete="off" inputmode="numeric" aria-label="End (24-hour)">
                                 </div>
                                 <div id="calEventWeekdays" class="work-weekdays" role="group" aria-label="Repeat on">
                                     <button type="button" class="work-day-chip" data-day="0">Mon</button>
@@ -250,11 +264,6 @@
                                     <button type="button" id="calNewFocus" class="btn-ghost">Add focus</button>
                                     <button type="button" id="calNewEvent" class="btn-primary">Add event</button>
                                 </div>
-                            </div>
-                            <div class="cal-aside-block" id="calUnplacedBlock">
-                                <h3>To Do</h3>
-                                <p class="cal-unplaced-hint">Park a thought, pick a day, or drag onto the clock. Fill week packs To Do leftover minutes, not Today. Due from a subscribed calendar stays on the day.</p>
-                                <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
                         </aside>
                     </div>
@@ -872,6 +881,11 @@
                             <h1 class="page-title">Settings</h1>
                             <p class="page-sub">Appearance, the week clock, Cluny, and the iPhone pack.</p>
                         </div>
+                        <div class="page-head-actions" id="quietSections">
+                            <button type="button" class="btn-ghost" data-open-tab="analytics">Analytics</button>
+                            <button type="button" class="btn-ghost" data-open-tab="brain">Brain</button>
+                            <button type="button" class="btn-ghost" data-open-tab="library">Library</button>
+                        </div>
                     </header>
                     <div class="settings-board" id="settingsBoard">
                         <div class="settings-col" data-settings-col="appearance">
@@ -1018,7 +1032,7 @@
                             <div class="settings-block">
                                 <h3>Shortcuts</h3>
                                 <ul class="shortcut-list">
-                                    <li><kbd>⌘</kbd><kbd>1</kbd> Calendar · <kbd>2</kbd> Home · <kbd>3</kbd> Journal · <kbd>4</kbd> Brain · <kbd>5</kbd> Library</li>
+                                    <li><kbd>⌘</kbd><kbd>1</kbd> Today · <kbd>2</kbd> Calendar · <kbd>3</kbd> Journal</li>
                                     <li><kbd>⌘</kbd><kbd>,</kbd> Settings</li>
                                     <li><kbd>⌘</kbd><kbd>Enter</kbd> Save journal entry</li>
                                     <li><kbd>Esc</kbd> Pause timer, then clear with confirm</li>

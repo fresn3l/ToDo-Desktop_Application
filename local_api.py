@@ -110,6 +110,8 @@ def menu_status() -> Dict[str, Any]:
         "workout_logged": bool(payload.get("workout_logged")),
         "journal_today": bool(payload.get("journal_today")),
         "journal_streak": int(payload.get("journal_streak") or 0),
+        "next_title": payload.get("next_title") or "",
+        "next_when": payload.get("next_when") or "",
         "active_id": None if active is None else active.get("id"),
         "active_title": None if active is None else active.get("title"),
         "first_open_id": None if first_open is None else first_open.get("id"),
@@ -181,6 +183,117 @@ def park_in_all_work(title: str, today: Any = False) -> Dict[str, Any]:
     return {"ok": True, "item": item}
 
 
+def _clean_id(raw: Any) -> str:
+    return str(raw or "").strip()[:80]
+
+
+def create_todo(title: str, on_date: Any = "", item_id: Any = "") -> Dict[str, Any]:
+    """A dated to-do stays a list item. This never writes an appointment."""
+    clean = (title or "").strip()
+    if not clean:
+        raise ValueError("Title is required")
+    chosen = _clean_id(item_id)
+    if chosen:
+        found = work.get_work_items_by_ids([chosen])
+        if found:
+            return {"ok": True, "already": True, "item": found[0]}
+    raw = str(on_date or "").strip()
+    scheduled = None if raw.lower() in {"", "park", "allwork", "all-work", "work"} else raw
+    item = work.create_work_item(clean, scheduled_date=scheduled, source="service", item_id=chosen or None)
+    return {"ok": True, "already": False, "item": item}
+
+
+def reschedule_todo(item_id: str, on_date: Any = "") -> Dict[str, Any]:
+    key = _clean_id(item_id)
+    if not key:
+        raise ValueError("To-do id is required")
+    raw = str(on_date or "").strip()
+    scheduled = None if raw.lower() in {"", "park", "allwork", "all-work", "work"} else raw
+    item = work.assign_work_item(key, scheduled)
+    return {"ok": True, "item": item}
+
+
+def complete_todo(item_id: str) -> Dict[str, Any]:
+    key = _clean_id(item_id)
+    if not key:
+        raise ValueError("To-do id is required")
+    item = work.finish_work_item(key)
+    return {"ok": True, "item": item}
+
+
+def delete_todo(item_id: str) -> Dict[str, Any]:
+    key = _clean_id(item_id)
+    if not key:
+        raise ValueError("To-do id is required")
+    return work.delete_work_item(key)
+
+
+def create_appointment(
+    title: str,
+    start_at: str,
+    end_at: str,
+    weekdays: Any = None,
+    event_id: Any = "",
+) -> Dict[str, Any]:
+    """One bar per appointment. The same id, or the same name and span, does not insert again."""
+    import calclock
+
+    clean = (title or "").strip()
+    if not clean:
+        raise ValueError("Name the event")
+    chosen = _clean_id(event_id)
+    if chosen:
+        try:
+            existing = calclock._load_event(chosen)
+        except ValueError:
+            existing = None
+        if existing is not None:
+            if existing.get("source_calendar") or not calclock._owned_source(existing.get("source")):
+                raise ValueError("That appointment is imported")
+            return {"ok": True, "already": True, "event": existing}
+    else:
+        match = calclock.matching_owned_event(clean, start_at, end_at)
+        if match is not None:
+            return {"ok": True, "already": True, "event": match}
+    event = calclock.create_calendar_event(clean, start_at, end_at, weekdays, chosen)
+    return {"ok": True, "already": False, "event": event}
+
+
+def reschedule_appointment(
+    event_id: str,
+    start_at: str = "",
+    end_at: str = "",
+    title: str = "",
+    weekdays: Any = None,
+    occurrence_date: str = "",
+    scope: str = "series",
+) -> Dict[str, Any]:
+    import calclock
+
+    key = _clean_id(event_id)
+    if not key:
+        raise ValueError("Appointment id is required")
+    event = calclock.update_calendar_event(
+        key,
+        title,
+        start_at,
+        end_at,
+        weekdays,
+        occurrence_date,
+        scope,
+    )
+    return {"ok": True, "event": event}
+
+
+def delete_appointment(event_id: str, occurrence_date: str = "", scope: str = "series") -> Dict[str, Any]:
+    import calclock
+
+    key = _clean_id(event_id)
+    if not key:
+        raise ValueError("Appointment id is required")
+    return calclock.delete_calendar_event(key, occurrence_date, scope)
+
+
 def handle_request(method: str, path: str, body: Optional[Dict[str, Any]] = None) -> Tuple[int, Dict[str, Any]]:
     """Pure router used by the HTTP server and tests."""
     method = (method or "GET").upper()
@@ -218,6 +331,45 @@ def handle_request(method: str, path: str, body: Optional[Dict[str, Any]] = None
             if today in (None, ""):
                 today = (query.get("today") or [""])[0]
             return 200, park_in_all_work(str(title), today=today)
+        if method == "POST" and route == "/api/work/create":
+            return 200, create_todo(
+                str(payload.get("title") or ""),
+                payload.get("date") if payload.get("date") is not None else payload.get("on_date"),
+                payload.get("id"),
+            )
+        if method == "POST" and route == "/api/work/reschedule":
+            return 200, reschedule_todo(
+                str(payload.get("id") or ""),
+                payload.get("date") if payload.get("date") is not None else payload.get("on_date"),
+            )
+        if method == "POST" and route == "/api/work/complete":
+            return 200, complete_todo(str(payload.get("id") or ""))
+        if method == "POST" and route == "/api/work/delete":
+            return 200, delete_todo(str(payload.get("id") or ""))
+        if method == "POST" and route == "/api/appointment/create":
+            return 200, create_appointment(
+                str(payload.get("title") or ""),
+                str(payload.get("start_at") or ""),
+                str(payload.get("end_at") or ""),
+                payload.get("weekdays"),
+                payload.get("id"),
+            )
+        if method == "POST" and route == "/api/appointment/reschedule":
+            return 200, reschedule_appointment(
+                str(payload.get("id") or ""),
+                str(payload.get("start_at") or ""),
+                str(payload.get("end_at") or ""),
+                str(payload.get("title") or ""),
+                payload.get("weekdays") if "weekdays" in payload else None,
+                str(payload.get("occurrence_date") or ""),
+                str(payload.get("scope") or "series"),
+            )
+        if method == "POST" and route == "/api/appointment/delete":
+            return 200, delete_appointment(
+                str(payload.get("id") or ""),
+                str(payload.get("occurrence_date") or ""),
+                str(payload.get("scope") or "series"),
+            )
         if method == "POST" and route == "/api/calendar/ingest":
             import calclock
 

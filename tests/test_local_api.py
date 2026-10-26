@@ -21,6 +21,7 @@ class LocalApiTests(unittest.TestCase):
             mock.patch.object(work, "_data_dir", lambda: path),
             mock.patch.object(workouts, "_data_dir", lambda: path),
             mock.patch.object(work, "_journal_snapshot_bits", return_value={"journal_today": False, "journal_streak": 0}),
+            mock.patch.object(work, "_next_appointment_bits", return_value={"next_title": "", "next_start": "", "next_end": "", "next_when": ""}),
         ]
         for patcher in self.patches:
             patcher.start()
@@ -72,6 +73,62 @@ class LocalApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(parked["item"]["scheduled_date"], today)
         self.assertFalse(parked["item"]["is_backlog"])
+
+    def test_commands_round_trip_one_bar_and_leave_todos_off_the_clock(self) -> None:
+        import calclock
+
+        status, made = local_api.handle_request(
+            "POST",
+            "/api/work/create",
+            {"title": "Read the chapter", "date": "2026-10-26"},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(made["item"]["scheduled_date"], "2026-10-26")
+        self.assertEqual(calclock.list_owned_hard_events(), [])
+        status, moved = local_api.handle_request(
+            "POST",
+            "/api/work/reschedule",
+            {"id": made["item"]["id"], "date": "2026-10-27"},
+        )
+        self.assertEqual(moved["item"]["scheduled_date"], "2026-10-27")
+        status, done = local_api.handle_request(
+            "POST", "/api/work/complete", {"id": made["item"]["id"]}
+        )
+        self.assertEqual(done["item"]["status"], "done")
+        status, removed = local_api.handle_request(
+            "POST", "/api/work/delete", {"id": made["item"]["id"]}
+        )
+        self.assertTrue(removed["ok"])
+        self.assertEqual(work.get_work_items_by_ids([made["item"]["id"]]), [])
+
+        body = {
+            "title": "Lab",
+            "start_at": "2026-10-26T09:30:00",
+            "end_at": "2026-10-26T10:30:00",
+        }
+        status, first = local_api.handle_request("POST", "/api/appointment/create", body)
+        self.assertEqual(status, 200)
+        status, second = local_api.handle_request("POST", "/api/appointment/create", body)
+        self.assertTrue(second["already"])
+        self.assertEqual(first["event"]["id"], second["event"]["id"])
+        self.assertEqual(len(calclock.list_owned_hard_events()), 1)
+        status, shifted = local_api.handle_request(
+            "POST",
+            "/api/appointment/reschedule",
+            {
+                "id": first["event"]["id"],
+                "title": "Lab moved",
+                "start_at": "2026-10-26T11:00:00",
+                "end_at": "2026-10-26T12:00:00",
+            },
+        )
+        self.assertEqual(shifted["event"]["title"], "Lab moved")
+        self.assertTrue(shifted["event"]["start_at"].startswith("2026-10-26T11:00:00"))
+        status, gone = local_api.handle_request(
+            "POST", "/api/appointment/delete", {"id": first["event"]["id"]}
+        )
+        self.assertTrue(gone["ok"])
+        self.assertEqual(calclock.list_owned_hard_events(), [])
 
     def test_run_without_miles_is_rejected(self) -> None:
         status, payload = local_api.handle_request("POST", "/api/workout/log", {"kind": "running"})
