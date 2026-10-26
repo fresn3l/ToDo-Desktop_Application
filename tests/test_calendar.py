@@ -624,6 +624,16 @@ END:VCALENDAR
         self.assertEqual(groups[personal_due["id"]], "later")
         self.assertNotIn(imported["id"], shown)
 
+    def test_stale_sometime_this_week_leaves_the_calendar_strip(self) -> None:
+        work.add_todo_bucket("Call dentist", "week")
+        shown = [row["title"] for row in calclock.off_calendar_work()]
+        self.assertIn("Call dentist", shown)
+        with mock.patch.object(work, "_today", return_value=date(2026, 9, 7)):
+            page = work.get_todo_page()
+            self.assertEqual([row["title"] for row in page["review"]], ["Call dentist"])
+            self.assertNotIn("Call dentist", [row["title"] for row in page["no_day"]])
+            self.assertNotIn("Call dentist", [row["title"] for row in calclock.off_calendar_work()])
+
     def test_fill_week_skips_today_dated_work(self) -> None:
         today = work._today()
         later = today + timedelta(days=2)

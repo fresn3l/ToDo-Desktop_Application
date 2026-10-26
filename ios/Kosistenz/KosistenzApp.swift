@@ -60,6 +60,10 @@ struct RootView: View {
             if store.access == .needsFolder {
                 store.showSync = true
             }
+            if DayStamp.isMonday(), TodoGroups.reviewCount(store.pack) > 0 {
+                store.tab = .work
+                store.openReview = true
+            }
         }
         .onReceive(Timer.publish(every: 20, on: .main, in: .common).autoconnect()) { _ in
             store.reload()
@@ -108,6 +112,7 @@ final class PackStore: ObservableObject {
     @Published var syncedAt: String?
     @Published var palette = KosistenzPalette.ocean
     @Published var tab: AppTab = .today
+    @Published var openReview = false
     @Published var pickingFolder = false
     @Published var showSync = false
 

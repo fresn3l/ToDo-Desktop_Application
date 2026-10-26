@@ -4,6 +4,7 @@ import UIKit
 struct TodayScreen: View {
     @EnvironmentObject private var store: PackStore
     @State private var draft = ""
+    @State private var weekDraft = ""
     @State private var parkDraft = ""
     @State private var burstingId: String?
     @State private var change: DayChange?
@@ -67,6 +68,15 @@ struct TodayScreen: View {
                         TextField("Add for today", text: $draft)
                         Button("Add") { addTodo() }
                             .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+                .listRowBackground(store.palette.widgetBg)
+                Section("This week") {
+                    HStack {
+                        TextField("Sometime this week", text: $weekDraft)
+                            .onSubmit { addWeek() }
+                        Button("Add") { addWeek() }
+                            .disabled(weekDraft.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
                 }
                 .listRowBackground(store.palette.widgetBg)
@@ -155,6 +165,17 @@ struct TodayScreen: View {
             } else if let workId = entry.workId {
                 store.pack = try PackActions.deleteTodo(id: workId)
             }
+            store.error = nil
+        } catch {
+            store.error = error.localizedDescription
+        }
+    }
+
+    private func addWeek() {
+        let title = weekDraft
+        weekDraft = ""
+        do {
+            store.pack = try PackActions.addThisWeek(title)
             store.error = nil
         } catch {
             store.error = error.localizedDescription

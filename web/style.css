@@ -765,6 +765,7 @@ html.native-shell[data-page='home'] .app-content {
    thing with one stray declaration each. */
 html[data-page='journal'] .app-content,
 html[data-page='notes'] .app-content,
+html[data-page='todo'] .app-content,
 html[data-page='calendar'] .app-content,
 html[data-page='analytics'] .app-content,
 html[data-page='brain'] .app-content,
@@ -777,6 +778,7 @@ html[data-page='settings'] .app-content {
 
 html[data-page='journal'] .tab-content.active,
 html[data-page='notes'] .tab-content.active,
+html[data-page='todo'] .tab-content.active,
 html[data-page='calendar'] .tab-content.active,
 html[data-page='analytics'] .tab-content.active,
 html[data-page='brain'] .tab-content.active,
@@ -7738,5 +7740,92 @@ html[data-motion='reduce'] .btn-ghost:active:not(:disabled) {
     .library-layout {
         grid-template-columns: 1fr;
     }
+}
+
+.todo-page-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.todo-page-add .checklist-text-input {
+    flex: 1 1 16rem;
+    min-width: 0;
+}
+
+.todo-page-tile {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 16px 18px 24px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+}
+
+.todo-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 8px;
+}
+
+.todo-group-head h2 {
+    margin: 0;
+    font-size: var(--fs-heading);
+}
+
+.todo-day-chip {
+    min-width: 2.6rem;
+}
+
+.todo-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.todo-row-copy {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    cursor: grab;
+}
+
+.todo-row-copy strong {
+    display: block;
+}
+
+.todo-row-copy span {
+    display: block;
+    color: var(--text-muted);
+    font-size: var(--fs-caption);
+}
+
+.todo-row.is-drop {
+    background: color-mix(in srgb, var(--accent, currentColor) 12%, transparent);
+}
+
+.todo-empty {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--fs-caption);
+}
+
+.todo-review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 

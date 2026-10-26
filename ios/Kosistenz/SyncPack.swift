@@ -186,6 +186,8 @@ struct WorkItem: Codable, Identifiable {
     var due_at: String?
     var estimate_minutes: Int?
     var goal_id: String?
+    var horizon: String?
+    var week_of: String?
 }
 
 struct GoalRow: Codable, Identifiable {
@@ -454,6 +456,21 @@ enum AnyJSON: Codable {
 }
 
 enum DayStamp {
+    static func weekMonday(_ iso: String? = nil) -> String {
+        let day = String((iso ?? today()).prefix(10))
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: day) else { return day }
+        let weekday = Calendar(identifier: .gregorian).component(.weekday, from: date)
+        return addDays(day, -((weekday + 5) % 7))
+    }
+
+    static func isMonday(_ date: Date = Date()) -> Bool {
+        Calendar(identifier: .gregorian).component(.weekday, from: date) == 2
+    }
+
     static func today() -> String {
         let formatter = DateFormatter()
         formatter.calendar = Calendar.current
