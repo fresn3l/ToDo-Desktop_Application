@@ -9,8 +9,6 @@ import eel
 
 import calclock
 import work
-import workouts
-
 
 def _now() -> datetime:
     return datetime.now().replace(microsecond=0)
@@ -355,57 +353,7 @@ def fill_week(week_start: str = "") -> Dict[str, Any]:
         if not ok:
             at_risk.append(item["id"])
 
-    for offset in range(7):
-        day = start + timedelta(days=offset)
-        if day < date.today():
-            continue
-        try:
-            kinds = workouts.expected_kinds_for_date(day)
-        except Exception:
-            kinds = []
-        if not kinds:
-            continue
-        already = any(
-            block.get("kind") == "workout" and block.get("local_date") == day.isoformat()
-            for block in blocks
-        )
-        try:
-            logged = bool((workouts.get_workout_day(day.isoformat()) or {}).get("done"))
-        except Exception:
-            logged = False
-        if already or logged:
-            continue
-        label = " · ".join(workouts.KIND_LABELS.get(kind, kind) for kind in kinds)
-        until = datetime.combine(day, datetime.min.time()).replace(hour=23, minute=59)
-        slot = find_slot(
-            minutes=60,
-            from_dt=max(window_begin, datetime.combine(day, datetime.min.time())),
-            until_dt=until,
-            hard=hard,
-            blocks=blocks,
-            day_start=settings["day_start"],
-            day_end=settings["day_end"],
-        )
-        if slot is None:
-            continue
-        block = calclock.add_block(
-            title=f"Gym · {label}",
-            start=slot[0],
-            end=slot[1],
-            work_item_id=None,
-            kind="workout",
-            status="proposed",
-        )
-        blocks.append(block)
-        placed += 1
-
     week = calclock.get_week(start.isoformat())
     week["placed"] = placed
     week["at_risk_ids"] = list(dict.fromkeys(at_risk))
-    try:
-        import cluny_snapshot
-
-        cluny_snapshot.refresh_life_snapshot_safe()
-    except Exception:
-        pass
     return week

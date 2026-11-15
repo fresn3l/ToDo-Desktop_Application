@@ -10,7 +10,6 @@ from unittest import mock
 
 import local_api
 import work
-import workouts
 
 
 class LocalApiTests(unittest.TestCase):
@@ -19,8 +18,6 @@ class LocalApiTests(unittest.TestCase):
         path = Path(self._tmp.name)
         self.patches = [
             mock.patch.object(work, "_data_dir", lambda: path),
-            mock.patch.object(workouts, "_data_dir", lambda: path),
-            mock.patch.object(work, "_journal_snapshot_bits", return_value={"journal_today": False, "journal_streak": 0}),
             mock.patch.object(work, "_next_appointment_bits", return_value={"next_title": "", "next_start": "", "next_end": "", "next_when": ""}),
         ]
         for patcher in self.patches:
@@ -52,17 +49,13 @@ class LocalApiTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("active", empty["error"].lower())
 
-    def test_log_push_and_park(self) -> None:
-        status, logged = local_api.handle_request("POST", "/api/workout/log", {"kind": "push"})
-        self.assertEqual(status, 200)
-        self.assertTrue(logged["day"]["done"])
+    def test_park_shows_on_the_widget(self) -> None:
         status, parked = local_api.handle_request("POST", "/api/work/park", {"title": "Call dentist"})
         self.assertEqual(status, 200)
         self.assertTrue(parked["item"]["is_backlog"])
         status, widget = local_api.handle_request("GET", "/api/widget")
         self.assertEqual(status, 200)
-        self.assertTrue(widget["workout_logged"])
-        self.assertIn("push", widget["workout_kinds"])
+        self.assertFalse(widget["workout_logged"])
         self.assertEqual(widget["backlog_count"], 1)
 
     def test_park_today_dates_the_item(self) -> None:
@@ -129,16 +122,6 @@ class LocalApiTests(unittest.TestCase):
         )
         self.assertTrue(gone["ok"])
         self.assertEqual(calclock.list_owned_hard_events(), [])
-
-    def test_run_without_miles_is_rejected(self) -> None:
-        status, payload = local_api.handle_request("POST", "/api/workout/log", {"kind": "running"})
-        self.assertEqual(status, 400)
-        self.assertIn("miles", payload["error"].lower())
-        status, logged = local_api.handle_request(
-            "POST", "/api/workout/log", {"kind": "running", "miles": 3.1}
-        )
-        self.assertEqual(status, 200)
-        self.assertTrue(logged["day"]["done"])
 
     def test_calendar_ingest_creates_deadline_todos(self) -> None:
         status, payload = local_api.handle_request(

@@ -10,9 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import icloud_sync
-import journal
 import work
-import workouts
 
 
 class IcloudSyncTests(unittest.TestCase):
@@ -32,28 +30,20 @@ class IcloudSyncTests(unittest.TestCase):
     def _use(self, folder: Path):
         os.environ["KOSISTENZ_DATA_DIR"] = str(folder)
 
-    def test_round_trip_todo_workout_and_journal(self):
+
+    def test_todo_round_trips(self):
         self._use(self.src)
         item = work.create_work_item("Write on the train", scheduled_date=work._today().isoformat())
-        workouts.add_workout_session(work._today().isoformat(), "push", "", None, None)
-        journal.save_journal_entry("Rode north.", 60, False, ["health"])
-
         exported = icloud_sync.write_pack(self.pack)
         self.assertTrue(exported["ok"])
         self.assertTrue((self.pack / "work.json").is_file())
-        self.assertTrue((self.pack / "journal.json").is_file())
-
+        self.assertEqual(icloud_sync.read_pack(self.pack)["journal"], [])
         self._use(self.dst)
         pulled = icloud_sync.apply_pack(self.pack)
         self.assertTrue(pulled["ok"])
         titles = [row["title"] for row in work.list_all_work_items()]
-        self.assertIn("Write on the train", titles)
-        day = workouts.get_workout_day(work._today().isoformat())
-        self.assertTrue(day.get("done") or day.get("session_count"))
-        texts = [entry.get("content") for entry in journal.get_all_entries()]
-        self.assertIn("Rode north.", texts)
+        self.assertEqual(titles, ["Write on the train"])
         self.assertEqual(item["id"], work.list_all_work_items()[0]["id"])
-        self.assertTrue((self.pack / "calendar.json").is_file())
 
     def test_sometime_this_week_round_trips(self):
         self._use(self.src)
@@ -71,50 +61,7 @@ class IcloudSyncTests(unittest.TestCase):
         self.assertEqual(saved["week_of"], row["week_of"])
         self.assertIsNone(saved["scheduled_date"])
 
-    def test_notes_round_trip_and_newer_wins(self):
-        import notes as note_store
 
-        self._use(self.src)
-        saved = note_store.save_note("Agenda", "- budget")
-        exported = icloud_sync.write_pack(self.pack)
-        self.assertTrue(exported["ok"])
-        self.assertTrue((self.pack / "notes.json").is_file())
-
-        self._use(self.dst)
-        pulled = icloud_sync.apply_pack(self.pack)
-        self.assertTrue(pulled["ok"])
-        titles = [row["title"] for row in note_store.list_notes()]
-        self.assertIn("Agenda", titles)
-
-        pack = icloud_sync.read_pack(self.pack)
-        row = next(entry for entry in pack["notes"] if entry["id"] == saved["id"])
-        row["body"] = "- budget\n- hiring"
-        row["updated_at"] = (datetime.now() + timedelta(minutes=2)).isoformat(timespec="seconds")
-        icloud_sync._write_json(self.pack / "notes.json", pack["notes"])
-        icloud_sync.apply_pack(self.pack)
-        bodies = [entry.get("body") for entry in note_store.list_notes()]
-        self.assertIn("- budget\n- hiring", bodies)
-
-    def test_calendar_pack_omits_note_bodies(self):
-        import calclock
-        import notes as note_store
-
-        self._use(self.src)
-        today = work._today().isoformat()
-        focus = calclock.create_focus_block(
-            "Deep work",
-            f"{today}T14:00:00",
-            f"{today}T16:00:00",
-            [],
-        )
-        note_store.save_note("Agenda", "- one", "", focus["id"])
-        icloud_sync.write_pack(self.pack)
-        calendar = icloud_sync._read_json(self.pack / "calendar.json", {})
-        for day in calendar.get("days") or []:
-            for block in day.get("blocks") or []:
-                self.assertNotIn("notes", block)
-        packed = icloud_sync._read_json(self.pack / "notes.json", [])
-        self.assertTrue(any(row.get("body") == "- one" for row in packed))
 
     def test_calendar_pack_includes_awake_window(self):
         import calclock
@@ -152,21 +99,6 @@ class IcloudSyncTests(unittest.TestCase):
         work.create_work_item("Quiet", scheduled_date=None)
         self.assertFalse((icloud_sync.default_sync_dir() / "work.json").exists())
 
-    def test_journal_import_rejects_path_traversal(self):
-        self._use(self.src)
-        outside = self.root / "escaped.json"
-        journal.import_journal_entry(
-            {
-                "id": "entry_../../../escaped",
-                "content": "should not land outside Journal",
-                "date": datetime.now().isoformat(),
-            }
-        )
-        self.assertFalse(outside.exists())
-        root = journal.get_journal_directory().resolve()
-        for path in root.rglob("*.json"):
-            self.assertTrue(path.resolve().is_relative_to(root))
-            self.assertNotIn("..", path.name)
 
     def test_future_timestamp_does_not_overwrite(self):
         self._use(self.src)
@@ -242,38 +174,7 @@ class IcloudSyncTests(unittest.TestCase):
         titles = [row["title"] for row in work.list_all_work_items()]
         self.assertIn("From the train", titles)
 
-    def test_running_zero_miles_is_not_imported(self):
-        self._use(self.src)
-        icloud_sync.write_pack(self.pack)
-        pack = icloud_sync.read_pack(self.pack)
-        pack["workouts"]["sessions"].append(
-            {
-                "id": "bad-run",
-                "local_date": work._today().isoformat(),
-                "kind": "running",
-                "miles": 0,
-                "other_label": "",
-                "created_at": datetime.now().isoformat(timespec="seconds"),
-            }
-        )
-        icloud_sync._write_json(self.pack / "workouts.json", pack["workouts"])
-        icloud_sync.apply_pack(self.pack)
-        day = workouts.get_workout_day(work._today().isoformat())
-        ids = [row.get("id") for row in day.get("sessions") or []]
-        self.assertNotIn("bad-run", ids)
 
-    def test_journal_newer_edit_overwrites(self):
-        self._use(self.src)
-        saved = journal.save_journal_entry("First pass.")
-        icloud_sync.write_pack(self.pack)
-        pack = icloud_sync.read_pack(self.pack)
-        row = next(entry for entry in pack["journal"] if entry["id"] == saved["id"])
-        row["content"] = "Edited on the phone."
-        row["updated_at"] = (datetime.now() + timedelta(minutes=1)).isoformat(timespec="seconds")
-        icloud_sync._write_json(self.pack / "journal.json", pack["journal"])
-        icloud_sync.apply_pack(self.pack)
-        texts = [entry.get("content") for entry in journal.get_all_entries()]
-        self.assertIn("Edited on the phone.", texts)
 
     def test_calendar_pack_includes_dues_and_hard_events(self):
         import calclock

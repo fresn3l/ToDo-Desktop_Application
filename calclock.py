@@ -549,10 +549,10 @@ def is_deadline_event(
     all_day: bool,
     start_at: datetime,
     end_at: Optional[datetime],
-    role: str = "deadlines",
+    role: str = "meetings",
 ) -> bool:
-    """Class due-date feeds: all-day titles and 11:59 stubs are dues, not busy."""
-    if (role or "deadlines").strip().lower() in ("deadlines", "deadline", "due"):
+    """Meeting feeds: timed events are busy. All-day titles and 11:59 stubs are dues."""
+    if (role or "meetings").strip().lower() in ("deadlines", "deadline", "due"):
         return True
     if all_day:
         return True
@@ -931,7 +931,7 @@ def ingest_events(
     events: List[Dict[str, Any]],
     *,
     calendar_id: str,
-    role: str = "deadlines",
+    role: str = "meetings",
     default_estimate: Optional[int] = None,
 ) -> Dict[str, int]:
     settings = load_settings()
@@ -1189,10 +1189,10 @@ def import_pasted_calendar(raw: str = "") -> Dict[str, Any]:
 
 @eel.expose
 def ingest_calendar_events(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """EventKit / tests: JSON events from a named Apple calendar (deadlines)."""
+    """EventKit / tests: JSON events from a named calendar. Timed rows are meetings."""
     body = payload if isinstance(payload, dict) else {}
     calendar_id = str(body.get("calendar_id") or "eventkit").strip() or "eventkit"
-    role = str(body.get("role") or "deadlines")
+    role = str(body.get("role") or "meetings")
     events = body.get("events") if isinstance(body.get("events"), list) else []
     counts = ingest_events(events, calendar_id=calendar_id, role=role)
     register_calendar_feed(
@@ -1924,12 +1924,7 @@ def set_bar_outcome(bar_id: str, outcome: str, occurrence_date: str = "") -> Dic
 
 
 def _nudge_rate_voice() -> None:
-    try:
-        import cluny_voice
-
-        cluny_voice.refresh_rate_voice_safe()
-    except Exception:
-        pass
+    return None
 
 
 def _work_item(item_id: str) -> Dict[str, Any]:
@@ -2194,18 +2189,7 @@ def _paint_hard_occurrence(
 
 
 def _habits_by_id() -> Dict[str, Dict[str, Any]]:
-    try:
-        import glance
-
-        packed = glance.load_habits()
-    except Exception:
-        return {}
-    out: Dict[str, Dict[str, Any]] = {}
-    for row in packed.get("habits") or []:
-        hid = str(row.get("id") or "").strip()
-        if hid:
-            out[hid] = row
-    return out
+    return {}
 
 
 def _focus_minutes_for_title(title: str, stored: Any = None) -> int:
@@ -2317,13 +2301,6 @@ def _enrich_focus_blocks(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     ids = [str(row.get("id") or "") for row in blocks if str(row.get("kind") or "") == "focus"]
     attached = _focus_item_rows(ids)
     note_map: Dict[str, List[Dict[str, Any]]] = {}
-    if ids:
-        try:
-            import notes as note_store
-
-            note_map = note_store.notes_by_focus_ids(ids)
-        except Exception:
-            note_map = {}
     out = []
     for row in blocks:
         if str(row.get("kind") or "") != "focus":
@@ -3147,12 +3124,6 @@ def delete_schedule_block(block_id: str, force: bool = False) -> Dict[str, Any]:
         conn.execute("DELETE FROM focus_block_items WHERE block_id = ?", (block_id,))
         conn.execute("DELETE FROM schedule_blocks WHERE id = ?", (block_id,))
         conn.commit()
-    try:
-        import notes as note_store
-
-        note_store.release_focus(block_id)
-    except Exception:
-        pass
     return {"ok": True, "id": block_id}
 
 
@@ -3521,9 +3492,7 @@ def toggle_focus_row(block_id: str, item_id: str, kind: str = "work") -> Dict[st
     if not key:
         raise ValueError("Pick a row first")
     if row_kind == "habit":
-        import glance
-
-        glance.toggle_home_habit(key)
+        raise ValueError("Habits are not part of this app")
     else:
         items = work.get_work_items_by_ids([key])
         if not items:

@@ -36,21 +36,11 @@ _writing_snapshot = False
 
 
 def _mirror_task(item: Dict[str, Any]) -> None:
-    try:
-        import cluny_sync
-
-        cluny_sync.sync_task_mirror_safe(item)
-    except Exception:
-        pass
+    return None
 
 
 def _mirror_task_delete(item_id: str) -> None:
-    try:
-        import cluny_sync
-
-        cluny_sync.delete_task_mirror_safe(item_id)
-    except Exception:
-        pass
+    return None
 
 
 def _data_dir() -> Path:
@@ -171,9 +161,13 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
         )
         """
     )
-    import goals as _goals
-
-    _goals.ensure_schema(conn)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(work_items)")}
+    if "goal_id" not in cols:
+        conn.execute("ALTER TABLE work_items ADD COLUMN goal_id TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_work_goal_id ON work_items(goal_id)")
+    series_cols = {row[1] for row in conn.execute("PRAGMA table_info(work_series)")}
+    if "goal_id" not in series_cols:
+        conn.execute("ALTER TABLE work_series ADD COLUMN goal_id TEXT")
 
 
 def _now() -> datetime:
@@ -656,37 +650,11 @@ def refresh_widget_snapshot() -> Dict[str, Any]:
 
 
 def _workout_snapshot_bits(today: str) -> Dict[str, Any]:
-    empty = {"workout_logged": False, "workout_kinds": [], "workout_session_count": 0}
-    try:
-        import workouts
-
-        if not workouts.get_workouts_db_path().exists():
-            return empty
-        day = workouts.get_workout_day(today)
-        kinds = [str(session.get("kind") or "") for session in day.get("sessions") or []]
-        return {
-            "workout_logged": bool(day.get("done")),
-            "workout_kinds": [kind for kind in kinds if kind],
-            "workout_session_count": int(day.get("session_count") or 0),
-        }
-    except Exception:
-        return empty
+    return {"workout_logged": False, "workout_kinds": [], "workout_session_count": 0}
 
 
 def _journal_snapshot_bits(today: date) -> Dict[str, Any]:
-    empty = {"journal_today": False, "journal_streak": 0}
-    try:
-        import journal
-
-        days = journal.entry_dates(days=400)
-    except Exception:
-        return empty
-    cursor = today if today in days else today - timedelta(days=1)
-    streak = 0
-    while cursor in days:
-        streak += 1
-        cursor -= timedelta(days=1)
-    return {"journal_today": today in days, "journal_streak": streak}
+    return {"journal_today": False, "journal_streak": 0}
 
 
 def _clock_label(raw: str) -> str:
@@ -786,8 +754,6 @@ def _write_widget_snapshot_body() -> Dict[str, Any]:
             open_items.append(item)
             if item["status"] == "active":
                 active_count += 1
-    workout = _workout_snapshot_bits(today_iso)
-    journal = _journal_snapshot_bits(today)
     nxt = _next_appointment_bits()
     open_count = len(open_items)
     today_empty = open_count == 0 and not nxt["next_title"]
@@ -805,11 +771,11 @@ def _write_widget_snapshot_body() -> Dict[str, Any]:
         "backlog_count": int(backlog or 0),
         "titles": [item["title"] for item in open_items[:12]],
         "active_title": active_title,
-        "workout_logged": workout["workout_logged"],
-        "workout_kinds": workout["workout_kinds"],
-        "workout_session_count": workout["workout_session_count"],
-        "journal_today": journal["journal_today"],
-        "journal_streak": journal["journal_streak"],
+        "workout_logged": False,
+        "workout_kinds": [],
+        "workout_session_count": 0,
+        "journal_today": False,
+        "journal_streak": 0,
         "next_title": nxt["next_title"],
         "next_start": nxt["next_start"],
         "next_end": nxt["next_end"],
@@ -863,12 +829,6 @@ def _run_heavy_snapshot_side_effects(snapshot_path: Path) -> None:
         import icloud_sync
 
         icloud_sync.export_if_enabled()
-    except Exception:
-        pass
-    try:
-        import cluny_snapshot
-
-        cluny_snapshot.refresh_life_snapshot_safe()
     except Exception:
         pass
 
@@ -969,9 +929,7 @@ def create_work_item(
         estimate = parse_minutes_from_title(clean)
     src_uid = (source_uid or "").strip() or None
     src_cal = (source_calendar or "").strip() or None
-    import goals as _goals
-
-    attached = _goals.resolve_goal_id(clean, goal_id or None)
+    attached = (str(goal_id).strip() if goal_id else "") or None
     with _connect() as conn:
         if src_uid and src_cal:
             existing = conn.execute(
@@ -1198,12 +1156,6 @@ def _get_work_board_locked(target: str, today: date) -> Dict[str, Any]:
     cached = _cached_work_board(target)
     if cached is not None:
         return cached
-    try:
-        import goals as _goals
-
-        _goals.ensure_weekly_goal_todos()
-    except Exception:
-        pass
     days_needed = [target]
     if target == today.isoformat():
         days_needed = [(today + timedelta(days=offset)).isoformat() for offset in range(7)]
@@ -1972,16 +1924,6 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
             (elapsed, now.isoformat(), now.isoformat(), item_id),
         )
         row = _fetch(conn, item_id)
-        if row is not None and not _col(row, "goal_id"):
-            import goals as _goals
-
-            attached = _goals.resolve_goal_id(row["title"], conn=conn)
-            if attached:
-                conn.execute(
-                    "UPDATE work_items SET goal_id = ? WHERE id = ?",
-                    (attached, item_id),
-                )
-                row = _fetch(conn, item_id)
     try:
         import calclock
 
@@ -1992,12 +1934,6 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
     assert row is not None
     packed = _row_to_dict(row)
     _mirror_task(packed)
-    try:
-        import cluny_voice
-
-        cluny_voice.refresh_rate_voice_safe()
-    except Exception:
-        pass
     return packed
 
 

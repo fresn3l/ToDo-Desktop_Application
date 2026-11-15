@@ -141,33 +141,6 @@ def finish_today_todo() -> Dict[str, Any]:
     raise ValueError("Nothing is active")
 
 
-def log_session(
-    kind: str,
-    miles: Any = None,
-    minutes: Any = None,
-    other_label: str = "",
-) -> Dict[str, Any]:
-    key = str(kind or "").strip().lower()
-    if key == "running":
-        try:
-            mile_val = float(miles) if miles is not None and str(miles).strip() != "" else None
-        except (TypeError, ValueError):
-            mile_val = None
-        if mile_val is None or mile_val <= 0:
-            raise ValueError("Add miles for a run")
-        miles = mile_val
-    import workouts
-
-    day = workouts.add_workout_session(
-        _today().isoformat(),
-        key,
-        other_label=other_label,
-        miles=miles,
-        minutes=minutes,
-    )
-    return {"ok": True, "day": day}
-
-
 def _as_flag(raw: Any) -> bool:
     if isinstance(raw, bool):
         return raw
@@ -309,22 +282,10 @@ def handle_request(method: str, path: str, body: Optional[Dict[str, Any]] = None
             return 200, menu_status()
         if method == "GET" and route in ("/api/health", "/api/ok"):
             return 200, {"ok": True, "port": _bound_port}
-        if method == "GET" and route == "/api/cluny/life":
-            import cluny_snapshot
-
-            return 200, cluny_snapshot.build_life_snapshot()
         if method == "POST" and route == "/api/todo/start":
             return 200, start_today_todo()
         if method == "POST" and route == "/api/todo/finish":
             return 200, finish_today_todo()
-        if method == "POST" and route == "/api/workout/log":
-            kind = payload.get("kind") or (query.get("kind") or [""])[0]
-            return 200, log_session(
-                str(kind),
-                miles=payload.get("miles"),
-                minutes=payload.get("minutes"),
-                other_label=str(payload.get("other_label") or ""),
-            )
         if method == "POST" and route == "/api/work/park":
             title = payload.get("title") or (query.get("title") or [""])[0]
             today = payload.get("today")

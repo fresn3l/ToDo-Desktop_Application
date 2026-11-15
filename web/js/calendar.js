@@ -851,11 +851,11 @@ function paintEditor() {
     }
     if (hint) {
         hint.textContent = isIdle
-            ? 'Drag from Today or To Do onto the clock, or Add event for a meeting. Add focus for a named span that holds work and habits.'
+            ? 'Drag from Today or To Do onto the clock, or Add event for a meeting. Add focus for a named span that holds work.'
             : isNew
                 ? 'Busy time — a meeting, hold, or recurring block. To Do stays off the clock until you drag or Fill week.'
                 : isNewFocus
-                    ? 'A named hold. Fill week will not pack over it. Work and habits can run longer than the span.'
+                    ? 'A named hold. Fill week will not pack over it. Work can run longer than the span.'
                     : isUnplaced
                         ? 'Drag onto the clock, or set a start and Place. This is not a new event.'
                         : 'Alt marks happened. Shift marks missed. Drag to move.';
@@ -991,20 +991,9 @@ function parseFocusNotes(btn) {
 }
 
 async function loadFocusNotes() {
-    if (!editor.id || (editor.mode !== 'focus' && editor.mode !== 'new-focus')) {
-        pendingFocusNotes = [];
-        storageNotes = [];
-        paintFocusNotes();
-        return;
-    }
-    try {
-        const rows = (await callEel('list_notes')) || [];
-        pendingFocusNotes = rows.filter((row) => row.focus_id === editor.id);
-        storageNotes = rows.filter((row) => !row.focus_id);
-        paintFocusNotes();
-    } catch (_) {
-        paintFocusNotes();
-    }
+    pendingFocusNotes = [];
+    storageNotes = [];
+    paintFocusNotes();
 }
 
 function paintFocusNotes() {
@@ -1116,31 +1105,17 @@ function fillFocusPick() {
     if (!pick) return;
     const held = new Set(pendingFocusItems.map((row) => `${focusRowKind(row)}:${row.id}`));
     const workOpts = (lastWeek?.unplaced || []).filter((row) => row.id && !held.has(`work:${row.id}`));
-    const habitOpts = (lastHabits || []).filter((row) => row.id && !held.has(`habit:${row.id}`));
-    const options = ['<option value="">Work or habit…</option>']
+    const options = ['<option value="">Work…</option>']
         .concat(workOpts.map((row) => {
             const mins = row.remaining_minutes || row.estimate_minutes;
             const label = `${row.title || 'Work'}${mins ? ` · ${mins}m` : ''}`;
             return `<option value="work:${utils.escapeHtml(row.id)}">${utils.escapeHtml(label)}</option>`;
-        }))
-        .concat(habitOpts.map((row) => {
-            const mins = row.minutes || row.estimate_minutes;
-            const label = `${row.title || 'Habit'}${mins ? ` · ${mins}m` : ''} · habit`;
-            return `<option value="habit:${utils.escapeHtml(row.id)}">${utils.escapeHtml(label)}</option>`;
         }));
     pick.innerHTML = options.join('');
 }
 
 async function loadFocusHabits() {
-    const gen = ++habitFetchGen;
-    try {
-        const packed = await callEel('get_habits');
-        if (gen !== habitFetchGen) return;
-        lastHabits = packed?.habits || [];
-        fillFocusPick();
-    } catch (_) {
-        /* keep lastHabits */
-    }
+    lastHabits = [];
 }
 
 function paintFocusAttach() {
@@ -1171,7 +1146,7 @@ function paintFocusAttach() {
                     </span>
                 </div>`;
             }).join('')
-            : '<p class="checklist-empty">No work or habits in this span yet.</p>';
+            : '<p class="checklist-empty">No work in this span yet.</p>';
         host.querySelectorAll('[data-act="detach-focus"]').forEach((btn) => {
             btn.addEventListener('click', () => {
                 const row = btn.closest('[data-id]');
@@ -1189,7 +1164,7 @@ function paintFocusAttach() {
         });
     }
     fillFocusPick();
-    if (editor.mode === 'focus' || editor.mode === 'new-focus') void loadFocusHabits();
+    if (editor.mode === 'focus' || editor.mode === 'new-focus') fillFocusPick();
 }
 
 async function detachFocusRow(itemId, kind) {

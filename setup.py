@@ -8,47 +8,21 @@ from setuptools import setup
 
 APP = ["main.py"]
 DATA_FILES = [
-    ("web", ["web/index.html", "web/style.css", "web/app.js"]),
+    ("web", ["web/index.html", "web/style.css", "web/app.js", "web/tokens.css"]),
     (
         "web/js",
         [
-            "web/js/journal.js",
-            "web/js/notes.js",
             "web/js/utils.js",
             "web/js/tabs.js",
-            "web/js/daily_checklist.js",
-            "web/js/weekstrip.js",
             "web/js/appearance.js",
+            "web/js/boot-appearance.js",
             "web/js/settings.js",
-            "web/js/today.js",
-            "web/js/home.js",
-            "web/js/execute.js",
-            "web/js/home_layout.js",
-            "web/js/weather.js",
-            "web/js/glance.js",
+            "web/js/lazy.js",
+            "web/js/paste_insert.js",
             "web/js/todo.js",
-            "web/js/goals.js",
-            "web/js/day_brief.js",
-            "web/js/counters.js",
-            "web/js/reading.js",
-            "web/js/word.js",
+            "web/js/todo_page.js",
             "web/js/work.js",
-            "web/js/workouts.js",
-            "web/js/analytics.js",
-            "web/js/brain.js",
-            "web/js/library.js",
-        ],
-    ),
-    (
-        "checklists",
-        [
-            "checklists/default.json",
-            "checklists/blank-template-1.json",
-            "checklists/blank-template-2.json",
-            "checklists/blank-template-3.json",
-            "checklists/blank-template-4.json",
-            "checklists/morning.json",
-            "checklists/evening.json",
+            "web/js/calendar.js",
         ],
     ),
 ]
@@ -65,7 +39,7 @@ OPTIONS = {
         "NSHighResolutionCapable": True,
     },
     "packages": ["eel", "setuptools"],
-    "includes": ["daily_checklist", "journal", "notes", "execute", "brain", "library", "cluny_brain", "cluny_ask", "cluny_snapshot", "cluny_client", "cluny_sync", "cluny_voice", "insights", "timeline", "export_data", "reminders", "health_import", "appearance", "bridge", "paths", "native_mac", "work", "workouts", "goals", "home_layout", "weather", "glance", "day_brief", "reading", "tap_counters", "word_of_the_day", "db"],
+    "includes": ["appearance", "bridge", "paths", "native_mac", "work", "calclock", "schedule", "icloud_sync", "phone_calendar", "phone_today", "db", "local_api"],
 }
 
 setup(

@@ -18,9 +18,7 @@ class CalendarStoreTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.data_dir = Path(self._tmp.name)
         self.patcher = mock.patch.object(work, "_data_dir", lambda: self.data_dir)
-        self.kinds = mock.patch.object(schedule.workouts, "expected_kinds_for_date", return_value=[])
         self.patcher.start()
-        self.kinds.start()
         self.today = mock.patch.object(work, "_today", return_value=date(2026, 9, 1))
         self.today.start()
         calclock.reset_purge_cache()
@@ -28,7 +26,6 @@ class CalendarStoreTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         work.cancel_heavy_snapshot_side_effects()
-        self.kinds.stop()
         self.patcher.stop()
         self.today.stop()
         self._tmp.cleanup()
@@ -310,7 +307,7 @@ END:VCALENDAR
         self.assertTrue(lecture["has_items"])
 
     def test_get_month_clamps_junk_year_and_month(self) -> None:
-        today = date.today()
+        today = work._today()
         junk = calclock.get_month("nope", 99)
         self.assertEqual(junk["year"], today.year)
         self.assertEqual(junk["month"], today.month)
