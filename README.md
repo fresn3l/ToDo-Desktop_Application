@@ -49,10 +49,10 @@ That still opens the native WebKit window.
 
 - **Today**: this day’s meetings and placed to-dos on the clock, with today’s checklist beside them. A row stays a checklist until you give it a time.
 - **To Do**: capture that is not on the clock yet. This week, Later, and Someday. Each item can have notes, a due date, an estimate, and a repeat.
-- **Calendar**: day, week, month, and year. Add a meeting. Drag a to-do onto a time, or use **Fill week** to pack items that have an estimate into gaps inside the awake window.
+- **Calendar**: day, week, month, and year. Add a meeting, or draw a work block (protected time Fill week will not pack over). Drag a to-do onto a time, or use **Fill week** to pack items that have an estimate into gaps inside the awake window. A due chip shows the calendar it came from.
 - **Settings**: appearance, subscribed calendars, and the iPhone pack.
 
-Subscribed calendars: timed events block the clock. All-day events and short 11:59 stubs become due dates. Nothing is written back to Apple Calendar.
+Subscribed calendars: timed events are meetings and block the clock. All-day events and short 11:59 stubs become due dates. Import from Apple Calendar skips holiday and birthday calendars. Nothing is written back.
 
 ## iPhone
 

@@ -324,8 +324,8 @@ function shortTitle(title, fallback = 'Due') {
 
 function dueParts(due) {
     const title = String(due?.title || 'Due');
-    const course = String(due?.course || '').trim();
-    return { title, course, short: shortTitle(title) };
+    const calendar = String(due?.calendar || due?.course || '').trim();
+    return { title, calendar, short: shortTitle(title) };
 }
 
 function renderDueChip(due) {
@@ -334,8 +334,8 @@ function renderDueChip(due) {
     const overdue = due.is_overdue;
     const hue = Number(due.hue);
     const hueStyle = Number.isFinite(hue) ? `--due-h:${hue}` : '';
-    const badge = parts.course
-        ? `<span class="cal-course-badge">${utils.escapeHtml(parts.course)}</span>`
+    const badge = parts.calendar
+        ? `<span class="cal-course-badge">${utils.escapeHtml(parts.calendar)}</span>`
         : '';
     const held = due.focus_title
         ? `<span class="cal-due-held">In ${utils.escapeHtml(due.focus_title)}</span>`
@@ -468,7 +468,7 @@ function renderGrid(week) {
 function agendaKind(item) {
     if (item.kind === 'hard') return 'Event';
     if (item.kind === 'workout') return 'Gym';
-    if (item.kind === 'focus') return 'Focus';
+    if (item.kind === 'focus') return 'Work';
     return 'To Do';
 }
 
@@ -508,7 +508,7 @@ function renderTodayRail(today) {
         ? `<ul class="cal-today-agenda">${appointments.map((item) => {
             const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
             const days = Array.isArray(item.recurrence?.weekdays) ? item.recurrence.weekdays.join(',') : '';
-            return `<li class="is-hard${outcome}"><button type="button" class="cal-today-clock" data-kind="hard" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-start-at="${utils.escapeHtml(item.start_at || '')}" data-end-at="${utils.escapeHtml(item.end_at || '')}" data-occurrence-date="${utils.escapeHtml(item.occurrence_date || '')}" data-weekdays="${utils.escapeHtml(days)}" data-status="${utils.escapeHtml(item.status || '')}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Appointment'))}</b></button></li>`;
+            return `<li class="is-hard${outcome}"><button type="button" class="cal-today-clock" data-kind="hard" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-start-at="${utils.escapeHtml(item.start_at || '')}" data-end-at="${utils.escapeHtml(item.end_at || '')}" data-occurrence-date="${utils.escapeHtml(item.occurrence_date || '')}" data-weekdays="${utils.escapeHtml(days)}" data-status="${utils.escapeHtml(item.status || '')}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Meeting'))}</b></button></li>`;
         }).join('')}</ul>`
         : '<p class="cal-due-empty">Nothing on the clock.</p>';
     root.innerHTML = `
@@ -842,20 +842,20 @@ function paintEditor() {
         heading.textContent = isIdle
             ? 'Clock'
             : isNew
-                ? 'Add event'
+                ? 'Add meeting'
                 : isNewFocus
-                    ? 'Add focus'
+                    ? 'Add work block'
                     : isUnplaced
                         ? 'Place work'
                         : (document.getElementById('calEventTitle')?.value?.trim() || 'Edit');
     }
     if (hint) {
         hint.textContent = isIdle
-            ? 'Drag from Today or To Do onto the clock, or Add event for a meeting. Add focus for a named span that holds work.'
+            ? 'Drag from Today or To Do onto the clock, or Add meeting. Add work block for protected time that holds work.'
             : isNew
-                ? 'Busy time — a meeting, hold, or recurring block. To Do stays off the clock until you drag or Fill week.'
+                ? 'Busy time — a meeting or a repeating hold. To Do stays off the clock until you drag or Fill week.'
                 : isNewFocus
-                    ? 'A named hold. Fill week will not pack over it. Work can run longer than the span.'
+                    ? 'Protected time. Fill week will not pack over it. Work can run longer than the span.'
                     : isUnplaced
                         ? 'Drag onto the clock, or set a start and Place. This is not a new event.'
                         : 'Alt marks happened. Shift marks missed. Drag to move.';
@@ -875,9 +875,9 @@ function paintEditor() {
     toggleHidden(fresh, isNew);
     toggleHidden(ask, isIdle || isNew || isUnplaced || !editor.id);
     toggleHidden(save, isIdle);
-    if (fresh) fresh.textContent = isIdle ? 'Add event' : 'Add another';
+    if (fresh) fresh.textContent = isIdle ? 'Add meeting' : 'Add another';
     const addFocus = document.getElementById('calNewFocus');
-    if (addFocus) addFocus.textContent = isIdle || isNewFocus ? 'Add focus' : 'Add focus';
+    if (addFocus) addFocus.textContent = 'Add work block';
     if (save) {
         save.textContent = isUnplaced ? 'Place' : 'Save';
     }
@@ -1519,7 +1519,7 @@ function focusHitAt(x, y) {
 function focusDropPreview(focus) {
     return {
         focusId: focus.getAttribute('data-id') || '',
-        focusTitle: focus.getAttribute('data-title') || 'Focus',
+        focusTitle: focus.getAttribute('data-title') || 'Work',
     };
 }
 
@@ -1648,9 +1648,9 @@ async function onSpanPointerUp(e) {
             document.getElementById('calEventTitle')?.focus();
             return;
         } else {
-            const created = await callEel('create_focus_block', 'Focus', startIso, endIso, []);
+            const created = await callEel('create_focus_block', 'Work', startIso, endIso, []);
             pendingSelectId = created?.id || '';
-            utils.showSuccessFeedback('Focus on the clock. Name it.');
+            utils.showSuccessFeedback('Work block on the clock. Name it.');
         }
         utils.notifyDataChanged();
         await loadCalendar();
@@ -1735,7 +1735,7 @@ async function onBlockPointerUp(e) {
             await callEel('attach_event_to_focus', state.preview.focusId, state.id, state.occurrenceDate || '');
             utils.notifyDataChanged();
             await loadCalendar();
-            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Focus'}.`);
+            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Work'}.`);
         } catch (err) {
             utils.showErrorFeedback(err?.message || 'Could not add that to the block.');
             await loadCalendar();
@@ -1747,7 +1747,7 @@ async function onBlockPointerUp(e) {
             await callEel('move_work_bar_to_focus', state.id, state.preview.focusId);
             utils.notifyDataChanged();
             await loadCalendar();
-            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Focus'}.`);
+            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Work'}.`);
         } catch (err) {
             utils.showErrorFeedback(err?.message || 'Could not add that to the block.');
             await loadCalendar();
@@ -1840,7 +1840,7 @@ function showDueMenu(chip) {
     if (host) {
         const focuses = focusesOnDate(date).filter((row) => row.id !== heldId);
         host.innerHTML = focuses
-            .map((row) => `<button type="button" data-act="add-to-focus" data-focus-id="${utils.escapeHtml(row.id)}" data-focus-title="${utils.escapeHtml(row.title || 'Focus')}">Add to ${utils.escapeHtml(row.title || 'Focus')}</button>`)
+            .map((row) => `<button type="button" data-act="add-to-focus" data-focus-id="${utils.escapeHtml(row.id)}" data-focus-title="${utils.escapeHtml(row.title || 'Work')}">Add to ${utils.escapeHtml(row.title || 'Work')}</button>`)
             .join('');
     }
     menu.hidden = false;
@@ -1944,7 +1944,7 @@ async function onDuePointerUp(e) {
         // A drag that lands nowhere used to end in silence, which read as broken.
         if (state.moved && !state.preview) {
             utils.showErrorFeedback(calView === 'week'
-                ? 'Drop it on a day column or on a focus block.'
+                ? 'Drop it on a day column or on a work block.'
                 : 'Switch to Week view to place this on the clock.');
         }
         return;
@@ -1957,7 +1957,7 @@ async function onDuePointerUp(e) {
             await callEel('attach_focus_item', state.preview.focusId, state.id);
             utils.notifyDataChanged();
             await loadCalendar();
-            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Focus'}.`);
+            utils.showSuccessFeedback(`In ${state.preview.focusTitle || 'Work'}.`);
         } catch (err) {
             utils.showErrorFeedback(err?.message || 'Could not add that to the block.');
             await loadCalendar();
@@ -2012,11 +2012,11 @@ async function runDueMenu(act, btn) {
             await callEel('reopen_work_item', id);
             utils.showSuccessFeedback('Reopened.');
         } else if (act === 'place-after') {
-            await callEel('place_work_after_lecture', id, date);
-            utils.showSuccessFeedback('Placed after the first event.');
+            await callEel('place_work_after_meeting', id, date);
+            utils.showSuccessFeedback('Placed after the first meeting.');
         } else if (act === 'add-to-focus') {
             const focusId = btn?.getAttribute('data-focus-id') || '';
-            const focusTitle = btn?.getAttribute('data-focus-title') || 'Focus';
+            const focusTitle = btn?.getAttribute('data-focus-title') || 'Work';
             if (!focusId) return;
             await callEel('attach_focus_item', focusId, id);
             utils.showSuccessFeedback(`In ${focusTitle}.`);
@@ -2089,7 +2089,7 @@ async function saveEditor() {
                 await callEel('attach_focus_item', created.id, row.id, 'habit');
             }
             resetEditor();
-            utils.showSuccessFeedback('Focus block saved.');
+            utils.showSuccessFeedback('Work block saved.');
         } else if (editor.mode === 'focus') {
             await callEel('update_schedule_block', editor.id, title, start, end, 'locked');
             const focusOutcome = selectedBarOutcome();

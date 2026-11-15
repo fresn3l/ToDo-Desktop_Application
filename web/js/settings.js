@@ -652,7 +652,7 @@ function paintCalendarFeeds(payload) {
             try {
                 const result = await eel.unsubscribe_calendar_feed(feedId, feedUrl)();
                 const n = Number(result?.deleted || 0);
-                utils.showSuccessFeedback(n ? `Unsubscribed. Removed ${n} open assignment${n === 1 ? '' : 's'}.` : 'Unsubscribed.');
+                utils.showSuccessFeedback(n ? `Unsubscribed. Removed ${n} open to-do${n === 1 ? '' : 's'}.` : 'Unsubscribed.');
                 utils.notifyDataChanged();
                 paintCalendarFeeds(result);
             } catch (err) {

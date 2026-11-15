@@ -84,7 +84,7 @@ struct AddEventSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(palette.pageBg)
-            .navigationTitle("Add event")
+            .navigationTitle("Add meeting")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

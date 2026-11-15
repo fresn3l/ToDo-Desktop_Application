@@ -790,11 +790,28 @@ END:VCALENDAR
         self.assertEqual([row["title"] for row in left], ["Done quiz"])
         self.assertEqual(left[0]["status"], "done")
 
-    def test_course_code_from_canvas_title(self) -> None:
-        self.assertEqual(calclock.course_code_from_title("VHL Lección 2 [SPAN-110.701.26FA]"), "SPAN-110")
-        self.assertEqual(calclock.course_code_from_title("Section 1.4 [MATH-208.110.26FA]"), "MATH-208")
-        self.assertEqual(calclock.course_hue("SPAN-110"), calclock.course_hue("SPAN-110"))
-        self.assertNotEqual(calclock.course_hue("SPAN-110"), calclock.course_hue("MATH-208"))
+    def test_due_chip_uses_the_calendar_name(self) -> None:
+        calclock.import_ics_text(
+            """BEGIN:VCALENDAR
+X-WR-CALNAME:Work
+BEGIN:VEVENT
+UID:essay-work
+SUMMARY:Send brief [ENGL-101.001]
+DTSTART;VALUE=DATE:20260908
+END:VEVENT
+END:VCALENDAR
+""",
+            calendar_id="work",
+            title="Work",
+        )
+        week = calclock.get_week("2026-09-07")
+        tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
+        due = tuesday["dues"][0]
+        self.assertEqual(due["calendar"], "Work")
+        self.assertEqual(due["course"], "Work")
+        self.assertNotIn("ENGL", due["calendar"])
+        self.assertEqual(calclock.calendar_hue("Work"), calclock.calendar_hue("Work"))
+        self.assertNotEqual(calclock.calendar_hue("Work"), calclock.calendar_hue("Personal"))
 
     def test_hidden_feed_hides_dues_without_unsubscribing(self) -> None:
         calclock.import_ics_text(
@@ -810,7 +827,8 @@ END:VCALENDAR
         )
         week = calclock.get_week("2026-09-07")
         tuesday = next(day for day in week["days"] if day["date"] == "2026-09-08")
-        self.assertEqual(tuesday["dues"][0]["course"], "ENGL-101")
+        self.assertEqual(tuesday["dues"][0]["calendar"], "class")
+        self.assertNotIn("ENGL", tuesday["dues"][0]["calendar"])
         calclock.set_calendar_feed_enabled("class", False)
         hidden = calclock.get_week("2026-09-07")
         tuesday = next(day for day in hidden["days"] if day["date"] == "2026-09-08")
@@ -855,7 +873,7 @@ END:VCALENDAR
             calendar_id="class",
         )
         item = work.list_all_work_items()[0]
-        placed = calclock.place_work_after_lecture(item["id"], "2026-09-08")
+        placed = calclock.place_work_after_meeting(item["id"], "2026-09-08")
         self.assertTrue(placed["block"]["start_at"].startswith("2026-09-08T10:20"))
 
     def test_today_column_includes_clock_items_not_past_imports(self) -> None:

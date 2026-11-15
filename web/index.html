@@ -86,19 +86,19 @@
                             </div>
                             <div class="cal-clock-tools is-hidden">
                                 <div class="segmented" id="calDrawKind" role="group" aria-label="Draw on the clock">
-                                    <button type="button" data-draw-kind="focus" class="is-selected">Focus</button>
-                                    <button type="button" data-draw-kind="event">Event</button>
+                                    <button type="button" data-draw-kind="focus" class="is-selected">Work</button>
+                                    <button type="button" data-draw-kind="event">Meeting</button>
                                 </div>
                                 <p id="calClockHint" class="cal-clock-hint">Drag empty time to draw. Then name it. Alt marks happened. Shift marks missed.</p>
                             </div>
                             <div id="calMonthGrid" class="cal-month-grid is-hidden"></div>
-                            <p id="calMonthLegend" class="cal-month-legend is-hidden">Event · placed · due</p>
+                            <p id="calMonthLegend" class="cal-month-legend is-hidden">Meeting · placed · due</p>
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
                             <div class="cal-aside-block" id="calUnplacedBlock">
                                 <h3>To Do</h3>
-                                <button type="button" id="calShowEvent" class="btn-primary">Add appointment</button>
+                                <button type="button" id="calShowEvent" class="btn-primary">Add meeting</button>
                                 <div class="work-add-row cal-park-row">
                                     <input type="text" id="calParkAdd" class="checklist-text-input" placeholder="Park" autocomplete="off" aria-label="Park">
                                     <button type="button" id="calParkAddBtn" class="btn-ghost">Park</button>
@@ -107,7 +107,7 @@
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
                             <div class="cal-aside-block is-hidden" id="calEditor">
-                                <h3 id="calEditorHeading">Appointment</h3>
+                                <h3 id="calEditorHeading">Meeting</h3>
                                 <p id="calEditorHint" class="cal-editor-hint">Name, date, start, and end.</p>
                                 <div id="calEditorFields">
                                 <label class="checklist-field-label" for="calEventTitle">Name</label>
@@ -140,7 +140,7 @@
                                     <button type="button" class="work-day-chip" data-outcome="missed">Missed</button>
                                 </div>
                                 <div id="calFocusAttach" class="cal-focus-attach is-hidden">
-                                    <p class="cal-focus-hint">Work in this span. Overflow is fine — it stays in the block.</p>
+                                    <p class="cal-focus-hint">Protected time. Fill week will not pack over it. Work can run longer than the span.</p>
                                     <p id="calFocusOverflow" class="cal-focus-overflow"></p>
                                     <div id="calFocusItems" class="cal-focus-items"></div>
                                     <div class="work-add-row">
@@ -158,8 +158,8 @@
                                     <button type="button" id="calSaveItem" class="btn-primary is-hidden">Save</button>
                                     <button type="button" id="calParkItem" class="btn-ghost is-hidden">Park</button>
                                     <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
-                                    <button type="button" id="calNewFocus" class="btn-ghost">Add focus</button>
-                                    <button type="button" id="calNewEvent" class="btn-primary">Add event</button>
+                                    <button type="button" id="calNewFocus" class="btn-ghost">Add work block</button>
+                                    <button type="button" id="calNewEvent" class="btn-primary">Add meeting</button>
                                 </div>
                             </div>
                         </aside>
@@ -386,7 +386,7 @@
     <div id="calDueMenu" class="cal-due-menu is-hidden" hidden role="menu" aria-label="Due">
         <button type="button" data-act="done">Mark done</button>
         <button type="button" data-act="reopen" class="is-hidden">Reopen</button>
-        <button type="button" data-act="place-after">Place after first event</button>
+        <button type="button" data-act="place-after">Place after first meeting</button>
         <div id="calDueFocusActs"></div>
         <button type="button" data-act="todo">Open in Today</button>
     </div>

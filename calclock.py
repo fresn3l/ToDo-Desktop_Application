@@ -1,8 +1,8 @@
 """
-Kosistenz calendar — hard events, deadline ingest, and the week clock.
+Kosistenz calendar — meetings, due dates, and the week clock.
 
 SQLite lives next to the work database. Apple Calendar is a read-only feed.
-Generated study blocks are never written back to EventKit.
+Work blocks are never written back to EventKit.
 """
 
 from __future__ import annotations
@@ -48,24 +48,34 @@ _ICS_FETCH_HEADERS = {
     "Accept": "text/calendar, text/plain, application/calendar+xml, */*",
 }
 _BYDAY = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
-_COURSE_RE = re.compile(r"\[([A-Za-z]{2,10})\s*[-–]\s*(\d{2,4})")
 
 
-def course_code_from_title(title: str) -> str:
-    match = _COURSE_RE.search(str(title or ""))
-    if not match:
-        return ""
-    return f"{match.group(1).upper()}-{match.group(2)}"
-
-
-def course_hue(code: str) -> int:
-    key = str(code or "").strip()
+def calendar_hue(name: str) -> int:
+    """Stable color for a calendar name. Empty names share one neutral hue."""
+    key = str(name or "").strip()
     if not key:
         return 32
     acc = 0
     for ch in key:
         acc = (acc * 31 + ord(ch)) & 0xFFFFFFFF
     return int(acc % 360)
+
+
+def _calendar_label(source: Any) -> str:
+    """Feed title shown on a due chip. Raw ids and course codes stay off the chip."""
+    key = str(source or "").strip()
+    if not key:
+        return ""
+    for feed in load_settings().get("feeds") or []:
+        if str(feed.get("id") or "") != key:
+            continue
+        title = str(feed.get("title") or "").strip()
+        if title and title != key:
+            return title[:40]
+        break
+    if key.startswith("ics:") or len(key) > 32:
+        return ""
+    return key[:40]
 
 
 def normalize_ics_url(raw: str, *, allow_empty: bool = False) -> str:
@@ -1161,7 +1171,7 @@ def import_ics_url(url: str = "") -> Dict[str, Any]:
             data = resp.read(MAX_ICS_BYTES + 1)
     except HTTPError as exc:
         raise ValueError(
-            f"Calendar server returned HTTP {exc.code}. Use a public iCloud or class calendar link."
+            f"Calendar server returned HTTP {exc.code}. Use a public calendar link."
         ) from exc
     except URLError as exc:
         raise ValueError("Could not reach that calendar URL. Check the link and your network.") from exc
@@ -1172,7 +1182,7 @@ def import_ics_url(url: str = "") -> Dict[str, Any]:
         raise ValueError("That URL did not return a calendar. iCloud links should start with webcal:// or https://.")
     calendar_id = _feed_id_for_url(target)
     parsed = urlparse(target)
-    label = _ics_calendar_title(text, parsed.netloc or "Class calendar")
+    label = _ics_calendar_title(text, parsed.netloc or "Calendar")
     return import_ics_text(text, calendar_id=calendar_id, url=target, title=label)
 
 
@@ -2468,7 +2478,7 @@ def unplaced_work() -> List[Dict[str, Any]]:
 def off_calendar_work() -> List[Dict[str, Any]]:
     """Open To Do that is not today's list and not fully on the clock.
 
-    Imported calendar assignments stay Due chips. Fill week packs leftover
+    Imported due dates stay chips. Fill week packs leftover
     minutes from this list, not from Today's dated items.
     """
     placed = _placed_minutes_map()
@@ -2720,7 +2730,7 @@ def _focus_hold_by_item() -> Dict[str, Dict[str, str]]:
             continue
         out[wid] = {
             "id": str(row["block_id"] or ""),
-            "title": str(row["title"] or "Focus"),
+            "title": str(row["title"] or "Work"),
         }
     return out
 
@@ -2732,7 +2742,7 @@ def _slim_due(
     hold: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> Dict[str, Any]:
     title = item.get("title") or ""
-    course = course_code_from_title(title)
+    calendar = _calendar_label(item.get("source_calendar"))
     held = (hold or {}).get(str(item.get("id") or "")) or {}
     return {
         "id": item.get("id"),
@@ -2742,8 +2752,10 @@ def _slim_due(
         "scheduled_date": item.get("scheduled_date"),
         "estimate_minutes": int(item.get("estimate_minutes") or DEFAULT_ESTIMATE),
         "source_calendar": item.get("source_calendar") or "",
-        "course": course,
-        "hue": course_hue(course),
+        "calendar": calendar,
+        # Older phone builds still read course. It now carries the calendar name.
+        "course": calendar,
+        "hue": calendar_hue(calendar),
         "is_overdue": bool(is_overdue or item.get("is_overdue")),
         "focus_id": held.get("id") or "",
         "focus_title": held.get("title") or "",
@@ -3212,23 +3224,29 @@ def schedule_work_at(item_id: str, start_at: str, end_at: str = "") -> Dict[str,
 
 
 @eel.expose
-def place_work_after_lecture(item_id: str, local_date: str = "") -> Dict[str, Any]:
-    """Drop optional work time after that day's first timed event, or at wake-up."""
+def place_work_after_meeting(item_id: str, local_date: str = "") -> Dict[str, Any]:
+    """Place a to-do after that day's first meeting, or at the start of the day."""
     item = _work_item(item_id)
     iso = work._parse_date(local_date) or str(item.get("due_at") or "")[:10] or _cal_today().isoformat()
     day = date.fromisoformat(iso)
     week = get_week(monday_of(day).isoformat(), include_unplaced=False)
     match = next((row for row in week["days"] if row["date"] == iso), None)
-    lectures = sorted(match["events"] if match else [], key=lambda row: str(row.get("start_at") or ""))
+    meetings = sorted(match["events"] if match else [], key=lambda row: str(row.get("start_at") or ""))
     leftover = remaining_minutes(item) or int(load_settings().get("default_estimate_minutes") or DEFAULT_ESTIMATE)
     duration = max(15, min(int(leftover), CHUNK_MAX))
-    if lectures:
-        start = parse_datetime(lectures[0]["end_at"])
+    if meetings:
+        start = parse_datetime(meetings[0]["end_at"])
     else:
         hour, minute = parse_clock(str(load_settings().get("day_start") or DAY_START))
         start = datetime(day.year, day.month, day.day, hour, minute, 0)
     end = start + timedelta(minutes=duration)
     return schedule_work_at(item_id, start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds"))
+
+
+@eel.expose
+def place_work_after_lecture(item_id: str, local_date: str = "") -> Dict[str, Any]:
+    """Older name for place_work_after_meeting."""
+    return place_work_after_meeting(item_id, local_date)
 
 
 def _raw_focus_rows(block_id: str) -> List[Dict[str, Any]]:

@@ -58,7 +58,7 @@ extension AppDelegate {
             let body: [String: Any] = [
                 "calendar_id": calendar.calendarIdentifier,
                 "calendar_title": calendar.title,
-                "role": "deadlines",
+                "role": "meetings",
                 "events": payloadEvents,
             ]
             if let result = postCalendarIngest(body) {
@@ -67,19 +67,22 @@ extension AppDelegate {
             }
         }
         if calendarsUsed == 0 {
-            notifyCalendarImport(error: "No subscribed calendars found. Paste the ICS URL instead.")
+            notifyCalendarImport(error: "No calendars to import. Paste an ICS link instead.")
             return
         }
         notifyCalendarImport(created: created, updated: updated)
     }
 
     private func shouldImport(_ calendar: EKCalendar) -> Bool {
-        if calendar.type == .subscription {
-            return true
+        if calendar.type == .birthday {
+            return false
         }
         let title = calendar.title.lowercased()
-        let hints = ["canvas", "due", "course", "class", "assignment", "moodle", "blackboard"]
-        return hints.contains { title.contains($0) }
+        let skip = ["holiday", "birthday", "siri suggestions", "found in natural language", "scheduled reminders"]
+        if skip.contains(where: { title.contains($0) }) {
+            return false
+        }
+        return true
     }
 
     private func postCalendarIngest(_ body: [String: Any]) -> [String: Any]? {

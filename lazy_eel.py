@@ -140,6 +140,7 @@ EXPOSE_FALLBACK: Dict[str, Tuple[str, ...]] = {
         "update_schedule_block",
         "park_schedule_block",
         "schedule_work_at",
+        "place_work_after_meeting",
         "place_work_after_lecture",
         "create_focus_block",
         "set_focus_items",

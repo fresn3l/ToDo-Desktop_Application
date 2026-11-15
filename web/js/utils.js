@@ -244,19 +244,19 @@ function closeRepeatScope(result) {
 export async function deleteUndatedImportedAssignments() {
     const ok = await askConfirm({
         title: 'Delete undated imports?',
-        message: 'Removes open class-calendar assignments that never landed on a day. Completed items stay.',
+        message: 'Removes open imported to-dos that never landed on a day. Completed items stay.',
         ok: 'Delete them',
         cancel: 'Keep',
         danger: true,
     });
     if (!ok) return null;
     if (typeof eel === 'undefined' || !eel.delete_undated_imported_assignments) {
-        showErrorFeedback('Could not delete those assignments.');
+        showErrorFeedback('Could not delete those to-dos.');
         return null;
     }
     const result = await eel.delete_undated_imported_assignments()();
     const n = Number(result?.deleted || 0);
-    showSuccessFeedback(n ? `Deleted ${n} undated assignment${n === 1 ? '' : 's'}.` : 'Nothing undated to delete.');
+    showSuccessFeedback(n ? `Deleted ${n} undated to-do${n === 1 ? '' : 's'}.` : 'Nothing undated to delete.');
     notifyDataChanged();
     return result;
 }
