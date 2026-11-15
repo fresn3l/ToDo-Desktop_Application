@@ -217,28 +217,9 @@ private struct BarSheet: View {
     var onMissed: () -> Void
     var onCheckOff: () -> Void
     var onDismiss: () -> Void
-    @State private var draft = ""
-    @State private var pickId = ""
-
     private var isWork: Bool {
         let kind = (item.kind ?? "").lowercased()
         return kind == "work" || item.work_item_id != nil
-    }
-
-    private var isFocus: Bool {
-        (item.kind ?? "").lowercased() == "focus"
-    }
-
-    private var focusId: String {
-        item.itemId ?? item.id
-    }
-
-    private var attached: [NoteEntry] {
-        (store.pack?.notes ?? []).filter { $0.focus_id == focusId }
-    }
-
-    private var storage: [NoteEntry] {
-        (store.pack?.notes ?? []).filter { ($0.focus_id ?? "").isEmpty }
     }
 
     var body: some View {
@@ -270,47 +251,6 @@ private struct BarSheet: View {
                             .listRowBackground(palette.widgetBg)
                     }
                 }
-                if isFocus {
-                    Section("Notes on this span") {
-                        if attached.isEmpty {
-                            Text("No notes on this span.")
-                                .foregroundStyle(.secondary)
-                                .listRowBackground(palette.widgetBg)
-                        }
-                        ForEach(attached) { note in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(note.title.isEmpty ? "Note" : note.title)
-                                    .font(.headline)
-                                if !note.body.isEmpty {
-                                    Text(note.body)
-                                        .font(.subheadline)
-                                }
-                                Button("Back to storage") { detach(note.id) }
-                            }
-                            .listRowBackground(palette.widgetBg)
-                        }
-                        if !storage.isEmpty {
-                            Picker("Attach from storage", selection: $pickId) {
-                                Text("Attach from storage…").tag("")
-                                ForEach(storage) { note in
-                                    Text(note.title.isEmpty ? "Note" : note.title).tag(note.id)
-                                }
-                            }
-                            .onChange(of: pickId) { _, value in
-                                guard !value.isEmpty else { return }
-                                attach(value)
-                                pickId = ""
-                            }
-                            .listRowBackground(palette.widgetBg)
-                        }
-                        TextField("New note on this span", text: $draft, axis: .vertical)
-                            .lineLimit(3...6)
-                            .listRowBackground(palette.widgetBg)
-                        Button("Save note here") { addNote() }
-                            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            .listRowBackground(palette.widgetBg)
-                    }
-                }
             }
             .scrollContentBackground(.hidden)
             .background(palette.pageBg)
@@ -332,35 +272,6 @@ private struct BarSheet: View {
         return "\(start)–\(end)"
     }
 
-    private func attach(_ noteId: String) {
-        do {
-            store.pack = try PackActions.attachNote(id: noteId, focusId: focusId)
-            store.error = nil
-        } catch {
-            store.error = error.localizedDescription
-        }
-    }
-
-    private func detach(_ noteId: String) {
-        do {
-            store.pack = try PackActions.detachNote(id: noteId)
-            store.error = nil
-        } catch {
-            store.error = error.localizedDescription
-        }
-    }
-
-    private func addNote() {
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        do {
-            store.pack = try PackActions.addNote(title: "", body: text, focusId: focusId)
-            draft = ""
-            store.error = nil
-        } catch {
-            store.error = error.localizedDescription
-        }
-    }
 }
 
 private enum RepeatScope: String {

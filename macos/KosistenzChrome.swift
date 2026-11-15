@@ -90,14 +90,14 @@ extension AppDelegate {
         _ = postJSON(path: "/api/todo/start", body: [:])
         reloadWidgets()
         showMainWindow()
-        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'home'}}));")
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
     }
 
     @objc func finishActiveTodo() {
         _ = postJSON(path: "/api/todo/finish", body: [:])
         reloadWidgets()
         showMainWindow()
-        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'home'}}));")
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
     }
 
     @objc func logPush() { logKind("push") }
@@ -124,14 +124,14 @@ extension AppDelegate {
         _ = postJSON(path: "/api/workout/log", body: ["kind": "running", "miles": miles])
         reloadWidgets()
         showMainWindow()
-        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'home'}}));")
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
     }
 
     func logKind(_ kind: String) {
         _ = postJSON(path: "/api/workout/log", body: ["kind": kind])
         reloadWidgets()
         showMainWindow()
-        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'home'}}));")
+        runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
     }
 
     @objc func openNewJournal() {
@@ -163,7 +163,7 @@ extension AppDelegate {
         _ = postJSON(path: "/api/work/park", body: ["title": title, "today": today])
         reloadWidgets()
         showMainWindow()
-        let tab = today ? "home" : "calendar"
+        let tab = today ? "today" : "todo"
         runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'\(tab)'}}));")
     }
 
@@ -181,7 +181,7 @@ extension AppDelegate {
         let asToday = todayFlag == "1" || todayFlag == "true" || todayFlag == "yes"
 
         if combined.hasPrefix("journal") {
-            runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'journal-new'}}));")
+            runInWebView("window.dispatchEvent(new CustomEvent('kosistenz:command',{detail:{action:'open-tab',tab:'today'}}));")
             return
         }
         if combined.hasPrefix("work/park") || combined.hasPrefix("park") || combined == "work" {

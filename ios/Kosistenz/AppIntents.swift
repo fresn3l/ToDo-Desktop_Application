@@ -45,27 +45,6 @@ struct ToggleTodoIntent: AppIntent {
     }
 }
 
-struct LogExpectedWorkoutIntent: AppIntent {
-    static var title: LocalizedStringResource = "Log today’s workout"
-    static var description: IntentDescription = "Logs the expected session. Runs need miles; Other needs a name."
-    static var openAppWhenRun: Bool = true
-
-    @Parameter(title: "Miles")
-    var miles: Double?
-
-    @Parameter(title: "Other name")
-    var other: String?
-
-    static var parameterSummary: some ParameterSummary {
-        Summary("Log today’s workout")
-    }
-
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        let message = try PackActions.logExpected(miles: miles, other: other, date: DayStamp.today())
-        return .result(dialog: IntentDialog(stringLiteral: message))
-    }
-}
-
 #if !WIDGET_EXTENSION
 struct KosistenzShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
@@ -86,15 +65,6 @@ struct KosistenzShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Check off to-do",
             systemImageName: "checkmark.circle"
-        )
-        AppShortcut(
-            intent: LogExpectedWorkoutIntent(),
-            phrases: [
-                "Log today’s workout in \(.applicationName)",
-                "Log a workout in \(.applicationName)",
-            ],
-            shortTitle: "Log workout",
-            systemImageName: "figure.strengthtraining.traditional"
         )
     }
 }

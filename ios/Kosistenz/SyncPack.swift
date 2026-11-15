@@ -347,6 +347,7 @@ struct DueItem: Codable, Identifiable {
     var title: String?
     var due_at: String?
     var course: String?
+    var calendar: String?
     var estimate_minutes: Int?
     var status: String?
     var hue: Int?
@@ -354,7 +355,7 @@ struct DueItem: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case itemId = "id"
-        case title, due_at, course, estimate_minutes, status, hue
+        case title, due_at, course, calendar, estimate_minutes, status, hue
     }
 }
 

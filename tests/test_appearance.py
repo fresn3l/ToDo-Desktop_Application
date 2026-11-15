@@ -164,12 +164,7 @@ class AppearancePaletteTests(unittest.TestCase):
         self.assertNotIn("todayLayout", saved)
         self.assertNotIn("todayTodo", saved)
 
-    def test_futuresprints_notes_iphone_appearance(self):
-        text = Path(__file__).resolve().parents[1].joinpath("docs", "futuresprints.md").read_text(encoding="utf-8")
-        self.assertIn("iPhone appearance", text)
-        self.assertIn("appearance.json", text)
-        self.assertIn("resolved", text)
-        self.assertIn("shipped", text.lower())
+    def test_iphone_uses_the_mac_palette(self):
         swift = Path(__file__).resolve().parents[1].joinpath("ios", "Kosistenz", "Appearance.swift").read_text(
             encoding="utf-8"
         )

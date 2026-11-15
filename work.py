@@ -36,21 +36,11 @@ _writing_snapshot = False
 
 
 def _mirror_task(item: Dict[str, Any]) -> None:
-    try:
-        import cluny_sync
-
-        cluny_sync.sync_task_mirror_safe(item)
-    except Exception:
-        pass
+    return None
 
 
 def _mirror_task_delete(item_id: str) -> None:
-    try:
-        import cluny_sync
-
-        cluny_sync.delete_task_mirror_safe(item_id)
-    except Exception:
-        pass
+    return None
 
 
 def _data_dir() -> Path:
@@ -171,9 +161,13 @@ def _ensure_schema_unlocked(conn: sqlite3.Connection) -> None:
         )
         """
     )
-    import goals as _goals
-
-    _goals.ensure_schema(conn)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(work_items)")}
+    if "goal_id" not in cols:
+        conn.execute("ALTER TABLE work_items ADD COLUMN goal_id TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_work_goal_id ON work_items(goal_id)")
+    series_cols = {row[1] for row in conn.execute("PRAGMA table_info(work_series)")}
+    if "goal_id" not in series_cols:
+        conn.execute("ALTER TABLE work_series ADD COLUMN goal_id TEXT")
 
 
 def _now() -> datetime:
@@ -247,6 +241,272 @@ def parse_minutes_from_title(title: str) -> Optional[int]:
     if total <= 0:
         return None
     return min(total, 24 * 60)
+
+
+_WHEN_WORDS = {
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "week": "week",
+    "later": "later",
+}
+_WEEKDAY_WORDS = {
+    "mon": 0,
+    "monday": 0,
+    "tue": 1,
+    "tues": 1,
+    "tuesday": 1,
+    "wed": 2,
+    "wednesday": 2,
+    "thu": 3,
+    "thur": 3,
+    "thurs": 3,
+    "thursday": 3,
+    "fri": 4,
+    "friday": 4,
+    "sat": 5,
+    "saturday": 5,
+    "sun": 6,
+    "sunday": 6,
+}
+_FULL_WEEKDAYS = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+_HOUR_UNITS = {"h", "hr", "hrs", "hour", "hours"}
+_MINUTE_UNITS = {"m", "min", "mins", "minute", "minutes"}
+_DURATION_RE = re.compile(
+    r"^(?P<n>\d+(?:\.\d+)?)(?P<u>minutes|minute|mins|min|hours|hour|hrs|hr|m|h)$",
+    re.I,
+)
+_CLOCK_COLON_RE = re.compile(r"^(?P<h>\d{1,2}):(?P<m>\d{2})$")
+_CLOCK_BARE_RE = re.compile(r"^(?P<h>\d{2})(?P<m>\d{2})$")
+
+
+def _command_token(token: str) -> str:
+    return token.strip().strip(".,;:").lower()
+
+
+def _duration_minutes(number: float, unit: str) -> int:
+    unit = unit.lower()
+    total = number * 60 if unit in _HOUR_UNITS else number
+    return int(round(total))
+
+
+def _clock_from_token(token: str) -> Optional[str]:
+    match = _CLOCK_COLON_RE.match(token) or _CLOCK_BARE_RE.match(token)
+    if not match:
+        return None
+    hour = int(match.group("h"))
+    minute = int(match.group("m"))
+    if hour > 23 or minute > 59:
+        return None
+    return f"{hour:02d}:{minute:02d}"
+
+
+def parse_capture_line(raw: str) -> Dict[str, Any]:
+    """Pull when, estimate, and a clock time out of one capture line.
+
+    The words that remain are the title. A when-word the line does not use
+    stays in the title. `park` counts only as the last word, so "Park the car"
+    stays a title.
+    """
+    tokens = [part for part in str(raw or "").split() if part]
+    title_parts: List[str] = []
+    when: Optional[str] = None
+    weekday: Optional[int] = None
+    estimate = 0
+    found_estimate = False
+    clock: Optional[str] = None
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        command = _command_token(token)
+        last = index == len(tokens) - 1
+        attached = _DURATION_RE.match(command)
+        if attached:
+            estimate += _duration_minutes(float(attached.group("n")), attached.group("u"))
+            found_estimate = True
+            index += 1
+            continue
+        if re.fullmatch(r"\d+(?:\.\d+)?", command) and index + 1 < len(tokens):
+            unit = _command_token(tokens[index + 1])
+            if unit in _HOUR_UNITS or unit in _MINUTE_UNITS:
+                estimate += _duration_minutes(float(command), unit)
+                found_estimate = True
+                index += 2
+                continue
+        found_clock = _clock_from_token(command)
+        if found_clock:
+            clock = found_clock
+            index += 1
+            continue
+        if command == "park" and last:
+            when = "park"
+            weekday = None
+            index += 1
+            continue
+        if command in _WHEN_WORDS:
+            when = _WHEN_WORDS[command]
+            weekday = None
+            index += 1
+            continue
+        if command in _WEEKDAY_WORDS:
+            when = "weekday"
+            weekday = _WEEKDAY_WORDS[command]
+            index += 1
+            continue
+        title_parts.append(token)
+        index += 1
+    if found_estimate:
+        estimate = min(max(estimate, 0), 24 * 60)
+    return {
+        "title": " ".join(title_parts).strip(),
+        "when": when,
+        "weekday": weekday,
+        "estimate_minutes": estimate if found_estimate else None,
+        "clock": clock,
+        "has_when": bool(when or clock),
+    }
+
+
+def _capture_summary(label: str, clock: Optional[str], estimate: Optional[int]) -> str:
+    parts = [label]
+    if clock:
+        parts.append(clock)
+    if estimate:
+        parts.append(f"{estimate}m")
+    return " · ".join(parts)
+
+
+def resolve_capture(parsed: Dict[str, Any], fallback: str = "week", day: str = "") -> Dict[str, Any]:
+    """Turn a parsed line plus the button that was pressed into a save plan."""
+    title = str(parsed.get("title") or "").strip()
+    if not title:
+        raise ValueError("Name the to-do")
+    when = parsed.get("when")
+    clock = parsed.get("clock") or None
+    estimate = parsed.get("estimate_minutes")
+    today = _today()
+    due_on: Optional[date] = None
+    scheduled: Optional[str] = None
+    bucket: Optional[str] = None
+    label = ""
+
+    if when == "weekday":
+        due_on = date.fromisoformat(date_for_weekday_this_week(parsed.get("weekday")))
+        label = _FULL_WEEKDAYS[due_on.weekday()]
+    elif when == "tomorrow":
+        due_on = today + timedelta(days=1)
+        label = "Tomorrow"
+    elif when == "today":
+        scheduled = today.isoformat()
+        label = "Today"
+    elif when == "week":
+        bucket = "week"
+        label = "This week"
+    elif when == "later":
+        bucket = "later"
+        label = "Later"
+    elif when == "park":
+        bucket = "none"
+        label = "Parked"
+    else:
+        kind = _bucket_kind(fallback)
+        if kind == "today":
+            scheduled = today.isoformat()
+            label = "Today"
+        elif kind == "date":
+            scheduled = _parse_date(day)
+            if not scheduled:
+                raise ValueError("Date must be YYYY-MM-DD")
+            label = _FULL_WEEKDAYS[date.fromisoformat(scheduled).weekday()]
+        elif kind == "week":
+            bucket = "week"
+            label = "This week"
+        elif kind == "later":
+            bucket = "later"
+            label = "Later"
+        else:
+            bucket = "none"
+            label = "Parked"
+
+    clock_day: Optional[str] = None
+    duration: Optional[int] = None
+    if clock:
+        if due_on is not None:
+            clock_day = due_on.isoformat()
+        elif scheduled:
+            clock_day = scheduled
+        else:
+            clock_day = today.isoformat()
+        if clock_day == today.isoformat():
+            label = "Today"
+        scheduled = None
+        bucket = None
+        duration = int(estimate) if estimate else 30
+    elif due_on is not None:
+        scheduled = None
+        bucket = "week" if week_monday(due_on) == week_monday(today) else "later"
+
+    return {
+        "title": title,
+        "scheduled": scheduled,
+        "due_at": due_on.isoformat() if due_on else None,
+        "estimate_minutes": estimate,
+        "bucket": bucket,
+        "clock": clock,
+        "clock_day": clock_day,
+        "duration": duration,
+        "summary": _capture_summary(label, clock, estimate if estimate else None),
+    }
+
+
+def capture_todo(
+    raw: str,
+    fallback: str = "week",
+    day: str = "",
+    source: str = "manual",
+    item_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Save one capture line. A when-word in the line beats the button."""
+    plan = resolve_capture(parse_capture_line(raw), fallback, day)
+    item = create_work_item(
+        plan["title"],
+        scheduled_date=plan["scheduled"],
+        due_at=plan["due_at"],
+        estimate_minutes=plan["estimate_minutes"],
+        source=source or "manual",
+        item_id=item_id,
+    )
+    if plan["bucket"]:
+        place_work_bucket(item["id"], plan["bucket"])
+        found = get_work_items_by_ids([item["id"]])
+        if found:
+            item = found[0]
+    if plan["clock"] and plan["clock_day"]:
+        import calclock
+
+        start = datetime.fromisoformat(f"{plan['clock_day']}T{plan['clock']}:00")
+        end = start + timedelta(minutes=int(plan["duration"] or 30))
+        calclock.schedule_work_at(
+            item["id"],
+            start.isoformat(timespec="seconds"),
+            end.isoformat(timespec="seconds"),
+        )
+        found = get_work_items_by_ids([item["id"]])
+        if found:
+            item = found[0]
+    return {
+        "ok": True,
+        "item": item,
+        "summary": plan["summary"],
+        "page": _todo_page_payload(),
+    }
 
 
 def date_for_weekday_this_week(weekday: Any) -> str:
@@ -656,37 +916,11 @@ def refresh_widget_snapshot() -> Dict[str, Any]:
 
 
 def _workout_snapshot_bits(today: str) -> Dict[str, Any]:
-    empty = {"workout_logged": False, "workout_kinds": [], "workout_session_count": 0}
-    try:
-        import workouts
-
-        if not workouts.get_workouts_db_path().exists():
-            return empty
-        day = workouts.get_workout_day(today)
-        kinds = [str(session.get("kind") or "") for session in day.get("sessions") or []]
-        return {
-            "workout_logged": bool(day.get("done")),
-            "workout_kinds": [kind for kind in kinds if kind],
-            "workout_session_count": int(day.get("session_count") or 0),
-        }
-    except Exception:
-        return empty
+    return {"workout_logged": False, "workout_kinds": [], "workout_session_count": 0}
 
 
 def _journal_snapshot_bits(today: date) -> Dict[str, Any]:
-    empty = {"journal_today": False, "journal_streak": 0}
-    try:
-        import journal
-
-        days = journal.entry_dates(days=400)
-    except Exception:
-        return empty
-    cursor = today if today in days else today - timedelta(days=1)
-    streak = 0
-    while cursor in days:
-        streak += 1
-        cursor -= timedelta(days=1)
-    return {"journal_today": today in days, "journal_streak": streak}
+    return {"journal_today": False, "journal_streak": 0}
 
 
 def _clock_label(raw: str) -> str:
@@ -786,8 +1020,6 @@ def _write_widget_snapshot_body() -> Dict[str, Any]:
             open_items.append(item)
             if item["status"] == "active":
                 active_count += 1
-    workout = _workout_snapshot_bits(today_iso)
-    journal = _journal_snapshot_bits(today)
     nxt = _next_appointment_bits()
     open_count = len(open_items)
     today_empty = open_count == 0 and not nxt["next_title"]
@@ -805,11 +1037,11 @@ def _write_widget_snapshot_body() -> Dict[str, Any]:
         "backlog_count": int(backlog or 0),
         "titles": [item["title"] for item in open_items[:12]],
         "active_title": active_title,
-        "workout_logged": workout["workout_logged"],
-        "workout_kinds": workout["workout_kinds"],
-        "workout_session_count": workout["workout_session_count"],
-        "journal_today": journal["journal_today"],
-        "journal_streak": journal["journal_streak"],
+        "workout_logged": False,
+        "workout_kinds": [],
+        "workout_session_count": 0,
+        "journal_today": False,
+        "journal_streak": 0,
         "next_title": nxt["next_title"],
         "next_start": nxt["next_start"],
         "next_end": nxt["next_end"],
@@ -863,12 +1095,6 @@ def _run_heavy_snapshot_side_effects(snapshot_path: Path) -> None:
         import icloud_sync
 
         icloud_sync.export_if_enabled()
-    except Exception:
-        pass
-    try:
-        import cluny_snapshot
-
-        cluny_snapshot.refresh_life_snapshot_safe()
     except Exception:
         pass
 
@@ -969,9 +1195,7 @@ def create_work_item(
         estimate = parse_minutes_from_title(clean)
     src_uid = (source_uid or "").strip() or None
     src_cal = (source_calendar or "").strip() or None
-    import goals as _goals
-
-    attached = _goals.resolve_goal_id(clean, goal_id or None)
+    attached = (str(goal_id).strip() if goal_id else "") or None
     with _connect() as conn:
         if src_uid and src_cal:
             existing = conn.execute(
@@ -1198,12 +1422,6 @@ def _get_work_board_locked(target: str, today: date) -> Dict[str, Any]:
     cached = _cached_work_board(target)
     if cached is not None:
         return cached
-    try:
-        import goals as _goals
-
-        _goals.ensure_weekly_goal_todos()
-    except Exception:
-        pass
     days_needed = [target]
     if target == today.isoformat():
         days_needed = [(today + timedelta(days=offset)).isoformat() for offset in range(7)]
@@ -1455,19 +1673,18 @@ def place_work_bucket(item_id: str, bucket: str, day: str = "") -> Dict[str, Any
 
 
 @eel.expose
+def capture_todo_line(title: str, fallback: str = "week", day: str = "") -> Dict[str, Any]:
+    """One capture line. Words like fri, 25m, and 14:30 set themselves."""
+    return capture_todo(title, fallback, day)
+
+
+@eel.expose
 def add_todo_bucket(title: str, bucket: str = "week", day: str = "") -> Dict[str, Any]:
-    """Capture a to-do into today, sometime this week, later, no day, or a date."""
-    kind = _bucket_kind(bucket)
-    if kind == "today":
-        create_work_item(title, scheduled_date=_today().isoformat())
-        return _todo_page_payload()
-    if kind == "date":
-        if not _parse_date(day):
-            raise ValueError("Date must be YYYY-MM-DD")
-        create_work_item(title, scheduled_date=day)
-        return _todo_page_payload()
-    item = create_work_item(title)
-    return place_work_bucket(item["id"], kind, day)
+    """Capture a to-do. A when-word in the title beats the button."""
+    captured = capture_todo(title, bucket, day)
+    page = captured["page"]
+    page["capture"] = {"summary": captured["summary"], "item_id": captured["item"]["id"]}
+    return page
 
 
 @eel.expose
@@ -1972,16 +2189,6 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
             (elapsed, now.isoformat(), now.isoformat(), item_id),
         )
         row = _fetch(conn, item_id)
-        if row is not None and not _col(row, "goal_id"):
-            import goals as _goals
-
-            attached = _goals.resolve_goal_id(row["title"], conn=conn)
-            if attached:
-                conn.execute(
-                    "UPDATE work_items SET goal_id = ? WHERE id = ?",
-                    (attached, item_id),
-                )
-                row = _fetch(conn, item_id)
     try:
         import calclock
 
@@ -1992,12 +2199,6 @@ def finish_work_item(item_id: str) -> Dict[str, Any]:
     assert row is not None
     packed = _row_to_dict(row)
     _mirror_task(packed)
-    try:
-        import cluny_voice
-
-        cluny_voice.refresh_rate_voice_safe()
-    except Exception:
-        pass
     return packed
 
 

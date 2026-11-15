@@ -230,7 +230,7 @@ struct DueChipRow: View {
 
     var body: some View {
         if dues.isEmpty {
-            Text("No dues")
+            Text("Nothing due")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } else {
@@ -287,8 +287,8 @@ private struct DueChip: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            if let course = due.course, !course.isEmpty {
-                Text(course)
+            if let label = calendarLabel, !label.isEmpty {
+                Text(label)
                     .font(.caption2.weight(.bold))
             }
             Text(shortTitle(due.title))
@@ -301,6 +301,12 @@ private struct DueChip: View {
         .background(background.opacity(due.status == "done" ? 0.35 : 0.9))
         .clipShape(Capsule())
         .strikethrough(due.status == "done")
+    }
+
+    private var calendarLabel: String? {
+        let named = (due.calendar ?? due.course)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let named, !named.isEmpty else { return nil }
+        return named
     }
 
     private var background: Color {

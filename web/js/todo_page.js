@@ -96,6 +96,8 @@ async function add(bucket) {
         page = await callEel('add_todo_bucket', title, bucket, '');
         if (input) input.value = '';
         paint();
+        if (page?.capture?.summary) utils.showSuccessFeedback(page.capture.summary);
+        input?.focus();
     } catch (err) {
         utils.showErrorFeedback(err?.message || 'Could not add that.');
     }

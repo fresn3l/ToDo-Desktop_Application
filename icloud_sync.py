@@ -19,10 +19,7 @@ from typing import Any, Dict, List, Optional
 import eel
 
 import appearance
-import journal
-import notes
 import work
-import workouts
 from paths import data_directory
 
 SCHEMA = 1
@@ -232,7 +229,7 @@ def _dump_work() -> Dict[str, Any]:
     with work._connect() as conn:
         series = [dict(row) for row in conn.execute("SELECT * FROM work_series")]
         exceptions = [dict(row) for row in conn.execute("SELECT * FROM work_exceptions")]
-        goals = [dict(row) for row in conn.execute("SELECT * FROM goals")]
+        goals = []
     return {
         "items": slim,
         "series": series,
@@ -243,61 +240,15 @@ def _dump_work() -> Dict[str, Any]:
 
 
 def _dump_workouts() -> Dict[str, Any]:
-    with workouts._connect() as conn:
-        days = [dict(row) for row in conn.execute("SELECT * FROM workout_days ORDER BY local_date")]
-        sessions = [dict(row) for row in conn.execute("SELECT * FROM workout_sessions ORDER BY created_at")]
-    return {
-        "days": days,
-        "sessions": sessions,
-        "template": workouts.load_week_template(),
-    }
+    return {"days": [], "sessions": [], "template": {}}
 
 
 def _apply_work(payload: Dict[str, Any]) -> Dict[str, int]:
     items = payload.get("items") if isinstance(payload, dict) else None
     series = payload.get("series") if isinstance(payload, dict) else None
     exceptions = payload.get("exceptions") if isinstance(payload, dict) else None
-    goals = payload.get("goals") if isinstance(payload, dict) else None
     applied = 0
     with work._connect() as conn:
-        for row in list(goals or [])[:MAX_WORK_ITEMS]:
-            if not isinstance(row, dict) or not row.get("id"):
-                continue
-            existing = conn.execute("SELECT updated_at FROM goals WHERE id = ?", (row["id"],)).fetchone()
-            if existing and not _newer(row.get("updated_at"), existing["updated_at"]):
-                continue
-            conn.execute(
-                """
-                INSERT INTO goals (
-                    id, title, horizon, keyword, target_minutes, end_date, notes,
-                    archived, sort_order, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    title = excluded.title,
-                    horizon = excluded.horizon,
-                    keyword = excluded.keyword,
-                    target_minutes = excluded.target_minutes,
-                    end_date = excluded.end_date,
-                    notes = excluded.notes,
-                    archived = excluded.archived,
-                    sort_order = excluded.sort_order,
-                    updated_at = excluded.updated_at
-                """,
-                (
-                    row["id"],
-                    _clip_title(row.get("title")),
-                    row.get("horizon") or "six_month",
-                    row.get("keyword") or "",
-                    row.get("target_minutes"),
-                    row.get("end_date"),
-                    row.get("notes") or "",
-                    int(row.get("archived") or 0),
-                    int(row.get("sort_order") or 0),
-                    _stamp_or_now(row.get("created_at")),
-                    _stamp_or_now(row.get("updated_at")),
-                ),
-            )
-            applied += 1
         for row in list(series or [])[:MAX_WORK_ITEMS]:
             if not isinstance(row, dict) or not row.get("id"):
                 continue
@@ -449,122 +400,15 @@ def _apply_work_deletions(rows: List[Any]) -> int:
 
 
 def _apply_workouts(payload: Dict[str, Any]) -> Dict[str, int]:
-    applied = 0
-    days = payload.get("days") if isinstance(payload, dict) else None
-    sessions = payload.get("sessions") if isinstance(payload, dict) else None
-    template = payload.get("template") if isinstance(payload, dict) else None
-    with workouts._connect() as conn:
-        for row in list(days or [])[:MAX_WORK_ITEMS]:
-            if not isinstance(row, dict) or not row.get("local_date"):
-                continue
-            existing = conn.execute(
-                "SELECT updated_at FROM workout_days WHERE local_date = ?",
-                (row["local_date"],),
-            ).fetchone()
-            if existing and not _newer(row.get("updated_at"), existing["updated_at"]):
-                continue
-            conn.execute(
-                """
-                INSERT INTO workout_days (local_date, body_weight, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(local_date) DO UPDATE SET
-                    body_weight = excluded.body_weight,
-                    notes = excluded.notes,
-                    updated_at = excluded.updated_at
-                """,
-                (
-                    row["local_date"],
-                    row.get("body_weight"),
-                    row.get("notes") or "",
-                    row.get("created_at") or _now(),
-                    row.get("updated_at") or _now(),
-                ),
-            )
-            applied += 1
-        for row in list(sessions or [])[:MAX_WORK_ITEMS]:
-            if not isinstance(row, dict) or not row.get("id"):
-                continue
-            exists = conn.execute("SELECT 1 FROM workout_sessions WHERE id = ?", (row["id"],)).fetchone()
-            if exists:
-                continue
-            kind = str(row.get("kind") or "other").strip().lower()
-            label = str(row.get("other_label") or "").strip()
-            miles = row.get("miles")
-            mile_val = None
-            if kind == "running":
-                try:
-                    mile_val = float(miles)
-                except (TypeError, ValueError):
-                    continue
-                if mile_val <= 0:
-                    continue
-            elif kind == "other" and not label:
-                continue
-            else:
-                try:
-                    mile_val = float(miles) if miles is not None else None
-                except (TypeError, ValueError):
-                    mile_val = None
-            conn.execute(
-                """
-                INSERT INTO workout_sessions (id, local_date, kind, other_label, miles, minutes, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    row["id"],
-                    row.get("local_date") or datetime.now().date().isoformat(),
-                    kind,
-                    label,
-                    mile_val,
-                    row.get("minutes"),
-                    row.get("created_at") or _now(),
-                ),
-            )
-            applied += 1
-        conn.commit()
-    if isinstance(template, dict) and template:
-        workouts.save_week_template(template)
-        applied += 1
-    return {"workouts": applied}
+    return {"workouts": 0}
 
 
 def _apply_journal(entries: List[Any]) -> Dict[str, int]:
-    existing = {entry.get("id"): entry for entry in journal.get_all_entries()}
-    applied = 0
-    for entry in list(entries or [])[:MAX_JOURNAL_ENTRIES]:
-        if not isinstance(entry, dict) or not entry.get("content"):
-            continue
-        entry_id = entry.get("id")
-        if entry_id and entry_id in existing:
-            if not _newer(entry.get("updated_at") or entry.get("date"), existing[entry_id].get("updated_at") or existing[entry_id].get("date")):
-                continue
-            if journal.import_journal_entry(entry, overwrite=True):
-                applied += 1
-            continue
-        if journal.import_journal_entry(entry):
-            applied += 1
-    return {"journal": applied}
+    return {"journal": 0}
 
 
 def _apply_notes(entries: List[Any]) -> Dict[str, int]:
-    existing = {row.get("id"): row for row in notes.dump_notes()}
-    applied = 0
-    for entry in list(entries or [])[:MAX_NOTES]:
-        if not isinstance(entry, dict):
-            continue
-        note_id = entry.get("id")
-        if note_id and note_id in existing:
-            if not _newer(
-                entry.get("updated_at") or entry.get("created_at"),
-                existing[note_id].get("updated_at") or existing[note_id].get("created_at"),
-            ):
-                continue
-            if notes.import_note(entry, overwrite=True):
-                applied += 1
-            continue
-        if notes.import_note(entry):
-            applied += 1
-    return {"notes": applied}
+    return {"notes": 0}
 
 
 def _dump_calendar() -> Dict[str, Any]:
@@ -608,7 +452,8 @@ def _dump_calendar() -> Dict[str, Any]:
             "id": item.get("id"),
             "title": item.get("title") or "",
             "due_at": item.get("due_at"),
-            "course": item.get("course") or "",
+            "calendar": item.get("calendar") or item.get("course") or "",
+            "course": item.get("calendar") or item.get("course") or "",
             "estimate_minutes": item.get("estimate_minutes"),
             "status": item.get("status") or "",
             "hue": item.get("hue"),
@@ -765,9 +610,9 @@ def build_pack() -> Dict[str, Any]:
             "device": socket.gethostname(),
         },
         "work": _dump_work(),
-        "workouts": _dump_workouts(),
-        "journal": journal.get_all_entries(),
-        "notes": notes.dump_notes(),
+        "workouts": {"days": [], "sessions": [], "template": {}},
+        "journal": [],
+        "notes": [],
         "calendar": _dump_calendar(),
         "appearance": {
             **appearance.get_appearance_settings(),

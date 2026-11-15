@@ -54,22 +54,6 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>New Journal Entry in Kosistenz</string>
-			</dict>
-			<key>NSMessage</key>
-			<string>newJournalEntry</string>
-			<key>NSPortName</key>
-			<string>Kosistenz</string>
-			<key>NSSendTypes</key>
-			<array>
-				<string>public.utf8-plain-text</string>
-				<string>NSStringPboardType</string>
-			</array>
-		</dict>
-		<dict>
-			<key>NSMenuItem</key>
-			<dict>
-				<key>default</key>
 				<string>Park in To Do</string>
 			</dict>
 			<key>NSMessage</key>
@@ -84,8 +68,8 @@
 		</dict>
 	</array>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Kosistenz reads subscribed calendars so due dates can become work items. It never writes events back to Apple Calendar.</string>
+	<string>Kosistenz reads subscribed calendars so meetings block the clock and all-day items become due dates. It never writes events back to Apple Calendar.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Kosistenz reads subscribed calendars so due dates can become work items. It never writes events back to Apple Calendar.</string>
+	<string>Kosistenz reads subscribed calendars so meetings block the clock and all-day items become due dates. It never writes events back to Apple Calendar.</string>
 </dict>
 </plist>

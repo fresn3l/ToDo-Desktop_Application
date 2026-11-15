@@ -120,7 +120,7 @@ function paintColorScope() {
                 ? `Editing “${page.name}”. ${n ? `${n} color${n === 1 ? '' : 's'} override the palette on this page.` : 'No overrides yet — pick a slot to color only this page.'}`
                 : 'Add a Home page first.';
         } else {
-            note.textContent = 'These colors apply to every Home page that does not set its own.';
+            note.textContent = 'These colors apply across the app.';
         }
     }
     if (colorScope === 'page') {
@@ -550,8 +550,6 @@ function scheduleSettingsExtras() {
     const run = () => {
         void loadAdvancedPaths();
         void loadIcloudSync();
-        void loadHomeLayoutForColors();
-        void loadClunySettings();
         void loadCalendarFeeds();
     };
     if (typeof requestIdleCallback === 'function') {
@@ -654,7 +652,7 @@ function paintCalendarFeeds(payload) {
             try {
                 const result = await eel.unsubscribe_calendar_feed(feedId, feedUrl)();
                 const n = Number(result?.deleted || 0);
-                utils.showSuccessFeedback(n ? `Unsubscribed. Removed ${n} open assignment${n === 1 ? '' : 's'}.` : 'Unsubscribed.');
+                utils.showSuccessFeedback(n ? `Unsubscribed. Removed ${n} open to-do${n === 1 ? '' : 's'}.` : 'Unsubscribed.');
                 utils.notifyDataChanged();
                 paintCalendarFeeds(result);
             } catch (err) {

@@ -5,25 +5,15 @@
 import * as utils from './js/utils.js';
 import { initAppearance } from './js/appearance.js';
 import { setupTabs, switchTab } from './js/tabs.js';
-import { setupHome } from './js/home.js';
 
 async function init() {
     await initAppearance();
     setupTabs();
-    setupHome();
     document.addEventListener('kosistenz:command', (e) => {
         const action = e.detail?.action;
-        if (action === 'journal-new') {
-            switchTab('journal')
-                .then(async () => {
-                    const { beginNewJournalEntry } = await import('./js/journal.js');
-                    beginNewJournalEntry(e.detail?.text || '');
-                })
-                .catch((err) => console.error(err));
-            return;
-        }
         if (action === 'open-tab' && e.detail?.tab) {
-            switchTab(e.detail.tab).catch((err) => console.error(err));
+            const tab = e.detail.tab === 'home' || e.detail.tab === 'journal' ? 'today' : e.detail.tab;
+            switchTab(tab).catch((err) => console.error(err));
         }
     });
     await switchTab('today');
@@ -43,7 +33,7 @@ async function pullPhoneOnOpen() {
             utils.notifyDataChanged('all');
         }
     } catch (_) {
-        /* pack missing or Cluny-unrelated — Today still works */
+        /* pack missing — Today still works */
     }
 }
 

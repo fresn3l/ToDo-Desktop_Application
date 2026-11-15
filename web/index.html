@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://127.0.0.1:* ws://localhost:* http://127.0.0.1:* http://localhost:*; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
-    <title>Calendar · Kosistenz</title>
+    <title>Today · Kosistenz</title>
     <link rel="stylesheet" href="tokens.css">
     <link rel="stylesheet" href="style.css">
     <script src="js/boot-appearance.js"></script>
@@ -33,26 +33,6 @@
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4.5" y="5.5" width="15" height="14" rx="1.5"/><path d="M8 3.5v4M16 3.5v4M4.5 10h15"/></svg>
                     <span class="nav-label">Calendar</span>
                 </button>
-                <details class="nav-more">
-                    <summary class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg>
-                        <span class="nav-label">More</span>
-                    </summary>
-                    <div id="homeNavPages" class="home-nav-pages">
-                        <button type="button" class="nav-item" data-tab="home">
-                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4.5 11 12 4.5 19.5 11v8a1.5 1.5 0 0 1-1.5 1.5h-4v-5h-4v5H6A1.5 1.5 0 0 1 4.5 19v-8Z"/></svg>
-                            <span class="nav-label">Home</span>
-                        </button>
-                    </div>
-                    <button type="button" class="nav-item" data-tab="journal">
-                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v12a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 18V6A1.5 1.5 0 0 1 7 4.5Z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
-                        <span class="nav-label">Journal</span>
-                    </button>
-                    <button type="button" class="nav-item" data-tab="notes">
-                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 4.5h9l3.5 3.5V19A1.5 1.5 0 0 1 17 20.5H6A1.5 1.5 0 0 1 4.5 19V6A1.5 1.5 0 0 1 6 4.5Z"/><path d="M15 4.5V9h4.5"/><path d="M8 12.5h8M8 16h5"/></svg>
-                        <span class="nav-label">Notes</span>
-                    </button>
-                </details>
             </nav>
 
             <div class="sidebar-footer">
@@ -69,86 +49,7 @@
 
         <div class="app-main">
             <main class="app-content">
-                <section id="homeTab" class="tab-content active" aria-label="Home">
-                    <div id="homeShell" class="home-shell">
-                        <header class="page-head page-head--home">
-                            <div class="page-head-titles">
-                                <h1 id="homePageTitle" class="page-title">Home</h1>
-                            </div>
-                            <div class="page-head-actions">
-                                <button type="button" id="homeEditBtn" class="btn-ghost" hidden>Edit</button>
-                            </div>
-                        </header>
-                        <div id="homeEditBar" class="home-edit-bar is-hidden">
-                            <p class="home-edit-copy">Drag a tile by its title bar to move it, or by a corner to resize it. On the first page a tile can go above or below Check-in.</p>
-                            <div id="homeCatalog" class="home-catalog"></div>
-                            <div class="home-edit-actions">
-                                <button type="button" id="homeAddPageBtn" class="btn-ghost">New page</button>
-                                <button type="button" id="homeRenamePageBtn" class="btn-ghost">Rename page</button>
-                                <button type="button" id="homeDeletePageBtn" class="btn-ghost">Delete page</button>
-                                <button type="button" id="homeDoneEditBtn" class="btn-secondary">Done</button>
-                            </div>
-                        </div>
-                        <div id="homeBoard" class="home-board">
-                            <div id="executeBoard" class="execute-board">
-                                <p id="executePhase" class="execute-phase">Hard window</p>
-                                <section class="execute-block execute-main" aria-label="Execute">
-                                    <h2>Execute</h2>
-                                    <p id="executeThing" class="execute-thing">Name the hard thing</p>
-                                    <p id="executeThingMeta" class="execute-meta"></p>
-                                    <div id="executeBout" class="execute-bout"></div>
-                                </section>
-                                <section class="execute-block execute-aim" aria-label="Aim">
-                                    <h2>Aim</h2>
-                                    <div id="executeAim"></div>
-                                </section>
-                                <section class="execute-block execute-habits" aria-label="Habits">
-                                    <h2>Habits</h2>
-                                    <p id="executeHabitsMeta" class="execute-meta"></p>
-                                    <div id="executeHabits"></div>
-                                </section>
-                                <section id="executeCloseBlock" class="execute-block execute-close is-hidden" aria-label="Close">
-                                    <h2>Close</h2>
-                                    <div id="executeClose"></div>
-                                </section>
-                            </div>
-                            <div id="homeGridAbove" class="home-grid home-grid--above is-absent" aria-label="Widgets above check-in"></div>
-                            <section id="homeCheckinBand" class="home-checkin-band" hidden>
-                                <header class="home-checkin-bar">
-                                    <div class="home-checkin-copy">
-                                        <h2 id="homeCheckinTitle">Morning check-in</h2>
-                                        <p id="homeCheckinStatus" class="home-checkin-status">Not yet</p>
-                                    </div>
-                                    <div class="home-checkin-actions">
-                                        <button type="button" id="homeCheckinOther" class="btn-ghost">Evening instead</button>
-                                        <button type="button" id="homeCheckinToggle" class="btn-primary">Open</button>
-                                    </div>
-                                </header>
-                                <div id="homeCheckinBody" class="home-checkin-body"></div>
-                            </section>
-                            <div id="homeGrid" class="home-grid" aria-label="Home widgets"></div>
-                        </div>
-                    </div>
-                    <div id="homeWorkLayer" class="home-work-layer is-hidden" hidden>
-                        <button type="button" id="homeWorkBackdrop" class="home-work-backdrop" aria-label="Dismiss"></button>
-                        <aside id="homeWorkPanel" class="home-work-panel" role="dialog" aria-modal="true" aria-labelledby="homeWorkTitle">
-                            <header class="home-work-head">
-                                <div class="home-work-titles">
-                                    <p id="homeWorkKicker" class="home-work-kicker">Home</p>
-                                    <h2 id="homeWorkTitle">Today</h2>
-                                </div>
-                                <button type="button" id="homeWorkClose" class="home-work-close" aria-label="Close">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M6 6l12 12M18 6 6 18"/>
-                                    </svg>
-                                </button>
-                            </header>
-                            <div id="homeWorkBody" class="home-work-body"></div>
-                        </aside>
-                    </div>
-                </section>
-
-                <section id="calendarTab" class="tab-content" aria-label="Calendar">
+<section id="calendarTab" class="tab-content active" aria-label="Calendar">
                     <div class="cal-layout">
                         <div class="cal-main">
                             <header class="page-head">
@@ -185,19 +86,19 @@
                             </div>
                             <div class="cal-clock-tools is-hidden">
                                 <div class="segmented" id="calDrawKind" role="group" aria-label="Draw on the clock">
-                                    <button type="button" data-draw-kind="focus" class="is-selected">Focus</button>
-                                    <button type="button" data-draw-kind="event">Event</button>
+                                    <button type="button" data-draw-kind="focus" class="is-selected">Work</button>
+                                    <button type="button" data-draw-kind="event">Meeting</button>
                                 </div>
                                 <p id="calClockHint" class="cal-clock-hint">Drag empty time to draw. Then name it. Alt marks happened. Shift marks missed.</p>
                             </div>
                             <div id="calMonthGrid" class="cal-month-grid is-hidden"></div>
-                            <p id="calMonthLegend" class="cal-month-legend is-hidden">Event · placed · due</p>
+                            <p id="calMonthLegend" class="cal-month-legend is-hidden">Meeting · placed · due</p>
                             <div id="calYearGrid" class="cal-year-grid is-hidden"></div>
                         </div>
                         <aside class="cal-aside">
                             <div class="cal-aside-block" id="calUnplacedBlock">
                                 <h3>To Do</h3>
-                                <button type="button" id="calShowEvent" class="btn-primary">Add appointment</button>
+                                <button type="button" id="calShowEvent" class="btn-primary">Add meeting</button>
                                 <div class="work-add-row cal-park-row">
                                     <input type="text" id="calParkAdd" class="checklist-text-input" placeholder="Park" autocomplete="off" aria-label="Park">
                                     <button type="button" id="calParkAddBtn" class="btn-ghost">Park</button>
@@ -206,7 +107,7 @@
                                 <div id="calUnplaced" class="cal-unplaced"></div>
                             </div>
                             <div class="cal-aside-block is-hidden" id="calEditor">
-                                <h3 id="calEditorHeading">Appointment</h3>
+                                <h3 id="calEditorHeading">Meeting</h3>
                                 <p id="calEditorHint" class="cal-editor-hint">Name, date, start, and end.</p>
                                 <div id="calEditorFields">
                                 <label class="checklist-field-label" for="calEventTitle">Name</label>
@@ -239,7 +140,7 @@
                                     <button type="button" class="work-day-chip" data-outcome="missed">Missed</button>
                                 </div>
                                 <div id="calFocusAttach" class="cal-focus-attach is-hidden">
-                                    <p class="cal-focus-hint">Work and habits in this span. Overflow is fine — they stay in the block.</p>
+                                    <p class="cal-focus-hint">Protected time. Fill week will not pack over it. Work can run longer than the span.</p>
                                     <p id="calFocusOverflow" class="cal-focus-overflow"></p>
                                     <div id="calFocusItems" class="cal-focus-items"></div>
                                     <div class="work-add-row">
@@ -249,117 +150,35 @@
                                     </div>
                                     <label class="checklist-field-label" for="calFocusPick">Attach existing</label>
                                     <select id="calFocusPick" class="checklist-text-input">
-                                        <option value="">Work or habit…</option>
+                                        <option value="">Work…</option>
                                     </select>
-                                    <p class="checklist-field-label">Notes on this span</p>
-                                    <div id="calFocusNotes" class="cal-focus-notes"></div>
-                                    <select id="calFocusNotePick" class="checklist-text-input">
-                                        <option value="">Attach from storage…</option>
-                                    </select>
-                                    <textarea id="calFocusNoteBody" class="checklist-text-input" rows="3" placeholder="New note on this span"></textarea>
-                                    <button type="button" id="calFocusNoteAdd" class="btn-ghost">Save note here</button>
                                 </div>
                                 </div>
                                 <div class="reminder-actions cal-editor-actions">
                                     <button type="button" id="calSaveItem" class="btn-primary is-hidden">Save</button>
                                     <button type="button" id="calParkItem" class="btn-ghost is-hidden">Park</button>
                                     <button type="button" id="calRemoveItem" class="btn-ghost is-hidden">Remove</button>
-                                    <button type="button" id="calAskCluny" class="btn-ghost is-hidden">Ask about this</button>
-                                    <button type="button" id="calNewFocus" class="btn-ghost">Add focus</button>
-                                    <button type="button" id="calNewEvent" class="btn-primary">Add event</button>
+                                    <button type="button" id="calNewFocus" class="btn-ghost">Add work block</button>
+                                    <button type="button" id="calNewEvent" class="btn-primary">Add meeting</button>
                                 </div>
                             </div>
                         </aside>
                     </div>
                 </section>
 
-                <section id="todayCalendarSource" class="widget-source" aria-label="Today">
-                    <div class="today-mini">
-                        <header class="today-masthead">
-                            <div>
-                                <p class="today-kicker">Today</p>
-                                <h2 id="todayDateTitle">Today</h2>
-                                <p id="todayDateSub" class="today-date-sub"></p>
-                            </div>
-                            <p id="todayPulse" class="today-pulse"></p>
-                        </header>
-                        <ol id="todayAgenda" class="today-agenda" aria-label="Today on the clock"></ol>
-                    </div>
-                </section>
-
-                <section id="journalTab" class="tab-content" aria-label="Journal">
-                    <header class="page-head">
-                        <div class="page-head-titles">
-                            <h1 class="page-title">Journal</h1>
-                            <p class="page-sub">Write against the clock. Entries stay on this Mac.</p>
-                        </div>
-                    </header>
-                    <div class="journal-layout">
-                        <div class="journal-compose journal-paper">
-                            <div class="journal-entry-section">
-                                <div class="journal-timer-container">
-                                    <div class="timer-display" id="timerDisplay">10:00</div>
-                                    <div class="timer-controls">
-                                        <span class="meta-chip" id="journalWordCount">0 words</span>
-                                        <button type="button" id="journalFocusBtn" class="btn-ghost" aria-pressed="false">Focus</button>
-                                        <button type="button" id="startTimer" class="btn-ghost">Start session</button>
-                                        <button type="button" id="pauseTimer" class="btn-primary is-hidden">Pause</button>
-                                        <button type="button" id="continueTimer" class="btn-ghost is-hidden">Continue</button>
-                                    </div>
-                                    <div class="timer-status vis-hidden" id="timerStatus" aria-live="polite">Ready when you are</div>
-                                </div>
-
-                                <div class="journal-text-container">
-                                    <textarea
-                                        id="journalEntry"
-                                        placeholder="Start writing. The timer begins with the first sentence."
-                                        rows="15"
-                                    ></textarea>
-                                </div>
-
-                                <details class="journal-tags-details">
-                                    <summary>Tags</summary>
-                                    <div class="journal-tags-row">
-                                        <div id="journalTagPresets" class="journal-tag-presets"></div>
-                                        <input type="text" id="journalCustomTags" class="checklist-text-input" placeholder="Custom tags, comma-separated" autocomplete="off">
-                                    </div>
-                                </details>
-
-                                <div class="journal-actions">
-                                    <p class="journal-kbd-hint">⌘Enter save · Esc pause / clear</p>
-                                    <button type="button" id="clearEntry" class="btn-ghost">Clear</button>
-                                    <button type="button" id="saveEntry" class="btn-primary" disabled>Save entry</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <aside class="journal-entries-section journal-inspector">
-                            <div class="journal-inspector-head">
-                                <h2>Recent</h2>
-                            </div>
-                            <div class="journal-history-toolbar">
-                                <input type="search" id="journalSearch" class="checklist-text-input" placeholder="Search entries" autocomplete="off">
-                                <select id="journalTagFilter" class="checklist-select" aria-label="Filter by tag">
-                                    <option value="">All tags</option>
-                                </select>
-                            </div>
-                            <div id="journalEntriesContainer" class="journal-entries-container"></div>
-                        </aside>
-                    </div>
-                </section>
-
-                <section id="todoPage" class="tab-content" aria-label="To Do">
+                
+<section id="todoPage" class="tab-content" aria-label="To Do">
                     <header class="page-head">
                         <div class="page-head-titles">
                             <h1 class="page-title">To Do</h1>
-                            <p class="page-sub">This week, later, and no day. Today stays on Today.</p>
+                            <p class="page-sub">Type fri, 25m, 14:30, today, later, or park. A button decides when the line does not.</p>
                         </div>
                         <div class="page-head-actions">
                             <button type="button" id="todoReviewBtn" class="btn-ghost">Review</button>
                         </div>
                     </header>
                     <div class="todo-page-add">
-                        <input type="text" id="todoPageTitle" class="checklist-text-input" placeholder="Sometime this week" autocomplete="off" aria-label="New to-do">
+                        <input type="text" id="todoPageTitle" class="checklist-text-input" placeholder="Send the brief fri 25m" autocomplete="off" aria-label="New to-do">
                         <button type="button" id="todoPageWeek" class="btn-primary">This week</button>
                         <button type="button" id="todoPageToday" class="btn-ghost">Today</button>
                         <button type="button" id="todoPagePark" class="btn-ghost">Park</button>
@@ -367,547 +186,12 @@
                     <div id="todoPageTile" class="todo-page-tile"></div>
                 </section>
 
-                <section id="notesTab" class="tab-content" aria-label="Notes">
-                    <header class="page-head">
-                        <div class="page-head-titles">
-                            <h1 class="page-title">Notes</h1>
-                            <p class="page-sub">Things to remember. Pin a note to a focus span, or leave it in storage.</p>
-                        </div>
-                    </header>
-                    <div class="notes-layout">
-                        <aside class="notes-list-pane">
-                            <div class="work-add-row">
-                                <button type="button" id="notesNewBtn" class="btn-primary">New note</button>
-                            </div>
-                            <div id="notesList" class="notes-list"></div>
-                        </aside>
-                        <div class="notes-editor-pane">
-                            <input type="text" id="notesTitle" class="checklist-text-input" placeholder="Title" autocomplete="off">
-                            <textarea id="notesBody" class="notes-body" rows="12" placeholder="Bullets, talking points, anything you may need on the span."></textarea>
-                            <label class="checklist-field-label" for="notesFocusPick">Focus span</label>
-                            <select id="notesFocusPick" class="checklist-text-input">
-                                <option value="">In storage</option>
-                            </select>
-                            <div class="reminder-actions">
-                                <button type="button" id="notesSaveBtn" class="btn-primary">Save</button>
-                                <button type="button" id="notesDetachBtn" class="btn-ghost">Back to storage</button>
-                                <button type="button" id="notesDeleteBtn" class="btn-ghost">Delete</button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section id="workoutTab" class="widget-source" aria-label="Workout">
-                    <div class="work-layout">
-                        <div class="panel">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Workout</h2>
-                                    <p class="panel-sub" id="workoutSummary"></p>
-                                </div>
-                            </div>
-                            <div class="workout-form">
-                                <div class="workout-weight-row">
-                                    <label class="checklist-field-label" for="workoutWeight">Weight</label>
-                                    <div class="work-add-row">
-                                        <input type="number" id="workoutWeight" class="checklist-text-input" min="0" step="0.1" placeholder="lb" inputmode="decimal">
-                                        <button type="button" id="workoutWeightSave" class="btn-ghost">Save</button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p class="checklist-field-label">Log a session</p>
-                                    <div id="workoutChips" class="workout-chips"></div>
-                                    <div id="workoutOtherWrap" class="workout-chip-extra is-hidden">
-                                        <label class="checklist-field-label" for="workoutOtherLabel">What did you do?</label>
-                                        <input type="text" id="workoutOtherLabel" class="checklist-text-input" placeholder="Pickleball, hill sprints, …" autocomplete="off">
-                                    </div>
-                                    <div id="workoutMilesWrap" class="workout-chip-extra is-hidden">
-                                        <label class="checklist-field-label" for="workoutMiles">Miles</label>
-                                        <input type="number" id="workoutMiles" class="checklist-text-input" min="0" step="0.1" placeholder="0.0" inputmode="decimal">
-                                    </div>
-                                    <label class="checklist-field-label" for="workoutMinutes">Minutes (optional)</label>
-                                    <input type="number" id="workoutMinutes" class="checklist-text-input" min="0" step="1" placeholder="0" inputmode="numeric">
-                                    <button type="button" id="workoutAddBtn" class="btn-primary is-hidden">Log session</button>
-                                </div>
-                            </div>
-                            <div id="workoutSessionList" class="work-list"></div>
-                        </div>
-                        <aside class="work-aside">
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <h3>Week template</h3>
-                                </div>
-                                <div id="weekTemplateForm" class="week-template"></div>
-                                <button type="button" id="weekTemplateSave" class="btn-ghost">Save template</button>
-                            </div>
-                            <div class="panel">
-                                <div class="panel-header">
-                                    <h3>Recent days</h3>
-                                </div>
-                                <div id="workoutRecent" class="workout-recent-list"></div>
-                            </div>
-                        </aside>
-                    </div>
-                </section>
-
-                <section id="todoTab" class="widget-source" aria-label="To Do" data-work-filter="today">
-                    <div class="work-layout">
-                        <div class="panel">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Today</h2>
-                                    <p class="panel-sub" id="todoSummary"></p>
-                                </div>
-                            </div>
-                            <div class="work-add-row">
-                                <input type="text" id="todoNewTitle" class="checklist-text-input" placeholder="45 mins board memo" autocomplete="off">
-                                <button type="button" id="todoAddBtn" class="btn-primary">Add</button>
-                            </div>
-                            <p class="todo-when-hint">Dated is not on the clock. Drag onto the clock to place it. Fill week packs To Do, not Today.</p>
-                            <details class="todo-more">
-                                <summary>More</summary>
-                                <p class="todo-when-label">Where</p>
-                                <div id="todoDest" class="todo-when work-weekdays" role="radiogroup" aria-label="Where this goes">
-                                    <button type="button" class="work-day-chip is-selected" data-dest="today" role="radio" aria-checked="true">Today</button>
-                                    <button type="button" class="work-day-chip" data-dest="allwork" role="radio" aria-checked="false">To Do</button>
-                                </div>
-                                <p class="todo-when-label">Day this week</p>
-                                <div id="todoWhen" class="todo-when work-weekdays" role="radiogroup" aria-label="Day this week"></div>
-                                <div class="work-add-row work-add-optional">
-                                    <input type="number" id="todoNewEstimate" class="checklist-text-input work-estimate-input" min="0" step="15" placeholder="Min" title="Override minutes if the title has none">
-                                    <input type="date" id="todoNewDue" class="checklist-text-input work-due-input" title="Due date (optional)">
-                                    <select id="todoNewGoal" class="checklist-text-input" title="Attach to a goal">
-                                        <option value="">Goal (optional)</option>
-                                    </select>
-                                </div>
-                                <label class="checklist-checkbox-label work-repeat-toggle">
-                                    <input type="checkbox" id="todoRepeatToggle"> Repeat this to do
-                                </label>
-                                <div id="todoRepeatPanel" class="work-repeat-panel is-hidden">
-                                    <div class="segmented" id="todoRepeatKind" role="group" aria-label="Repeat cadence">
-                                        <button type="button" data-value="daily" class="is-selected">Every day</button>
-                                        <button type="button" data-value="weekdays">Weekdays</button>
-                                        <button type="button" data-value="interval">Every other day</button>
-                                        <button type="button" data-value="custom">Custom days</button>
-                                    </div>
-                                    <p class="todo-when-label">Repeat on these days</p>
-                                    <div id="todoWeekdays" class="work-weekdays is-hidden" role="group" aria-label="Repeat on these days">
-                                        <button type="button" class="work-day-chip" data-day="0">Mon</button>
-                                        <button type="button" class="work-day-chip" data-day="1">Tue</button>
-                                        <button type="button" class="work-day-chip" data-day="2">Wed</button>
-                                        <button type="button" class="work-day-chip" data-day="3">Thu</button>
-                                        <button type="button" class="work-day-chip" data-day="4">Fri</button>
-                                        <button type="button" class="work-day-chip" data-day="5">Sat</button>
-                                        <button type="button" class="work-day-chip" data-day="6">Sun</button>
-                                    </div>
-                                    <label id="todoIntervalWrap" class="checklist-field-label work-interval-wrap is-hidden" for="todoEveryDays">
-                                        Every <input type="number" id="todoEveryDays" class="checklist-text-input work-interval-input" min="2" max="30" value="2"> days
-                                    </label>
-                                </div>
-                            </details>
-                            <div id="todoList" class="work-list"></div>
-                        </div>
-                        <aside class="work-aside">
-                            <div id="todoOverdue" class="panel work-side-panel is-hidden"></div>
-                            <div id="todoTomorrow" class="panel work-side-panel is-hidden"></div>
-                        </aside>
-                    </div>
-                </section>
-
-                <section id="goalsTab" class="widget-source" aria-label="Goals">
-                    <div class="panel-header goals-page-head">
-                        <div>
-                            <h2>Goals</h2>
-                            <p class="panel-sub" id="goalsSummary">1 week, 6 months, year, 5 years.</p>
-                        </div>
-                    </div>
-                    <div id="goalsBoard" class="goals-layout"></div>
-                </section>
-
-                <section id="analyticsTab" class="tab-content widget-source" aria-label="Analytics">
-                    <header class="page-head">
-                        <div class="page-head-titles">
-                            <h1 class="page-title">Analytics</h1>
-                            <p class="page-sub">Hours you planned, how often you showed up, and to-dos you finished.</p>
-                        </div>
-                        <div class="page-head-actions">
-                            <div class="segmented" id="analyticsRange" role="group" aria-label="Analytics range">
-                                <button type="button" data-value="28" class="is-selected">4 weeks</button>
-                                <button type="button" data-value="84">12 weeks</button>
-                                <button type="button" data-value="365">Year</button>
-                            </div>
-                        </div>
-                    </header>
-                    <div class="panel review-section">
-                        <div id="analyticsWeekStrip" class="week-strip-host"></div>
-                        <div id="consistencyCharts" class="review-content consistency-charts"></div>
-                        <div id="rateGoalsBoard" class="review-content rate-goals-board"></div>
-                        <div id="timeAllocation" class="review-content time-allocation-host"></div>
-                        <div id="analyticsContent" class="review-content"></div>
-                    </div>
-                </section>
-
-                <section id="weatherSource" class="widget-source" aria-label="Weather">
-                    <div class="glance-widget weather-widget">
-                        <header class="glance-head">
-                            <div>
-                                <p class="today-kicker">Weather</p>
-                                <h2 id="weatherPlace">Set a place</h2>
-                                <p id="weatherSub" class="today-date-sub"></p>
-                            </div>
-                            <div class="segmented weather-units" id="weatherUnits" role="group" aria-label="Units">
-                                <button type="button" data-value="fahrenheit" class="is-selected">F</button>
-                                <button type="button" data-value="celsius">C</button>
-                            </div>
-                        </header>
-                        <div id="weatherCurrent" class="weather-current"></div>
-                        <ol id="weatherHourly" class="weather-hourly" aria-label="Hourly rain chance"></ol>
-                        <ol id="weatherDaily" class="weather-daily" aria-label="Seven-day forecast"></ol>
-                        <form id="weatherPlaceForm" class="weather-place-form">
-                            <button type="button" id="weatherChangePlace" class="btn-ghost">Change place</button>
-                            <div class="weather-place-search">
-                                <label class="checklist-field-label" for="weatherPlaceQuery">City</label>
-                                <div class="work-add-row">
-                                    <input type="text" id="weatherPlaceQuery" class="checklist-text-input" placeholder="Ann Arbor" autocomplete="off">
-                                    <button type="submit" class="btn-primary">Search</button>
-                                </div>
-                            </div>
-                            <div id="weatherPlaceResults" class="weather-place-results"></div>
-                        </form>
-                        <p id="weatherStatus" class="checklist-hint small"></p>
-                    </div>
-                </section>
-
-                <section id="countdownSource" class="widget-source" aria-label="Countdown">
-                    <div class="glance-widget countdown-widget">
-                        <header class="glance-head">
-                            <div>
-                                <h2>Countdown</h2>
-                            </div>
-                        </header>
-                        <ul id="countdownList" class="glance-list"></ul>
-                        <form id="countdownForm" class="glance-add">
-                            <input type="text" id="countdownTitle" class="checklist-text-input" placeholder="Exam, trip, due…" autocomplete="off">
-                            <input type="date" id="countdownDate" class="checklist-text-input" aria-label="Date">
-                            <button type="submit" class="btn-primary">Add</button>
-                        </form>
-                    </div>
-                </section>
-
-                <section id="habitsSource" class="widget-source" aria-label="Habits">
-                    <div class="glance-widget habits-widget">
-                        <header class="glance-head">
-                            <div>
-                                <h2>Habits</h2>
-                                <p id="habitsSummary" class="today-date-sub"></p>
-                            </div>
-                        </header>
-                        <ul id="habitList" class="habit-list"></ul>
-                        <form id="habitForm" class="glance-add">
-                            <input type="text" id="habitTitle" class="checklist-text-input" placeholder="Water, stretch, …" autocomplete="off">
-                            <button type="submit" class="btn-primary">Add</button>
-                        </form>
-                    </div>
-                </section>
-
-                <section id="dayBriefSource" class="widget-source" aria-label="Day">
-                    <div class="compact-widget day-brief-widget">
-                        <div class="panel-header compact-widget-head">
-                            <div>
-                                <h2 id="dayBriefTitle">Morning brief</h2>
-                                <p class="panel-sub" id="dayBriefSummary">Next events, today’s focus, and a plan.</p>
-                            </div>
-                            <div class="segmented" id="dayBriefSlotToggle" role="group" aria-label="Brief or review">
-                                <button type="button" data-slot="morning">Brief</button>
-                                <button type="button" data-slot="evening">Review</button>
-                            </div>
-                        </div>
-                        <div id="dayBriefBody"></div>
-                        <div id="dayBriefCluny" class="day-brief-cluny is-hidden"></div>
-                    </div>
-                </section>
-
-                <section id="countersSource" class="widget-source" aria-label="Counters">
-                    <div class="compact-widget counters-widget">
-                        <div class="panel-header compact-widget-head">
-                            <div>
-                                <h2>Counters</h2>
-                                <p class="panel-sub" id="countersSummary">Tap anything you want to count today.</p>
-                            </div>
-                        </div>
-                        <div id="countersList" class="counters-list"></div>
-                        <form id="countersForm" class="counters-form">
-                            <input type="text" id="counterName" class="checklist-text-input" placeholder="Water, coffee, smokes…" maxlength="40" autocomplete="off">
-                            <select id="counterIcon" class="checklist-select" aria-label="Icon"></select>
-                            <input type="number" id="counterTarget" class="checklist-text-input" min="1" max="999" placeholder="Target (optional)">
-                            <button type="submit" class="btn-primary">Add</button>
-                        </form>
-                    </div>
-                </section>
-
-                <section id="readingSource" class="widget-source" aria-label="Reading">
-                    <div class="compact-widget reading-widget">
-                        <div class="panel-header compact-widget-head">
-                            <div>
-                                <h2>Currently reading</h2>
-                                <p class="panel-sub" id="readingSummary"></p>
-                            </div>
-                        </div>
-                        <form id="readingBookForm" class="reading-book-form">
-                            <input type="text" id="readingTitle" class="checklist-text-input" placeholder="Book title" maxlength="160" autocomplete="off">
-                            <input type="number" id="readingPage" class="checklist-text-input" min="0" placeholder="Page">
-                            <button type="submit" class="btn-primary">Save book</button>
-                        </form>
-                        <div class="reading-today">
-                            <p id="readingPagesToday" class="review-stat">0</p>
-                            <p class="review-detail">pages today</p>
-                            <div class="reading-page-btns">
-                                <button type="button" class="btn-ghost" data-pages="1">+1 page</button>
-                                <button type="button" class="btn-ghost" data-pages="5">+5 pages</button>
-                                <button type="button" class="btn-ghost" data-pages="10">+10 pages</button>
-                            </div>
-                        </div>
-                        <form id="readingJournalForm" class="day-brief-form">
-                            <label class="checklist-field-label" for="readingNote">What did you learn?</label>
-                            <textarea id="readingNote" class="checklist-textarea" rows="3" placeholder="A note from today’s reading…"></textarea>
-                            <button type="submit" class="btn-primary">Save reading journal</button>
-                        </form>
-                    </div>
-                </section>
-
-                <section id="wordTab" class="widget-source" aria-label="Word of the day">
-                    <div id="wordCard" class="word-card">
-                        <p class="checklist-hint small">Loading…</p>
-                    </div>
-                </section>
-
-                <section id="clunySource" class="widget-source" aria-label="Ask Cluny">
-                    <div class="compact-widget cluny-widget">
-                        <div class="panel-header compact-widget-head">
-                            <div>
-                                <p class="today-kicker">Brain</p>
-                                <h2>Ask Cluny</h2>
-                                <p class="panel-sub" id="clunyWidgetStatus">Ask about what you wrote. You still pick the day. Cluny does not schedule.</p>
-                            </div>
-                        </div>
-                        <div id="clunyOffline" class="cluny-offline is-hidden">
-                            <p class="checklist-empty">Cluny is off. Journal, to-dos, and the clock still work.</p>
-                        </div>
-                        <form id="clunyAskForm" class="cluny-ask-form">
-                            <label class="visually-hidden" for="clunyAskInput">Ask Cluny</label>
-                            <textarea id="clunyAskInput" class="checklist-textarea" rows="2" placeholder="What do I have to do today?"></textarea>
-                            <div id="clunyPrompts" class="cluny-prompts">
-                                <button type="button" class="btn-ghost" data-cluny-prompt="What do I have to do today?">What’s on today?</button>
-                                <button type="button" class="btn-ghost" data-cluny-prompt="What should I do with my free time?">Free time</button>
-                            </div>
-                            <button type="submit" class="btn-primary" id="clunyAskBtn">Ask</button>
-                        </form>
-                        <div id="clunyAnswer" class="cluny-answer" hidden></div>
-                        <div id="clunySources" class="cluny-sources" hidden></div>
-                        <div class="cluny-suggest-row">
-                            <button type="button" class="btn-secondary" id="clunySuggestBtn">Suggest work</button>
-                            <p class="checklist-hint small" id="clunySuggestHint">Accept lands in To Do with a due date, never an HH:MM. You pick the day.</p>
-                        </div>
-                        <ul id="clunyInbox" class="cluny-inbox"></ul>
-                    </div>
-                </section>
-
-                <section id="checklistTab" class="widget-source" aria-label="Check-in">
-                    <div class="checklist-layout">
-                        <div class="panel checklist-main">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Check-in</h2>
-                                    <p class="panel-sub">Morning or evening flow. Evening asks you to use today’s word.</p>
-                                </div>
-                                <button type="button" id="restartChecklist" class="btn-secondary">Start over</button>
-                            </div>
-                            <div class="checklist-template-row">
-                                <label class="checklist-field-label" for="checklistTemplateSelect">Template</label>
-                                <select id="checklistTemplateSelect" class="checklist-select checklist-template-select" title="Bundled checklist"></select>
-                            </div>
-                            <div id="recoveryPanel" class="recovery-panel is-hidden"></div>
-                            <div id="checklistWizard" class="checklist-wizard"></div>
-                        </div>
-                        <aside class="checklist-aside">
-                            <div class="panel checklist-custom-panel">
-                                <div class="panel-header">
-                                    <h3>Your extra questions</h3>
-                                </div>
-                                <p class="checklist-hint small">These run after the built-in flow. Stored on this Mac only.</p>
-                                <div id="customItemsList" class="custom-items-list"></div>
-                                <details class="checklist-add-details">
-                                    <summary>Add a custom question</summary>
-                                    <div class="checklist-add-form">
-                                        <label class="checklist-field-label" for="newItemType">Question type</label>
-                                        <select id="newItemType" class="checklist-select">
-                                            <option value="yes_no">Yes / No</option>
-                                            <option value="choice">Multiple choice</option>
-                                            <option value="text">Short text</option>
-                                            <option value="scale">Scale (1–5)</option>
-                                            <option value="number">Number</option>
-                                        </select>
-                                        <label class="checklist-field-label" for="newItemQuestion">Question</label>
-                                        <input type="text" id="newItemQuestion" class="checklist-text-input" placeholder="e.g. Did you stretch today?" autocomplete="off">
-                                        <div id="choiceOptionsWrap" class="choice-options-wrap is-hidden">
-                                            <label class="checklist-field-label" for="newItemOptions">Options (one per line)</label>
-                                            <textarea id="newItemOptions" class="checklist-textarea" rows="4" placeholder="Option A&#10;Option B&#10;Option C"></textarea>
-                                            <label class="checklist-checkbox-label">
-                                                <input type="checkbox" id="newItemAllowOther"> Allow “Other” with text
-                                            </label>
-                                        </div>
-                                        <div id="trackDurationWrap" class="track-duration-wrap">
-                                            <label class="checklist-checkbox-label">
-                                                <input type="checkbox" id="newItemTrackDuration"> Ask for duration (minutes) after this question
-                                            </label>
-                                        </div>
-                                        <button type="button" id="addCustomItemBtn" class="btn-primary checklist-add-btn">Add question</button>
-                                    </div>
-                                </details>
-                            </div>
-                            <div class="panel checklist-recent">
-                                <div class="panel-header">
-                                    <h3>Recent</h3>
-                                </div>
-                                <div id="checklistRecentList" class="checklist-recent-list"></div>
-                            </div>
-                        </aside>
-                    </div>
-                </section>
-
-                <section id="brainTab" class="tab-content" aria-label="Brain">
-                    <div class="brain-shell brain-shell--chat">
-                        <header class="page-head">
-                            <div class="page-head-titles">
-                                <h1 class="page-title">Brain</h1>
-                                <p id="brainStatusLine" class="page-sub">Ask the local brain. Kosistenz keeps the list and the clock.</p>
-                            </div>
-                            <div class="page-head-actions">
-                                <div id="brainHealthPill" class="brain-health-pill">…</div>
-                                <label class="checklist-field-label" for="brainCollectionFilter">Scope</label>
-                                <select id="brainCollectionFilter" class="checklist-text-input">
-                                    <option value="">All collections</option>
-                                </select>
-                                <button type="button" id="brainOpenBrainEditorBtn" class="btn-ghost">Edit instructions</button>
-                                <button type="button" id="brainOpenSettingsBtn" class="btn-ghost">Brain settings</button>
-                            </div>
-                        </header>
-                        <dl class="brain-stats brain-stats--inline" id="brainStats">
-                            <div><dt>Docs</dt><dd id="brainDocCount">—</dd></div>
-                            <div><dt>Chunks</dt><dd id="brainChunkCount">—</dd></div>
-                            <div><dt>Model</dt><dd id="brainChatModel">—</dd></div>
-                        </dl>
-                        <div id="brainOffline" class="brain-offline is-hidden">
-                            <p class="checklist-empty">Cluny is off. Journal, to-dos, and the clock still work.</p>
-                            <button type="button" id="brainStartServeBtn" class="btn-secondary">Try starting Cluny</button>
-                        </div>
-                        <div class="brain-mode-row">
-                            <label class="checklist-field-label" for="brainAgentMode">Mode</label>
-                            <select id="brainAgentMode" class="checklist-text-input">
-                                <option value="ask">Ask</option>
-                                <option value="chat">Chat</option>
-                                <option value="knowledge">Knowledge</option>
-                                <option value="propose">Propose</option>
-                            </select>
-                            <p class="checklist-hint small">Propose drafts To Do items. Cluny never places HH:MM or writes the week clock.</p>
-                            <button type="button" id="brainNewSessionBtn" class="btn-ghost">New chat</button>
-                        </div>
-                        <div id="brainChatLog" class="brain-chat-log" aria-live="polite"></div>
-                        <form id="brainChatForm" class="brain-chat-form">
-                            <label class="visually-hidden" for="brainChatInput">Message Cluny</label>
-                            <textarea id="brainChatInput" class="checklist-textarea" rows="3" placeholder="Ask with live Kosistenz context…"></textarea>
-                            <div class="brain-chat-actions">
-                                <button type="submit" class="btn-primary" id="brainSendBtn">Send</button>
-                                <button type="button" class="btn-secondary" id="brainProposeBtn">Propose work</button>
-                            </div>
-                        </form>
-                        <div id="brainProposePanel" class="brain-propose-panel is-hidden">
-                            <h3>Suggestions</h3>
-                            <div id="brainProposeSources" class="cluny-sources" hidden></div>
-                            <ul id="brainProposeList" class="cluny-inbox"></ul>
-                        </div>
-                    </div>
-                </section>
-
-                <section id="libraryTab" class="tab-content" aria-label="Library">
-                    <div class="library-shell">
-                        <header class="page-head">
-                            <div class="page-head-titles">
-                                <h1 class="page-title">Library</h1>
-                                <p id="libraryStorageLine" class="page-sub">Indexed PDFs and notes. Not your to-do list or week clock.</p>
-                            </div>
-                            <div class="page-head-actions">
-                                <button type="button" id="libraryOpenDataDirBtn" class="btn-ghost">Open data folder</button>
-                                <button type="button" id="libraryUploadBtn" class="btn-primary">Upload documents</button>
-                                <button type="button" id="libraryRefreshBtn" class="btn-ghost">Refresh</button>
-                            </div>
-                        </header>
-                        <dl class="library-stats" id="libraryStats">
-                            <div><dt>Documents</dt><dd id="libraryDocCount">—</dd></div>
-                            <div><dt>Chunks</dt><dd id="libraryChunkCount">—</dd></div>
-                            <div><dt>Data dir</dt><dd id="libraryDataDir" class="library-data-dir">—</dd></div>
-                        </dl>
-                        <div id="libraryOffline" class="brain-offline is-hidden">
-                            <p class="checklist-empty">Cluny is off. Journal, to-dos, and the clock still work.</p>
-                        </div>
-                        <div class="library-layout">
-                            <aside class="library-collections" aria-label="Collections">
-                                <div class="library-panel-head">
-                                    <h3>Collections</h3>
-                                    <button type="button" id="libraryNewCollectionBtn" class="btn-ghost">New</button>
-                                </div>
-                                <ul id="libraryCollectionList" class="library-collection-list"></ul>
-                                <div class="library-panel-head">
-                                    <h3>Sources</h3>
-                                </div>
-                                <ul id="librarySourceList" class="library-collection-list"></ul>
-                            </aside>
-                            <div class="library-main">
-                                <div class="library-toolbar">
-                                    <input type="search" id="librarySearchInput" class="checklist-text-input" placeholder="Search title or path…" autocomplete="off">
-                                    <button type="button" id="libraryBulkDeleteBtn" class="btn-ghost" disabled>Delete selected</button>
-                                </div>
-                                <ul id="libraryDocList" class="library-doc-list"></ul>
-                            </div>
-                            <aside class="library-detail" aria-label="Document details">
-                                <div id="libraryDetailEmpty" class="library-detail-empty">
-                                    <p class="checklist-hint">Select a document to view and edit metadata.</p>
-                                </div>
-                                <form id="libraryDetailForm" class="library-detail-form is-hidden" hidden>
-                                    <h3 id="libraryDetailTitle">Document</h3>
-                                    <label class="checklist-field-label" for="libraryDetailTitleInput">Title</label>
-                                    <input type="text" id="libraryDetailTitleInput" class="checklist-text-input" autocomplete="off">
-                                    <label class="checklist-field-label" for="libraryDetailCollectionsInput">Collections (comma-separated)</label>
-                                    <input type="text" id="libraryDetailCollectionsInput" class="checklist-text-input" autocomplete="off">
-                                    <label class="checklist-field-label" for="libraryDetailTagsInput">Tags (comma-separated)</label>
-                                    <input type="text" id="libraryDetailTagsInput" class="checklist-text-input" autocomplete="off">
-                                    <dl class="library-detail-meta">
-                                        <div><dt>Kind</dt><dd id="libraryDetailKind">—</dd></div>
-                                        <div><dt>Chunks</dt><dd id="libraryDetailChunks">—</dd></div>
-                                        <div><dt>Ingested</dt><dd id="libraryDetailIngested">—</dd></div>
-                                        <div><dt>Path</dt><dd id="libraryDetailPath" class="library-detail-path">—</dd></div>
-                                    </dl>
-                                    <div class="library-detail-actions">
-                                        <button type="submit" class="btn-primary">Save</button>
-                                        <button type="button" id="libraryRevealPathBtn" class="btn-ghost">Reveal in Finder</button>
-                                        <button type="button" id="libraryDeleteDocBtn" class="btn-ghost">Delete</button>
-                                    </div>
-                                </form>
-                            </aside>
-                        </div>
-                    </div>
-                </section>
-
+                
                 <section id="settingsTab" class="tab-content" aria-label="Settings">
                     <header class="page-head">
                         <div class="page-head-titles">
                             <h1 class="page-title">Settings</h1>
-                            <p class="page-sub">Appearance, the week clock, Cluny, and the iPhone pack.</p>
-                        </div>
-                        <div class="page-head-actions" id="quietSections">
-                            <button type="button" class="btn-ghost" data-open-tab="analytics">Analytics</button>
-                            <button type="button" class="btn-ghost" data-open-tab="brain">Brain</button>
-                            <button type="button" class="btn-ghost" data-open-tab="library">Library</button>
+                            <p class="page-sub">Appearance, subscribed calendars, and the iPhone pack.</p>
                         </div>
                     </header>
                     <div class="settings-board" id="settingsBoard">
@@ -920,10 +204,8 @@
                                 </div>
                                 <button type="button" id="resetAppearanceBtn" class="btn-ghost">Reset defaults</button>
                             </div>
-
                             <div class="settings-block">
                                 <h3>Theme</h3>
-                                <p class="checklist-hint small">Ocean, Paper, and the others stay as built-ins. Override a color, then save or create a palette.</p>
                                 <div id="themeGrid" class="theme-grid"></div>
                                 <h3 class="preset-heading">Saved palettes</h3>
                                 <div class="preset-toolbar">
@@ -934,17 +216,8 @@
                                 </div>
                                 <p id="presetNote" class="checklist-hint small"></p>
                             </div>
-
                             <div class="settings-block">
                                 <h3>Colors</h3>
-                                <div class="segmented" id="colorScopeGroup" role="group" aria-label="Color scope">
-                                    <button type="button" data-color-scope="global" class="is-selected">All pages</button>
-                                    <button type="button" data-color-scope="page">This page</button>
-                                </div>
-                                <label class="checklist-field-label" id="colorPageSelectLabel" for="colorPageSelect">Home page</label>
-                                <select id="colorPageSelect" class="checklist-select" hidden></select>
-                                <p id="colorScopeNote" class="checklist-hint small"></p>
-                                <button type="button" id="clearPageColorsBtn" class="btn-ghost" hidden>Clear this page’s colors</button>
                                 <div class="ink-row">
                                     <label>
                                         <input type="checkbox" id="inkAutoToggle" checked>
@@ -962,7 +235,6 @@
                                     <input type="color" id="customAccentInput" class="color-input" value="#4F8FCF">
                                 </div>
                             </div>
-
                             <div class="settings-block">
                                 <h3>Typeface</h3>
                                 <div class="segmented" data-setting-group="font" role="group" aria-label="Typeface">
@@ -972,7 +244,6 @@
                                     <button type="button" data-value="system">System</button>
                                 </div>
                             </div>
-
                             <div class="settings-row">
                                 <div class="settings-block">
                                     <h3>Density</h3>
@@ -990,7 +261,6 @@
                                     </div>
                                 </div>
                             </div>
-
                             <div class="settings-row">
                                 <div class="settings-block">
                                     <h3>Content width</h3>
@@ -1009,42 +279,7 @@
                                 </div>
                             </div>
                             <div class="settings-block">
-                                <h3>Home</h3>
-                                <p class="checklist-hint small">Widgets, sizes, and extra pages live on Home. Open Home and click Edit Home. Colors above can be for every page or just the one you pick.</p>
-                            </div>
-                        </div>
-                        </div>
-
-                        <div class="settings-resize" data-resize="0" role="separator" aria-orientation="vertical" aria-label="Resize Appearance column"></div>
-
-                        <div class="settings-col" data-settings-col="writing">
-                        <div class="panel">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Writing</h2>
-                                    <p class="panel-sub">Session length and editor size.</p>
-                                </div>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-field-label" for="timerMinutes">Journal timer</label>
-                                <select id="timerMinutes" class="checklist-select">
-                                    <option value="5">5 minutes</option>
-                                    <option value="10">10 minutes</option>
-                                    <option value="15">15 minutes</option>
-                                    <option value="20">20 minutes</option>
-                                    <option value="25">25 minutes</option>
-                                    <option value="30">30 minutes</option>
-                                </select>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-field-label" for="journalFontSize">Editor size <span id="journalFontSizeValue">17px</span></label>
-                                <input type="range" id="journalFontSize" min="14" max="22" step="1" value="17">
-                            </div>
-                            <div class="settings-block">
                                 <h3>Accessibility</h3>
-                                <label class="checklist-checkbox-label">
-                                    <input type="checkbox" id="autoFocusToggle"> Enter focus mode when the journal timer starts
-                                </label>
                                 <label class="checklist-checkbox-label">
                                     <input type="checkbox" id="reducedMotionToggle"> Reduce motion
                                 </label>
@@ -1055,55 +290,26 @@
                             <div class="settings-block">
                                 <h3>Shortcuts</h3>
                                 <ul class="shortcut-list">
-                                    <li><kbd>⌘</kbd><kbd>1</kbd> Today · <kbd>2</kbd> Calendar · <kbd>3</kbd> Journal</li>
+                                    <li><kbd>⌘</kbd><kbd>1</kbd> Today · <kbd>2</kbd> To Do · <kbd>3</kbd> Calendar</li>
                                     <li><kbd>⌘</kbd><kbd>,</kbd> Settings</li>
-                                    <li><kbd>⌘</kbd><kbd>Enter</kbd> Save journal entry</li>
-                                    <li><kbd>Esc</kbd> Pause timer, then clear with confirm</li>
                                 </ul>
                             </div>
                         </div>
                         </div>
-
-                        <div class="settings-resize" data-resize="1" role="separator" aria-orientation="vertical" aria-label="Resize Writing column"></div>
-
-                        <div class="settings-col" data-settings-col="reminders">
-                        <div class="panel">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Reminders</h2>
-                                    <p class="panel-sub">Free offline notification via launchd.</p>
-                                </div>
-                            </div>
-                            <div class="checklist-add-form">
-                                <label class="checklist-checkbox-label">
-                                    <input type="checkbox" id="reminderEnabled"> Enable daily reminder
-                                </label>
-                                <label class="checklist-field-label" for="reminderHour">Time (24h)</label>
-                                <div class="reminder-time-row">
-                                    <input type="number" id="reminderHour" class="checklist-text-input" min="0" max="23" value="20">
-                                    <span>:</span>
-                                    <input type="number" id="reminderMinute" class="checklist-text-input" min="0" max="59" value="0">
-                                </div>
-                                <div class="reminder-actions">
-                                    <button type="button" id="saveReminderBtn" class="btn-primary">Save reminder</button>
-                                    <button type="button" id="testReminderBtn" class="btn-secondary">Test now</button>
-                                </div>
-                                <p id="reminderStatus" class="checklist-hint small"></p>
-                            </div>
-                        </div>
-
+                        <div class="settings-resize" data-resize="0" role="separator" aria-orientation="vertical" aria-label="Resize Appearance column"></div>
+                        <div class="settings-col" data-settings-col="calendars">
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
                                     <h2>Phone</h2>
-                                    <p class="panel-sub">Same Apple ID. A JSON pack in iCloud Drive / Kosistenz, not a Kosistenz server.</p>
+                                    <p class="panel-sub">Same Apple ID. A JSON pack in iCloud Drive / Kosistenz.</p>
                                 </div>
                             </div>
-                            <p class="checklist-hint small" id="icloudSyncHint">On the iPhone, pick this same folder (Files → iCloud Drive → Kosistenz). The phone cannot see an app-only iCloud container.</p>
+                            <p class="checklist-hint small" id="icloudSyncHint">On the iPhone, pick this same folder (Files → iCloud Drive → Kosistenz).</p>
                             <label class="checklist-field-label">Sync folder</label>
                             <code id="icloudSyncFolder" class="checklist-db-path"></code>
                             <label class="checklist-checkbox-label">
-                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, To Do, Workout, Journal, or Notes changes
+                                <input type="checkbox" id="icloudAutoToggle"> Write the pack when Today, To Do, or Calendar changes
                             </label>
                             <label class="checklist-checkbox-label">
                                 <input type="checkbox" id="icloudAutoPullToggle" checked>
@@ -1115,17 +321,15 @@
                             </div>
                             <p id="icloudSyncStatus" class="checklist-hint small"></p>
                         </div>
-
                         <div class="panel">
                             <div class="panel-header">
                                 <div>
                                     <h2>Calendars</h2>
-                                    <p class="panel-sub">Subscribe here. Unsubscribe removes open imported to-dos and keeps completed ones.</p>
+                                    <p class="panel-sub">Subscribe a work calendar. Timed events block the clock. All-day and 11:59 stay due dates.</p>
                                 </div>
                             </div>
                             <label class="checklist-field-label" for="calIcsUrl">ICS URL</label>
                             <input type="text" id="calIcsUrl" class="checklist-text-input" placeholder="Paste https:// or webcal:// calendar link" autocomplete="off" spellcheck="false" inputmode="url">
-                            <p class="checklist-hint small">Timed events on the clock. All-day and 11:59 stay due chips. Past and undated imports are dropped.</p>
                             <div class="reminder-actions">
                                 <button type="button" id="calPasteIcs" class="btn-ghost">Paste</button>
                                 <button type="button" id="calImportIcs" class="btn-primary">Import ICS</button>
@@ -1136,140 +340,13 @@
                             <p id="calendarFeedsEmpty" class="checklist-hint small">No subscribed calendars.</p>
                             <p id="calendarFeedsStatus" class="checklist-hint small"></p>
                         </div>
-
-                        <div class="panel">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Data</h2>
-                                    <p class="panel-sub">Export files stay on this Mac.</p>
-                                </div>
-                            </div>
-                            <div class="export-panel">
-                                <h3>Export</h3>
-                                <p class="checklist-hint small">JSON, CSV, or a markdown recap of the last 7 days.</p>
-                                <div class="export-buttons">
-                                    <button type="button" class="btn-secondary" data-export="journal-json">Journal JSON</button>
-                                    <button type="button" class="btn-secondary" data-export="journal-csv">Journal CSV</button>
-                                    <button type="button" class="btn-secondary" data-export="work-json">Work JSON</button>
-                                    <button type="button" class="btn-secondary" data-export="work-csv">Work CSV</button>
-                                    <button type="button" class="btn-secondary" data-export="workouts-json">Workout JSON</button>
-                                    <button type="button" class="btn-secondary" data-export="workouts-csv">Workout CSV</button>
-                                    <button type="button" class="btn-secondary" data-export="week-markdown">Week markdown</button>
-                                </div>
-                                <p id="exportStatus" class="checklist-hint small"></p>
-                            </div>
-                            <details class="checklist-add-details settings-advanced">
-                                <summary>Advanced</summary>
-                                <div class="checklist-add-form">
-                                    <label class="checklist-field-label">App data folder</label>
-                                    <code id="appDataPath" class="checklist-db-path"></code>
-                                    <label class="checklist-field-label">Work database</label>
-                                    <code id="workDbPath" class="checklist-db-path"></code>
-                                    <label class="checklist-field-label">Workouts database</label>
-                                    <code id="workoutsDbPath" class="checklist-db-path"></code>
-                                    <label class="checklist-field-label">Widget snapshot</label>
-                                    <code id="widgetSnapshotPath" class="checklist-db-path"></code>
-                                    <label class="checklist-field-label">Export folder</label>
-                                    <code id="exportsPath" class="checklist-db-path"></code>
-                                    <label class="checklist-field-label">Reminder launchd plist</label>
-                                    <code id="reminderPlistPath" class="checklist-db-path"></code>
-                                    <h3>Apple Health / Screen Time import</h3>
-                                    <p class="checklist-hint small">Import from Apple Health “Export All Health Data”. The file must be named export.xml and live in your home folder.</p>
-                                    <label class="checklist-field-label" for="healthExportPath">Path to export.xml</label>
-                                    <input type="text" id="healthExportPath" class="checklist-text-input" placeholder="/Users/you/Downloads/export.xml">
-                                    <div class="reminder-actions">
-                                        <button type="button" id="importHealthBtn" class="btn-primary">Import Health export</button>
-                                    </div>
-                                    <p id="healthImportStatus" class="checklist-hint small"></p>
-                                </div>
-                            </details>
-                        </div>
-                        </div>
-
-                        <div class="settings-resize" data-resize="2" role="separator" aria-orientation="vertical" aria-label="Resize Reminders column"></div>
-
-                        <div class="settings-col" data-settings-col="cluny">
-                        <div class="panel">
-                            <div class="panel-header">
-                                <div>
-                                    <h2>Cluny</h2>
-                                    <p class="panel-sub">The local brain. Kosistenz stays the planner. Suggestions become to-dos only when you accept them.</p>
-                                    <p class="checklist-hint small">First time on this Mac: in the Kosistenz repo run <code>./macos/install_brain.sh</code>. That installs Ollama and Cluny into ~/Library/Application Support/Cluny. Then Test connection and Index my life. The iPhone does not run Ask Cluny.</p>
-                                </div>
-                            </div>
-                            <div class="settings-block">
-                                <p id="clunyHealthStatus" class="checklist-hint small">Checking Cluny…</p>
-                                <div class="reminder-actions">
-                                    <button type="button" id="clunyTestBtn" class="btn-secondary">Test connection</button>
-                                    <button type="button" id="clunyRestartBtn" class="btn-ghost">Restart Cluny</button>
-                                </div>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-field-label" for="clunyBrainUrl">Brain URL</label>
-                                <input type="url" id="clunyBrainUrl" class="checklist-text-input" placeholder="http://127.0.0.1:8787" autocomplete="off">
-                                <p class="checklist-hint small">Default is localhost. HTTPS, or HTTP on this Mac only.</p>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-checkbox-label">
-                                    <input type="checkbox" id="clunyAutoStartToggle" checked>
-                                    Keep Cluny running while Kosistenz is open
-                                </label>
-                                <p class="checklist-hint small">Kosistenz starts and supervises <code>cluny serve</code> in the background. Quitting Kosistenz stops only the copy Kosistenz started.</p>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-field-label" for="clunyBinaryPath">Cluny binary path (optional)</label>
-                                <input type="text" id="clunyBinaryPath" class="checklist-text-input" placeholder="/path/to/cluny or leave blank" autocomplete="off">
-                                <p class="checklist-hint small">Leave this blank unless Cluny lives somewhere unusual. After <code>./macos/install_brain.sh</code>, Kosistenz looks in ~/Library/Application Support/Cluny/bin, then /opt/homebrew/bin and /usr/local/bin. Logs: ~/Library/Logs/Kosistenz-cluny-serve.log</p>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-field-label" for="clunyDataDir">Cluny data directory (optional)</label>
-                                <input type="text" id="clunyDataDir" class="checklist-text-input" placeholder="~/Library/Application Support/Cluny" autocomplete="off">
-                                <p class="checklist-hint small">Where Cluny stores library, vectors, and config. Restart Kosistenz after changing.</p>
-                                <p id="clunyLiveStats" class="checklist-hint small"></p>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-checkbox-label">
-                                    <input type="checkbox" id="clunyJournalToggle" checked>
-                                    Index a copy of journal entries after save
-                                </label>
-                                <label class="checklist-checkbox-label">
-                                    <input type="checkbox" id="clunyChecklistToggle" checked>
-                                    Push check-in submissions after save
-                                </label>
-                                <p id="clunySnapshotStatus" class="checklist-hint small"></p>
-                                <div class="reminder-actions">
-                                    <button type="button" id="clunyBackfillBtn" class="btn-secondary">Index existing journals</button>
-                                    <button type="button" id="clunyBackfillLifeBtn" class="btn-secondary">Index my life</button>
-                                </div>
-                                <p id="clunyBackfillStatus" class="checklist-hint small"></p>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-field-label" for="clunySqlitePath">Cluny SQLite path (optional copy)</label>
-                                <input type="text" id="clunySqlitePath" class="checklist-text-input" placeholder="/Users/you/.cluny/cluny.sqlite" autocomplete="off">
-                                <p class="checklist-hint small">Sidecar table only. Ask uses the brain URL, not this file.</p>
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-field-label" for="clunyIngestUrl">Ingest URL override (optional)</label>
-                                <input type="url" id="clunyIngestUrl" class="checklist-text-input" placeholder="Leave blank to use Brain URL /ingest/text" autocomplete="off">
-                            </div>
-                            <div class="settings-block">
-                                <label class="checklist-field-label" for="clunyApiKey">API key (optional)</label>
-                                <input type="password" id="clunyApiKey" class="checklist-text-input" placeholder="Bearer token" autocomplete="off">
-                            </div>
-                            <div class="reminder-actions">
-                                <button type="button" id="clunySaveBtn" class="btn-primary">Save Cluny</button>
-                            </div>
-                            <p id="clunyStatus" class="checklist-hint small"></p>
-                            <p id="clunyEnvNote" class="checklist-hint small"></p>
-                        </div>
                         </div>
                     </div>
                 </section>
-                <div id="widgetSourceRack" class="widget-source-rack" hidden></div>
+
             </main>
         </div>
     </div>
-
     <div id="appDialog" class="app-dialog is-hidden" hidden>
         <div class="app-dialog-card" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
             <h3 id="appDialogTitle">Name this</h3>
@@ -1298,84 +375,6 @@
         </div>
     </div>
 
-    <div id="libraryUploadDialog" class="app-dialog is-hidden" hidden>
-        <div class="app-dialog-card brain-dialog-card" role="dialog" aria-modal="true" aria-labelledby="libraryUploadTitle">
-            <form id="libraryUploadForm" class="brain-dialog-body">
-                <header class="brain-dialog-head">
-                    <h2 id="libraryUploadTitle">Upload documents</h2>
-                    <button type="button" class="btn-ghost" id="libraryUploadClose">Close</button>
-                </header>
-                <label class="checklist-field-label" for="libraryUploadCollection">Collection</label>
-                <input type="text" id="libraryUploadCollection" class="checklist-text-input" placeholder="journal" autocomplete="off">
-                <label class="checklist-checkbox-label">
-                    <input type="checkbox" id="libraryUploadCopyToggle">
-                    Keep a copy in Cluny library folder
-                </label>
-                <button type="button" id="libraryUploadPickBtn" class="btn-secondary">Choose files</button>
-                <input type="file" id="libraryUploadFileInput" multiple hidden accept=".pdf,.md,.txt,.markdown,.text">
-                <p id="libraryUploadStatus" class="checklist-hint small"></p>
-            </form>
-        </div>
-    </div>
-
-    <div id="libraryNewCollectionDialog" class="app-dialog is-hidden" hidden>
-        <div class="app-dialog-card" role="dialog" aria-modal="true" aria-labelledby="libraryNewCollectionTitle">
-            <form id="libraryNewCollectionForm" class="brain-dialog-body">
-                <h2 id="libraryNewCollectionTitle">New collection</h2>
-                <label class="checklist-field-label" for="libraryNewCollectionInput">Name</label>
-                <input type="text" id="libraryNewCollectionInput" class="checklist-text-input" autocomplete="off" required>
-                <div class="brain-dialog-actions">
-                    <button type="button" id="libraryNewCollectionCancel" class="btn-ghost">Cancel</button>
-                    <button type="submit" class="btn-primary">Create</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="brainEditorDialog" class="app-dialog is-hidden" hidden>
-        <div class="app-dialog-card brain-dialog-card" role="dialog" aria-modal="true" aria-labelledby="brainEditorTitle">
-            <form id="brainEditorForm" class="brain-dialog-body">
-                <header class="brain-dialog-head">
-                    <h2 id="brainEditorTitle">Brain instructions</h2>
-                    <button type="button" class="btn-ghost" id="brainEditorClose">Close</button>
-                </header>
-                <label class="checklist-field-label" for="brainPersona">Global persona</label>
-                <textarea id="brainPersona" class="checklist-textarea" rows="3"></textarea>
-                <label class="checklist-field-label" for="brainRagSystem">RAG system prompt</label>
-                <textarea id="brainRagSystem" class="checklist-textarea" rows="5"></textarea>
-                <div class="brain-dialog-actions">
-                    <button type="button" id="brainExportConfigBtn" class="btn-ghost">Export JSON</button>
-                    <button type="button" id="brainImportConfigBtn" class="btn-ghost">Import JSON</button>
-                    <input type="file" id="brainImportFile" accept="application/json,.json" hidden>
-                    <button type="button" id="brainResetConfigBtn" class="btn-ghost">Reset defaults</button>
-                    <button type="submit" class="btn-primary">Save</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="brainSettingsDialog" class="app-dialog is-hidden" hidden>
-        <div class="app-dialog-card brain-dialog-card" role="dialog" aria-modal="true" aria-labelledby="brainSettingsTitle">
-            <form id="brainSettingsForm" class="brain-dialog-body">
-                <header class="brain-dialog-head">
-                    <h2 id="brainSettingsTitle">Brain settings</h2>
-                    <button type="button" class="btn-ghost" id="brainSettingsClose">Close</button>
-                </header>
-                <label class="checklist-field-label" for="brainChatModelInput">Chat model</label>
-                <input type="text" id="brainChatModelInput" class="checklist-text-input" autocomplete="off">
-                <label class="checklist-field-label" for="brainEmbedModelInput">Embed model</label>
-                <input type="text" id="brainEmbedModelInput" class="checklist-text-input" autocomplete="off">
-                <label class="checklist-field-label" for="brainRetrievalK">Retrieval k</label>
-                <input type="number" id="brainRetrievalK" class="checklist-text-input" min="1" max="50">
-                <label class="checklist-field-label" for="brainHybridWeight">Hybrid vector weight</label>
-                <input type="number" id="brainHybridWeight" class="checklist-text-input" min="0" max="1" step="0.05">
-                <label class="checklist-field-label" for="brainAskCollection">Default collection</label>
-                <input type="text" id="brainAskCollection" class="checklist-text-input" placeholder="journal">
-                <button type="submit" class="btn-primary">Save settings</button>
-            </form>
-        </div>
-    </div>
-
     <div id="calDayDues" class="cal-day-dues is-hidden" hidden>
         <header>
             <strong id="calDayDuesHeading">Due</strong>
@@ -1387,11 +386,12 @@
     <div id="calDueMenu" class="cal-due-menu is-hidden" hidden role="menu" aria-label="Due">
         <button type="button" data-act="done">Mark done</button>
         <button type="button" data-act="reopen" class="is-hidden">Reopen</button>
-        <button type="button" data-act="place-after">Place after first event</button>
+        <button type="button" data-act="place-after">Place after first meeting</button>
         <div id="calDueFocusActs"></div>
         <button type="button" data-act="todo">Open in Today</button>
     </div>
 
+    
     <script src="eel.js"></script>
     <script type="module" src="app.js"></script>
 </body>

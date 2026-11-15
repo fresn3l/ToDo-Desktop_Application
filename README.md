@@ -1,18 +1,16 @@
 # Kosistenz
 
-Journal and daily checklist for Mac. Data stays on this computer.
+A to-do list and calendar for Mac. Data stays on this computer.
 
-The app is a real `Kosistenz.app`: native traffic-light window, Dock / Spotlight, menu bar, Notification Center widget, Apple WebKit (Safari engine). **Chrome is not used.**
+The app is a real `Kosistenz.app`: native traffic-light window, Dock / Spotlight, menu bar, and a Notification Center widget. It uses Apple WebKit. Chrome is not used.
 
 ## Install on a Mac
 
 ### What you need
 
 - A Mac (macOS 11+)
-- Python 3.8+ (`python3 --version`) for Kosistenz; Cluny needs 3.11+ (`install_brain.sh` can Homebrew `python@3.12`)
+- Python 3.8+ (`python3 --version`)
 - Xcode Command Line Tools (`xcode-select --install`) so the installer can compile the native window
-
-You do **not** need Google Chrome.
 
 ### Build and install
 
@@ -20,105 +18,63 @@ You do **not** need Google Chrome.
 git clone https://github.com/fresn3l/ToDo-Desktop_Application.git
 cd ToDo-Desktop_Application
 git checkout main
-chmod +x setup_venv.sh macos/install_app.sh macos/install_brain.sh
+chmod +x setup_venv.sh macos/install_app.sh
 ./macos/install_app.sh
 ```
 
-That creates a virtualenv, packages a standalone app, copies it to `/Applications/Kosistenz.app`, then runs `./macos/install_brain.sh` (Ollama + Cluny). App-only: `SKIP_BRAIN=1 ./macos/install_app.sh` or `./macos/install_app.sh --skip-brain`. Finder then reveals the app so you can double-click it. If `/Applications` is not writable, it falls back to `~/Applications`.
+That creates a virtualenv, packages a standalone app, and copies it to `/Applications/Kosistenz.app`. Finder then reveals the app. If `/Applications` is not writable, it falls back to `~/Applications`.
 
 ### Open it
 
-1. Finder should jump to **Kosistenz** after install. Double-click it.
-2. Or Finder sidebar → **Applications** → **Kosistenz**
-3. First launch: **right-click → Open** if macOS warns about an unidentified developer
-4. Optional: drag Kosistenz to the Dock, or use Spotlight (`Cmd+Space`)
+1. Double-click **Kosistenz**.
+2. First launch: **right-click → Open** if macOS warns about an unidentified developer.
+3. Quit with **Cmd+Q**. Closing the window hides the app; the menu bar extra keeps running until you quit.
 
-Quit with **Cmd+Q**, like any Mac app. Closing the window hides it; the menu bar extra keeps running until you quit.
+The menu bar parks a to-do and shows the next meeting. The Today widget lists open to-dos and that meeting. Services: select text anywhere, then Services → **Park in To Do**. URL: `kosistenz://work/park?title=Call%20dentist` (add `&today=1` to put it on Today).
 
-Add the **Today** widget from Notification Center → Edit Widgets → Kosistenz (Lock Screen families need macOS 14+). Services: select text anywhere, then Services → **Park in To Do** or **New Journal Entry in Kosistenz**. URLs: `kosistenz://journal/new` and `kosistenz://work/park?title=Call%20dentist` (add `&today=1` to put it on Today).
-
-If you change the source and want a fresh bundle, run `./macos/install_app.sh` again. You must rebuild after `git pull` — opening the old app will still use the previous window code.
+Rebuild with `./macos/install_app.sh` after you change the source.
 
 If launch fails, paste `~/Library/Logs/Kosistenz.log`. A good start looks like `Swift host launching`, then `UI server ready`.
 
-### Cluny + Ollama (local brain)
-
-Cluny indexes what you write in Kosistenz (journals, work, clock, workouts, goals) and answers questions. It does not pick clock times, write packed blocks, or touch the iPhone pack. Ollama stays on this Mac. Kosistenz still works if Cluny is quit.
-
-```bash
-./macos/install_brain.sh
-```
-
-That clones `fresn3l/Cluny_the_AI_Agent` into `~/Library/Application Support/Cluny/src`, installs the `cluny` wrapper at `~/Library/Application Support/Cluny/bin/cluny`, pulls `llama3.2` and `nomic-embed-text`, and writes Settings so Kosistenz can find him. Then **Settings → Cluny → Test connection**, then **Index my life**.
-
-Run this on the Mac that will run Kosistenz. Ollama stays on that computer (no cloud LLM).
-
-### Run from the repo (optional)
-
-For day-to-day coding without rebuilding the `.app`:
+### Run from the repo
 
 ```bash
 ./setup_venv.sh
 ./run_kosistenz.sh
 ```
 
-That still opens the **native WebKit window**, not Chrome.
+That still opens the native WebKit window.
 
-## Features
+## What it is
 
-- **Home**: Snap-to-grid widgets (Today, Clock, Workout, Journal, Goals, Analytics, Weather, Focus, Countdown, Habits, Day, Counters, Reading, Word, Check-in, Ask Cluny). Extra pages, Edit Home to place and resize. First install shows Today and a mini calendar.
-- **Word of the day**: German or precise English on a Home widget; Evening check-in asks you to use it
-- **Journal**: Timed entries (Home widget)
-- **Today**: Dated To Do for this day. Stays a checklist until you drag a row onto the clock.
-- **To Do**: Personal list that is not on the clock. Park a thought, or pick a day. Imported class assignments are **Due** on the day, not this list.
-- **Workout**: Body weight, session types, and a simple week template (Home widget)
-- **Analytics**: Streaks, repeating misses, template misses, body-weight sparkline (Home widget)
-- **Weather**: Place search, current conditions, hourly rain chance, seven-day forecast (Home widget; Open-Meteo, cached locally)
-- **Focus**: One intention for today; clears at midnight (Home widget)
-- **Countdown**: Named dates with days remaining (Home widget)
-- **Habits**: Daily ticks that reset each morning (Home widget)
-- **Menu bar**: Start or finish today’s active item, log a session type, see whether today is empty. Run asks for miles.
-- **Today widget**: Notification Center (and Lock Screen on macOS 14+) — open items, workout logged or not, journal streak
-- **Spotlight / Services**: `kosistenz://journal/new`, `kosistenz://work/park?title=…`, plus **New Journal Entry** and **Park in To Do** in the Services menu
-- **Appearance**: Themes and type (San Francisco by default on Mac)
-- **Local storage**: SQLite + JSON under Application Support
-- **Goals**: 1 week, 6 months, a year, 5 years. Attach work (or match a
-  keyword). 1-week goals get a to-do every Sunday for the coming week.
-- **Calendar**: Week on a clock. Events you add stay busy time. Imported
-  calendars (Apple subscription or ICS URL) become **Due** chips, not
-  busy bars. **Fill week** packs To Do leftover minutes around those events.
-  Today stays a list until you drag it. Nothing is written back to Apple Calendar.
-- **iPhone**: Today / Calendar / To Do / Journal over the same iCloud Drive pack — see `ios/README.md`
+- **Today**: Now, Next, and Later today. Now is the meeting or placed to-do you are in, or the next one and how long until it. One line captures a to-do: `Call Priya fri 25m` or `Standup 14:30`.
+- **To Do**: the same line. `fri`, `25m`, `14:30`, `today`, `later`, and a trailing `park` set themselves. This week, Today, and Park decide when the line does not. Each item can have notes, a due date, an estimate, and a repeat.
+- **Calendar**: day, week, month, and year. Add a meeting, or draw a work block (protected time Fill week will not pack over). Drag a to-do onto a time, or use **Fill week** to pack items that have an estimate into gaps inside the awake window. A due chip shows the calendar it came from.
+- **Settings**: appearance, subscribed calendars, and the iPhone pack.
 
-## Data Storage
+Subscribed calendars: timed events are meetings and block the clock. All-day events and short 11:59 stubs become due dates. Import from Apple Calendar skips holiday and birthday calendars. Nothing is written back.
 
-macOS paths (legacy `ToDo` folder name preserved for existing data):
+## iPhone
 
-- **Journal**: `~/Library/Application Support/ToDo/Journal/`
-- **Daily checklist DB**: `~/Library/Application Support/ToDo/daily_checklist.sqlite`
-- **Work / Today DB**: `~/Library/Application Support/ToDo/work_items.sqlite`
+Today, Calendar, and To Do over the same iCloud Drive pack. See `ios/README.md`.
+
+## Data
+
+macOS paths (the legacy `ToDo` folder name is kept so existing data still opens):
+
+- **Work / To Do**: `~/Library/Application Support/ToDo/work_items.sqlite`
 - **Calendar**: `~/Library/Application Support/ToDo/calendar.sqlite` plus `calendar_feeds.json`
-- **Workouts DB**: `~/Library/Application Support/ToDo/workouts.sqlite`
-- **Week template**: `~/Library/Application Support/ToDo/workout_plan.json`
-- **Widget snapshot** (Today widget + menu bar): `~/Library/Application Support/ToDo/widget_snapshot.json`
-- **Custom checklist items**: `~/Library/Application Support/ToDo/checklist_custom_items.json`
-- **Active checklist template**: `~/Library/Application Support/ToDo/checklist_selected_stem.txt`
+- **Widget snapshot**: `~/Library/Application Support/ToDo/widget_snapshot.json`
 - **Appearance**: `~/Library/Application Support/ToDo/appearance.json`
-- **Weather**: `~/Library/Application Support/ToDo/weather_settings.json` and `weather_cache.json`
-- **Focus**: `~/Library/Application Support/ToDo/focus.json`
-- **Countdowns**: `~/Library/Application Support/ToDo/countdowns.json`
-- **Habits**: `~/Library/Application Support/ToDo/habits.json`
-- **Word of the day**: `~/Library/Application Support/ToDo/word_of_the_day.json`
 
-Optional Cluny sync: run `./macos/install_brain.sh`, then Settings → Cluny. See `cluny_sync.py`.
-Cluny is the local brain, not the scheduler — [docs/cluny-integration.md](docs/cluny-integration.md).
+Older files from journal, workouts, and check-ins are left on disk. This app does not open them.
 
 ## Technologies
 
-- **Python 3** + **Eel** (localhost bridge) and a 127.0.0.1 API for the menu bar / widget
-- **Swift + WKWebView** for the Mac window (Safari engine; no Chrome)
-- **WidgetKit** for the Notification Center / Lock Screen Today widget
-- **SQLite** for checklist submissions and work items
+- **Python 3** + **Eel** (localhost bridge) and a 127.0.0.1 API for the menu bar and widget
+- **Swift + WKWebView** for the Mac window
+- **WidgetKit** for the Today widget
+- **SQLite** for to-dos and the calendar
 - **PyInstaller** for the standalone `.app`
 - **SwiftUI** iPhone companion (`ios/`) synced through iCloud Drive
 

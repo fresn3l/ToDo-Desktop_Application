@@ -16,7 +16,7 @@ export const COLOR_SLOTS = [
     { id: 'openNext', label: 'Open / next' },
     { id: 'sidebar', label: 'Sidebar' },
     { id: 'event', label: 'Events' },
-    { id: 'focus', label: 'Focus blocks' },
+    { id: 'focus', label: 'Work blocks' },
 ];
 
 export const INK_LIGHT = '#f7fafc';

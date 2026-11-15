@@ -10,8 +10,6 @@ from pathlib import Path
 from unittest import mock
 
 import calclock
-import insights
-import journal
 import work
 
 
@@ -71,10 +69,7 @@ class LoadSpeedTests(unittest.TestCase):
         self.assertEqual(second["today"][0]["title"], "Today")
 
     def test_widget_snapshot_does_not_export_inline(self) -> None:
-        with (
-            mock.patch("icloud_sync.export_if_enabled", side_effect=AssertionError("export")) as export,
-            mock.patch("cluny_snapshot.refresh_life_snapshot_safe", side_effect=AssertionError("cluny")),
-        ):
+        with mock.patch("icloud_sync.export_if_enabled", side_effect=AssertionError("export")) as export:
             snap = work._write_widget_snapshot()
         self.assertEqual(snap["date"], "2026-09-08")
         export.assert_not_called()
@@ -124,41 +119,6 @@ class LoadSpeedTests(unittest.TestCase):
             agenda = calclock.get_day_agenda("2026-09-08")
         self.assertEqual(agenda["items"][0]["title"], "CHEM 109")
         self.assertEqual(agenda["unplaced"], [])
-
-    def test_today_home_fetches_the_board_once(self) -> None:
-        work.create_work_item("Write the paper", scheduled_date="2026-09-08")
-        work.invalidate_work_board_cache()
-
-        class FrozenDate(date):
-            @classmethod
-            def today(cls):
-                return date(2026, 9, 8)
-
-        with (
-            mock.patch("insights.date", FrozenDate),
-            mock.patch.object(work, "get_work_board", wraps=work.get_work_board) as board,
-        ):
-            home = insights.get_today_home()
-        self.assertEqual(board.call_count, 1)
-        self.assertEqual(home["today"][0]["title"], "Write the paper")
-
-    def test_journal_entry_dates_do_not_parse_bodies(self) -> None:
-        journal.save_journal_entry("Rode north.", 60, False, ["health"])
-        with mock.patch("journal.json.load", side_effect=AssertionError("parsed")):
-            days = journal.entry_dates(days=400)
-        self.assertIn(date.today(), days)
-        self.assertEqual(journal.count_entries_on(date.today()), 1)
-
-    def test_imported_journal_stems_count_for_today(self) -> None:
-        journal.import_journal_entry(
-            {
-                "id": "entry_2026-09-08",
-                "content": "From the phone.",
-                "date": "2026-09-08T21:00:00",
-            }
-        )
-        self.assertEqual(journal.count_entries_on(date(2026, 9, 8)), 1)
-        self.assertIn(date(2026, 9, 8), journal.entry_dates(days=400))
 
     def test_overnight_hard_event_lands_on_both_days(self) -> None:
         calclock.create_calendar_event(
