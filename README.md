@@ -47,8 +47,8 @@ That still opens the native WebKit window.
 
 ## What it is
 
-- **Today**: this day’s meetings and placed to-dos on the clock, with today’s checklist beside them. A row stays a checklist until you give it a time.
-- **To Do**: capture that is not on the clock yet. This week, Later, and Someday. Each item can have notes, a due date, an estimate, and a repeat.
+- **Today**: Now, Next, and Later today. Now is the meeting or placed to-do you are in, or the next one and how long until it. One line captures a to-do: `Call Priya fri 25m` or `Standup 14:30`.
+- **To Do**: the same line. `fri`, `25m`, `14:30`, `today`, `later`, and a trailing `park` set themselves. This week, Today, and Park decide when the line does not. Each item can have notes, a due date, an estimate, and a repeat.
 - **Calendar**: day, week, month, and year. Add a meeting, or draw a work block (protected time Fill week will not pack over). Drag a to-do onto a time, or use **Fill week** to pack items that have an estimate into gaps inside the awake window. A due chip shows the calendar it came from.
 - **Settings**: appearance, subscribed calendars, and the iPhone pack.
 

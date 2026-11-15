@@ -307,6 +307,69 @@ class WorkStoreTests(unittest.TestCase):
         ]
         self.assertNotIn("Board memo", titles)
 
+    def test_capture_line_keeps_a_plain_title(self) -> None:
+        parsed = self.work.parse_capture_line("Park the car")
+        self.assertEqual(parsed["title"], "Park the car")
+        self.assertIsNone(parsed["when"])
+        self.assertFalse(parsed["has_when"])
+        self.assertIsNone(parsed["estimate_minutes"])
+        self.assertIsNone(parsed["clock"])
+
+    def test_capture_line_reads_weekday_estimate_and_clock(self) -> None:
+        wednesday = date(2026, 9, 2)
+        with mock.patch.object(self.work, "_today", return_value=wednesday):
+            parsed = self.work.parse_capture_line("Send contract to Priya fri 25m")
+            plan = self.work.resolve_capture(parsed, "week")
+            self.assertEqual(plan["title"], "Send contract to Priya")
+            self.assertEqual(plan["due_at"], "2026-09-04")
+            self.assertEqual(plan["estimate_minutes"], 25)
+            self.assertEqual(plan["bucket"], "week")
+            self.assertEqual(plan["summary"], "Friday · 25m")
+            parked = self.work.resolve_capture(self.work.parse_capture_line("Call dentist park"), "today")
+            self.assertEqual(parked["bucket"], "none")
+            self.assertEqual(parked["summary"], "Parked")
+            clocked = self.work.resolve_capture(self.work.parse_capture_line("Standup 14:30"), "week")
+            self.assertEqual(clocked["clock"], "14:30")
+            self.assertEqual(clocked["clock_day"], "2026-09-02")
+            self.assertEqual(clocked["duration"], 30)
+            self.assertEqual(clocked["summary"], "Today · 14:30")
+            bare = self.work.resolve_capture(self.work.parse_capture_line("Dentist 1430 20m"), "none")
+            self.assertEqual(bare["title"], "Dentist")
+            self.assertEqual(bare["duration"], 20)
+            self.assertEqual(bare["summary"], "Today · 14:30 · 20m")
+            monday = self.work.resolve_capture(self.work.parse_capture_line("File taxes mon"), "week")
+            self.assertEqual(monday["due_at"], "2026-09-07")
+            self.assertEqual(monday["bucket"], "later")
+            self.assertEqual(monday["summary"], "Monday")
+
+    def test_capture_saves_a_friday_due_and_a_clock_block(self) -> None:
+        import calclock
+
+        wednesday = date(2026, 9, 2)
+        with mock.patch.object(self.work, "_today", return_value=wednesday):
+            saved = self.work.capture_todo("Send contract to Priya fri 25m", "today")
+            self.assertEqual(saved["summary"], "Friday · 25m")
+            self.assertEqual(saved["item"]["title"], "Send contract to Priya")
+            self.assertEqual(saved["item"]["due_at"], "2026-09-04T23:59:00")
+            self.assertEqual(saved["item"]["estimate_minutes"], 25)
+            self.assertIsNone(saved["item"]["scheduled_date"])
+            self.assertEqual(saved["item"]["horizon"], "week")
+            placed = self.work.capture_todo("Standup 09:30 45m", "week")
+        self.assertEqual(placed["item"]["scheduled_date"], "2026-09-02")
+        self.assertEqual(placed["item"]["title"], "Standup")
+        self.assertEqual(placed["item"]["estimate_minutes"], 45)
+        blocks = calclock.list_blocks(wednesday, wednesday)
+        block = next(row for row in blocks if row["title"] == "Standup")
+        self.assertEqual(block["start_at"], "2026-09-02T09:30:00")
+        self.assertEqual(block["end_at"], "2026-09-02T10:15:00")
+
+    def test_button_wins_when_the_line_has_no_when(self) -> None:
+        page = self.work.add_todo_bucket("Email Priya 25m", "week")
+        row = page["this_week"][0]
+        self.assertEqual(row["title"], "Email Priya")
+        self.assertEqual(row["estimate_minutes"], 25)
+        self.assertEqual(page["capture"]["summary"], "This week · 25m")
+
 
 if __name__ == "__main__":
     unittest.main()

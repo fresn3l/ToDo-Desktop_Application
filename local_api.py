@@ -151,9 +151,9 @@ def park_in_all_work(title: str, today: Any = False) -> Dict[str, Any]:
     clean = (title or "").strip()
     if not clean:
         raise ValueError("Title is required")
-    scheduled = work._today().isoformat() if _as_flag(today) else None
-    item = work.create_work_item(clean, scheduled_date=scheduled, source="service")
-    return {"ok": True, "item": item}
+    fallback = "today" if _as_flag(today) else "none"
+    captured = work.capture_todo(clean, fallback, source="service")
+    return {"ok": True, "item": captured["item"], "summary": captured["summary"]}
 
 
 def _clean_id(raw: Any) -> str:
@@ -171,9 +171,11 @@ def create_todo(title: str, on_date: Any = "", item_id: Any = "") -> Dict[str, A
         if found:
             return {"ok": True, "already": True, "item": found[0]}
     raw = str(on_date or "").strip()
-    scheduled = None if raw.lower() in {"", "park", "allwork", "all-work", "work"} else raw
-    item = work.create_work_item(clean, scheduled_date=scheduled, source="service", item_id=chosen or None)
-    return {"ok": True, "already": False, "item": item}
+    if raw.lower() in {"", "park", "allwork", "all-work", "work"}:
+        captured = work.capture_todo(clean, "none", source="service", item_id=chosen or None)
+    else:
+        captured = work.capture_todo(clean, "date", raw, source="service", item_id=chosen or None)
+    return {"ok": True, "already": False, "item": captured["item"], "summary": captured["summary"]}
 
 
 def reschedule_todo(item_id: str, on_date: Any = "") -> Dict[str, Any]:

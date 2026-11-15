@@ -58,6 +58,19 @@ class LocalApiTests(unittest.TestCase):
         self.assertFalse(widget["workout_logged"])
         self.assertEqual(widget["backlog_count"], 1)
 
+    def test_park_line_sets_the_due_and_estimate(self) -> None:
+        wednesday = date(2026, 9, 2)
+        with mock.patch.object(work, "_today", return_value=wednesday):
+            status, parked = local_api.handle_request(
+                "POST", "/api/work/park", {"title": "Call dentist fri 20m"}
+            )
+        self.assertEqual(status, 200)
+        self.assertEqual(parked["item"]["title"], "Call dentist")
+        self.assertEqual(parked["item"]["estimate_minutes"], 20)
+        self.assertEqual(parked["item"]["due_at"], "2026-09-04T23:59:00")
+        self.assertEqual(parked["summary"], "Friday · 20m")
+        self.assertFalse(parked["item"]["is_backlog"])
+
     def test_park_today_dates_the_item(self) -> None:
         today = date.today().isoformat()
         status, parked = local_api.handle_request(

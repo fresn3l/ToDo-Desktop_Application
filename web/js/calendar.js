@@ -482,6 +482,66 @@ function agendaTime(item) {
     return `${startText}–${pad(end.getHours())}:${pad(end.getMinutes())}`;
 }
 
+function clockSpans(items, now) {
+    return (items || [])
+        .filter((item) => item && item.start_at && item.end_at && !item.all_day && item.kind !== 'workout')
+        .map((item) => ({ item, start: new Date(item.start_at), end: new Date(item.end_at) }))
+        .filter((row) => !Number.isNaN(row.start.getTime()) && !Number.isNaN(row.end.getTime()) && row.end > row.start)
+        .filter((row) => row.end > now || (row.start <= now && now < row.end))
+        .sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
+function splitNowNext(spans, now) {
+    const current = spans
+        .filter((row) => row.start <= now && now < row.end)
+        .sort((a, b) => b.start - a.start);
+    const upcoming = spans.filter((row) => row.start > now && row.item.status !== 'done' && row.item.status !== 'skipped');
+    const active = current[0] || null;
+    if (active) {
+        const next = upcoming[0] || null;
+        const rest = current.slice(1).concat(upcoming.filter((row) => row !== next));
+        return { now: active, nowKind: 'current', next, rest };
+    }
+    const head = upcoming[0] || null;
+    const next = upcoming[1] || null;
+    return { now: head, nowKind: head ? 'upcoming' : 'empty', next, rest: upcoming.slice(2) };
+}
+
+function minutesUntil(start, now) {
+    return Math.max(0, Math.round((start - now) / 60000));
+}
+
+function untilPhrase(mins) {
+    if (mins < 1) return 'now';
+    if (mins < 60) return `in ${mins}m`;
+    const hours = Math.floor(mins / 60);
+    const rest = mins % 60;
+    return rest ? `in ${hours}h ${rest}m` : `in ${hours}h`;
+}
+
+function spanAttrs(item) {
+    const kind = item.kind === 'hard' ? 'hard' : item.kind === 'focus' ? 'focus' : 'work';
+    const days = Array.isArray(item.recurrence?.weekdays) ? item.recurrence.weekdays.join(',') : '';
+    const focusItems = kind === 'focus' ? escapeAttr(JSON.stringify(item.items || [])) : '';
+    const focusNotes = kind === 'focus' ? escapeAttr(JSON.stringify(item.notes || [])) : '';
+    return `data-kind="${kind}" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-start-at="${utils.escapeHtml(item.start_at || '')}" data-end-at="${utils.escapeHtml(item.end_at || '')}" data-work-item-id="${utils.escapeHtml(item.work_item_id || '')}" data-occurrence-date="${utils.escapeHtml(item.occurrence_date || item.local_date || '')}" data-weekdays="${utils.escapeHtml(days)}" data-status="${utils.escapeHtml(item.status || '')}" data-focus-items="${focusItems}" data-focus-notes="${focusNotes}"`;
+}
+
+function renderSpanRow(row, { kicker, done = false } = {}) {
+    const item = row.item;
+    const title = shortTitle(item.title || '', item.kind === 'hard' ? 'Meeting' : 'To do');
+    const doneBtn = done
+        ? `<button type="button" class="btn-ghost" data-act="done-span" ${spanAttrs(item)}>Done</button>`
+        : '';
+    return `<div class="cal-span-row">
+        <button type="button" class="cal-span-hit" ${spanAttrs(item)}>
+            <span class="cal-span-kicker">${utils.escapeHtml(kicker)}</span>
+            <strong>${utils.escapeHtml(title)}</strong>
+        </button>
+        ${doneBtn}
+    </div>`;
+}
+
 function renderTodayRail(today) {
     const root = document.getElementById('calTodayRail');
     if (!root) return;
@@ -490,51 +550,75 @@ function renderTodayRail(today) {
         return;
     }
     root.setAttribute('data-date', today.date || '');
+    const now = new Date();
     const overdue = today.overdue || [];
     const work = today.work || [];
     const dues = today.dues || [];
-    const items = today.items || [];
-    const appointments = items.filter((item) => item.kind === 'hard' && item.start_at && item.end_at);
+    const split = splitNowNext(clockSpans(today.items || [], now), now);
+    const placedIds = new Set(
+        [split.now, split.next, ...split.rest]
+            .filter(Boolean)
+            .map((row) => row.item.work_item_id)
+            .filter(Boolean),
+    );
+    const unscheduled = work.filter((row) => !placedIds.has(row.id));
+    const nowHtml = split.now
+        ? renderSpanRow(split.now, {
+            kicker: split.nowKind === 'current'
+                ? `Now · ${agendaTime(split.now.item)}`
+                : `${untilPhrase(minutesUntil(split.now.start, now))} · ${agendaTime(split.now.item)}`,
+            done: split.nowKind === 'current' && split.now.item.status !== 'done',
+        })
+        : '<p class="cal-due-empty">Nothing on the clock.</p>';
+    let nextHtml = split.next
+        ? renderSpanRow(split.next, { kicker: agendaTime(split.next.item) })
+        : '<p class="cal-due-empty">Nothing after that.</p>';
+    if (split.nowKind === 'current' && split.next) {
+        const gap = Math.round((split.next.start - split.now.end) / 60000);
+        if (gap < 10) nextHtml += '<p class="cal-next-note">Back to back</p>';
+    }
     const overdueHtml = overdue.length
         ? `<h4>Overdue</h4><div class="cal-due-list">${overdue.map((due) => renderDueChip(due)).join('')}</div>`
         : '';
-    const workHtml = work.length
-        ? work.map((row) => renderWorkRow(row, { action: 'park' })).join('')
+    const laterParts = [];
+    if (unscheduled.length) laterParts.push(unscheduled.map((row) => renderWorkRow(row, { action: 'park' })).join(''));
+    if (split.rest.length) {
+        laterParts.push(split.rest.map((row) => renderSpanRow(row, { kicker: agendaTime(row.item) })).join(''));
+    }
+    if (dues.length) {
+        laterParts.push(`<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`);
+    }
+    const laterHtml = laterParts.length
+        ? laterParts.join('')
         : '<p class="cal-due-empty">Nothing dated today.</p>';
-    const duesHtml = dues.length
-        ? `<h4>Due today</h4><div class="cal-due-list">${dues.map((due) => renderDueChip(due)).join('')}</div>`
-        : '';
-    const clockHtml = appointments.length
-        ? `<ul class="cal-today-agenda">${appointments.map((item) => {
-            const outcome = item.status === 'done' ? ' is-done' : (item.status === 'missed' || item.status === 'skipped' ? ' is-missed' : '');
-            const days = Array.isArray(item.recurrence?.weekdays) ? item.recurrence.weekdays.join(',') : '';
-            return `<li class="is-hard${outcome}"><button type="button" class="cal-today-clock" data-kind="hard" data-id="${utils.escapeHtml(item.id || '')}" data-title="${utils.escapeHtml(item.title || '')}" data-start-at="${utils.escapeHtml(item.start_at || '')}" data-end-at="${utils.escapeHtml(item.end_at || '')}" data-occurrence-date="${utils.escapeHtml(item.occurrence_date || '')}" data-weekdays="${utils.escapeHtml(days)}" data-status="${utils.escapeHtml(item.status || '')}"><span>${utils.escapeHtml(agendaTime(item))}</span><b>${utils.escapeHtml(shortTitle(item.title || '', 'Meeting'))}</b></button></li>`;
-        }).join('')}</ul>`
-        : '<p class="cal-due-empty">Nothing on the clock.</p>';
     root.innerHTML = `
         <header>
             <p class="eyebrow">Today</p>
             <h3>${utils.escapeHtml(today.label || today.weekday || 'Today')}</h3>
         </header>
-        <h4>On the clock</h4>
-        ${clockHtml}
-        <h4>Today</h4>
-        ${workHtml}
         <div class="work-add-row cal-today-add">
-            <input type="text" id="calTodayAdd" class="checklist-text-input" placeholder="Add for today" autocomplete="off">
+            <input type="text" id="calTodayAdd" class="checklist-text-input" placeholder="Call Priya fri 25m, or 14:30" autocomplete="off" aria-label="Add a to-do">
             <button type="button" id="calTodayAddBtn" class="btn-ghost">Add</button>
         </div>
-        <h4>Park</h4>
-        <div class="work-add-row cal-today-add">
-            <input type="text" id="calTodayPark" class="checklist-text-input" placeholder="No day yet" autocomplete="off" aria-label="Park">
-            <button type="button" id="calTodayParkBtn" class="btn-ghost">Park</button>
-        </div>
-        ${duesHtml}
+        <h4>Now</h4>
+        ${nowHtml}
+        <h4>Next</h4>
+        ${nextHtml}
         ${overdueHtml}
+        <h4>Later today</h4>
+        ${laterHtml}
     `;
     bindWorkRows(root);
-    root.querySelectorAll('.cal-today-clock').forEach((btn) => {
+    bindDueChips(root);
+    root.querySelectorAll('.cal-span-hit').forEach((btn) => {
         btn.addEventListener('click', () => openEditorFromBlock(btn));
+    });
+    root.querySelectorAll('[data-act="done-span"]').forEach((btn) => {
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void doneSpan(btn);
+        });
     });
     document.getElementById('calTodayAddBtn')?.addEventListener('click', () => {
         void addTodayFromRail();
@@ -543,15 +627,6 @@ function renderTodayRail(today) {
         if (e.key === 'Enter') {
             e.preventDefault();
             void addTodayFromRail();
-        }
-    });
-    document.getElementById('calTodayParkBtn')?.addEventListener('click', () => {
-        void parkFromRail();
-    });
-    document.getElementById('calTodayPark')?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            void parkFromRail();
         }
     });
 }
@@ -676,13 +751,37 @@ async function addTodayFromRail() {
     const title = input?.value?.trim() || '';
     if (!title) return;
     try {
-        await dayCommand('/api/work/create', { title, date: utils.localISODate() });
+        const saved = await dayCommand('/api/work/create', { title, date: utils.localISODate() });
         if (input) input.value = '';
-        utils.showSuccessFeedback('Added to Today.');
+        utils.showSuccessFeedback(saved?.summary || 'Added.');
+        utils.notifyDataChanged();
+        await loadCalendar();
+        document.getElementById('calTodayAdd')?.focus();
+    } catch (e) {
+        utils.showErrorFeedback(e?.message || 'Could not add that.');
+    }
+}
+
+async function doneSpan(btn) {
+    const kind = btn.getAttribute('data-kind') || '';
+    const id = btn.getAttribute('data-id') || '';
+    const workId = btn.getAttribute('data-work-item-id') || '';
+    const occ = btn.getAttribute('data-occurrence-date') || '';
+    if (!id) return;
+    try {
+        if (kind === 'hard') {
+            await callEel('set_bar_outcome', id, 'attended', occ);
+        } else if (workId) {
+            await callEel('finish_work_item', workId);
+            await callEel('set_block_status', id, 'done');
+        } else {
+            await callEel('set_block_status', id, 'done');
+        }
+        utils.showSuccessFeedback('Done.');
         utils.notifyDataChanged();
         await loadCalendar();
     } catch (e) {
-        utils.showErrorFeedback(e?.message || 'Could not add that to Today.');
+        utils.showErrorFeedback(e?.message || 'Could not mark that done.');
     }
 }
 
@@ -690,19 +789,14 @@ async function parkNamed(title, input) {
     const clean = String(title || '').trim();
     if (!clean) return;
     try {
-        await dayCommand('/api/work/park', { title: clean });
+        const saved = await dayCommand('/api/work/park', { title: clean });
         if (input) input.value = '';
-        utils.showSuccessFeedback('Parked.');
+        utils.showSuccessFeedback(saved?.summary || 'Parked.');
         utils.notifyDataChanged();
         await loadCalendar();
     } catch (e) {
         utils.showErrorFeedback(e?.message || 'Could not park that.');
     }
-}
-
-async function parkFromRail() {
-    const input = document.getElementById('calTodayPark');
-    await parkNamed(input?.value, input);
 }
 
 async function parkFromAside() {
